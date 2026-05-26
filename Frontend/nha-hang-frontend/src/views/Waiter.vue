@@ -219,7 +219,7 @@
 
         <div class="invoice-content">
           <div class="invoice-brand">
-            <h1>FPOLY <span>RESTAURANT</span></h1>
+            <h1>Mộc Vị <span>RESTAURANT</span></h1>
             <p>Hóa Đơn Tạm Tính</p>
             <div class="brand-address">Bàn: {{ selectedTableName }}</div>
           </div>

@@ -6,7 +6,7 @@
         <div class="logo" @click="$router.push('/')">
           <span class="logo-icon">🍽️</span>
           <div class="logo-text">
-            <h2>NHÀ HÀNG FPOLY</h2>
+            <h2>NHÀ HÀNG MỘC VỊ</h2>
             <p>ĐÀ NẴNG</p>
           </div>
         </div>
@@ -61,7 +61,7 @@
       <div class="hero-overlay"></div>
       <div class="hero-content">
         <div class="hero-tag">✦ {{ $t('home.title') }}</div>
-        <h1>Nhà Hàng<br><span>FPOLY</span></h1>
+        <h1>Nhà Hàng<br><span>Mộc Vị</span></h1>
         <p>{{ $t('home.subtitle') }}</p>
         <div class="hero-actions">
           <button @click="$router.push('/dine-in')" class="btn-hero-primary">
@@ -101,7 +101,7 @@
             <span class="meta-tag">Tin nổi bật</span>
             <span class="meta-date">🕒 {{ currentDate }}</span>
           </div>
-          <h2 class="article-title">Trải nghiệm ẩm thực Việt tại nhà hàng FPoly Đà Nẵng</h2>
+          <h2 class="article-title">Trải nghiệm ẩm thực Việt tại NHÀ HÀNG MỘC VỊ Đà Nẵng</h2>
           <p class="article-excerpt">
             Với không gian thoáng đãng, đậm chất kiến trúc truyền thống và thực đơn phong phú
             quy tụ tinh hoa ẩm thực ba miền, nhà hàng chúng tôi mang đến cho thực khách những
@@ -230,7 +230,7 @@
         <div class="section-header-block">
           <span class="section-tag recruit-tag">💼 Tuyển Dụng</span>
           <h2>Cơ Hội Nghề Nghiệp</h2>
-          <p>Gia nhập đội ngũ FPOLY Restaurant — nơi kiến tạo sự nghiệp ẩm thực</p>
+          <p>Gia nhập đội ngũ MỘC VỊ RESTAURANT — nơi kiến tạo sự nghiệp ẩm thực</p>
         </div>
         <div class="recruit-list">
           <div v-for="post in recruitPosts" :key="post.id" class="recruit-card">
@@ -604,7 +604,7 @@ const submitApplication = async () => {
 const showSupportChat = ref(false);
 const supportInput = ref('');
 const supportMessages = ref([
-  { type: 'bot', text: 'Chào bạn! Mình là trợ lý ảo của FPOLY Restaurant. Mình có thể giúp gì cho bạn? (VD: giờ mở cửa, đặt bàn, địa chỉ)' }
+  { type: 'bot', text: 'Chào bạn! Mình là trợ lý ảo của MỘC VỊ RESTAURANT. Mình có thể giúp gì cho bạn? (VD: giờ mở cửa, đặt bàn, địa chỉ)' }
 ]);
 const supportChatBody = ref(null);
 
@@ -756,9 +756,9 @@ const interviewMessages = ref([]);
 const interviewChatBody = ref(null);
 
 const interviewQuestions = [
-  "Chào bạn, rất vui vì bạn quan tâm đến FPOLY Restaurant. Bạn hãy giới thiệu ngắn gọn về bản thân nhé?",
+  "Chào bạn, rất vui vì bạn quan tâm đến MỘC VỊ RESTAURANT. Bạn hãy giới thiệu ngắn gọn về bản thân nhé?",
   "Cảm ơn bạn! Bạn đã có kinh nghiệm làm việc trong lĩnh vực F&B (Nhà hàng/Cafe) chưa?",
-  "Rất tốt! Vậy tại sao bạn lại muốn ứng tuyển vào vị trí này tại FPOLY Restaurant?",
+  "Rất tốt! Vậy tại sao bạn lại muốn ứng tuyển vào vị trí này tại MỘC VỊ RESTAURANT?",
   "Nếu gặp một khách hàng khó tính phàn nàn về món ăn, bạn sẽ xử lý như thế nào?",
   "Câu hỏi cuối cùng: Bạn có thể làm việc xoay ca (sáng/tối) không?"
 ];
@@ -768,7 +768,7 @@ const startInterview = () => {
   showInterviewChat.value = true;
   interviewMessages.value = [];
   setTimeout(() => {
-    interviewMessages.value.push({ type: 'bot', text: "Chào bạn, mình là Giám đốc Nhân sự của FPOLY Restaurant. Rất vui được trao đổi với bạn hôm nay! Bạn có thể giới thiệu sơ qua về bản thân và vị trí mà bạn mong muốn ứng tuyển được không?" });
+    interviewMessages.value.push({ type: 'bot', text: "Chào bạn, mình là Giám đốc Nhân sự của MỘC VỊ RESTAURANT. Rất vui được trao đổi với bạn hôm nay! Bạn có thể giới thiệu sơ qua về bản thân và vị trí mà bạn mong muốn ứng tuyển được không?" });
   }, 500);
 };
 

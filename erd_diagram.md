@@ -1,6 +1,6 @@
-# Sơ đồ Cơ Sở Dữ Liệu (ERD) - FPOLY RESTAURANT
+# Sơ đồ Cơ Sở Dữ Liệu (ERD) - MỘC VỊ RESTAURANT
 
-Dưới đây là sơ đồ thực thể mối quan hệ (ERD) mô phỏng cấu trúc database của hệ thống quản lý nhà hàng FPOLY, dựa trên các Entity của backend Spring Boot.
+Dưới đây là sơ đồ thực thể mối quan hệ (ERD) mô phỏng cấu trúc database của hệ thống quản lý NHÀ HÀNG MỘC VỊ, dựa trên các Entity của backend Spring Boot.
 
 ```mermaid
 erDiagram

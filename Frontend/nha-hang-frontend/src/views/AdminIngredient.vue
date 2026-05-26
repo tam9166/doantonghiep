@@ -2,7 +2,7 @@
   <div class="admin-wrapper">
     <header class="g-navbar" v-if="!isKitchenOnly">
       <div class="g-logo">
-        <h2>FPOLY <span>RESTAURANT</span></h2>
+        <h2>Mộc Vị <span>RESTAURANT</span></h2>
         <p>Admin Dashboard</p>
       </div>
       <nav class="g-nav-links">
@@ -21,7 +21,7 @@
 
     <header class="g-navbar" v-else>
       <div class="g-logo">
-        <h2>FPOLY <span>RESTAURANT</span></h2>
+        <h2>Mộc Vị <span>RESTAURANT</span></h2>
         <p>Kitchen Inventory</p>
       </div>
       <nav class="g-nav-links">

@@ -4,7 +4,7 @@
       <div class="header-left">
         <span class="header-icon">👨‍🍳</span>
         <div>
-          <h1>BẾP — FPOLY RESTAURANT</h1>
+          <h1>BẾP — MỘC VỊ RESTAURANT</h1>
           <p class="header-sub">Đơn cần nấu: <strong>{{ pendingOrders.length }}</strong> | Tổng món: <strong>{{ totalDishes }}</strong></p>
         </div>
       </div>

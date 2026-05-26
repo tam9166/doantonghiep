@@ -5,7 +5,7 @@
         <div class="logo" @click="$router.push('/')">
           <span class="logo-icon">🍽️</span>
           <div>
-            <h2>NHÀ HÀNG FPOLY</h2>
+            <h2>NHÀ HÀNG MỘC VỊ</h2>
             <p>ĐÀ NẴNG</p>
           </div>
         </div>
@@ -27,7 +27,7 @@
       <div v-if="userProfile" class="vip-card-wrapper">
         <div :class="['vip-card', getTierClass(userProfile.membershipTier)]">
           <div class="vip-top">
-            <span class="vip-logo">👑 FPOLY VIP</span>
+            <span class="vip-logo">👑 Mộc Vị VIP</span>
             <span class="vip-tier">{{ userProfile.membershipTier }}</span>
           </div>
           <div class="vip-chip">💳</div>

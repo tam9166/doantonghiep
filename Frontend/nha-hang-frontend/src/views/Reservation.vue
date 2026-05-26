@@ -4,7 +4,7 @@
       <div class="nav-container">
         <div class="logo" @click="$router.push('/')">
           <span class="logo-icon">🍽️</span>
-          <h2>FPOLY <span class="gold-text">RESTAURANT</span></h2>
+          <h2>Mộc Vị <span class="gold-text">RESTAURANT</span></h2>
         </div>
         <nav class="nav-links">
           <router-link to="/">Trang chủ</router-link>

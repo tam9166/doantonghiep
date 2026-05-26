@@ -9,7 +9,7 @@
       <!-- Logo / Brand -->
       <div class="brand">
         <div class="brand-icon">🍽️</div>
-        <h1>FPOLY <span>RESTAURANT</span></h1>
+        <h1>Mộc Vị <span>RESTAURANT</span></h1>
         <p>Hệ Thống Quản Lý Nhà Hàng</p>
       </div>
 

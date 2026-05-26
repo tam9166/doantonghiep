@@ -2,7 +2,7 @@
   <div class="admin-wrapper luxury-theme">
     <header class="g-navbar">
       <div class="g-logo">
-        <h2>FPOLY <span>RESTAURANT</span></h2>
+        <h2>Mộc Vị <span>RESTAURANT</span></h2>
         <p>Premium Analytics & Invoices</p>
       </div>
       <nav class="g-nav-links">
@@ -146,11 +146,11 @@
 
           <div class="invoice-content">
             <div class="invoice-brand">
-              <h1>FPOLY <span>RESTAURANT</span></h1>
+              <h1>Mộc Vị <span>RESTAURANT</span></h1>
               <p>Luxury Dining Experience</p>
               <div class="brand-address">
                 Địa chỉ: 137 Nguyễn Thị Thập, Hòa Minh, Liên Chiểu, Đà Nẵng<br>
-                Hotline: 0905.XXX.XXX | Email: contact@fpolyrestaurant.vn
+                Hotline: 0905.XXX.XXX | Email: contact@Mộc Vịrestaurant.vn
               </div>
             </div>
 
@@ -211,7 +211,7 @@
 
             <div class="invoice-footer">
               <p class="thanks-msg">Thank you for dining with us!</p>
-              <p class="system-msg">Hóa đơn được tạo tự động bởi hệ thống FPOLY Restaurant System</p>
+              <p class="system-msg">Hóa đơn được tạo tự động bởi hệ thống MỘC VỊ RESTAURANT System</p>
             </div>
           </div>
 

@@ -5,7 +5,7 @@
         <div class="logo" @click="$router.push('/')">
           <span class="logo-icon">🍽️</span>
           <div>
-            <h2>NHÀ HÀNG FPOLY</h2>
+            <h2>NHÀ HÀNG MỘC VỊ</h2>
             <p>ĐÀ NẴNG</p>
           </div>
         </div>

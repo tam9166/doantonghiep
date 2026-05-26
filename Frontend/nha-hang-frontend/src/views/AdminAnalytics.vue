@@ -2,7 +2,7 @@
   <div class="admin-wrapper luxury-theme">
     <header class="g-navbar">
       <div class="g-logo">
-        <h2>FPOLY <span>RESTAURANT</span></h2>
+        <h2>Mộc Vị <span>RESTAURANT</span></h2>
         <p>Premium Analytics Dashboard</p>
       </div>
       <nav class="g-nav-links">

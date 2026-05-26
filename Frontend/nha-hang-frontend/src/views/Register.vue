@@ -7,7 +7,7 @@
     <div class="register-container">
       <div class="brand">
         <div class="brand-icon">🍽️</div>
-        <h1>FPOLY <span>RESTAURANT</span></h1>
+        <h1>Mộc Vị <span>RESTAURANT</span></h1>
         <p>Tạo Tài Khoản Mới</p>
       </div>
 
