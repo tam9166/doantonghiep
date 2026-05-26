@@ -110,7 +110,7 @@
 
     <!-- Giỏ hàng Modal -->
     <div v-if="showModal" class="g-modal-overlay" @click.self="showModal = false">
-      <div class="g-modal-box" style="max-width: 550px;">
+      <div class="g-modal-box" style="max-width: 550px; max-height: 90vh; overflow-y: auto;">
         <h3>Xác Nhận Đặt Món</h3>
         
         <div class="cart-details" style="max-height: 150px; overflow-y: auto; margin-bottom: 15px; padding-right: 10px;">
@@ -129,15 +129,15 @@
         </div>
 
         <div class="cart-total" style="margin-top: 20px; text-align: center;">
-          <p style="color: var(--text-primary); font-weight: bold; margin-bottom: 5px;">Tổng cộng: {{ cartTotal.toLocaleString() }}đ</p>
-          <p v-if="voucherDiscountPercent > 0" style="color: #2ecc71; font-weight: bold; margin-bottom: 5px;">
-            Giảm giá ({{ voucherDiscountPercent }}%): -{{ discountAmount.toLocaleString() }}đ
+          <p style="color: var(--text-primary); font-weight: bold; margin-bottom: 5px;">Tổng cộng: {{ cartSubtotal.toLocaleString() }}đ</p>
+          <p v-if="discountAmount > 0" style="color: #2ecc71; font-weight: bold; margin-bottom: 5px;">
+            Giảm giá: -{{ discountAmount.toLocaleString() }}đ
           </p>
           <h4 style="color: var(--primary); font-size: 1.4rem; margin-top: 10px; border-top: 1px dashed rgba(0,212,170,0.3); padding-top: 10px;">Thành tiền: {{ finalTotal.toLocaleString() }}đ</h4>
         </div>
 
         <div class="qr-container" style="text-align: center; margin: 20px 0;">
-          <img :src="vietQrUrl" alt="VietQR" style="width: 250px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.5);" />
+          <img :src="vietQrUrl" alt="VietQR" style="width: 180px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.5);" />
         </div>
 
         <div class="form-group mt-3">
@@ -147,7 +147,7 @@
 
         <div class="modal-actions mt-4" style="display: flex; gap: 10px;">
           <button @click="showModal = false" class="g-btn-outline" style="flex:1;">Quay lại</button>
-          <button @click="submitOrder" class="g-btn-primary" style="flex:1;">Gửi Đơn Cho Bếp</button>
+          <button @click="submitOrder" class="g-btn-primary" style="flex:1;">Xác nhận đặt</button>
         </div>
       </div>
     </div>
@@ -195,11 +195,27 @@ const groupedTables = computed(() => {
 
 const totalItems = computed(() => cart.value.reduce((sum, item) => sum + item.quantity, 0));
 const cartSubtotal = computed(() => cart.value.reduce((sum, item) => sum + (item.price * item.quantity), 0));
-const cartTotal = computed(() => {
+
+const discountAmount = computed(() => {
   let discount = tierDiscount.value;
   if (voucherDiscountPercent.value > 0) discount += (voucherDiscountPercent.value / 100);
   if (discount > 1) discount = 1;
-  return cartSubtotal.value * (1 - discount);
+  return cartSubtotal.value * discount;
+});
+
+const finalTotal = computed(() => {
+  return cartSubtotal.value - discountAmount.value;
+});
+
+const cartTotal = computed(() => finalTotal.value);
+
+const vietQrUrl = computed(() => {
+  const bank = 'vietcombank';
+  const accountNo = '1047187126';
+  const accountName = 'NGUYEN QUANG NHAT';
+  const amount = finalTotal.value;
+  const addInfo = encodeURIComponent(`Thanh toan ban ${selectedTable.value || 'KH'}`);
+  return `https://img.vietqr.io/image/${bank}-${accountNo}-compact2.png?amount=${amount}&addInfo=${addInfo}&accountName=${encodeURIComponent(accountName)}`;
 });
 
 // AI Suggestion Logic
@@ -407,7 +423,7 @@ const submitOrder = async () => {
       items: formattedItems
     }, { headers: { 'Authorization': `Bearer ${token}` } });
 
-    alert("🎉 Đã gửi đơn thành công! Bếp đang chuẩn bị món cho bạn.");
+    alert("🎉 Chúc mừng bạn đã đặt món thành công!");
     cart.value = [];
     showModal.value = false;
     router.push('/'); 

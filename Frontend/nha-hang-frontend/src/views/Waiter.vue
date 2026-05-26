@@ -1147,6 +1147,7 @@ onUnmounted(() => {
 }
 .invoice-modal {
   background: white; color: #000; width: 320px; border-radius: 8px; overflow: hidden;
+  max-height: 90vh; display: flex; flex-direction: column;
 }
 .modal-header {
   background: var(--bg-nav); color: white; display: flex; justify-content: space-between; padding: 14px 18px; align-items: center;
@@ -1162,7 +1163,7 @@ onUnmounted(() => {
   max-height: 60vh;
 }
 
-.invoice-content { padding: 20px; font-family: monospace; font-size: 0.9rem; }
+.invoice-content { padding: 20px; font-family: monospace; font-size: 0.9rem; overflow-y: auto; }
 .invoice-brand { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 10px; }
 .invoice-brand h1 { margin: 0; font-size: 1.2rem; }
 .print-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
