@@ -31,6 +31,7 @@
 
           <template v-else>
             <button @click="$router.push('/history')" class="btn-nav">📜 Lịch sử</button>
+            <button @click="$router.push('/profile')" class="btn-nav">👤 Hồ sơ</button>
 
             <button
               v-if="user && (user.roles.includes('ROLE_ADMIN') || user.roles.includes('ROLE_MANAGER'))"

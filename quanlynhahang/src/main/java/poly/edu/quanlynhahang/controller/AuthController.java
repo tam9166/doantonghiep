@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.RestController;
 import poly.edu.quanlynhahang.dto.JwtResponse;
 import poly.edu.quanlynhahang.dto.LoginRequest;
 import poly.edu.quanlynhahang.dto.SignupRequest;
+import poly.edu.quanlynhahang.dto.UpdateProfileRequest;
+import poly.edu.quanlynhahang.dto.ChangePasswordRequest;
 import poly.edu.quanlynhahang.entity.Account;
 import poly.edu.quanlynhahang.entity.Authority;
 import poly.edu.quanlynhahang.entity.Role;
@@ -138,6 +140,39 @@ public class AuthController {
                 "newPoints", newPoints,
                 "newTier", newTier
             ));
+        }
+        return ResponseEntity.badRequest().body("Lỗi: Không tìm thấy tài khoản");
+    }
+
+    // API 5: CẬP NHẬT THÔNG TIN CÁ NHÂN
+    @org.springframework.web.bind.annotation.PutMapping("/profile")
+    public ResponseEntity<?> updateProfile(@RequestBody UpdateProfileRequest updateRequest) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        java.util.Optional<Account> accOpt = accountRepository.findById(username);
+        if (accOpt.isPresent()) {
+            Account acc = accOpt.get();
+            acc.setFullname(updateRequest.getFullname());
+            acc.setEmail(updateRequest.getEmail());
+            accountRepository.save(acc);
+            return ResponseEntity.ok("Cập nhật thông tin thành công!");
+        }
+        return ResponseEntity.badRequest().body("Lỗi: Không tìm thấy tài khoản");
+    }
+
+    // API 6: ĐỔI MẬT KHẨU
+    @org.springframework.web.bind.annotation.PutMapping("/password")
+    public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequest request) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        java.util.Optional<Account> accOpt = accountRepository.findById(username);
+        if (accOpt.isPresent()) {
+            Account acc = accOpt.get();
+            // Trong dự án này mật khẩu lưu plain text
+            if (!acc.getPassword().equals(request.getOldPassword())) {
+                return ResponseEntity.badRequest().body("Mật khẩu cũ không chính xác!");
+            }
+            acc.setPassword(request.getNewPassword());
+            accountRepository.save(acc);
+            return ResponseEntity.ok("Đổi mật khẩu thành công!");
         }
         return ResponseEntity.badRequest().body("Lỗi: Không tìm thấy tài khoản");
     }

@@ -1181,10 +1181,22 @@ onUnmounted(() => {
 .btn-export { background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; width: 100%; }
 
 @media print {
-  body * { visibility: hidden; }
-  .printable-area, .printable-area * { visibility: visible; }
-  .printable-area { position: absolute; left: 0; top: 0; width: 80mm; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html, body { height: auto; overflow: visible !important; }
+  body > * { display: none !important; }
+  .modal-overlay { display: flex !important; position: static !important; background: none !important; padding: 0 !important; }
+  .printable-area {
+    display: block !important;
+    position: static !important;
+    width: 80mm !important;
+    max-height: none !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    margin: 0 auto;
+  }
   .hide-on-print { display: none !important; }
+  .modal-overlay { background: none !important; backdrop-filter: none !important; }
 }
 
 /* Modal Chuyển Bàn */

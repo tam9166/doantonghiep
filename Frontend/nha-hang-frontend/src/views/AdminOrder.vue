@@ -83,6 +83,14 @@
         <h3 class="section-title hide-on-print">📋 Danh Sách Nhật Ký Hóa Đơn</h3>
         <div class="table-responsive">
           <table class="g-table">
+            <colgroup>
+              <col style="width: 100px" />
+              <col style="width: 160px" />
+              <col style="width: auto" />
+              <col style="width: 160px" />
+              <col style="width: 130px" />
+              <col style="width: 170px" />
+            </colgroup>
             <thead>
               <tr>
                 <th>MÃ ĐƠN</th>
@@ -95,11 +103,11 @@
             </thead>
             <tbody>
               <tr v-for="order in filteredOrders" :key="order.id" class="invoice-row">
-                <td>
+                <td class="col-code">
                   <span class="code-badge">#{{ getOrderCode(order) }}</span>
                 </td>
                 <td class="customer-cell">👤 {{ order.account?.fullname || order.username || 'Khách Vãng Lai' }}</td>
-                <td>
+                <td class="col-detail">
                   <div class="address-text">{{ cleanAddress(order.address) }}</div>
                   <div v-if="order.status === 5" class="scheduled-badge">
                     ⏰ {{ getCountdown(order.address) }}
@@ -439,6 +447,27 @@ onMounted(() => {
 }
 .table-responsive { overflow-x: auto; }
 
+/* Fix table layout for uniform rows */
+.g-table {
+  table-layout: fixed;
+  width: 100%;
+}
+.g-table th, .g-table td {
+  vertical-align: middle;
+  padding: 14px 12px;
+}
+.g-table tbody tr {
+  border-bottom: 1px solid var(--border-light);
+}
+.g-table tbody tr:hover {
+  background: rgba(255,255,255,0.03);
+}
+.col-code { text-align: center; }
+.col-detail {
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+}
+
 .code-badge {
   background: var(--primary-glow); color: var(--primary);
   border: 1px solid var(--border);
@@ -446,8 +475,23 @@ onMounted(() => {
   font-family: monospace; font-size: 0.95rem; font-weight: 800;
 }
 .customer-cell { font-weight: 600; color: var(--text-primary); }
-.address-text { font-size: 0.9rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 6px; }
-.food-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.address-text {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.food-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  max-height: 80px;
+  overflow-y: auto;
+}
 .food-tag {
   background: var(--bg-input); border: 1px solid var(--border-light);
   color: var(--text-secondary); padding: 3px 8px;
@@ -571,9 +615,22 @@ onMounted(() => {
 .btn-export:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,212,170,0.4); }
 
 @media print {
-  body * { visibility: hidden; }
-  .printable-area, .printable-area * { visibility: visible; }
-  .printable-area { position: absolute; left: 0; top: 0; width: 100%; max-height: none; box-shadow: none; border-radius: 0; background: white; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html, body { height: auto; overflow: visible !important; }
+  body > * { display: none !important; }
+  .modal-overlay { display: flex !important; position: static !important; background: none !important; backdrop-filter: none !important; padding: 0 !important; }
+  .printable-area {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 860px !important;
+    max-height: none !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    margin: 0 auto;
+    background: white !important;
+  }
   .hide-on-print { display: none !important; }
 }
 </style>

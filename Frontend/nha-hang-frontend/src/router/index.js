@@ -13,6 +13,7 @@ import DineInOrder from '../views/DineInOrder.vue'
 import Kitchen from '../views/Kitchen.vue'
 import Waiter from '../views/Waiter.vue'
 import AdminAnalytics from '@/views/AdminAnalytics.vue'
+import CustomerProfile from '@/views/CustomerProfile.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -22,6 +23,7 @@ const router = createRouter({
     { path: '/register', name: 'register', component: Register },
     { path: '/menu', name: 'menu', component: ProductMenu },
     { path: '/history', name: 'history', component: OrderHistory },
+    { path: '/profile', name: 'profile', component: CustomerProfile },
     { path: '/admin', name: 'admin', component: AdminProduct },
     { path: '/admin/orders', name: 'admin-orders', component: AdminOrder },
     { path: '/admin/analytics', name: 'admin-analytics', component: AdminAnalytics },
@@ -54,7 +56,7 @@ router.beforeEach((to, from) => {
   }
 
   // 1. NGĂN NHÂN VIÊN LÀM VIỆC RIÊNG (Chỉ Admin/Manager mới được xem trang khách)
-  const customerRoutes = ['/', '/reservation', '/history']
+  const customerRoutes = ['/', '/reservation', '/history', '/profile']
   if (customerRoutes.includes(to.path)) {
     if (userRoles.includes('ROLE_KITCHEN') && !userRoles.includes('ROLE_ADMIN')) {
       alert('Bạn là nhân viên Bếp, vui lòng làm việc tại khu vực Bếp!')

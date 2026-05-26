@@ -21,6 +21,7 @@
           </template>
           <template v-else>
             <button @click="$router.push('/history')" class="btn-nav-outline">📜 Lịch Sử</button>
+            <button @click="$router.push('/profile')" class="btn-nav-outline">👤 Hồ sơ</button>
             <button @click="showCheckoutModal = true" class="btn-cart">
               🛒 Giỏ hàng ({{ cart.length }})
             </button>
