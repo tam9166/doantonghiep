@@ -1,0 +1,148 @@
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+<meta charset="utf-8">
+<title>Báo cáo Công nghệ và Kiến trúc Hệ thống Mộc Vị Restaurant</title>
+<!--[if gte mso 9]>
+<xml>
+ <w:WordDocument>
+  <w:View>Print</w:View>
+  <w:Zoom>100</w:Zoom>
+  <w:DoNotOptimizeForBrowser/>
+ </w:WordDocument>
+</xml>
+<![endif]-->
+<style>
+  @page {
+    size: 8.27in 11.69in; /* A4 size */
+    margin: 1.0in 1.0in 1.0in 1.25in; /* Top, Bottom, Right 2.5cm, Left 3cm */
+  }
+  body {
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 12pt;
+    line-height: 1.3;
+    color: #000000;
+  }
+  h1 {
+    font-size: 16pt;
+    color: #1e3a8a; /* Dark Blue */
+    font-weight: bold;
+    text-align: center;
+    margin-top: 18pt;
+    margin-bottom: 18pt;
+    line-height: 1.4;
+  }
+  h2 {
+    font-size: 14pt;
+    color: #1e3a8a;
+    font-weight: bold;
+    margin-top: 14pt;
+    margin-bottom: 8pt;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 4px;
+  }
+  h3 {
+    font-size: 12.5pt;
+    color: #334155; /* Slate */
+    font-weight: bold;
+    margin-top: 12pt;
+    margin-bottom: 6pt;
+  }
+  p {
+    margin-top: 0;
+    margin-bottom: 8pt;
+    text-align: justify;
+    text-indent: 0.5in; /* Thụt lề đầu dòng */
+  }
+  p.no-indent {
+    text-indent: 0;
+  }
+  ul, ol {
+    margin-top: 0;
+    margin-bottom: 8pt;
+    padding-left: 20px;
+  }
+  li {
+    margin-bottom: 4pt;
+    text-align: justify;
+  }
+  .bold-prefix {
+    font-weight: bold;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-top: 12pt;
+    margin-bottom: 12pt;
+  }
+  th, td {
+    border: 1px solid #334155;
+    padding: 8px 10px;
+    font-size: 11pt;
+    vertical-align: top;
+    text-align: left;
+  }
+  th {
+    background-color: #1e3a8a;
+    color: #ffffff;
+    font-weight: bold;
+    text-align: center;
+  }
+  .table-title {
+    font-weight: bold;
+    font-style: italic;
+    text-align: center;
+    margin-top: 6pt;
+    margin-bottom: 6pt;
+    font-size: 11pt;
+  }
+  .highlight-box {
+    background-color: #f8fafc;
+    border-left: 4px solid #1e3a8a;
+    padding: 10px 15px;
+    margin-bottom: 10pt;
+  }
+</style>
+</head>
+<body>
+  
+  <h1>BÁO CÁO CÔNG NGHỆ VÀ THIẾT KẾ KIẾN TRÚC HỆ THỐNG<br>HỆ THỐNG QUẢN LÝ NHÀ HÀNG MỘC VỊ RESTAURANT</h1>
+  
+  <h2>1. Thiết kế kiến trúc tổng thể dự án</h2>
+  <p>Dự án Quản lý Nhà hàng Mộc Vị được xây dựng theo mô hình kiến trúc phân lớp hiện đại Single Page Application (SPA) giúp tách rời hoàn toàn giao diện người dùng (Frontend) và logic xử lý cốt lõi phía máy chủ (Backend). Mô hình này mang lại khả năng mở rộng hệ thống tốt, tối ưu hóa lưu lượng băng thông truyền tải và cải thiện trải nghiệm mượt mà giống như phần mềm Desktop cài đặt sẵn.</p>
+  <p>Các phương thức trao đổi dữ liệu chính trong kiến trúc:</p>
+  <ul>
+    <li><span class="bold-prefix">RESTful API (JSON):</span> Frontend giao tiếp bất đồng bộ gửi yêu cầu lên Backend và nhận lại phản hồi dữ liệu cấu trúc JSON, giúp cập nhật trang web nhanh chóng mà không cần reload trang.</li>
+    <li><span class="bold-prefix">WebSocket TCP Connection:</span> Duy trì một đường truyền song công liên tục giữa máy chủ và các trình duyệt (Waiter, Kitchen) để truyền tải nhanh các sự kiện real-time như bếp xong món hoặc có đơn hàng mới từ bàn ăn của khách.</li>
+    <li><span class="bold-prefix">Security Filters (State-less):</span> Sử dụng cơ chế xác thực phi trạng thái. Backend không duy trì Session của user trên RAM mà sử dụng chuỗi Token mã hóa JWT đính kèm ở mỗi Request từ client để chứng thực phân quyền API.</li>
+  </ul>
+  
+  <h2>2. Công nghệ phát triển phía Backend (Spring Boot Stack)</h2>
+  <p>Bộ phận Backend xử lý toàn bộ logic tính toán, phân quyền bảo mật, quản trị dữ liệu và tích hợp các dịch vụ bên thứ ba. Công nghệ sử dụng bao gồm:</p>
+  <ul>
+    <li><span class="bold-prefix">Spring Boot (Java 21):</span> Sử dụng phiên bản Java LTS mới nhất mang lại hiệu năng xử lý đa luồng vượt trội, kết hợp tính năng nhúng sẵn Web Server Tomcat giúp việc khởi chạy máy chủ vô cùng đơn giản.</li>
+    <li><span class="bold-prefix">Spring Security & JWT:</span> Quản lý xác thực và phân quyền cực kỳ chặt chẽ cấp độ Method. Sử dụng NoOpPasswordEncoder mã hóa mật khẩu và cơ chế JSON Web Token sinh Token chứa vai trò tài khoản gửi về client.</li>
+    <li><span class="bold-prefix">Spring Data JPA & Hibernate:</span> Công cụ Object-Relational Mapping (ORM) hàng đầu, tự động ánh xạ cơ sở dữ liệu SQL Server thành các đối tượng Java (Entity), bảo vệ mã nguồn tuyệt đối khỏi lỗ hổng SQL Injection.</li>
+    <li><span class="bold-prefix">Spring WebSocket (STOMP):</span> Thiết lập Message Broker nội bộ giúp đăng ký các kênh nhận tin nhắn (/topic/kitchen, /topic/waiter) và đẩy thông tin real-time tới client tức thì.</li>
+    <li><span class="bold-prefix">Google Gemini AI Integration:</span> Sử dụng SDK thế hệ mới của Google để đưa mô hình ngôn ngữ lớn (LLM) vào hệ thống thông qua controller gọi API, hỗ trợ chức năng gợi ý mời món thông minh tại bàn.</li>
+  </ul>
+  
+  <h2>3. Công nghệ phát triển phía Frontend (Vue 3 Stack)</h2>
+  <p>Giao diện người dùng được tối ưu hóa cho cả thiết bị máy tính để bàn (Admin) và thiết bị di động cầm tay (Khách hàng gọi món, Nhân viên phục vụ đi lại tiền sảnh):</p>
+  <ul>
+    <li><span class="bold-prefix">Vue 3 (Composition API):</span> JavaScript Framework hiện đại nhất sử dụng cơ chế Virtual DOM giúp render giao diện siêu tốc, kết hợp cú pháp Composition API giúp cấu trúc code sạch sẽ, dễ bảo trì.</li>
+    <li><span class="bold-prefix">Vite Build Tool:</span> Công cụ build thay thế Webpack mang lại tốc độ biên dịch mã nguồn cực nhanh, tối ưu hóa kích thước file JS đầu ra khi triển khai.</li>
+    <li><span class="bold-prefix">Pinia State Management:</span> State store quản lý tập trung trạng thái đăng nhập tài khoản, quyền hạn user, và thông tin giỏ hàng món ăn xuyên suốt các màn hình.</li>
+    <li><span class="bold-prefix">Axios:</span> Thư viện gửi yêu cầu HTTP Client bất đồng bộ mạnh mẽ, hỗ trợ viết Interceptors để tự động đính kèm Token JWT lấy từ localStorage vào header của mỗi API Request.</li>
+    <li><span class="bold-prefix">SockJS & StompJS:</span> Thư viện JavaScript hỗ trợ kết nối WebSocket ổn định tới máy chủ Spring Boot, tự động reconnect nếu gặp sự cố đứt mạng.</li>
+    <li><span class="bold-prefix">Chart.js:</span> Thư viện vẽ biểu đồ phân tích thống kê doanh số và món ăn bán chạy trực quan, sống động.</li>
+    <li><span class="bold-prefix">VietQR API Integration:</span> API tạo hình ảnh mã QR động tích hợp thông tin hóa đơn giúp thanh toán tự động qua App ngân hàng.</li>
+  </ul>
+  
+  <h2>4. Hệ Quản trị Cơ sở dữ liệu và Hạ tầng vận hành</h2>
+  <ul>
+    <li><span class="bold-prefix">Microsoft SQL Server:</span> Hệ quản trị CSDL quan hệ ổn định của Microsoft, đáp ứng đầy đủ các tiêu chuẩn khắt khe về toàn vẹn ACID của giao dịch thanh toán hóa đơn.</li>
+    <li><span class="bold-prefix">Hạ tầng triển khai:</span> Dự án chạy thử nghiệm hoàn hảo trên môi trường cục bộ Localhost tích hợp máy chủ Tomcat ảo của Spring Boot và máy chủ dev của Vite phục vụ việcPair-Programming và kiểm thử.</li>
+  </ul>
+
+</body>
+</html>

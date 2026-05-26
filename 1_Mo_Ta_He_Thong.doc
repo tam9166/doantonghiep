@@ -1,0 +1,148 @@
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+<meta charset="utf-8">
+<title>Báo cáo Mô tả Hệ thống Mộc Vị Restaurant</title>
+<!--[if gte mso 9]>
+<xml>
+ <w:WordDocument>
+  <w:View>Print</w:View>
+  <w:Zoom>100</w:Zoom>
+  <w:DoNotOptimizeForBrowser/>
+ </w:WordDocument>
+</xml>
+<![endif]-->
+<style>
+  @page {
+    size: 8.27in 11.69in; /* A4 size */
+    margin: 1.0in 1.0in 1.0in 1.25in; /* Top, Bottom, Right 2.5cm, Left 3cm */
+  }
+  body {
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 12pt;
+    line-height: 1.3;
+    color: #000000;
+  }
+  h1 {
+    font-size: 16pt;
+    color: #1e3a8a; /* Dark Blue */
+    font-weight: bold;
+    text-align: center;
+    margin-top: 18pt;
+    margin-bottom: 18pt;
+    line-height: 1.4;
+  }
+  h2 {
+    font-size: 14pt;
+    color: #1e3a8a;
+    font-weight: bold;
+    margin-top: 14pt;
+    margin-bottom: 8pt;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 4px;
+  }
+  h3 {
+    font-size: 12.5pt;
+    color: #334155; /* Slate */
+    font-weight: bold;
+    margin-top: 12pt;
+    margin-bottom: 6pt;
+  }
+  p {
+    margin-top: 0;
+    margin-bottom: 8pt;
+    text-align: justify;
+    text-indent: 0.5in; /* Thụt lề đầu dòng */
+  }
+  p.no-indent {
+    text-indent: 0;
+  }
+  ul, ol {
+    margin-top: 0;
+    margin-bottom: 8pt;
+    padding-left: 20px;
+  }
+  li {
+    margin-bottom: 4pt;
+    text-align: justify;
+  }
+  .bold-prefix {
+    font-weight: bold;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-top: 12pt;
+    margin-bottom: 12pt;
+  }
+  th, td {
+    border: 1px solid #334155;
+    padding: 8px 10px;
+    font-size: 11pt;
+    vertical-align: top;
+    text-align: left;
+  }
+  th {
+    background-color: #1e3a8a;
+    color: #ffffff;
+    font-weight: bold;
+    text-align: center;
+  }
+  .table-title {
+    font-weight: bold;
+    font-style: italic;
+    text-align: center;
+    margin-top: 6pt;
+    margin-bottom: 6pt;
+    font-size: 11pt;
+  }
+  .highlight-box {
+    background-color: #f8fafc;
+    border-left: 4px solid #1e3a8a;
+    padding: 10px 15px;
+    margin-bottom: 10pt;
+  }
+</style>
+</head>
+<body>
+  
+  <h1>BÁO CÁO MÔ TẢ HỆ THỐNG VÀ CHI TIẾT CÁC MÀN HÌNH<br>HỆ THỐNG QUẢN LÝ NHÀ HÀNG MỘC VỊ RESTAURANT</h1>
+  
+  <h2>1. Giới thiệu tổng quan dự án</h2>
+  <p>Hệ thống Quản lý Nhà hàng Mộc Vị là một giải pháp công nghệ toàn diện phục vụ nhu cầu chuyển đổi số cho mô hình kinh doanh dịch vụ ăn uống (F&B). Dự án kết nối đồng bộ và tối ưu hóa các luồng công việc từ tiền sảnh đến hậu cần nhà bếp theo thời gian thực.</p>
+  <p>Điểm đột phá của dự án là việc áp dụng các công nghệ tiên tiến nhất như kết nối WebSocket để truyền tải thông tin chế biến tức thời, thanh toán dynamic VietQR tự động hóa đối chiếu hóa đơn, và đặc biệt là tích hợp mô hình trí tuệ nhân tạo Gemini AI đóng vai trò là "chuyên gia tư vấn chéo món ăn" (cross-selling advice) nhằm tối đa hóa doanh thu trên mỗi bàn ăn của khách hàng.</p>
+  
+  <h2>2. Các vai trò người dùng trong hệ thống (User Roles)</h2>
+  <p class="no-indent">Hệ thống phân cấp quyền truy cập bảo mật rõ ràng thành 4 vai trò thông qua cơ chế phân quyền bảo mật Spring Security ở Backend:</p>
+  <ul>
+    <li><span class="bold-prefix">Khách hàng (Guest / Customer):</span> Đối tượng trực tiếp sử dụng dịch vụ. Khách hàng có thể truy cập trang chủ công khai để xem thực đơn, đọc tin tức ẩm thực, gửi các phản hồi đánh giá món ăn (reviews) và thực hiện đặt bàn hẹn giờ trực tuyến trước khi đến. Khi có mặt tại nhà hàng, khách hàng quét mã QR đặt tại bàn để xem thực đơn số riêng biệt của bàn đó, trực tiếp gọi món và theo dõi quá trình chế biến của bếp.</li>
+    <li><span class="bold-prefix">Nhân viên Phục vụ (Waiter):</span> Nhân viên vận hành tiền sảnh. Giao diện của Waiter hiển thị trực quan sơ đồ bàn ăn của nhà hàng, hỗ trợ khách hàng gọi thêm món, thực hiện chuyển bàn ăn tự động cho khách (chuyển đổi đơn đặt sang bàn trống mới), in hóa đơn tạm tính chứa VietQR động để khách thanh toán và trực tiếp nhận ý kiến tư vấn từ AI để mời khách dùng thêm các món ăn kèm phù hợp.</li>
+    <li><span class="bold-prefix">Nhân viên Bếp (Kitchen):</span> Bộ phận chế biến món ăn. Bếp tiếp nhận các món ăn cần nấu theo thứ tự thời gian thực thông qua kết nối truyền tin WebSocket. Khi chế biến xong, bếp cập nhật trạng thái "Xong món" để gửi tín hiệu cho phục vụ bưng lên. Bếp cũng có quyền bật/tắt trạng thái hết món trực tiếp trên menu nếu nguyên liệu trong kho không còn đủ.</li>
+    <li><span class="bold-prefix">Quản trị viên / Quản lý (Admin / Manager):</span> Người có quyền hạn cao nhất. Admin quản trị toàn bộ danh mục cốt lõi của nhà hàng bao gồm: tài khoản nhân viên và phân quyền, menu món ăn và giá cả, quản lý xuất-nhập kho nguyên liệu, thiết lập công thức hao phí chế biến (Recipes), tạo mã voucher khuyến mãi, quản lý tin bài sự kiện ẩm thực và theo dõi báo cáo doanh thu trực quan dưới dạng biểu đồ số liệu.</li>
+  </ul>
+  
+  <h2>3. Các chức năng cốt lõi của hệ thống</h2>
+  
+  <h3>3.1. Đặt bàn hẹn giờ & Gọi món trực tuyến (Dine-in Order & Booking)</h3>
+  <p>Khách hàng có thể chủ động đặt bàn trực tuyến qua Web công cộng bằng cách điền form đăng ký thông tin người đặt, số điện thoại, số lượng khách đi cùng và chọn tầng/vị trí bàn mong muốn. Khi đến ăn tại nhà hàng, hệ thống hỗ trợ gọi món tại chỗ (dine-in) thông qua mã QR được dán tại mỗi bàn, loại bỏ hoàn toàn các bước gọi món thủ công truyền thống.</p>
+  
+  <h3>3.2. Truyền tin và Đồng bộ thời gian thực (Real-time WebSockets)</h3>
+  <p>Hệ thống tích hợp giao thức STOMP trên nền tảng WebSocket để đảm bảo sự phối hợp nhịp nhàng giữa Bếp và Phục vụ. Ngay khi Khách hàng hoặc Waiter gửi đơn gọi món, màn hình của Bếp sẽ hiển thị thông báo tức thời kèm tiếng chuông. Khi đầu bếp hoàn thành chế biến và nhấn "Xong món", màn hình Waiter phụ trách bàn đó sẽ nhấp nháy đỏ báo hiệu cần bưng món ra cho khách ngay lập tức, tối ưu hóa độ nóng sốt của đồ ăn.</p>
+  
+  <h3>3.3. Trợ lý AI bán hàng thông minh (Gemini AI Integration)</h3>
+  <p>Hệ thống kết nối trực tiếp với API của Gemini AI để cung cấp tính năng tư vấn bán hàng vượt trội. Dựa trên danh sách các món ăn bàn khách hàng hiện đang gọi, AI sẽ phân tích khẩu vị và đề xuất kịch bản khéo léo để Waiter mời khách dùng thêm các món ăn kèm, đồ tráng miệng hoặc đồ uống phù hợp để gia tăng trải nghiệm ăn uống của khách và nâng cao doanh thu bán hàng.</p>
+  
+  <h3>3.4. Thanh toán dynamic VietQR thông minh</h3>
+  <p>Mỗi hóa đơn tạm tính in ra đều tự động tích hợp mã VietQR động được tạo thông qua API của VietQR. Mã QR này chứa chính xác số tài khoản ngân hàng của nhà hàng, số tiền tổng cộng cần thanh toán và nội dung chuyển khoản tự động (Ví dụ: 'Thanh toan ban Ban 02'). Khách quét mã, hệ thống ngân hàng tự động điền các thông tin này giúp quá trình thanh toán diễn ra trong 5 giây, an toàn tuyệt đối và tránh nhầm lẫn số tiền.</p>
+  
+  <h2>4. Thiết kế các giao diện màn hình và biểu mẫu (Screens & Forms)</h2>
+  <p class="no-indent">Hệ thống bao gồm các màn hình tương tác được tối ưu hóa hiển thị:</p>
+  <ul>
+    <li><span class="bold-prefix">Giao diện Trang chủ & Thực đơn Khách hàng:</span> Thiết kế sang trọng, hiện đại giới thiệu ẩm thực Mộc Vị, danh mục món ăn phân loại rõ ràng kèm hình ảnh trực quan sinh động, giỏ hàng nổi giúp khách hàng dễ dàng đặt món và ghi chú khẩu vị riêng.</li>
+    <li><span class="bold-prefix">Màn hình Điều phối của Phục Vụ (Waiter Dashboard):</span> Hiển thị sơ đồ bàn ăn trực quan theo sơ đồ mặt bằng thực tế. Các bàn ăn được tô màu theo trạng thái vận hành: Xanh (Trống), Vàng (Đặt cọc trước), Đỏ (Bàn có khách đang ăn), Tím (Bàn cần dọn dẹp). Tích hợp khay hiển thị món ăn vừa chín cần bưng bưng ra bàn.</li>
+    <li><span class="bold-prefix">Màn hình Chế biến của Bếp (Kitchen Dashboard):</span> Giao diện tối giản tối ưu hiển thị danh sách các món cần nấu xếp hàng theo thời gian gọi đơn của khách. Cho phép bếp tương tác chuyển trạng thái món ăn nhanh chóng qua các nút bấm "Bắt đầu nấu" và "Xong món".</li>
+    <li><span class="bold-prefix">Bảng thống kê của Admin (Admin Dashboard):</span> Nơi hiển thị các con số tổng quan (Tổng doanh thu, số đơn hàng, mặt hàng bán chạy). Tích hợp hai biểu đồ trực quan động sử dụng thư viện Chart.js bao gồm Biểu đồ cột doanh thu 7 ngày gần nhất và Biểu đồ tròn thể hiện Top 5 món ăn bán chạy nhất hệ thống.</li>
+    <li><span class="bold-prefix">Các Form quản lý danh mục (CRUD Forms):</span> Các biểu mẫu thêm mới/chỉnh sửa tài khoản nhân viên, thêm món ăn mới, nhập nguyên liệu tồn kho và khai báo định lượng chi tiết cho công thức nấu ăn.</li>
+  </ul>
+
+</body>
+</html>

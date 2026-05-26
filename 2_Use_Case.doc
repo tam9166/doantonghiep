@@ -1,0 +1,190 @@
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+<meta charset="utf-8">
+<title>Báo cáo Phân tích Sơ đồ Use Case Mộc Vị Restaurant</title>
+<!--[if gte mso 9]>
+<xml>
+ <w:WordDocument>
+  <w:View>Print</w:View>
+  <w:Zoom>100</w:Zoom>
+  <w:DoNotOptimizeForBrowser/>
+ </w:WordDocument>
+</xml>
+<![endif]-->
+<style>
+  @page {
+    size: 8.27in 11.69in; /* A4 size */
+    margin: 1.0in 1.0in 1.0in 1.25in; /* Top, Bottom, Right 2.5cm, Left 3cm */
+  }
+  body {
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 12pt;
+    line-height: 1.3;
+    color: #000000;
+  }
+  h1 {
+    font-size: 16pt;
+    color: #1e3a8a; /* Dark Blue */
+    font-weight: bold;
+    text-align: center;
+    margin-top: 18pt;
+    margin-bottom: 18pt;
+    line-height: 1.4;
+  }
+  h2 {
+    font-size: 14pt;
+    color: #1e3a8a;
+    font-weight: bold;
+    margin-top: 14pt;
+    margin-bottom: 8pt;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 4px;
+  }
+  h3 {
+    font-size: 12.5pt;
+    color: #334155; /* Slate */
+    font-weight: bold;
+    margin-top: 12pt;
+    margin-bottom: 6pt;
+  }
+  p {
+    margin-top: 0;
+    margin-bottom: 8pt;
+    text-align: justify;
+    text-indent: 0.5in; /* Thụt lề đầu dòng */
+  }
+  p.no-indent {
+    text-indent: 0;
+  }
+  ul, ol {
+    margin-top: 0;
+    margin-bottom: 8pt;
+    padding-left: 20px;
+  }
+  li {
+    margin-bottom: 4pt;
+    text-align: justify;
+  }
+  .bold-prefix {
+    font-weight: bold;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-top: 12pt;
+    margin-bottom: 12pt;
+  }
+  th, td {
+    border: 1px solid #334155;
+    padding: 8px 10px;
+    font-size: 11pt;
+    vertical-align: top;
+    text-align: left;
+  }
+  th {
+    background-color: #1e3a8a;
+    color: #ffffff;
+    font-weight: bold;
+    text-align: center;
+  }
+  .table-title {
+    font-weight: bold;
+    font-style: italic;
+    text-align: center;
+    margin-top: 6pt;
+    margin-bottom: 6pt;
+    font-size: 11pt;
+  }
+  .highlight-box {
+    background-color: #f8fafc;
+    border-left: 4px solid #1e3a8a;
+    padding: 10px 15px;
+    margin-bottom: 10pt;
+  }
+</style>
+</head>
+<body>
+  
+  <h1>PHÂN TÍCH SƠ ĐỒ USE CASE CHI TIẾT HỆ THỐNG<br>QUẢN LÝ NHÀ HÀNG MỘC VỊ RESTAURANT</h1>
+  
+  <h2>1. Tổng quan các tác nhân tương tác (Actors)</h2>
+  <p>Trong quá trình thiết kế hệ thống Quản lý Nhà hàng Mộc Vị, các chức năng được xây dựng xoay quanh 4 tác nhân chính nhằm phản ánh đúng quy trình hoạt động nghiệp vụ ngoài đời thực:</p>
+  <ul>
+    <li><span class="bold-prefix">Khách hàng (Customer):</span> Tác nhân ngoài hệ thống, truy cập thông qua thiết bị cá nhân (điện thoại, máy tính bảng) để tự phục vụ đặt bàn, đặt món.</li>
+    <li><span class="bold-prefix">Phục vụ (Waiter):</span> Nhân viên trực tiếp vận hành tiền sảnh nhà hàng, tương tác liên tục với khách hàng tại bàn ăn và hệ thống điều phối.</li>
+    <li><span class="bold-prefix">Bếp (Kitchen):</span> Nhân viên bộ phận chế biến hậu cần, tiếp nhận thông tin yêu cầu món ăn và phản hồi trạng thái hoàn thành.</li>
+    <li><span class="bold-prefix">Quản lý / Admin (Admin/Manager):</span> Người quản trị kiểm soát dữ liệu, cấu hình danh mục thực đơn, kho hàng và theo dõi chỉ số tài chính.</li>
+  </ul>
+  
+  <h2>2. Danh sách Use Case phân hệ người dùng</h2>
+  
+  <h3>2.1. Nhóm Use Case dành cho Khách hàng (Customer)</h3>
+  <ul>
+    <li><span class="bold-prefix">Xem Thực Đơn trực tuyến:</span> Xem danh mục các món ăn kèm giá cả, hình ảnh thực tế và mô tả.</li>
+    <li><span class="bold-prefix">Đặt Bàn Hẹn Giờ:</span> Khai báo thông tin đặt bàn trước (ngày giờ, số người, vị trí tầng).</li>
+    <li><span class="bold-prefix">Gọi Món Tại Bàn (Dine-in Order):</span> Quét mã QR tại bàn ăn thực tế, chọn món vào giỏ hàng và gửi yêu cầu nấu xuống bếp.</li>
+    <li><span class="bold-prefix">Gửi Phản Hồi Đánh Giá (Review):</span> Đánh giá số sao (1-5 sao) kèm bình luận nhận xét về món ăn sau khi trải nghiệm.</li>
+    <li><span class="bold-prefix">Đăng ký / Đăng nhập thành viên:</span> Tạo tài khoản để tích điểm loyalty khi thanh toán hóa đơn.</li>
+  </ul>
+  
+  <h3>2.2. Nhóm Use Case dành cho Nhân viên Phục vụ (Waiter)</h3>
+  <ul>
+    <li><span class="bold-prefix">Xem Sơ Đồ Bàn Ăn:</span> Theo dõi trạng thái trống/có khách/chờ dọn của tất cả bàn ăn theo thời gian thực.</li>
+    <li><span class="bold-prefix">Gọi Món Hộ Khách:</span> Hỗ trợ khách gọi thêm món ăn trực tiếp trên thiết bị phục vụ cầm tay.</li>
+    <li><span class="bold-prefix">Chuyển Bàn Ăn (Move Table):</span> Chuyển toàn bộ danh sách món ăn đang gọi của khách từ bàn cũ sang bàn trống mới theo yêu cầu của khách.</li>
+    <li><span class="bold-prefix">Xác Nhận Đã Bưng Món (Mark Served):</span> Click xác nhận đã đưa món ăn chín từ bếp ra đặt lên bàn cho khách.</li>
+    <li><span class="bold-prefix">In Hóa Đơn Tạm Tính:</span> Xuất hóa đơn kèm VietQR động để khách tiến hành thanh toán tại bàn.</li>
+    <li><span class="bold-prefix">Tham khảo Trợ Lý AI gợi ý:</span> Click xem kịch bản gợi ý mời món từ Gemini AI dựa trên thực đơn bàn đang gọi.</li>
+  </ul>
+  
+  <h3>2.3. Nhóm Use Case dành cho Nhân viên Bếp (Kitchen)</h3>
+  <ul>
+    <li><span class="bold-prefix">Xem Danh Sách Chế Biến:</span> Tiếp nhận các món ăn cần nấu theo thời gian thực tự động xếp hàng.</li>
+    <li><span class="bold-prefix">Cập nhật chế biến (Update Cooking):</span> Chuyển đổi trạng thái từ "Chờ nấu" -> "Đang nấu" -> "Đã xong" để hệ thống tự động thông báo phục vụ.</li>
+    <li><span class="bold-prefix">Báo Hết Món Trực Tiếp:</span> Chuyển đổi trạng thái sẵn có của sản phẩm sang Hết hàng nếu nguyên liệu bếp cạn kiệt.</li>
+  </ul>
+  
+  <h3>2.4. Nhóm Use Case dành cho Quản trị viên (Admin/Manager)</h3>
+  <ul>
+    <li><span class="bold-prefix">Quản lý Tài Khoản & Phân Quyền (CRUD Accounts):</span> Quản lý nhân viên nhà hàng và gán vai trò tương ứng (Admin, Waiter, Kitchen).</li>
+    <li><span class="bold-prefix">Quản lý Thực Đơn (CRUD Products):</span> Thêm mới, sửa thông tin món ăn, thay đổi đơn giá bán, phân nhóm danh mục (Categories).</li>
+    <li><span class="bold-prefix">Quản lý Kho & Định Lượng (CRUD Inventory & Recipes):</span> Theo dõi tồn kho nguyên liệu thô, định lượng hao hụt nguyên liệu thô khi hoàn thành món.</li>
+    <li><span class="bold-prefix">Xem Báo Cáo Doanh Thu:</span> Phân tích trực quan doanh số bán hàng, xem biểu đồ doanh thu ngày và thống kê sản phẩm được ưa chuộng nhất.</li>
+  </ul>
+  
+  <h2>3. Đặc tả chi tiết các Use Case nghiệp vụ chính</h2>
+  <div class="table-title">Bảng 1: Đặc tả luồng xử lý các Use Case cốt lõi</div>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 25%">Tên Use Case</th>
+        <th style="width: 20%">Tác nhân tương tác</th>
+        <th style="width: 55%">Mô tả chi tiết luồng xử lý chính</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="bold-prefix">Gọi món qua mã QR tại bàn</td>
+        <td>Khách hàng / Phục vụ</td>
+        <td>Khách quét mã QR tại bàn để truy cập menu số -> Chọn món và nhập ghi chú -> Nhấn 'Gửi yêu cầu' -> Hệ thống tạo đơn hàng với trạng thái 'Đang nấu' -> Gửi tín hiệu WebSocket thông báo xuống Bếp tức thì.</td>
+      </tr>
+      <tr>
+        <td class="bold-prefix">Tiếp nhận và xử lý tại Bếp</td>
+        <td>Đầu bếp (Kitchen)</td>
+        <td>Bếp nhận âm thanh chuông báo món mới -> Click nút 'Bắt đầu nấu' để khách/phục vụ biết món đang xử lý -> Click 'Xong món' -> Hệ thống tự động dựa vào công thức định lượng (Recipes) để trừ lượng nguyên liệu tương ứng trong kho (Ingredients), đồng thời bắn tín hiệu WebSocket báo hiệu xong món lên màn hình Waiter.</td>
+      </tr>
+      <tr>
+        <td class="bold-prefix">Mời món thông minh bằng AI</td>
+        <td>Nhân viên Phục vụ</td>
+        <td>Waiter mở chi tiết bàn ăn đang phục vụ -> Nhấn nút 'AI Gợi ý mời món' -> Hệ thống gom danh sách tên món bàn đó đang ăn gửi lên Gemini AI kèm prompt tối ưu -> AI phân tích khẩu vị và phản hồi kịch bản đề xuất (Ví dụ gợi ý thêm nước ép dưa hấu giải nhiệt) -> Waiter ra tư vấn giới thiệu trực tiếp cho khách.</td>
+      </tr>
+      <tr>
+        <td class="bold-prefix">Thanh toán hóa đơn nhanh VietQR</td>
+        <td>Phục vụ / Khách hàng</td>
+        <td>Waiter nhấn in hóa đơn tạm tính -> Hệ thống gọi API ngân hàng tạo VietQR động chứa đúng số tiền tổng cộng và số bàn -> Xuất hóa đơn kèm mã QR -> Khách quét mã chuyển tiền -> Sau khi xác nhận nhận tiền, bàn ăn được Waiter bấm chuyển sang trạng thái 'Cần dọn dẹp'.</td>
+      </tr>
+    </tbody>
+  </table>
+
+</body>
+</html>

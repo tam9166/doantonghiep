@@ -1,0 +1,408 @@
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+<meta charset="utf-8">
+<title>Báo cáo Thiết kế Cơ sở Dữ liệu Mộc Vị Restaurant</title>
+<!--[if gte mso 9]>
+<xml>
+ <w:WordDocument>
+  <w:View>Print</w:View>
+  <w:Zoom>100</w:Zoom>
+  <w:DoNotOptimizeForBrowser/>
+ </w:WordDocument>
+</xml>
+<![endif]-->
+<style>
+  @page {
+    size: 8.27in 11.69in; /* A4 size */
+    margin: 1.0in 1.0in 1.0in 1.25in; /* Top, Bottom, Right 2.5cm, Left 3cm */
+  }
+  body {
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 12pt;
+    line-height: 1.3;
+    color: #000000;
+  }
+  h1 {
+    font-size: 16pt;
+    color: #1e3a8a; /* Dark Blue */
+    font-weight: bold;
+    text-align: center;
+    margin-top: 18pt;
+    margin-bottom: 18pt;
+    line-height: 1.4;
+  }
+  h2 {
+    font-size: 14pt;
+    color: #1e3a8a;
+    font-weight: bold;
+    margin-top: 14pt;
+    margin-bottom: 8pt;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 4px;
+  }
+  h3 {
+    font-size: 12.5pt;
+    color: #334155; /* Slate */
+    font-weight: bold;
+    margin-top: 12pt;
+    margin-bottom: 6pt;
+  }
+  p {
+    margin-top: 0;
+    margin-bottom: 8pt;
+    text-align: justify;
+    text-indent: 0.5in; /* Thụt lề đầu dòng */
+  }
+  p.no-indent {
+    text-indent: 0;
+  }
+  ul, ol {
+    margin-top: 0;
+    margin-bottom: 8pt;
+    padding-left: 20px;
+  }
+  li {
+    margin-bottom: 4pt;
+    text-align: justify;
+  }
+  .bold-prefix {
+    font-weight: bold;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-top: 12pt;
+    margin-bottom: 12pt;
+  }
+  th, td {
+    border: 1px solid #334155;
+    padding: 8px 10px;
+    font-size: 11pt;
+    vertical-align: top;
+    text-align: left;
+  }
+  th {
+    background-color: #1e3a8a;
+    color: #ffffff;
+    font-weight: bold;
+    text-align: center;
+  }
+  .table-title {
+    font-weight: bold;
+    font-style: italic;
+    text-align: center;
+    margin-top: 6pt;
+    margin-bottom: 6pt;
+    font-size: 11pt;
+  }
+  .highlight-box {
+    background-color: #f8fafc;
+    border-left: 4px solid #1e3a8a;
+    padding: 10px 15px;
+    margin-bottom: 10pt;
+  }
+</style>
+</head>
+<body>
+  
+  <h1>TÀI LIỆU THIẾT KẾ CƠ SỞ DỮ LIỆU CHI TIẾT SYSTEM<br>QUẢN LÝ NHÀ HÀNG MỘC VỊ RESTAURANT</h1>
+  
+  <h2>1. Tổng quan cấu trúc Cơ sở dữ liệu</h2>
+  <p>Cơ sở dữ liệu của dự án Mộc Vị Restaurant được vận hành trên hệ quản trị cơ sở dữ liệu Microsoft SQL Server. Mô hình thực thể liên kết được thiết kế chuẩn hóa cao đạt chuẩn 3NF, bảo đảm tính toàn vẹn của dữ liệu trong quá trình ghi nhận đơn hàng, tính tiền, và theo dõi lượng nguyên liệu xuất nhập kho bếp.</p>
+  <p>Hệ thống bao gồm tổng cộng 13 bảng dữ liệu chính, được chia thành 4 phân hệ chính liên kết chặt chẽ:</p>
+  <ul>
+    <li><span class="bold-prefix">Phân hệ Tài khoản và Phân quyền:</span> Gồm các bảng Accounts, Roles, Authorities thiết lập kiểm soát đăng nhập an toàn.</li>
+    <li><span class="bold-prefix">Phân hệ Thực đơn và Kho chế biến:</span> Gồm các bảng Categories, Products, Ingredients, Recipes phục vụ việc trừ kho tự động khi bếp nấu xong món ăn theo công thức hao phí được khai báo sẵn.</li>
+    <li><span class="bold-prefix">Phân hệ Tiền sảnh và Vận hành:</span> Gồm các bảng restaurant_table (Sơ đồ bàn), Orders, OrderDetails lưu trữ giao dịch hóa đơn bán hàng.</li>
+    <li><span class="bold-prefix">Phân hệ Tương tác cộng thêm:</span> Gồm các bảng Reviews (Đánh giá), Vouchers (Khuyến mãi), Posts & Applications (Tin tức & Tuyển dụng nhân sự).</li>
+  </ul>
+  
+  <h2>2. Đặc tả chi tiết cấu trúc các bảng dữ liệu chính</h2>
+  
+  <h3>2.1. Bảng Accounts (Quản lý thông tin tài khoản người dùng)</h3>
+  <div class="table-title">Cấu trúc chi tiết bảng Accounts</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Tên Cột (Cột)</th>
+        <th>Kiểu Dữ Liệu</th>
+        <th>Khóa</th>
+        <th>Null</th>
+        <th>Mô tả / Ràng buộc</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="bold-prefix">username</td>
+        <td>VARCHAR(50)</td>
+        <td>PK</td>
+        <td>No</td>
+        <td>Tên đăng nhập duy nhất dùng đăng nhập hệ thống</td>
+      </tr>
+      <tr>
+        <td class="bold-prefix">password</td>
+        <td>VARCHAR(100)</td>
+        <td>-</td>
+        <td>No</td>
+        <td>Mật khẩu đã mã hóa của người dùng</td>
+      </tr>
+      <tr>
+        <td class="bold-prefix">fullname</td>
+        <td>NVARCHAR(200)</td>
+        <td>-</td>
+        <td>No</td>
+        <td>Họ và tên đầy đủ người dùng</td>
+      </tr>
+      <tr>
+        <td class="bold-prefix">email</td>
+        <td>VARCHAR(100)</td>
+        <td>-</td>
+        <td>No</td>
+        <td>Địa chỉ email liên lạc</td>
+      </tr>
+      <tr>
+        <td class="bold-prefix">photo</td>
+        <td>VARCHAR(255)</td>
+        <td>-</td>
+        <td>Yes</td>
+        <td>Đường dẫn ảnh đại diện avatar</td>
+      </tr>
+      <tr>
+        <td class="bold-prefix">total_spent</td>
+        <td>FLOAT</td>
+        <td>-</td>
+        <td>Yes</td>
+        <td>Tổng số tiền tích lũy tiêu dùng (Mặc định 0.0)</td>
+      </tr>
+      <tr>
+        <td class="bold-prefix">loyalty_points</td>
+        <td>INT</td>
+        <td>-</td>
+        <td>Yes</td>
+        <td>Điểm tích lũy thành viên (Mặc định 0)</td>
+      </tr>
+      <tr>
+        <td class="bold-prefix">tier</td>
+        <td>VARCHAR(20)</td>
+        <td>-</td>
+        <td>Yes</td>
+        <td>Hạng thành viên (Mặc định 'BRONZE')</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>2.2. Bảng Products (Thông tin món ăn trong thực đơn)</h3>
+  <div class="table-title">Cấu trúc chi tiết bảng Products</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Tên Cột</th>
+        <th>Kiểu Dữ Liệu</th>
+        <th>Khóa</th>
+        <th>Null</th>
+        <th>Mô tả / Ràng buộc</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="bold-prefix">id</td>
+        <td>INT (IDENTITY)</td>
+        <td>PK</td>
+        <td>No</td>
+        <td>Mã món ăn tự tăng</td>
+      </tr>
+      <tr>
+        <td class="bold-prefix">name</td>
+        <td>NVARCHAR(200)</td>
+        <td>-</td>
+        <td>No</td>
+        <td>Tên món ăn trong thực đơn</td>
+      </tr>
+      <tr>
+        <td class="bold-prefix">price</td>
+        <td>FLOAT</td>
+        <td>-</td>
+        <td>No</td>
+        <td>Giá niêm yết bán sản phẩm món ăn</td>
+      </tr>
+      <tr>
+        <td class="bold-prefix">image</td>
+        <td>VARCHAR(255)</td>
+        <td>-</td>
+        <td>Yes</td>
+        <td>Đường dẫn hình ảnh chụp món ăn thực tế</td>
+      </tr>
+      <tr>
+        <td class="bold-prefix">description</td>
+        <td>NVARCHAR(MAX)</td>
+        <td>-</td>
+        <td>Yes</td>
+        <td>Mô tả thành phần, khẩu vị món ăn</td>
+      </tr>
+      <tr>
+        <td class="bold-prefix">create_date</td>
+        <td>DATE</td>
+        <td>-</td>
+        <td>Yes</td>
+        <td>Ngày tạo món (Mặc định GETDATE())</td>
+      </tr>
+      <tr>
+        <td class="bold-prefix">available</td>
+        <td>BIT</td>
+        <td>-</td>
+        <td>Yes</td>
+        <td>Trạng thái bán (1: Đang bán, 0: Ngừng bán)</td>
+      </tr>
+      <tr>
+        <td class="bold-prefix">category_id</td>
+        <td>INT</td>
+        <td>FK</td>
+        <td>Yes</td>
+        <td>Mã liên kết tới danh mục món ăn (Categories)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>2.3. Bảng Orders (Thông tin đơn đặt bàn / đặt món)</h3>
+  <div class="table-title">Cấu trúc chi tiết bảng Orders</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Tên Cột</th>
+        <th>Kiểu Dữ Liệu</th>
+        <th>Khóa</th>
+        <th>Null</th>
+        <th>Mô tả / Ràng buộc</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="bold-prefix">id</td>
+        <td>INT (IDENTITY)</td>
+        <td>PK</td>
+        <td>No</td>
+        <td>Mã hóa đơn tự tăng</td>
+      </tr>
+      <tr>
+        <td class="bold-prefix">create_date</td>
+        <td>DATETIME</td>
+        <td>-</td>
+        <td>Yes</td>
+        <td>Ngày giờ tạo đơn (Mặc định GETDATE())</td>
+      </tr>
+      <tr>
+        <td class="bold-prefix">address</td>
+        <td>NVARCHAR(500)</td>
+        <td>-</td>
+        <td>Yes</td>
+        <td>Ghi nhận thông tin số bàn (Ví dụ: 'Bàn: Bàn 05') hoặc địa chỉ giao</td>
+      </tr>
+      <tr>
+        <td class="bold-prefix">status</td>
+        <td>INT</td>
+        <td>-</td>
+        <td>Yes</td>
+        <td>Trạng thái đơn hàng: 1: Đang nấu, 2: Xong món, 3: Đang ăn, 4: Đã thanh toán, 5: Hẹn giờ</td>
+      </tr>
+      <tr>
+        <td class="bold-prefix">note</td>
+        <td>NVARCHAR(MAX)</td>
+        <td>-</td>
+        <td>Yes</td>
+        <td>Ghi chú chế biến riêng biệt của thực khách</td>
+      </tr>
+      <tr>
+        <td class="bold-prefix">voucher_code</td>
+        <td>VARCHAR(50)</td>
+        <td>-</td>
+        <td>Yes</td>
+        <td>Mã voucher ưu đãi đã áp dụng cho hóa đơn</td>
+      </tr>
+      <tr>
+        <td class="bold-prefix">username</td>
+        <td>VARCHAR(50)</td>
+        <td>FK</td>
+        <td>Yes</td>
+        <td>Tài khoản đặt đơn, liên kết tới bảng Accounts</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>2.4. Bảng restaurant_table (Sơ đồ các bàn ăn tại tiền sảnh)</h3>
+  <div class="table-title">Cấu trúc chi tiết bảng restaurant_table</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Tên Cột</th>
+        <th>Kiểu Dữ Liệu</th>
+        <th>Khóa</th>
+        <th>Null</th>
+        <th>Mô tả / Ràng buộc</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="bold-prefix">id</td>
+        <td>INT (IDENTITY)</td>
+        <td>PK</td>
+        <td>No</td>
+        <td>Mã định danh bàn ăn</td>
+      </tr>
+      <tr>
+        <td class="bold-prefix">name</td>
+        <td>NVARCHAR(255)</td>
+        <td>-</td>
+        <td>Yes</td>
+        <td>Tên số bàn (Ví dụ: Bàn 01, Bàn 02)</td>
+      </tr>
+      <tr>
+        <td class="bold-prefix">floor</td>
+        <td>NVARCHAR(255)</td>
+        <td>-</td>
+        <td>Yes</td>
+        <td>Khu vực tầng của bàn ăn (Tầng 1, Tầng 2, Sân vườn)</td>
+      </tr>
+      <tr>
+        <td class="bold-prefix">is_occupied</td>
+        <td>INT</td>
+        <td>-</td>
+        <td>Yes</td>
+        <td>Trạng thái hoạt động: 0: Trống, 1: Đặt cọc trước, 2: Có khách ăn, 3: Chờ dọn dẹp</td>
+      </tr>
+      <tr>
+        <td class="bold-prefix">has_view</td>
+        <td>BIT</td>
+        <td>-</td>
+        <td>Yes</td>
+        <td>Có cảnh quan view đẹp hay không (Mặc định 0)</td>
+      </tr>
+      <tr>
+        <td class="bold-prefix">reserved_time</td>
+        <td>VARCHAR(255)</td>
+        <td>-</td>
+        <td>Yes</td>
+        <td>Thời điểm khách hẹn trước qua web</td>
+      </tr>
+      <tr>
+        <td class="bold-prefix">capacity</td>
+        <td>INT</td>
+        <td>-</td>
+        <td>Yes</td>
+        <td>Số ghế tối đa phục vụ tại bàn (Mặc định 4)</td>
+      </tr>
+      <tr>
+        <td class="bold-prefix">view_type</td>
+        <td>NVARCHAR(50)</td>
+        <td>-</td>
+        <td>Yes</td>
+        <td>Loại view cảnh quan chi tiết (Cửa sổ, Ban công, Bể cá)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>2.5. Bảng Ingredients & Recipes (Kho nguyên liệu và Định lượng chế biến)</h3>
+  <p class="no-indent"><span class="bold-prefix">Ingredients:</span> Quản lý lượng tồn kho nguyên liệu trong bếp nhà hàng. Bảng chứa mã ID nguyên liệu thô (PK), name nguyên liệu, quantity còn trong kho, unit (đơn vị: kg, lít, gram) và min_stock (mức tồn tối thiểu để báo động nhập hàng).</p>
+  <p class="no-indent"><span class="bold-prefix">Recipes:</span> Thiết lập định lượng hao phí để sản xuất ra món ăn. Bảng chứa mã ID công thức (PK), product_id (FK liên kết Products), ingredient_id (FK liên kết Ingredients) và amount_required (khối lượng nguyên liệu tiêu thụ chính xác cho 1 phần ăn). Khi Bếp báo nấu xong món ăn, hệ thống tự động trừ kho nguyên liệu thô tương ứng dựa theo bảng Recipes này.</p>
+
+</body>
+</html>
