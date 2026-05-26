@@ -615,22 +615,42 @@ onMounted(() => {
 .btn-export:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,212,170,0.4); }
 
 @media print {
-  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  html, body { height: auto; overflow: visible !important; }
-  body > * { display: none !important; }
-  .modal-overlay { display: flex !important; position: static !important; background: none !important; backdrop-filter: none !important; padding: 0 !important; }
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  body * { visibility: hidden !important; }
+  .printable-area,
+  .printable-area * { visibility: visible !important; }
   .printable-area {
-    display: block !important;
-    position: static !important;
+    position: fixed !important;
+    inset: 0 !important;
     width: 100% !important;
-    max-width: 860px !important;
+    max-width: 100% !important;
     max-height: none !important;
     overflow: visible !important;
     box-shadow: none !important;
     border-radius: 0 !important;
-    margin: 0 auto;
     background: white !important;
+    color: #111 !important;
+    padding: 0 !important;
+    z-index: 99999 !important;
   }
+  /* Thu nhỏ nội dung bên trong hóa đơn khi in */
+  .invoice-content { padding: 16px !important; }
+  .invoice-brand { padding-bottom: 10px !important; margin-bottom: 12px !important; }
+  .invoice-brand h1 { font-size: 1.3rem !important; }
+  .brand-address { font-size: 0.7rem !important; }
+  .invoice-meta { margin-bottom: 12px !important; }
+  .meta-left p { margin: 3px 0 !important; font-size: 0.82rem !important; }
+  .print-table th { padding: 7px 8px !important; font-size: 0.78rem !important; }
+  .print-table td { padding: 7px 8px !important; font-size: 0.82rem !important; }
+  .invoice-thumb { width: 32px !important; height: 32px !important; }
+  .invoice-total { margin-top: 10px !important; }
+  .total-table td { padding: 4px 8px !important; font-size: 0.88rem !important; }
+  .invoice-footer { margin-top: 16px !important; padding-top: 10px !important; }
+  .thanks-msg { font-size: 0.95rem !important; }
   .hide-on-print { display: none !important; }
 }
 </style>

@@ -1181,19 +1181,22 @@ onUnmounted(() => {
 .btn-export { background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; width: 100%; }
 
 @media print {
-  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  html, body { height: auto; overflow: visible !important; }
-  body > * { display: none !important; }
-  .modal-overlay { display: flex !important; position: static !important; background: none !important; padding: 0 !important; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  body * { visibility: hidden !important; }
+  .printable-area,
+  .printable-area * { visibility: visible !important; }
   .printable-area {
-    display: block !important;
-    position: static !important;
+    position: fixed !important;
+    inset: 0 !important;
     width: 80mm !important;
     max-height: none !important;
     overflow: visible !important;
     box-shadow: none !important;
     border-radius: 0 !important;
-    margin: 0 auto;
+    background: white !important;
+    color: #000 !important;
+    z-index: 99999 !important;
+    margin: 0 auto !important;
   }
   .hide-on-print { display: none !important; }
   .modal-overlay { background: none !important; backdrop-filter: none !important; }
