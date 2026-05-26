@@ -25,7 +25,7 @@ public class ChatbotController {
     @org.springframework.beans.factory.annotation.Autowired
     private poly.edu.quanlynhahang.repository.ProductRepository productRepository;
 
-    private static final String GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=";
+    private static final String GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=";
 
     @PostMapping("/chat")
     public ResponseEntity<?> chatWithAI(@RequestBody Map<String, String> payload) {
@@ -144,9 +144,15 @@ public class ChatbotController {
                 }
             }
             return ResponseEntity.ok(Map.of("reply", "Hệ thống AI đang quá tải, vui lòng thử lại sau."));
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            if (e.getStatusCode().value() == 429) {
+                return ResponseEntity.ok(Map.of("reply", "AI đang quá tải do vượt giới hạn truy cập. Vui lòng thử lại sau 30 giây!"));
+            }
+            e.printStackTrace();
+            return ResponseEntity.ok(Map.of("reply", "AI tạm thời không khả dụng (Lỗi " + e.getStatusCode().value() + "). Vui lòng thử lại sau!"));
         } catch (Exception e) {
             e.printStackTrace();
-            return ResponseEntity.ok(Map.of("reply", "Lỗi kết nối tới AI: " + e.getMessage()));
+            return ResponseEntity.ok(Map.of("reply", "Không thể kết nối tới AI. Vui lòng kiểm tra kết nối mạng và thử lại!"));
         }
     }
 }

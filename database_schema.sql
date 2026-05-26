@@ -197,7 +197,5 @@ CREATE TABLE Vouchers (
 );
 GO
 
--- ==========================================
--- HOÀN TẤT
--- ==========================================
+
 PRINT N'Tạo Database và Schema thành công!';
