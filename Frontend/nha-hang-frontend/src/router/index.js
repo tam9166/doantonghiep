@@ -33,7 +33,9 @@ const router = createRouter({
     { path: '/dine-in', name: 'DineInOrder', component: DineInOrder },
     { path: '/kitchen', name: 'Kitchen', component: Kitchen },
     { path: '/waiter', name: 'Waiter', component: Waiter },
-    { path: '/staff', name: 'Staff', component: () => import('../views/Staff.vue') }
+    { path: '/staff', name: 'Staff', component: () => import('../views/Staff.vue') },
+    { path: '/admin/ingredients', name: 'AdminIngredient', component: () => import('../views/AdminIngredient.vue') },
+    { path: '/admin/vouchers', name: 'AdminVoucher', component: () => import('../views/AdminVoucher.vue') }
   ]
 })
 
@@ -52,7 +54,7 @@ router.beforeEach((to, from) => {
   }
 
   // 1. NGĂN NHÂN VIÊN LÀM VIỆC RIÊNG (Chỉ Admin/Manager mới được xem trang khách)
-  const customerRoutes = ['/', '/menu', '/reservation', '/dine-in', '/history']
+  const customerRoutes = ['/', '/reservation', '/history']
   if (customerRoutes.includes(to.path)) {
     if (userRoles.includes('ROLE_KITCHEN') && !userRoles.includes('ROLE_ADMIN')) {
       alert('Bạn là nhân viên Bếp, vui lòng làm việc tại khu vực Bếp!')
@@ -65,9 +67,17 @@ router.beforeEach((to, from) => {
   }
 
   // 2. BẢO VỆ KHU VỰC QUẢN TRỊ CAO CẤP (Chỉ Admin / Manager)
-  if (to.path.startsWith('/admin')) {
+  if (to.path.startsWith('/admin') && to.path !== '/admin/ingredients') {
     if (!token || (!userRoles.includes('ROLE_ADMIN') && !userRoles.includes('ROLE_MANAGER'))) {
       alert('Cảnh báo: Bạn không có quyền truy cập khu vực Quản trị!')
+      return '/'
+    }
+  }
+
+  // 2.5 KHU VỰC NGUYÊN LIỆU (Cho phép Admin / Manager / Kitchen)
+  if (to.path === '/admin/ingredients') {
+    if (!token || (!userRoles.includes('ROLE_ADMIN') && !userRoles.includes('ROLE_MANAGER') && !userRoles.includes('ROLE_KITCHEN'))) {
+      alert('Cảnh báo: Bạn không có quyền truy cập trang Quản lý nguyên liệu!')
       return '/'
     }
   }

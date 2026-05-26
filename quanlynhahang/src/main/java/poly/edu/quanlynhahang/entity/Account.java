@@ -30,6 +30,12 @@ public class Account {
     @Column(nullable = false, length = 100)
     private String email;
 
+    @Column(columnDefinition = "int default 0")
+    private Integer points = 0;
+
+    @Column(name = "membership_tier", columnDefinition = "nvarchar(50) default 'Đồng'")
+    private String membershipTier = "Đồng";
+
     @JsonIgnore
     @OneToMany(mappedBy = "account", fetch = FetchType.EAGER)
     private List<Authority> authorities;

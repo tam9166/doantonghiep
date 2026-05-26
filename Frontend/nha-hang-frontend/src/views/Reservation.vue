@@ -205,23 +205,37 @@ const submitReservation = async () => {
 </script>
 
 <style scoped>
-.reservation-luxury { background: var(--bg-root); min-height: 100vh; font-family: 'Inter', sans-serif; color: var(--text-primary); }
-.luxury-navbar { background: var(--bg-nav); padding: 15px 0; border-bottom: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-.nav-container { max-width: 1100px; margin: auto; display: flex; justify-content: space-between; align-items: center; padding: 0 20px;}
-.logo h2 { color: var(--primary); margin: 0; font-size: 1.5rem; letter-spacing: 2px; font-weight: 900;}
-.gold-text { color: var(--primary); }
-.nav-links a { color: var(--text-secondary); text-decoration: none; margin-left: 25px; text-transform: uppercase; font-size: 0.85rem; font-weight: 600; letter-spacing: 1px; transition: 0.3s;}
-.nav-links a:hover, .nav-links a.active { color: var(--primary); }
+.reservation-luxury { background: var(--bg-root); min-height: 100vh; font-family: 'Outfit', -apple-system, sans-serif; color: var(--text-primary); }
 
-.logo { display: flex; align-items: center; gap: 10px; }
-.logo-icon { font-size: 1.5rem; filter: drop-shadow(0 0 8px rgba(0,212,170,0.5)); }
-.nav-right-rsv { display: flex; gap: 8px; }
-.btn-rsv-nav {
-  background: transparent; border: 1px solid var(--border); color: var(--text-secondary);
-  padding: 7px 14px; border-radius: 20px; cursor: pointer; font-size: 0.83rem;
-  font-weight: 600; font-family: inherit; transition: 0.3s;
+.luxury-navbar {
+  background: rgba(13, 27, 42, 0.4);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  position: sticky; top: 0; z-index: 100;
+  padding: 12px 40px;
 }
-.btn-rsv-nav:hover { border-color: var(--primary); color: var(--primary); }
+.nav-container { max-width: 1400px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+.logo { display: flex; align-items: center; gap: 12px; cursor: pointer; text-decoration: none; }
+.logo-icon { font-size: 2rem; filter: drop-shadow(0 0 10px var(--primary-glow)); }
+.logo h2 { margin: 0; font-size: 1.3rem; font-weight: 900; color: var(--text-heading); letter-spacing: 1px; }
+.gold-text { color: var(--secondary); }
+
+.nav-links { display: flex; gap: 6px; }
+.nav-links a {
+  text-decoration: none; color: var(--text-secondary);
+  font-weight: 600; font-size: 0.95rem; padding: 10px 20px;
+  border-radius: 100px; transition: var(--transition);
+}
+.nav-links a:hover, .nav-links a.active { color: var(--primary); background: rgba(0,212,170,0.1); }
+
+.nav-right-rsv { display: flex; gap: 10px; }
+.btn-rsv-nav {
+  background: transparent; border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-secondary); padding: 10px 24px;
+  border-radius: 100px; font-weight: 700; cursor: pointer; transition: var(--transition);
+}
+.btn-rsv-nav:hover { border-color: var(--primary); color: var(--primary); background: rgba(0,212,170,0.1); }
 
 .content-wrap { display: flex; justify-content: center; align-items: center; min-height: 80vh; padding: 40px 20px; }
 .booking-card { background: var(--bg-card); max-width: 800px; width: 100%; border-radius: 15px; padding: 40px; box-shadow: var(--shadow-lg); border: 1px solid var(--border-light); }

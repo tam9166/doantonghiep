@@ -1,0 +1,25 @@
+{
+  "nav": {
+    "home": "Trang chủ",
+    "menu": "Thực đơn",
+    "booking": "Đặt chỗ",
+    "dine_in": "Tại bàn",
+    "history": "Lịch Sử",
+    "login": "Đăng Nhập",
+    "logout": "Đăng Xuất"
+  },
+  "home": {
+    "title": "CHÀO MỪNG ĐẾN VỚI FPOLY RESTAURANT",
+    "subtitle": "Khám phá hương vị ẩm thực tinh tế trong không gian sang trọng",
+    "book_now": "Đặt bàn ngay",
+    "view_menu": "Xem menu đầy đủ"
+  },
+  "features": {
+    "fast_delivery": "Giao Hàng Nhanh",
+    "fast_delivery_desc": "Trong vòng 30 phút",
+    "fresh_food": "Thực Phẩm Tươi Sạch",
+    "fresh_food_desc": "100% Organic",
+    "top_chef": "Đầu Bếp Hàng Đầu",
+    "top_chef_desc": "Tiêu chuẩn 5 sao"
+  }
+}

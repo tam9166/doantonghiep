@@ -1,0 +1,25 @@
+{
+  "nav": {
+    "home": "Home",
+    "menu": "Menu",
+    "booking": "Booking",
+    "dine_in": "Dine in",
+    "history": "History",
+    "login": "Login",
+    "logout": "Logout"
+  },
+  "home": {
+    "title": "Welcome to FPOLY RESTAURANT",
+    "subtitle": "Discover the exquisite culinary flavors in a luxurious space",
+    "book_now": "Book a table now",
+    "view_menu": "View full menu"
+  },
+  "features": {
+    "fast_delivery": "Fast Delivery",
+    "fast_delivery_desc": "Within 30 minutes",
+    "fresh_food": "Fresh Ingredients",
+    "fresh_food_desc": "100% Organic",
+    "top_chef": "Top Chefs",
+    "top_chef_desc": "5-star standard"
+  }
+}

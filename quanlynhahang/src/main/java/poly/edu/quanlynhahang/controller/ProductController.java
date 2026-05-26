@@ -20,15 +20,28 @@ public class ProductController {
     @Autowired
     private ProductRepository productRepository;
 
+    @Autowired
+    private poly.edu.quanlynhahang.repository.ReviewRepository reviewRepository;
+
     // API lấy tất cả món ăn
     @GetMapping
     public List<Product> getAllProducts() {
-        return productRepository.findAll();
+        List<Product> products = productRepository.findAll();
+        for (Product p : products) {
+            Double avg = reviewRepository.getAverageRatingByProductId(p.getId());
+            p.setAverageRating(avg != null ? Math.round(avg * 10.0) / 10.0 : 0.0);
+        }
+        return products;
     }
 
     // API lấy món ăn theo ID của danh mục (Ví dụ: truyền số 2 vào sẽ lấy ra Đồ uống)
     @GetMapping("/category/{categoryId}")
     public List<Product> getProductsByCategory(@PathVariable Integer categoryId) {
-        return productRepository.findByCategoryId(categoryId);
+        List<Product> products = productRepository.findByCategoryId(categoryId);
+        for (Product p : products) {
+            Double avg = reviewRepository.getAverageRatingByProductId(p.getId());
+            p.setAverageRating(avg != null ? Math.round(avg * 10.0) / 10.0 : 0.0);
+        }
+        return products;
     }
 }

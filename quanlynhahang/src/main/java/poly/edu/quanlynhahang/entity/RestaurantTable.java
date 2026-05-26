@@ -33,4 +33,10 @@ public class RestaurantTable {
     
     @Column(name = "reserved_time")
     private String reservedTime;
+
+    @Column(name = "capacity", columnDefinition = "int default 4")
+    private Integer capacity = 4;
+
+    @Column(name = "view_type", columnDefinition = "nvarchar(50)")
+    private String viewType;
 }

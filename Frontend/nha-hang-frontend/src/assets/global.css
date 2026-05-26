@@ -2,56 +2,59 @@
    FPOLY RESTAURANT - GLOBAL DESIGN SYSTEM (XANH ĐEN THEME)
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
 
 :root {
-  /* Primary Colors */
-  --primary:        #00d4aa;
+  /* Premium Dark Theme Palette */
+  --primary:        #00d4aa; /* Emerald/Teal */
   --primary-dark:   #00b894;
   --primary-dim:    #007a63;
-  --primary-glow:   rgba(0, 212, 170, 0.18);
-  --primary-glow2:  rgba(0, 212, 170, 0.08);
+  --primary-glow:   rgba(0, 212, 170, 0.25);
+  --primary-glow2:  rgba(0, 212, 170, 0.1);
+  
+  --secondary:      #d4af37; /* Premium Gold */
+  --secondary-glow: rgba(212, 175, 55, 0.3);
 
-  /* Backgrounds */
-  --bg-root:        #060d1a;
-  --bg-dark:        #0a0f1e;
-  --bg-card:        #0d1b2a;
-  --bg-card2:       #112233;
-  --bg-nav:         #060d1a;
-  --bg-input:       #0a1929;
-  --bg-hover:       rgba(0, 212, 170, 0.07);
+  /* Deep Backgrounds for Depth */
+  --bg-root:        #040914; /* Very deep dark blue/black */
+  --bg-dark:        #08101f;
+  --bg-card:        rgba(13, 27, 42, 0.6); /* Glassmorphism Base */
+  --bg-card2:       rgba(17, 34, 51, 0.7);
+  --bg-nav:         rgba(4, 9, 20, 0.85);
+  --bg-input:       rgba(10, 25, 41, 0.6);
+  --bg-hover:       rgba(0, 212, 170, 0.08);
 
-  /* Text */
-  --text-primary:   #e0f7f4;
-  --text-secondary: #a8d5cc;
-  --text-muted:     #5a7a8a;
+  /* Text Colors */
+  --text-primary:   #e2f1f8;
+  --text-secondary: #a0b2c6;
+  --text-muted:     #6a829e;
   --text-heading:   #ffffff;
 
   /* Borders */
-  --border:         rgba(0, 212, 170, 0.2);
-  --border-light:   rgba(0, 212, 170, 0.1);
+  --border:         rgba(255, 255, 255, 0.08);
+  --border-light:   rgba(255, 255, 255, 0.04);
   --border-focus:   rgba(0, 212, 170, 0.5);
 
   /* Status Colors */
   --success:        #00d4aa;
   --warning:        #f1c40f;
-  --danger:         #e74c3c;
-  --info:           #3498db;
+  --danger:         #ff4757;
+  --info:           #2e86de;
 
   /* Shadows */
-  --shadow-sm:      0 2px 12px rgba(0, 0, 0, 0.4);
-  --shadow-md:      0 6px 30px rgba(0, 0, 0, 0.5);
-  --shadow-lg:      0 15px 50px rgba(0, 0, 0, 0.6);
-  --shadow-glow:    0 0 25px rgba(0, 212, 170, 0.2);
+  --shadow-sm:      0 4px 15px rgba(0, 0, 0, 0.3);
+  --shadow-md:      0 8px 30px rgba(0, 0, 0, 0.5);
+  --shadow-lg:      0 20px 60px rgba(0, 0, 0, 0.7);
+  --shadow-glow:    0 0 25px rgba(0, 212, 170, 0.3);
 
   /* Border Radius */
-  --radius-sm:  6px;
-  --radius-md:  10px;
-  --radius-lg:  16px;
-  --radius-xl:  24px;
+  --radius-sm:  8px;
+  --radius-md:  14px;
+  --radius-lg:  20px;
+  --radius-xl:  28px;
 
   /* Transitions */
-  --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 /* GLOBAL RESET */
@@ -66,7 +69,7 @@ html {
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
   background-color: var(--bg-root);
   color: var(--text-primary);
   line-height: 1.6;
@@ -86,31 +89,33 @@ body {
 
 /* --- Navbar chung cho các trang Admin/Staff --- */
 .g-navbar {
-  background: var(--bg-nav);
-  border-bottom: 1px solid var(--border);
-  padding: 0 30px;
-  height: 64px;
+  background: rgba(13, 27, 42, 0.4);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 12px 40px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: 0 1px 30px rgba(0,0,0,0.5);
 }
 
+.g-logo { display: flex; align-items: center; gap: 12px; cursor: pointer; text-decoration: none; }
 .g-logo h2 {
   font-size: 1.3rem;
-  font-weight: 800;
+  font-weight: 900;
   letter-spacing: 1px;
   color: var(--text-heading);
   margin: 0;
 }
 .g-logo h2 span { color: var(--primary); }
 .g-logo p {
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   color: var(--text-muted);
   letter-spacing: 3px;
+  font-weight: 700;
   text-transform: uppercase;
   margin: 0;
 }
@@ -132,21 +137,14 @@ body {
 .g-nav-links a.active { color: var(--primary); background: var(--primary-glow); }
 
 .g-btn-nav {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text-secondary);
-  padding: 8px 18px;
-  border-radius: var(--radius-xl);
-  cursor: pointer;
-  font-size: 0.85rem;
-  font-weight: 600;
-  font-family: inherit;
-  transition: var(--transition);
+  background: transparent; border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-secondary); padding: 10px 24px;
+  border-radius: 100px; font-weight: 700; cursor: pointer; transition: var(--transition);
 }
 .g-btn-nav:hover {
   border-color: var(--primary);
   color: var(--primary);
-  background: var(--primary-glow2);
+  background: rgba(0,212,170,0.1);
 }
 
 /* --- Form Controls --- */
@@ -250,3 +248,40 @@ body {
 .g-badge-warning { background: rgba(241,196,15,0.15); color: #f1c40f; border: 1px solid rgba(241,196,15,0.3); }
 .g-badge-danger  { background: rgba(231,76,60,0.15);  color: #e74c3c; border: 1px solid rgba(231,76,60,0.3); }
 .g-badge-info    { background: rgba(52,152,219,0.15); color: #3498db; border: 1px solid rgba(52,152,219,0.3); }
+
+/* --- Glassmorphism Modals --- */
+.g-modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(6, 13, 26, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.3s ease-out forwards;
+}
+.g-modal-box {
+  background: rgba(13, 27, 42, 0.95);
+  border: 1px solid rgba(0, 212, 170, 0.2);
+  border-radius: var(--radius-xl);
+  padding: 36px;
+  width: 100%;
+  max-width: 500px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(0, 212, 170, 0.1);
+  animation: slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+.g-modal-box h3 {
+  margin: 0 0 24px 0;
+  color: var(--text-heading);
+  font-size: 1.4rem;
+  font-weight: 800;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { transform: translateY(40px) scale(0.95); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
+

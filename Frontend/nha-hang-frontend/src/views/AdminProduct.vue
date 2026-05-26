@@ -10,8 +10,10 @@
         <router-link to="/admin/categories">Danh Mục</router-link>
         <router-link to="/admin/tables">Sơ Đồ Bàn</router-link>
         <router-link to="/admin/orders">Đơn Hàng</router-link>
+        <router-link to="/admin/vouchers">Khuyến Mãi</router-link>
         <router-link to="/admin/staff">Nhân Sự</router-link>
         <router-link to="/admin/posts">Bài Đăng</router-link>
+        <router-link to="/admin/analytics">Thống Kê</router-link>
       </nav>
       <button @click="$router.push('/')" class="g-btn-nav">🏠 Trang Khách</button>
     </header>
@@ -82,6 +84,7 @@
                   <th>Tên món</th>
                   <th>Danh mục</th>
                   <th>Giá (VNĐ)</th>
+                  <th>Đánh giá</th>
                   <th>Trạng thái</th>
                   <th>Hành động</th>
                 </tr>
@@ -94,6 +97,7 @@
                   <td><strong class="product-name">{{ p.name }}</strong></td>
                   <td><span class="category-chip">{{ p.category ? p.category.name : 'Chưa phân loại' }}</span></td>
                   <td class="price-text">{{ p.price.toLocaleString() }}đ</td>
+                  <td><strong style="color: #f1c40f;">{{ p.averageRating > 0 ? '⭐ ' + p.averageRating : 'N/A' }}</strong></td>
                   <td>
                     <span :class="p.status === false ? 'g-badge g-badge-danger' : 'g-badge g-badge-success'">
                       {{ p.status === false ? 'Hết món' : 'Đang bán' }}

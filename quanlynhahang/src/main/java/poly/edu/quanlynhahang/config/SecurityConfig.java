@@ -61,10 +61,11 @@ public class SecurityConfig {
         http.authorizeHttpRequests(auth -> auth
             // Mở hoàn toàn cho auth, error, và đơn hàng (không cần prefix ROLE_)
             .requestMatchers("/api/auth/**", "/error").permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/products/**", "/api/categories/**", "/api/tables/**", "/api/posts/**").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/products/**", "/api/categories/**", "/api/tables/**", "/api/posts/**", "/api/reviews/**").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/applications").permitAll()
             .requestMatchers(HttpMethod.PUT, "/api/posts/*/like").permitAll()
-            .requestMatchers("/api/chatbot/**").permitAll()
+            .requestMatchers("/api/chatbot/**", "/ws/**").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/orders/guest-booking").permitAll()
 
             // ✅ Cho phép Waiter gọi PUT /api/tables/{id}/status (nút Khách Về)
             .requestMatchers(HttpMethod.PUT, "/api/tables/**").hasAnyAuthority("ROLE_WAITER", "ROLE_ADMIN", "ROLE_MANAGER")
@@ -77,6 +78,11 @@ public class SecurityConfig {
 
             // ✅ MỞ RỘNG: Cho phép Bếp và Phục vụ cũng lấy được đơn hàng qua /api/admin/orders
             .requestMatchers("/api/admin/orders/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_KITCHEN", "ROLE_WAITER")
+
+            // ✅ Cho phép Bếp quản lý nguyên liệu + công thức và báo hết món
+            .requestMatchers("/api/admin/ingredients/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_KITCHEN")
+            .requestMatchers("/api/admin/recipes/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_KITCHEN")
+            .requestMatchers(HttpMethod.PUT, "/api/admin/products/*/toggle-available").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_KITCHEN")
 
             // Các API admin khác chỉ cho Admin/Manager
             .requestMatchers("/api/admin/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER")

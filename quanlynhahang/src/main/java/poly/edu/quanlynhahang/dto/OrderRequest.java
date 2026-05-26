@@ -7,5 +7,6 @@ import lombok.Data;
 @Data
 public class OrderRequest {
     private String address;
+    private String voucherCode;
     private List<OrderDetailRequest> items; // Danh sách các món ăn trong giỏ
 }

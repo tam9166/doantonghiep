@@ -8,10 +8,13 @@
       <nav class="g-nav-links">
         <router-link to="/admin">Thực Đơn</router-link>
         <router-link to="/admin/categories">Danh Mục</router-link>
+        <router-link to="/admin/ingredients">Nguyên Liệu</router-link>
         <router-link to="/admin/tables">Sơ Đồ Bàn</router-link>
         <router-link to="/admin/orders">Đơn Hàng</router-link>
-        <router-link to="/admin/staff">Nhân Sự</router-link>
+        <router-link to="/admin/vouchers">Khuyến Mãi</router-link>
+        <router-link to="/admin/staff" class="active">Nhân Sự</router-link>
         <router-link to="/admin/posts">Bài Đăng</router-link>
+        <router-link to="/admin/analytics">Thống Kê</router-link>
       </nav>
       <button @click="$router.push('/')" class="g-btn-nav">🏠 Trang Khách</button>
     </header>
@@ -74,6 +77,7 @@
               <thead>
                 <tr>
                   <th>USERNAME</th>
+                  <th>VAI TRÒ</th>
                   <th>HỌ VÀ TÊN</th>
                   <th>EMAIL</th>
                   <th>HÀNH ĐỘNG</th>
@@ -84,6 +88,11 @@
                   <td>
                     <span class="username-badge">{{ staff.username }}</span>
                   </td>
+                  <td>
+                    <div class="role-badge-small" :class="getRoleClass(staff.role)">
+                      {{ getRoleIcon(staff.role) }} {{ getRoleName(staff.role) }}
+                    </div>
+                  </td>
                   <td class="fullname-cell">{{ staff.fullname || 'Chưa cập nhật' }}</td>
                   <td class="email-cell">{{ staff.email || '---' }}</td>
                   <td>
@@ -93,7 +102,7 @@
                   </td>
                 </tr>
                 <tr v-if="staffList.length === 0">
-                  <td colspan="4" class="empty-row">Chưa có tài khoản nào.</td>
+                  <td colspan="5" class="empty-row">Chưa có tài khoản nào.</td>
                 </tr>
               </tbody>
             </table>
@@ -153,25 +162,25 @@ const deleteStaff = async (username) => {
 const getRoleClass = (role) => {
   if (role === 'ROLE_KITCHEN') return 'role-kitchen';
   if (role === 'ROLE_WAITER') return 'role-waiter';
-  if (role === 'ROLE_MANAGER') return 'role-manager';
+  if (role === 'ROLE_MANAGER' || role === 'ADMIN' || role === 'ROLE_ADMIN') return 'role-manager';
   return 'role-user';
 };
 const getRoleIcon = (role) => {
   if (role === 'ROLE_KITCHEN') return '👨‍🍳';
   if (role === 'ROLE_WAITER') return '🤵';
-  if (role === 'ROLE_MANAGER') return '👔';
+  if (role === 'ROLE_MANAGER' || role === 'ADMIN' || role === 'ROLE_ADMIN') return '👑';
   return '👥';
 };
 const getRoleName = (role) => {
   if (role === 'ROLE_KITCHEN') return 'Nhân Viên Bếp';
   if (role === 'ROLE_WAITER') return 'Nhân Viên Phục Vụ';
-  if (role === 'ROLE_MANAGER') return 'Quản Lý Nhà Hàng';
+  if (role === 'ROLE_MANAGER' || role === 'ADMIN' || role === 'ROLE_ADMIN') return 'Quản Trị Viên';
   return 'Khách Hàng';
 };
 const getRoleDesc = (role) => {
   if (role === 'ROLE_KITCHEN') return 'Truy cập: Trang bếp KDS';
   if (role === 'ROLE_WAITER') return 'Truy cập: Dashboard phục vụ';
-  if (role === 'ROLE_MANAGER') return 'Truy cập: Toàn bộ trang Admin';
+  if (role === 'ROLE_MANAGER' || role === 'ADMIN' || role === 'ROLE_ADMIN') return 'Truy cập: Toàn bộ trang Admin';
   return 'Truy cập: Trang đặt hàng, menu';
 };
 
@@ -252,4 +261,10 @@ onMounted(fetchStaff);
 .fullname-cell { color: var(--text-primary); font-weight: 600; }
 .email-cell { color: var(--text-muted); font-size: 0.88rem; }
 .empty-row { text-align: center; color: var(--text-muted); padding: 40px; font-style: italic; }
+
+.role-badge-small {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: 6px; font-size: 0.85rem; font-weight: 700;
+  border: 1px solid; white-space: nowrap;
+}
 </style>

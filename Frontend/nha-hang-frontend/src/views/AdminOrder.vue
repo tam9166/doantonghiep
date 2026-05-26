@@ -10,8 +10,10 @@
         <router-link to="/admin/categories">Danh Mục</router-link>
         <router-link to="/admin/tables">Sơ Đồ Bàn</router-link>
         <router-link to="/admin/orders">Đơn Hàng</router-link>
+        <router-link to="/admin/vouchers">Khuyến Mãi</router-link>
         <router-link to="/admin/staff">Nhân Sự</router-link>
         <router-link to="/admin/posts">Bài Đăng</router-link>
+        <router-link to="/admin/analytics">Thống Kê</router-link>
       </nav>
       <button @click="$router.push('/')" class="g-btn-nav">🏠 Trang Khách</button>
     </header>
@@ -119,7 +121,7 @@
                   <div class="action-row">
                     <button @click="viewInvoice(order)" class="btn-view">👁 Xem</button>
                     <button
-                      v-if="order.status === 0"
+                      v-if="order.status === 0 || order.status === 5"
                       @click="approveOrderToKitchen(order.id)"
                       class="btn-approve"
                     >👨‍🍳 Chuyển Bếp</button>

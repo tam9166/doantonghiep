@@ -42,7 +42,6 @@ public class Order {
     @JoinColumn(name = "username")
     private Account account;
 
-    @JsonIgnore // Chặn đệ quy vòng lặp JSON
     @OneToMany(mappedBy = "order")
     private List<OrderDetail> orderDetails;
 }

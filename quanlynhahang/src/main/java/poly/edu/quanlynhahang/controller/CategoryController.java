@@ -33,4 +33,21 @@ public class CategoryController {
     public ResponseEntity<?> addCategory(@RequestBody Category category) {
         return ResponseEntity.ok(categoryRepository.save(category));
     }
+
+    // Sửa danh mục
+    @org.springframework.web.bind.annotation.PutMapping("/{id}")
+    public ResponseEntity<?> updateCategory(@org.springframework.web.bind.annotation.PathVariable Integer id, @RequestBody Category categoryDetails) {
+        return categoryRepository.findById(id).map(category -> {
+            category.setName(categoryDetails.getName());
+            return ResponseEntity.ok(categoryRepository.save(category));
+        }).orElse(ResponseEntity.badRequest().body(null));
+    }
+
+    // Xóa danh mục
+    @org.springframework.web.bind.annotation.DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteCategory(@org.springframework.web.bind.annotation.PathVariable Integer id) {
+        if (!categoryRepository.existsById(id)) return ResponseEntity.badRequest().body("Không tìm thấy danh mục!");
+        categoryRepository.deleteById(id);
+        return ResponseEntity.ok("Xóa thành công!");
+    }
 }

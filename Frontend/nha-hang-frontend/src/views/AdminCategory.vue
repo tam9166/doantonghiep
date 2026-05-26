@@ -10,8 +10,10 @@
         <router-link to="/admin/categories">Danh Mục</router-link>
         <router-link to="/admin/tables">Sơ Đồ Bàn</router-link>
         <router-link to="/admin/orders">Đơn Hàng</router-link>
+        <router-link to="/admin/vouchers">Khuyến Mãi</router-link>
         <router-link to="/admin/staff">Nhân Sự</router-link>
         <router-link to="/admin/posts">Bài Đăng</router-link>
+        <router-link to="/admin/analytics">Thống Kê</router-link>
       </nav>
       <button @click="$router.push('/')" class="g-btn-nav">🏠 Trang Khách</button>
     </header>
@@ -23,16 +25,21 @@
       </div>
 
       <div class="content-grid">
-        <!-- Form thêm danh mục -->
+        <!-- Form thêm/sửa danh mục -->
         <div class="form-card">
-          <h3>➕ Thêm Danh Mục Mới</h3>
+          <h3 v-if="!isEditMode">➕ Thêm Danh Mục Mới</h3>
+          <h3 v-else>✏️ Sửa Danh Mục</h3>
           <div class="form-group">
             <label>Tên danh mục (*)</label>
             <input v-model="newCategory.name" placeholder="VD: Món Tráng Miệng..." class="g-form-control" />
           </div>
-          <button @click="handleAdd" class="g-btn-primary" style="width: 100%; margin-top: 8px;">
+          <button v-if="!isEditMode" @click="handleAdd" class="g-btn-primary" style="width: 100%; margin-top: 8px;">
             ➕ Thêm Danh Mục
           </button>
+          <div v-else style="display: flex; gap: 10px; margin-top: 8px;">
+            <button @click="handleUpdate" class="g-btn-primary" style="flex: 1;">💾 Cập Nhật</button>
+            <button @click="cancelEdit" class="g-btn-secondary" style="flex: 1;">❌ Hủy</button>
+          </div>
         </div>
 
         <!-- Bảng danh sách -->
@@ -51,7 +58,10 @@
                 <td><span class="id-badge">#{{ c.id }}</span></td>
                 <td><strong class="category-name">{{ c.name }}</strong></td>
                 <td>
-                  <button @click="handleDelete(c.id)" class="g-btn-danger">🗑 Xóa</button>
+                  <div style="display: flex; gap: 8px;">
+                    <button @click="startEdit(c)" class="g-btn-primary" style="padding: 4px 10px; font-size: 0.85rem;">✏️ Sửa</button>
+                    <button @click="handleDelete(c.id)" class="g-btn-danger" style="padding: 4px 10px; font-size: 0.85rem;">🗑 Xóa</button>
+                  </div>
                 </td>
               </tr>
               <tr v-if="categories.length === 0">
@@ -71,6 +81,8 @@ import axios from 'axios';
 
 const categories = ref([]);
 const newCategory = ref({ name: '' });
+const isEditMode = ref(false);
+const editingId = ref(null);
 
 const fetchCategories = async () => {
   try {
@@ -90,6 +102,31 @@ const handleAdd = async () => {
     });
     alert('Thêm thành công!');
     newCategory.value.name = '';
+    fetchCategories();
+  } catch (error) { alert('Lỗi! Kiểm tra quyền Admin.'); }
+};
+
+const startEdit = (c) => {
+  isEditMode.value = true;
+  editingId.value = c.id;
+  newCategory.value.name = c.name;
+};
+
+const cancelEdit = () => {
+  isEditMode.value = false;
+  editingId.value = null;
+  newCategory.value.name = '';
+};
+
+const handleUpdate = async () => {
+  if (!newCategory.value.name) return alert('Vui lòng nhập tên danh mục!');
+  const token = localStorage.getItem('token');
+  try {
+    await axios.put(`http://localhost:8080/api/categories/${editingId.value}`, newCategory.value, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    alert('Cập nhật thành công!');
+    cancelEdit();
     fetchCategories();
   } catch (error) { alert('Lỗi! Kiểm tra quyền Admin.'); }
 };

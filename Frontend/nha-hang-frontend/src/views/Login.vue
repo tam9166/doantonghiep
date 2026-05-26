@@ -112,8 +112,8 @@ const handleLogin = async () => {
     }
 
   } catch (error) {
-    if (error.response && error.response.status === 401) {
-      errorMsg.value = 'Sai tài khoản hoặc mật khẩu! (Lỗi 401)';
+    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+      errorMsg.value = 'Sai tài khoản hoặc mật khẩu!';
     } else if (error.request) {
       errorMsg.value = 'Lỗi kết nối: Không thể kết nối đến Server. Vui lòng kiểm tra Backend.';
     } else {

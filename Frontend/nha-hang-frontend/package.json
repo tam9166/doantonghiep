@@ -9,11 +9,15 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@stomp/stompjs": "^7.3.0",
     "axios": "^1.16.0",
     "chart.js": "^4.5.1",
     "pinia": "^3.0.4",
+    "qrcode.vue": "^3.9.1",
+    "sockjs-client": "^1.6.1",
     "vue": "^3.5.32",
     "vue-chartjs": "^5.3.3",
+    "vue-i18n": "^9.14.5",
     "vue-router": "^5.0.4"
   },
   "devDependencies": {

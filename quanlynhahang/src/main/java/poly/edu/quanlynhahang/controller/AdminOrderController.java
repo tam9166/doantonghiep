@@ -33,6 +33,9 @@ public class AdminOrderController {
     @Autowired
     private OrderRepository orderRepository;
 
+    @Autowired
+    private org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
+
     @GetMapping
     public ResponseEntity<?> getAllOrders() {
         List<Order> orders = orderRepository.findAll().stream()
@@ -65,12 +68,75 @@ public class AdminOrderController {
         return ResponseEntity.ok(statistics);
     }
 
+    @GetMapping("/dashboard-stats")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    public ResponseEntity<?> getDashboardStats() {
+        List<Order> completedOrders = orderRepository.findAll().stream()
+                .filter(o -> o.getStatus() != null && o.getStatus() == 4)
+                .collect(Collectors.toList());
+
+        // 1. Doanh thu 7 ngày qua
+        Map<String, Double> revenueByDate = new HashMap<>();
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM");
+        for (Order o : completedOrders) {
+            if (o.getCreateDate() != null && o.getOrderDetails() != null) {
+                String dateStr = sdf.format(o.getCreateDate());
+                double rev = o.getOrderDetails().stream().mapToDouble(d -> d.getPrice()).sum();
+                revenueByDate.put(dateStr, revenueByDate.getOrDefault(dateStr, 0.0) + rev);
+            }
+        }
+
+        // 2. Top 5 sản phẩm bán chạy
+        Map<String, Integer> productSales = new HashMap<>();
+        for (Order o : completedOrders) {
+            if (o.getOrderDetails() != null) {
+                for (poly.edu.quanlynhahang.entity.OrderDetail d : o.getOrderDetails()) {
+                    if (d.getProduct() != null) {
+                        String pName = d.getProduct().getName();
+                        productSales.put(pName, productSales.getOrDefault(pName, 0) + d.getQuantity());
+                    }
+                }
+            }
+        }
+        List<Map.Entry<String, Integer>> topProducts = productSales.entrySet().stream()
+            .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+            .limit(5)
+            .collect(Collectors.toList());
+
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("revenueChart", revenueByDate);
+        stats.put("topProducts", topProducts.stream().map(e -> Map.of("name", e.getKey(), "sold", e.getValue())).collect(Collectors.toList()));
+
+        return ResponseEntity.ok(stats);
+    }
+
+    @Autowired
+    private poly.edu.quanlynhahang.repository.AccountRepository accountRepository;
+
     // 🌟 API MỚI: XỬ LÝ NÚT BẤM "XONG MÓN" HOẶC "ĐÃ BƯNG RA BÀN"
     @PutMapping("/{id}/status")
-    public ResponseEntity<?> updateOrderStatus(@PathVariable Long id, @RequestParam Integer status) {
-        return orderRepository.findById(id).map(order -> {
+    public ResponseEntity<?> updateOrderStatus(@PathVariable Integer id, @RequestParam Integer status) {
+        return orderRepository.findById(Long.valueOf(id)).map(order -> {
+            if (status == 4 && order.getStatus() != 4 && order.getAccount() != null) {
+                poly.edu.quanlynhahang.entity.Account acc = order.getAccount();
+                double total = order.getOrderDetails().stream().mapToDouble(d -> d.getPrice() * d.getQuantity()).sum();
+                acc.setPoints((acc.getPoints() != null ? acc.getPoints() : 0) + (int)(total / 10000));
+                
+                if (acc.getPoints() >= 2000) acc.setMembershipTier("Kim Cương");
+                else if (acc.getPoints() >= 1000) acc.setMembershipTier("Vàng");
+                else if (acc.getPoints() >= 500) acc.setMembershipTier("Bạc");
+                
+                accountRepository.save(acc);
+            }
             order.setStatus(status);
             orderRepository.save(order);
+            
+            if (status == 1 || status == 6) {
+                messagingTemplate.convertAndSend("/topic/kitchen", "NEW_ORDER");
+            } else if (status == 2) {
+                messagingTemplate.convertAndSend("/topic/waiter", "ORDER_READY");
+            }
+            
             return ResponseEntity.ok("Cập nhật trạng thái thành công!");
         }).orElse(ResponseEntity.badRequest().body("Không tìm thấy đơn hàng!"));
     }
@@ -121,6 +187,10 @@ public class AdminOrderController {
                     // Skip lỗi parse
                 }
             }
+        }
+
+        if (activated > 0) {
+            messagingTemplate.convertAndSend("/topic/kitchen", "NEW_ORDER");
         }
 
         Map<String, Object> result = new HashMap<>();

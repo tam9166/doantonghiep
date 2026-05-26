@@ -58,4 +58,17 @@ public class AdminProductController {
         
         return ResponseEntity.ok(productRepository.save(product));
     }
+
+    // 🌟 API MỚI: Bếp báo hết/còn món (Kitchen toggle available)
+    @PutMapping("/{id}/toggle-available")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_KITCHEN')")
+    public ResponseEntity<?> toggleAvailable(@PathVariable Integer id) {
+        return productRepository.findById(id).map(product -> {
+            product.setAvailable(!product.getAvailable());
+            product.setStatus(product.getAvailable()); // Sync status với available
+            productRepository.save(product);
+            String msg = product.getAvailable() ? "✅ Đã mở bán lại: " : "❌ Đã báo hết: ";
+            return ResponseEntity.ok(msg + product.getName());
+        }).orElse(ResponseEntity.badRequest().body("Không tìm thấy món ăn!"));
+    }
 }

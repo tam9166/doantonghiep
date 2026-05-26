@@ -12,15 +12,20 @@
         </div>
 
         <nav class="nav-links">
-          <a href="#" class="active">Trang chủ</a>
-          <router-link to="/menu">Thực đơn</router-link>
-          <router-link to="/reservation">Đặt chỗ</router-link>
-          <router-link to="/dine-in">Tại bàn</router-link>
+          <a href="#" class="active">{{ $t('nav.home') }}</a>
+          <router-link to="/menu">{{ $t('nav.menu') }}</router-link>
+          <router-link to="/reservation">{{ $t('nav.booking') }}</router-link>
+          <router-link to="/dine-in">{{ $t('nav.dine_in') }}</router-link>
         </nav>
 
         <div class="nav-right">
+          <select v-model="currentLang" @change="changeLanguage" class="lang-switch">
+            <option value="vi">🇻🇳 VN</option>
+            <option value="en">🇺🇸 EN</option>
+          </select>
+          
           <template v-if="!isLoggedIn">
-            <button @click="$router.push('/login')" class="btn-nav">Đăng nhập</button>
+            <button @click="$router.push('/login')" class="btn-nav">{{ $t('nav.login') }}</button>
             <button @click="$router.push('/register')" class="btn-nav btn-nav-filled">Đăng ký</button>
           </template>
 
@@ -55,9 +60,9 @@
     <section class="hero-banner">
       <div class="hero-overlay"></div>
       <div class="hero-content">
-        <div class="hero-tag">✦ Trải nghiệm ẩm thực đỉnh cao</div>
+        <div class="hero-tag">✦ {{ $t('home.title') }}</div>
         <h1>Nhà Hàng<br><span>FPOLY</span></h1>
-        <p>Không gian đẳng cấp · Hương vị tinh tế · Phục vụ tận tâm</p>
+        <p>{{ $t('home.subtitle') }}</p>
         <div class="hero-actions">
           <button @click="$router.push('/dine-in')" class="btn-hero-primary">
             🍽️ Gọi Món Tại Quán
@@ -330,8 +335,57 @@
           <button @click="showSupportChat = false">✖</button>
         </div>
         <div class="chat-body" ref="supportChatBody">
-          <div v-for="(msg, i) in supportMessages" :key="i" :class="['chat-msg', msg.type]">
-            {{ msg.text }}
+          <div v-for="(msg, i) in supportMessages" :key="i" :class="['chat-msg', msg.type, { 'msg-booking': msg.isTableBooking, 'msg-menu': msg.isMenuLink }]">
+            <template v-if="!msg.isTableBooking && !msg.isMenuLink">
+              {{ msg.text }}
+            </template>
+            <template v-else-if="msg.isMenuLink">
+              <div class="menu-link-widget">
+                <p>👉 Bạn có thể xem toàn bộ thực đơn và đặt món tại đây:</p>
+                <button @click="$router.push('/menu')" class="b-btn">📖 Xem Thực Đơn</button>
+              </div>
+            </template>
+            <template v-else>
+              <div class="booking-widget">
+                <div v-if="!msg.bookingState.tableConfirmed">
+                  <p>Các bàn trống phù hợp yêu cầu của bạn:</p>
+                  <div class="b-table-list">
+                    <div v-for="t in msg.bookingState.tables" :key="t.id" class="b-table-card">
+                      <strong>{{ t.name }}</strong> ({{ t.capacity }} người)<br>
+                      <span>{{ t.description }}</span>
+                      <button @click="selectBookingTable(msg, t)" class="b-btn-small">Chọn bàn này</button>
+                    </div>
+                    <div v-if="msg.bookingState.tables.length === 0" style="color:red; font-size:0.8rem">Không tìm thấy bàn trống phù hợp!</div>
+                  </div>
+                </div>
+                
+                <div v-else-if="!msg.bookingState.paymentMethod">
+                  <p>Đã chọn: <strong>{{ msg.bookingState.selectedTable.name }}</strong></p>
+                  <div class="b-actions">
+                    <button @click="choosePaymentMethod(msg, 'cọc')" class="b-btn">Chỉ đặt bàn (Cọc 100K)</button>
+                    <button @click="choosePaymentMethod(msg, 'món')" class="b-btn-outline">Đặt món trước</button>
+                  </div>
+                </div>
+
+                <div v-else-if="msg.bookingState.paymentMethod === 'cọc' && !msg.bookingState.paid">
+                  <input v-model="msg.bookingState.guestName" placeholder="Tên của bạn" class="b-input" />
+                  <input v-model="msg.bookingState.guestPhone" placeholder="SĐT liên hệ" class="b-input" />
+                  <div v-if="msg.bookingState.guestName && msg.bookingState.guestPhone" class="b-qr-box">
+                    <img :src="`https://img.vietqr.io/image/vcb-0347944028-compact2.png?amount=100000&addInfo=Coc%20Ban%20${msg.bookingState.selectedTable.name}%20${msg.bookingState.guestPhone}&accountName=Nha%20Hang`" />
+                    <p>Cọc giữ bàn: 100,000 VND</p>
+                    <button @click="confirmBooking(msg)" class="b-btn">Xác nhận đã thanh toán</button>
+                  </div>
+                </div>
+
+                <div v-else-if="msg.bookingState.paymentMethod === 'món'" class="b-success">
+                  <p>Đã lưu bàn. Đang chuyển tới Thực Đơn...</p>
+                </div>
+
+                <div v-else-if="msg.bookingState.paid" class="b-success">
+                  ✅ Đặt bàn thành công!<br>Mã đơn: <strong>#{{ msg.bookingState.orderCode }}</strong>
+                </div>
+              </div>
+            </template>
           </div>
           <div v-if="isSupportTyping" class="chat-msg bot typing-indicator">
             Đang suy nghĩ...
@@ -345,8 +399,35 @@
       
       <!-- FAB Buttons -->
       <div class="fab-group">
+        <div class="fab-chat fab-wheel" @click="openLuckyWheel">🎁</div>
         <div class="fab-chat" @click="toggleSupportChat">💬</div>
         <a href="tel:0123456789" class="fab-phone" style="text-decoration: none;">📞</a>
+      </div>
+    </div>
+
+    <!-- Lucky Wheel Modal -->
+    <div v-if="showLuckyWheel" class="modal-overlay" @click.self="showLuckyWheel = false">
+      <div class="wheel-modal">
+        <div class="wheel-header">
+          <h2>🎡 Vòng Quay May Mắn</h2>
+          <button class="btn-close-modal" @click="showLuckyWheel = false">✖</button>
+        </div>
+        <p class="wheel-desc">Quay mỗi ngày để nhận điểm thưởng VIP nhé!</p>
+        <div class="wheel-container">
+          <div class="wheel-pointer">▼</div>
+          <div class="wheel-board" :style="{ transform: `rotate(${wheelRotation}deg)`, background: 'conic-gradient(#f1c40f 0 60deg, #e74c3c 60deg 120deg, #3498db 120deg 180deg, #95a5a6 180deg 240deg, #2ecc71 240deg 300deg, #9b59b6 300deg 360deg)' }">
+            <div v-for="(p, i) in prizes" :key="i" class="wheel-text" :style="{ transform: `rotate(${p.deg + 30}deg)` }">
+              <span class="slice-label" :style="{ color: i === 0 ? '#000' : '#fff' }">{{ p.label }}</span>
+            </div>
+          </div>
+        </div>
+        <button class="btn-spin" @click="spinWheel" :disabled="isSpinning">
+          {{ isSpinning ? 'Đang quay...' : 'QUAY NGAY' }}
+        </button>
+        <div v-if="spinResult" class="spin-result" :class="{ 'win': spinResult.type !== 'miss' }">
+          <p v-if="spinResult.type !== 'miss'">🎉 Chúc mừng! Bạn trúng <strong>{{ spinResult.label }}</strong></p>
+          <p v-else>😢 Rất tiếc! Chúc bạn may mắn lần sau.</p>
+        </div>
       </div>
     </div>
 
@@ -356,9 +437,18 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import axios from 'axios';
 
 const router = useRouter();
+const { locale } = useI18n();
+const currentLang = ref(localStorage.getItem('lang') || 'vi');
+
+const changeLanguage = () => {
+  locale.value = currentLang.value;
+  localStorage.setItem('lang', currentLang.value);
+};
+
 const isLoggedIn = ref(false);
 const user = ref(null);
 const newsPosts = ref([]);
@@ -371,6 +461,111 @@ const currentDate = ref(`${today.getDate()}-${today.getMonth() + 1}-${today.getF
 const formatPostDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '---';
 const truncateText = (str, len) => str && str.length > len ? str.substring(0, len) + '...' : str;
 const showRecruitDetail = (post) => { selectedRecruit.value = post; };
+
+// === LUCKY WHEEL ===
+const showLuckyWheel = ref(false);
+const isSpinning = ref(false);
+const wheelRotation = ref(0);
+const spinResult = ref(null);
+
+const prizes = [
+  { label: '5 ĐIỂM', value: 5, type: 'points', deg: 0, color: '#f1c40f' },
+  { label: '10 ĐIỂM', value: 10, type: 'points', deg: 60, color: '#e74c3c' },
+  { label: 'GIẢM 5%', value: 5, type: 'discount', deg: 120, color: '#3498db' },
+  { label: 'TRƯỢT', value: 0, type: 'miss', deg: 180, color: '#95a5a6' },
+  { label: 'TẶNG MÓN', value: 0, type: 'gift', deg: 240, color: '#2ecc71' },
+  { label: '50 ĐIỂM', value: 50, type: 'points', deg: 300, color: '#9b59b6' }
+];
+
+const openLuckyWheel = async () => {
+  if (!isLoggedIn.value) {
+    alert("Vui lòng đăng nhập để quay thưởng!");
+    router.push('/login');
+    return;
+  }
+  
+  const token = localStorage.getItem('token');
+  try {
+    const res = await axios.get('http://localhost:8080/api/orders/history', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    let isEligible = false;
+    const todayStr = new Date().toDateString();
+
+    for (let order of res.data) {
+      if (order.status !== 3) { // Không tính đơn đã hủy
+        const orderDateStr = new Date(order.createDate).toDateString();
+        if (orderDateStr === todayStr) {
+          let total = order.orderDetails ? order.orderDetails.reduce((sum, item) => sum + item.price, 0) : 0;
+          if (total >= 3000000) {
+            isEligible = true;
+            break;
+          }
+        }
+      }
+    }
+    
+    if (!isEligible) {
+      alert("Rất tiếc! Hôm nay bạn cần có ít nhất 1 hóa đơn trị giá trên 3.000.000 VNĐ để được tham gia quay thưởng.");
+      return;
+    }
+  } catch(e) {
+    console.error("Lỗi kiểm tra hóa đơn", e);
+  }
+
+  showLuckyWheel.value = true;
+};
+
+const spinWheel = () => {
+  if (isSpinning.value) return;
+  const username = JSON.parse(localStorage.getItem('user'))?.username;
+  const lastSpin = localStorage.getItem(`lastSpin_${username}`);
+  const todayStr = new Date().toLocaleDateString();
+  if (lastSpin === todayStr) {
+    alert("Hôm nay bạn đã quay rồi. Hãy quay lại vào ngày mai nhé!");
+    return;
+  }
+
+  isSpinning.value = true;
+  spinResult.value = null;
+
+  const prizeIndex = Math.floor(Math.random() * prizes.length);
+  const targetDeg = (360 - prizes[prizeIndex].deg) + 360 * 5; 
+
+  wheelRotation.value += targetDeg;
+
+  setTimeout(async () => {
+    isSpinning.value = false;
+    const won = prizes[prizeIndex];
+    spinResult.value = won;
+    localStorage.setItem(`lastSpin_${username}`, todayStr);
+
+    if (won.type === 'points') {
+      const token = localStorage.getItem('token');
+      try {
+        const res = await axios.post('http://localhost:8080/api/auth/add-points', { points: won.value }, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        alert(`🎉 Chúc mừng bạn đã trúng ${won.label}! Điểm hiện tại: ${res.data.newPoints} PT (Hạng: ${res.data.newTier})`);
+      } catch(e) {
+        console.error("Lỗi cộng điểm", e);
+      }
+    } else if (won.type === 'discount') {
+      const token = localStorage.getItem('token');
+      try {
+        const res = await axios.post('http://localhost:8080/api/vouchers/generate', { discount: won.value }, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        alert(`🎉 Chúc mừng bạn đã trúng Giảm ${won.value}%!\nMã Voucher của bạn: ${res.data.code}\nHãy lưu lại để dùng cho lần ăn tiếp theo nhé!`);
+      } catch(e) {
+        console.error("Lỗi sinh voucher", e);
+      }
+    } else if (won.type === 'gift') {
+      alert(`🎉 Chúc mừng bạn đã trúng ${won.label}! Vui lòng đưa thông báo này cho nhân viên để nhận quà nhé!`);
+    }
+  }, 7000); // 7 seconds
+};
 
 // === LIKE POSTS ===
 const likedPosts = ref(JSON.parse(localStorage.getItem('likedPosts') || '[]'));
@@ -421,7 +616,9 @@ const toggleSupportChat = () => {
 };
 
 const scrollToBottomSupport = () => {
-  if (supportChatBody.value) supportChatBody.value.scrollTop = supportChatBody.value.scrollHeight;
+  setTimeout(() => {
+    if (supportChatBody.value) supportChatBody.value.scrollTop = supportChatBody.value.scrollHeight;
+  }, 100);
 };
 
 const sendSupportMessage = async () => {
@@ -434,13 +631,120 @@ const sendSupportMessage = async () => {
   scrollToBottomSupport();
 
   try {
-    const res = await axios.post('http://localhost:8080/api/chatbot/chat', { message: text });
-    supportMessages.value.push({ type: 'bot', text: res.data.reply });
+    let historyStr = '';
+    for (let i = 0; i < supportMessages.value.length - 1; i++) {
+      const m = supportMessages.value[i];
+      if (!m.isTableBooking) {
+        historyStr += `${m.type === 'bot' ? 'Bot' : 'Khách'}: ${m.text}\n`;
+      }
+    }
+
+    const res = await axios.post('http://localhost:8080/api/chatbot/chat', { 
+      message: text,
+      type: 'SUPPORT',
+      history: historyStr
+    });
+    
+    let reply = res.data.reply || '';
+    
+    // Check for Booking Tag
+    const bookRegex = /\[ACTION:BOOK_TABLE\|time=([^|]+)\|pax=([^|]+)\|view=([^\]]+)\]/i;
+    const match = reply.match(bookRegex);
+    
+    // Check for Show Menu Tag
+    const menuRegex = /\[ACTION:SHOW_MENU\]/i;
+    const menuMatch = reply.match(menuRegex);
+
+    if (match) {
+      const time = match[1];
+      const pax = parseInt(match[2]);
+      const view = match[3];
+
+      // Fetch tables
+      const tRes = await axios.get('http://localhost:8080/api/tables');
+      
+      const available = tRes.data.filter(t => {
+        if (t.isOccupied !== 0) return false;
+        if (t.capacity && t.capacity < pax) return false; // Sức chứa phải >= số người
+        
+        // Nếu khách yêu cầu view cụ thể (phố, sông, sân vườn)
+        if (view && view.toLowerCase() !== 'không' && view.toLowerCase() !== 'none') {
+           // Nếu bàn không có viewType hoặc không khớp từ khóa view
+           const v = view.toLowerCase();
+           if (!t.viewType || (!t.viewType.toLowerCase().includes('phố') && v.includes('phố')) && (!t.viewType.toLowerCase().includes('sông') && v.includes('sông')) && (!t.viewType.toLowerCase().includes('vườn') && v.includes('vườn'))) {
+             // Bỏ qua lọc view khắt khe để tránh báo hết bàn nếu AI phân tích sai, nhưng nếu AI bảo rõ view thì ưu tiên lọc
+             if (t.viewType) {
+               return t.viewType.toLowerCase().includes(v.replace('view ', ''));
+             }
+           }
+        }
+        return true;
+      });
+
+      supportMessages.value.push({ 
+        type: 'bot', 
+        isTableBooking: true,
+        bookingState: {
+          time, pax, view,
+          tables: available.slice(0, 3), // Show max 3 tables
+          tableConfirmed: false,
+          selectedTable: null,
+          paymentMethod: null,
+          guestName: '', guestPhone: '',
+          paid: false, orderCode: ''
+        }
+      });
+    } else if (menuMatch) {
+      // Remove the tag from the text
+      const cleanReply = reply.replace(menuRegex, '').trim();
+      supportMessages.value.push({ type: 'bot', text: cleanReply });
+      supportMessages.value.push({ type: 'bot', isMenuLink: true });
+    } else {
+      supportMessages.value.push({ type: 'bot', text: reply });
+    }
   } catch (err) {
     supportMessages.value.push({ type: 'bot', text: 'Xin lỗi, AI hiện đang mất kết nối. Vui lòng gọi Hotline để được hỗ trợ!' });
   } finally {
     isSupportTyping.value = false;
     scrollToBottomSupport();
+  }
+};
+
+const selectBookingTable = (msg, table) => {
+  msg.bookingState.selectedTable = table;
+  msg.bookingState.tableConfirmed = true;
+  scrollToBottomSupport();
+};
+
+const choosePaymentMethod = (msg, method) => {
+  msg.bookingState.paymentMethod = method;
+  if (method === 'món') {
+    localStorage.setItem('bookedTable', JSON.stringify({
+      id: msg.bookingState.selectedTable.id,
+      name: msg.bookingState.selectedTable.name,
+      time: msg.bookingState.time
+    }));
+    setTimeout(() => {
+      router.push('/dine-in');
+    }, 1500);
+  }
+  scrollToBottomSupport();
+};
+
+const confirmBooking = async (msg) => {
+  try {
+    const payload = {
+      customerName: msg.bookingState.guestName,
+      phone: msg.bookingState.guestPhone,
+      tableName: msg.bookingState.selectedTable.name,
+      scheduledTime: msg.bookingState.time
+    };
+    const res = await axios.post('http://localhost:8080/api/orders/guest-booking', payload);
+    msg.bookingState.paid = true;
+    msg.bookingState.orderCode = res.data.orderCode;
+    scrollToBottomSupport();
+  } catch (err) {
+    alert("Có lỗi xảy ra khi tạo đơn đặt bàn!");
   }
 };
 
@@ -546,56 +850,58 @@ const handleLogout = () => {
 }
 
 /* ===== NAVBAR ===== */
+/* ===== NAVBAR ===== */
 .navbar {
-  background: rgba(6, 13, 26, 0.95);
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid var(--border-light);
-  padding: 0;
-  position: sticky;
-  top: 0;
+  position: absolute;
+  top: 0; left: 0; right: 0;
   z-index: 100;
-  box-shadow: 0 2px 30px rgba(0,0,0,0.5);
+  padding: 20px 40px;
 }
 .nav-container {
-  max-width: 1400px;
-  margin: 0 auto;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 24px;
-  height: 68px;
+  max-width: 1400px; margin: 0 auto;
+  display: flex; justify-content: space-between; align-items: center;
+  background: rgba(13, 27, 42, 0.4);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 100px;
+  padding: 12px 30px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
 }
 
-/* Logo */
-.logo {
-  display: flex; align-items: center; gap: 12px;
-  cursor: pointer; text-decoration: none;
-}
-.logo-icon { font-size: 1.8rem; filter: drop-shadow(0 0 8px rgba(0,212,170,0.5)); }
-.logo-text h2 {
-  margin: 0; font-size: 1.2rem; font-weight: 900;
-  color: var(--text-heading); letter-spacing: 1px;
-}
-.logo-text p {
-  margin: 0; font-size: 0.65rem; color: var(--primary);
-  letter-spacing: 3px; text-transform: uppercase;
-}
+.logo { display: flex; align-items: center; gap: 12px; cursor: pointer; text-decoration: none; }
+.logo-icon { font-size: 2rem; filter: drop-shadow(0 0 10px var(--primary-glow)); }
+.logo-text h2 { margin: 0; font-size: 1.3rem; font-weight: 900; color: var(--text-heading); letter-spacing: 1px; }
+.logo-text h2 span { color: var(--primary); }
+.logo-text p { margin: 0; font-size: 0.7rem; color: var(--text-muted); letter-spacing: 3px; font-weight: 700; text-transform: uppercase; }
 
-/* Nav Links */
-.nav-links {
-  display: flex; gap: 4px; align-items: center;
-}
+.nav-links { display: flex; gap: 6px; }
 .nav-links a {
-  color: var(--text-muted); text-decoration: none;
-  font-size: 0.88rem; font-weight: 500;
-  padding: 8px 14px; border-radius: var(--radius-md);
+  text-decoration: none; color: var(--text-secondary);
+  font-weight: 600; font-size: 0.95rem; padding: 10px 20px;
+  border-radius: 100px; transition: var(--transition);
+}
+.nav-links a:hover, .nav-links a.router-link-active, .nav-links a.active {
+  color: var(--primary); background: rgba(0,212,170,0.1);
+}
+
+.nav-right { display: flex; align-items: center; gap: 12px; }
+
+.lang-switch {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-primary);
+  padding: 6px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  outline: none;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 0.85rem;
   transition: var(--transition);
 }
-.nav-links a:hover { color: var(--primary); background: var(--primary-glow2); }
-.nav-links a.active { color: var(--primary); background: var(--primary-glow2); }
+.lang-switch:hover { border-color: var(--primary); }
 
-/* Nav Buttons */
-.nav-right { display: flex; align-items: center; gap: 8px; }
 .btn-nav {
   background: transparent; color: var(--text-secondary);
   border: 1px solid var(--border); padding: 7px 14px;
@@ -799,6 +1105,27 @@ const handleLogout = () => {
 .fab-phone {
   background: linear-gradient(135deg, var(--primary), var(--primary-dark));
   color: var(--bg-dark);
+}
+.msg-booking {
+  background: transparent !important;
+  border: 1px solid var(--border-light);
+  width: 100%;
+}
+.booking-widget { display: flex; flex-direction: column; gap: 10px; font-size: 0.85rem; }
+.b-table-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.b-table-card { background: var(--bg-card); border: 1px solid var(--border); padding: 8px 12px; border-radius: 6px; }
+.b-table-card strong { color: var(--primary); }
+.b-btn-small { background: var(--primary); border: none; color: #000; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; margin-top: 6px; font-weight: bold; }
+.b-actions { display: flex; gap: 6px; margin-top: 8px; }
+.b-btn { background: var(--primary); border: none; color: #000; padding: 8px; border-radius: 6px; cursor: pointer; font-weight: bold; flex: 1; text-align: center; font-size: 0.8rem; }
+.b-btn-outline { background: transparent; border: 1px solid var(--primary); color: var(--primary); padding: 8px; border-radius: 6px; cursor: pointer; font-weight: bold; flex: 1; text-align: center; font-size: 0.8rem; }
+.b-input { background: var(--bg-input); border: 1px solid var(--border); color: white; padding: 8px; border-radius: 4px; width: 100%; box-sizing: border-box; }
+.b-qr-box { background: white; padding: 10px; border-radius: 8px; text-align: center; margin-top: 8px; }
+.b-qr-box img { width: 100%; max-width: 150px; border-radius: 6px; }
+.b-qr-box p { color: #000; font-weight: bold; margin: 5px 0 10px 0; }
+.b-success { background: rgba(0, 212, 170, 0.1); border: 1px solid var(--primary); padding: 12px; border-radius: 6px; color: var(--primary); font-weight: bold; text-align: center; }
+
+.fab-phone {
   width: 60px; height: 60px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   font-size: 1.6rem; cursor: pointer;
@@ -1040,4 +1367,25 @@ const handleLogout = () => {
   100% { opacity: 0.5; }
 }
 
+.fab-wheel { background: linear-gradient(45deg, #f1c40f, #e67e22); font-size: 1.5rem; display:flex; align-items:center; justify-content:center; box-shadow: 0 5px 20px rgba(241,196,15,0.5); }
+.fab-wheel:hover { transform: scale(1.15) rotate(10deg); }
+
+/* Lucky Wheel */
+.wheel-modal { background: var(--bg-card); padding: 30px; border-radius: 20px; width: 400px; max-width: 90%; text-align: center; border: 1px solid var(--border); box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+.wheel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.wheel-header h2 { color: #f1c40f; margin: 0; font-size: 1.5rem; text-transform: uppercase; font-weight: 900; }
+.wheel-desc { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px; }
+.wheel-container { position: relative; width: 300px; height: 300px; margin: 0 auto 30px; border-radius: 50%; box-shadow: 0 0 20px rgba(241,196,15,0.2); border: 8px solid var(--bg-root); overflow: hidden; }
+.wheel-pointer { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); font-size: 2rem; color: #e74c3c; z-index: 10; text-shadow: 0 2px 5px rgba(0,0,0,0.5); }
+.wheel-board { width: 100%; height: 100%; border-radius: 50%; position: relative; transition: transform 7s cubic-bezier(0.1, 0.8, 0.1, 1); }
+.wheel-text { position: absolute; width: 100%; height: 100%; top: 0; left: 0; display: flex; justify-content: center; align-items: flex-start; padding-top: 15px; transform-origin: 50% 50%; }
+.slice-label { font-weight: 900; font-size: 1.1rem; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); }
+
+.btn-spin { background: linear-gradient(45deg, #f1c40f, #e67e22); color: #fff; font-size: 1.2rem; font-weight: 900; border: none; padding: 15px 40px; border-radius: 30px; cursor: pointer; transition: 0.3s; box-shadow: 0 5px 15px rgba(230,126,34,0.4); }
+.btn-spin:hover:not(:disabled) { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(230,126,34,0.6); }
+.btn-spin:disabled { opacity: 0.7; cursor: not-allowed; background: #95a5a6; box-shadow: none; }
+.spin-result { margin-top: 20px; font-size: 1.1rem; padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.05); }
+.spin-result.win { background: rgba(46,204,113,0.1); color: #2ecc71; font-weight: bold; border: 1px solid rgba(46,204,113,0.3); }
+
+/* Animation Utils */
 </style>

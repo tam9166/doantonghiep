@@ -30,8 +30,35 @@ public class RestaurantTableController {
 
     @GetMapping
     public ResponseEntity<?> getAllTables() {
-        // Chỉ lấy trạng thái thực tế từ DB, không tính toán phức tạp nữa
         return ResponseEntity.ok(tableRepository.findAll());
+    }
+
+    @GetMapping("/seed")
+    public ResponseEntity<?> seedTables() {
+        if (tableRepository.count() > 20) {
+            return ResponseEntity.ok("Đã có đủ bàn, không cần thêm nữa!");
+        }
+
+        // Tầng 2: Sảnh tiệc (15 bàn, sức chứa 10)
+        for (int i = 1; i <= 15; i++) {
+            tableRepository.save(new RestaurantTable(null, "Bàn T2-" + String.format("%02d", i), "Tầng 2 (Sảnh Tiệc)", 0, false, null, 10, null));
+        }
+
+        // Tầng 3, 4, 5: Phòng VIP (5 bàn mỗi tầng)
+        for (int i = 1; i <= 5; i++) {
+            tableRepository.save(new RestaurantTable(null, "VIP T3-" + String.format("%02d", i), "Tầng 3 (Phòng VIP)", 0, false, null, 6, null));
+            tableRepository.save(new RestaurantTable(null, "VIP T4-" + String.format("%02d", i), "Tầng 4 (Phòng VIP)", 0, false, null, 6, null));
+            tableRepository.save(new RestaurantTable(null, "VIP T5-" + String.format("%02d", i), "Tầng 5 (Phòng VIP)", 0, false, null, 8, null));
+        }
+
+        // Tầng 6: Sân Thượng
+        for (int i = 1; i <= 4; i++) {
+            tableRepository.save(new RestaurantTable(null, "Rooftop T6-" + String.format("%02d", i), "Tầng 6 (Sân Thượng)", 0, false, null, 4, "View Phố"));
+            tableRepository.save(new RestaurantTable(null, "Rooftop T6-" + String.format("%02d", i + 4), "Tầng 6 (Sân Thượng)", 0, false, null, 4, "View Sông"));
+            tableRepository.save(new RestaurantTable(null, "Rooftop T6-" + String.format("%02d", i + 8), "Tầng 6 (Sân Thượng)", 0, false, null, 6, "View Sân Vườn"));
+        }
+
+        return ResponseEntity.ok("Đã tạo tự động các bàn thành công!");
     }
     
     @GetMapping("/check-availability")
@@ -67,7 +94,7 @@ public class RestaurantTableController {
             tableRepository.save(table);
 
             // 🌟 TÍNH NĂNG DOANH NGHIỆP: Dọn bàn tự động chốt các đơn hàng đang treo
-            if (status == 0) {
+            if (status == 0 || status == 3) {
                 List<Order> activeOrders = orderRepository.findAll().stream()
                     .filter(o -> o.getStatus() != null && o.getStatus() < 4)
                     .filter(o -> o.getAddress() != null && o.getAddress().contains(table.getName()))

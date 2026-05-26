@@ -1,5 +1,8 @@
 package poly.edu.quanlynhahang.entity;
 
+import java.util.Date;
+
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -7,29 +10,32 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Temporal;
+import jakarta.persistence.TemporalType;
 import lombok.Data;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Data
 @Entity
-@Table(name = "OrderDetails")
-public class OrderDetail {
+@Table(name = "Reviews")
+public class Review {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    private Double price;
-    
-    private Integer quantity;
+    @ManyToOne
+    @JoinColumn(name = "username")
+    private Account account;
 
-    // Khóa ngoại biết chi tiết này là của món ăn nào
     @ManyToOne
     @JoinColumn(name = "product_id")
     private Product product;
 
-    // Khóa ngoại biết chi tiết này thuộc về hóa đơn nào
-    @JsonIgnore
-    @ManyToOne
-    @JoinColumn(name = "order_id")
-    private Order order;
+    private Integer rating; // 1 to 5 stars
+
+    @Column(columnDefinition = "NVARCHAR(500)")
+    private String comment;
+
+    @Temporal(TemporalType.TIMESTAMP)
+    @Column(name = "create_date")
+    private Date createDate = new Date();
 }

@@ -41,6 +41,9 @@ public class Product {
 
     private Boolean available = true; // Trạng thái: Còn hàng (true) hoặc Hết hàng (false)
 
+    @jakarta.persistence.Transient
+    private Double averageRating;
+
     // Khóa ngoại liên kết với Category
     @ManyToOne
     @JoinColumn(name = "category_id")

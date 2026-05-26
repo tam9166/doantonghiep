@@ -8,10 +8,13 @@
       <nav class="g-nav-links">
         <router-link to="/admin">Thực Đơn</router-link>
         <router-link to="/admin/categories">Danh Mục</router-link>
+        <router-link to="/admin/ingredients">Nguyên Liệu</router-link>
         <router-link to="/admin/tables">Sơ Đồ Bàn</router-link>
         <router-link to="/admin/orders">Đơn Hàng</router-link>
+        <router-link to="/admin/vouchers">Khuyến Mãi</router-link>
         <router-link to="/admin/staff">Nhân Sự</router-link>
-        <router-link to="/admin/posts">Bài Đăng</router-link>
+        <router-link to="/admin/posts" class="active">Bài Đăng</router-link>
+        <router-link to="/admin/analytics">Thống Kê</router-link>
       </nav>
       <button @click="$router.push('/')" class="g-btn-nav">🏠 Trang Khách</button>
     </header>
@@ -324,3 +327,4 @@ onMounted(() => {
 .app-message { background: var(--bg-root); padding: 10px; border-radius: var(--radius-sm); margin-top: 8px !important; font-size: 0.8rem !important; }
 .likes-badge { font-size: 0.72rem; font-weight: 700; color: #e74c3c; background: rgba(231,76,60,0.1); padding: 2px 8px; border-radius: 10px; }
 </style>
+
