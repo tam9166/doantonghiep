@@ -3,6 +3,7 @@ package poly.edu.quanlynhahang.controller;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -132,6 +133,26 @@ public class IngredientController {
         
         List<IngredientBatch> expiring = ingredientBatchRepository.findExpiringBatches(targetDate);
         return ResponseEntity.ok(expiring);
+    }
+
+    // 4.3. Xóa lô hàng
+    @DeleteMapping("/batches/{batchId}")
+    public ResponseEntity<?> deleteBatch(@PathVariable Long batchId) {
+        Optional<IngredientBatch> batchOpt = ingredientBatchRepository.findById(batchId);
+        if (batchOpt.isPresent()) {
+            IngredientBatch batch = batchOpt.get();
+            Ingredient ing = batch.getIngredient();
+            ingredientBatchRepository.delete(batch);
+            
+            // Cập nhật lại số lượng tồn kho
+            double totalQuantity = ingredientBatchRepository.findAvailableBatchesOrderByExpirationAsc(ing)
+                    .stream().mapToDouble(IngredientBatch::getQuantity).sum();
+            ing.setQuantity(totalQuantity);
+            ingredientRepository.save(ing);
+            
+            return ResponseEntity.ok("Đã xóa lô hàng");
+        }
+        return ResponseEntity.badRequest().body("Không tìm thấy lô hàng!");
     }
 
     // 5. Cập nhật số lượng trực tiếp

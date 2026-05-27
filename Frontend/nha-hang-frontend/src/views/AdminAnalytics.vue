@@ -38,7 +38,7 @@
         <div class="finance-card card-revenue">
           <div class="fc-icon">💰</div>
           <div class="fc-info">
-            <span class="fc-label">Đầu Ra (Doanh Thu)</span>
+            <span class="fc-label">Doanh Thu (Đầu Ra)</span>
             <span class="fc-value">{{ totalRevenue.toLocaleString() }}đ</span>
           </div>
           <div class="fc-glow"></div>
@@ -46,8 +46,17 @@
         <div class="finance-card card-cost">
           <div class="fc-icon">📦</div>
           <div class="fc-info">
-            <span class="fc-label">Đầu Vào (Giá Vốn)</span>
+            <span class="fc-label">Giá Vốn (Nguyên Liệu)</span>
             <span class="fc-value">{{ totalCost.toLocaleString() }}đ</span>
+          </div>
+          <div class="fc-glow"></div>
+        </div>
+        <div class="finance-card card-op">
+          <div class="fc-icon">👥</div>
+          <div class="fc-info">
+            <span class="fc-label">Chi Phí Vận Hành</span>
+            <span class="fc-value">{{ (totalStaffCost + totalOpCost).toLocaleString() }}đ</span>
+            <span class="fc-ratio">Lương NV: {{ totalStaffCost.toLocaleString() }}đ</span>
           </div>
           <div class="fc-glow"></div>
         </div>
@@ -212,10 +221,14 @@ const showAiModal = ref(false);
 const aiLoading = ref(false);
 const aiResponse = ref('');
 
+const allSchedules = ref([]);
+
 // Financial totals
 const totalRevenue = ref(0);
 const totalCost = ref(0);
-const profit = computed(() => totalRevenue.value - totalCost.value);
+const totalStaffCost = ref(0);
+const totalOpCost = ref(0);
+const profit = computed(() => totalRevenue.value - totalCost.value - totalStaffCost.value - totalOpCost.value);
 
 const getToken = () => localStorage.getItem('token');
 const configHeader = () => ({ headers: { 'Authorization': `Bearer ${getToken()}` } });
@@ -284,15 +297,22 @@ const fetchData = async () => {
     const token = getToken();
     const headers = { 'Authorization': `Bearer ${token}` };
 
-    const [resOrders, resRecipes, resIngredients] = await Promise.all([
+    const today = new Date();
+    const lastYear = new Date(); lastYear.setFullYear(today.getFullYear() - 1);
+    const endStr = today.toISOString().split('T')[0];
+    const startStr = lastYear.toISOString().split('T')[0];
+
+    const [resOrders, resRecipes, resIngredients, resSchedules] = await Promise.all([
       axios.get('http://localhost:8080/api/admin/orders', { headers }),
       axios.get('http://localhost:8080/api/admin/recipes', { headers }),
-      axios.get('http://localhost:8080/api/admin/ingredients', { headers })
+      axios.get('http://localhost:8080/api/admin/ingredients', { headers }),
+      axios.get(`http://localhost:8080/api/schedules?startDate=${startStr}&endDate=${endStr}`, { headers })
     ]);
 
     orders.value = resOrders.data.filter(o => o.status === 4);
     recipes.value = resRecipes.data;
     ingredients.value = resIngredients.data;
+    allSchedules.value = resSchedules.data;
 
     processData();
   } catch (error) {
@@ -304,6 +324,39 @@ const processData = () => {
   chartDataReady.value = false;
   const now = new Date();
   const costMap = buildCostMap();
+  
+  let filteredSchedules = [];
+  let daysCount = 0;
+  
+  if (timeFilter.value === 'week') {
+    filteredSchedules = allSchedules.value.filter(s => Math.ceil(Math.abs(now - new Date(s.workDate)) / (1000 * 60 * 60 * 24)) <= 7);
+    daysCount = 7;
+  } else if (timeFilter.value === 'month') {
+    filteredSchedules = allSchedules.value.filter(s => new Date(s.workDate).getMonth() === now.getMonth() && new Date(s.workDate).getFullYear() === now.getFullYear());
+    daysCount = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  } else if (timeFilter.value === 'year') {
+    filteredSchedules = allSchedules.value.filter(s => new Date(s.workDate).getFullYear() === now.getFullYear());
+    daysCount = 365;
+  }
+
+  // Tính chi phí lương theo chức vụ (chia cho 28 công/tháng)
+  // Bếp: 7.000.000 / 28 ≈ 250.000đ/ca
+  // Phục vụ / Thu ngân: 6.000.000 / 28 ≈ 214.286đ/ca
+  let calculatedStaffCost = 0;
+  filteredSchedules.forEach(s => {
+    const role = s.account?.role || 'ROLE_WAITER';
+    if (role === 'ROLE_KITCHEN') {
+      calculatedStaffCost += 250000; // 7tr / 28
+    } else if (role === 'ROLE_MANAGER') {
+      calculatedStaffCost += 357143; // 10tr / 28
+    } else {
+      calculatedStaffCost += 214286; // 6tr / 28
+    }
+  });
+
+  totalStaffCost.value = calculatedStaffCost;
+  // Chi phí vận hành cố định (mặt bằng, điện nước...): 500,000 VND / ngày
+  totalOpCost.value = daysCount * 500000;
   
   const groupedData = {};
   
@@ -346,7 +399,7 @@ const processData = () => {
   const revData = labels.map(k => groupedData[k].revenue);
   const costData = labels.map(k => groupedData[k].cost);
   const countData = labels.map(k => groupedData[k].count);
-  const profitData = labels.map(k => groupedData[k].revenue - groupedData[k].cost);
+  const profitData = labels.map(k => groupedData[k].revenue - groupedData[k].cost - (totalStaffCost.value / daysCount) - (totalOpCost.value / daysCount));
 
   // Total financial figures
   totalRevenue.value = revData.reduce((a, b) => a + b, 0);
@@ -451,8 +504,10 @@ const analyzeWithAI = async () => {
 
   const dataForAI = {
     doanh_thu_tong: totalRevenue.value,
-    gia_von_tong: totalCost.value,
-    loi_nhuan_tong: profit.value,
+    chi_phi_nguyen_lieu: totalCost.value,
+    chi_phi_nhan_su_tong: totalStaffCost.value,
+    chi_phi_mat_bang_dien_nuoc: totalOpCost.value,
+    loi_nhuan_rong: profit.value,
     bien_loi_nhuan: totalRevenue.value > 0 ? ((profit.value / totalRevenue.value) * 100).toFixed(1) + '%' : '0%',
     top_5_mon: top5
   };
@@ -497,7 +552,7 @@ onMounted(fetchData);
 /* ====== FINANCIAL SUMMARY CARDS ====== */
 .finance-cards {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 20px;
   margin-bottom: 30px;
 }
@@ -582,6 +637,14 @@ onMounted(fetchData);
 .card-profit .fc-ratio { color: #2ecc71; }
 .card-profit .fc-glow { background: #f1c40f; }
 .card-profit:hover { box-shadow: 0 8px 30px rgba(241, 196, 15, 0.2); }
+
+/* Card OP */
+.card-op { border-color: rgba(52, 152, 219, 0.3); }
+.card-op .fc-icon { background: rgba(52, 152, 219, 0.15); color: #3498db; }
+.card-op .fc-value { color: #3498db; }
+.card-op .fc-ratio { color: #2980b9; }
+.card-op .fc-glow { background: #3498db; }
+.card-op:hover { box-shadow: 0 8px 30px rgba(52, 152, 219, 0.2); }
 
 /* Card Loss */
 .card-loss { border-color: rgba(231, 76, 60, 0.5); }

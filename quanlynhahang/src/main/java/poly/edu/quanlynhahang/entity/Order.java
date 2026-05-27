@@ -44,4 +44,8 @@ public class Order {
 
     @OneToMany(mappedBy = "order")
     private List<OrderDetail> orderDetails;
+
+    // Đánh dấu đơn hàng đã được thanh toán (đối với ăn tại quán)
+    @Column(name = "is_paid")
+    private Boolean isPaid = false;
 }

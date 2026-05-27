@@ -5,6 +5,9 @@ import org.springframework.stereotype.Repository;
 
 import poly.edu.quanlynhahang.entity.RestaurantTable;
 
+import java.util.Optional;
+
 @Repository
 public interface RestaurantTableRepository extends JpaRepository<RestaurantTable, Integer> {
+    Optional<RestaurantTable> findByName(String name);
 }

@@ -28,7 +28,7 @@ public class KitchenService {
 
     // Hàm xử lý khi Bếp bấm "Bắt đầu nấu" hoặc "Xác nhận nấu"
     @Transactional
-    public void cookOrder(Long orderId) {
+    public void cookOrder(Integer orderId) {
         // 1. Tìm đơn hàng
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng!"));

@@ -105,6 +105,8 @@ const handleLogin = async () => {
       window.location.href = '/kitchen';
     } else if (userRoles.includes('ROLE_WAITER')) {
       window.location.href = '/waiter';
+    } else if (userRoles.includes('ROLE_CASHIER')) {
+      window.location.href = '/cashier';
     } else if (userRoles.includes('ROLE_ADMIN') || userRoles.includes('ROLE_MANAGER')) {
       window.location.href = '/admin';
     } else {

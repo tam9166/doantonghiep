@@ -125,7 +125,10 @@
                 </div>
                 <h4>🧑‍💼 {{ app.fullname }}</h4>
                 <p>📞 {{ app.phone }} | ✉️ {{ app.email || 'Không có email' }}</p>
-                <p class="app-message"><strong>Lời nhắn / CV:</strong> {{ app.message || 'Không có lời nhắn' }}</p>
+                <p class="app-message"><strong>Lời nhắn:</strong> {{ app.message || 'Không có lời nhắn' }}</p>
+                <div v-if="app.cvFile" style="margin-top: 10px;">
+                  <a :href="'http://localhost:8080' + app.cvFile" target="_blank" class="btn-download-cv">📄 Xem / Tải CV</a>
+                </div>
               </div>
             </div>
             
@@ -287,6 +290,22 @@ onMounted(() => {
 }
 .post-item:hover { border-color: var(--border); transform: translateX(4px); }
 .post-item.inactive { opacity: 0.5; }
+
+.btn-download-cv {
+  display: inline-block;
+  padding: 6px 12px;
+  background: #3498db;
+  color: white;
+  text-decoration: none;
+  border-radius: 4px;
+  font-weight: bold;
+  font-size: 0.9rem;
+  transition: 0.2s;
+}
+.btn-download-cv:hover {
+  background: #2980b9;
+  transform: translateY(-2px);
+}
 
 .post-thumb {
   width: 80px; height: 80px; border-radius: var(--radius-md);

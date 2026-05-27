@@ -26,4 +26,10 @@ public class WebConfig implements WebMvcConfigurer {
         converters.add(jacksonConverter);
         converters.add(responseBodyStringConverter());
     }
+
+    @Override
+    public void addResourceHandlers(org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry registry) {
+        registry.addResourceHandler("/uploads/**")
+                .addResourceLocations("file:uploads/");
+    }
 }

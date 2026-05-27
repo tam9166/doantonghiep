@@ -296,8 +296,12 @@
           <input v-model="appForm.email" type="email" class="g-input" placeholder="nguyenvana@gmail.com" />
         </div>
         <div class="form-group">
-          <label>Lời Nhắn / Link CV</label>
-          <textarea v-model="appForm.message" class="g-input" rows="4" placeholder="Kinh nghiệm của bạn, link Google Drive chứa CV..."></textarea>
+          <label>Lời Nhắn</label>
+          <textarea v-model="appForm.message" class="g-input" rows="3" placeholder="Kinh nghiệm của bạn..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>CV Đính Kèm (PDF, DOCX, Ảnh)</label>
+          <input type="file" @change="handleCvUpload" class="g-input" style="padding: 10px;" />
         </div>
         
         <div class="app-actions">
@@ -583,7 +587,7 @@ const likePost = async (post) => {
 
 // === APPLICATION FORM ===
 const showAppForm = ref(false);
-const appForm = ref({ fullname: '', phone: '', email: '', message: '', postId: null });
+const appForm = ref({ fullname: '', phone: '', email: '', message: '', postId: null, cvFile: null });
 const openApplicationForm = () => {
   showAppForm.value = true;
   appForm.value = { fullname: '', phone: '', email: '', message: '', postId: selectedRecruit.value?.id };
@@ -592,10 +596,26 @@ const openApplicationFormFromInterview = () => {
   showInterviewChat.value = false;
   openApplicationForm();
 };
+const handleCvUpload = (event) => {
+  if (event.target.files && event.target.files[0]) {
+    appForm.value.cvFile = event.target.files[0];
+  }
+};
+
 const submitApplication = async () => {
   if (!appForm.value.fullname || !appForm.value.phone) return alert('Vui lòng nhập họ tên và SĐT!');
   try {
-    await axios.post('http://localhost:8080/api/applications', appForm.value);
+    const formData = new FormData();
+    formData.append('fullname', appForm.value.fullname);
+    formData.append('phone', appForm.value.phone);
+    if (appForm.value.email) formData.append('email', appForm.value.email);
+    if (appForm.value.message) formData.append('message', appForm.value.message);
+    if (appForm.value.postId) formData.append('postId', appForm.value.postId);
+    if (appForm.value.cvFile) formData.append('file', appForm.value.cvFile);
+
+    await axios.post('http://localhost:8080/api/applications/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
     alert('Đã gửi đơn ứng tuyển thành công! Nhà hàng sẽ liên hệ sớm nhất.');
     showAppForm.value = false;
   } catch (err) { alert('Lỗi: ' + (err.response?.data || err.message)); }

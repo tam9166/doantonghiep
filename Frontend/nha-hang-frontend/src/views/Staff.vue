@@ -1,61 +1,365 @@
 <template>
-  <div class="staff-wrapper">
-    <div class="staff-content">
-      <div class="staff-icon">👥</div>
-      <h1>Trang Nhân Viên</h1>
-      <p>Trang này đang được phát triển. Vui lòng sử dụng trang Quản lý Nhân Sự.</p>
-      <div class="staff-actions">
-        <button @click="$router.push('/admin/staff')" class="btn-primary">
-          📋 Quản Lý Nhân Sự
-        </button>
-        <button @click="$router.push('/')" class="btn-secondary">
-          🏠 Về Trang Chủ
-        </button>
+  <div class="staff-dashboard">
+    <header class="staff-header">
+      <div class="header-left">
+        <div class="brand">
+          <span class="brand-icon">👤</span>
+          <div>
+            <h2>THÔNG TIN CÁ NHÂN</h2>
+            <p>Xin chào, {{ user?.fullname || user?.username }}</p>
+          </div>
+        </div>
       </div>
-    </div>
+      <div class="header-right">
+        <button @click="$router.push(getRoleHomeRoute())" class="btn-back">⬅ Quay lại khu vực làm việc</button>
+      </div>
+    </header>
+
+    <main class="staff-content">
+      <div class="tabs">
+        <button :class="{ active: currentTab === 'schedule' }" @click="currentTab = 'schedule'">📅 Lịch Làm Việc</button>
+        <button :class="{ active: currentTab === 'timekeeping' }" @click="currentTab = 'timekeeping'">⏱ Lịch Sử Chấm Công</button>
+        <button :class="{ active: currentTab === 'salary' }" @click="currentTab = 'salary'">💰 Lương Tạm Tính</button>
+      </div>
+
+      <!-- TAB: LỊCH LÀM VIỆC -->
+      <div v-if="currentTab === 'schedule'" class="tab-panel fade-in">
+        <div class="panel-header">
+          <h3>Lịch Phân Công Ca Làm</h3>
+          <div class="date-picker">
+            <label>Tháng: </label>
+            <input type="month" v-model="selectedMonth" @change="fetchData" />
+          </div>
+        </div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Ngày Làm Việc</th>
+              <th>Ca Làm</th>
+              <th>Thời Gian</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="sched in scheduleList" :key="sched.id">
+              <td>{{ new Date(sched.workDate).toLocaleDateString('vi-VN') }}</td>
+              <td><span class="shift-badge">{{ sched.shift }}</span></td>
+              <td style="font-weight: 500; color: var(--text-secondary);">{{ getShiftTime(sched.shift) }}</td>
+            </tr>
+            <tr v-if="scheduleList.length === 0">
+              <td colspan="3" class="text-center">Bạn chưa có lịch làm việc nào trong tháng này.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- TAB: CHẤM CÔNG -->
+      <div v-if="currentTab === 'timekeeping'" class="tab-panel fade-in">
+        <div class="panel-header">
+          <h3>Lịch Sử Chấm Công Cá Nhân</h3>
+          <div class="date-picker">
+            <label>Tháng: </label>
+            <input type="month" v-model="selectedMonth" @change="fetchData" />
+          </div>
+        </div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Ngày</th>
+              <th>Giờ Check-in</th>
+              <th>Giờ Check-out</th>
+              <th>Trạng Thái</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="tk in timekeepingList" :key="tk.id">
+              <td>{{ new Date(tk.workDate).toLocaleDateString('vi-VN') }}</td>
+              <td>{{ formatTime(tk.checkInTime) }}</td>
+              <td>{{ formatTime(tk.checkOutTime) }}</td>
+              <td>
+                <span class="status-badge" :class="getStatusClass(tk.status)">{{ tk.status }}</span>
+              </td>
+            </tr>
+            <tr v-if="timekeepingList.length === 0">
+              <td colspan="4" class="text-center">Chưa có dữ liệu chấm công.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- TAB: BẢNG LƯƠNG -->
+      <div v-if="currentTab === 'salary'" class="tab-panel fade-in">
+        <div class="panel-header">
+          <h3>Chi Tiết Lương Tháng {{ selectedMonth }}</h3>
+          <div class="date-picker">
+            <label>Tháng: </label>
+            <input type="month" v-model="selectedMonth" @change="fetchData" />
+          </div>
+        </div>
+        
+        <div class="salary-card">
+          <div class="salary-row">
+            <span>Chức vụ hiện tại:</span>
+            <strong>{{ translateRole(userRole) }}</strong>
+          </div>
+          <div class="salary-row">
+            <span>Số ca được xếp trong tháng:</span>
+            <strong>{{ scheduleList.length }} ca</strong>
+          </div>
+          <div class="salary-row">
+            <span>Số ca đã đi làm (có Check-in):</span>
+            <strong class="text-primary">{{ workedShifts }} ca</strong>
+          </div>
+          <div class="salary-row">
+            <span>Đơn giá trên 1 ca:</span>
+            <strong>{{ rate.toLocaleString('vi-VN') }} đ</strong>
+          </div>
+          <hr />
+          <div class="salary-row total">
+            <span>TỔNG LƯƠNG TẠM TÍNH:</span>
+            <strong class="text-success">{{ (workedShifts * rate).toLocaleString('vi-VN') }} đ</strong>
+          </div>
+          <p class="salary-note">* Lương tạm tính dựa trên số lượng ca đã chấm công hợp lệ. Có thể thay đổi theo phụ cấp, thưởng phạt cuối tháng.</p>
+        </div>
+      </div>
+    </main>
   </div>
 </template>
 
 <script setup>
+import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
+import axios from 'axios';
+
 const router = useRouter();
+const currentTab = ref('schedule');
+const selectedMonth = ref(new Date().toISOString().substring(0, 7));
+
+const user = ref(JSON.parse(localStorage.getItem('user')) || {});
+const userRole = computed(() => {
+  if (!user.value || !user.value.roles) return '';
+  return user.value.roles.find(r => r.startsWith('ROLE_')) || '';
+});
+
+const rate = computed(() => {
+  if (userRole.value === 'ROLE_KITCHEN') return 250000;
+  if (userRole.value === 'ROLE_MANAGER') return 357143;
+  return 214286;
+});
+
+const scheduleList = ref([]);
+const timekeepingList = ref([]);
+
+const workedShifts = computed(() => {
+  return timekeepingList.value.filter(tk => tk.checkInTime).length;
+});
+
+const configHeader = () => {
+  const token = localStorage.getItem('token');
+  return { headers: { Authorization: 'Bearer ' + token } };
+};
+
+const getRoleHomeRoute = () => {
+  if (userRole.value === 'ROLE_KITCHEN') return '/kitchen';
+  if (userRole.value === 'ROLE_WAITER') return '/waiter';
+  if (userRole.value === 'ROLE_CASHIER') return '/cashier';
+  if (userRole.value === 'ROLE_MANAGER' || userRole.value === 'ROLE_ADMIN') return '/admin';
+  return '/';
+};
+
+const translateRole = (r) => {
+  if (r === 'ROLE_ADMIN') return 'Quản Trị Viên';
+  if (r === 'ROLE_MANAGER') return 'Quản Lý';
+  if (r === 'ROLE_KITCHEN') return 'Bếp';
+  if (r === 'ROLE_WAITER') return 'Phục Vụ';
+  if (r === 'ROLE_CASHIER') return 'Thu Ngân';
+  return r;
+};
+
+const getShiftTime = (shift) => {
+  if (shift === 'Sáng') return '09:00 - 14:00';
+  if (shift === 'Chiều') return '14:00 - Hết khách';
+  if (shift === 'Tối' || shift === 'Full Time' || shift === 'Full ca') return '09:00 - 23:00';
+  return 'Chưa xác định';
+};
+
+const formatTime = (timeStr) => {
+  if (!timeStr) return '-';
+  return new Date(timeStr).toLocaleTimeString('vi-VN');
+};
+
+const getStatusClass = (status) => {
+  if (status === 'Đúng giờ') return 'status-success';
+  if (status === 'Đi trễ') return 'status-danger';
+  if (status === 'Về sớm') return 'status-warning';
+  if (status === 'Hoàn thành' || status === 'Đã Chấm Công') return 'status-success';
+  return 'status-secondary';
+};
+
+const fetchData = async () => {
+  try {
+    const year = selectedMonth.value.split('-')[0];
+    const month = selectedMonth.value.split('-')[1];
+    const startDate = `${year}-${month}-01`;
+    const lastDay = new Date(year, month, 0).getDate();
+    const endDate = `${year}-${month}-${lastDay}`;
+    
+    const [resSched, resTk] = await Promise.all([
+      axios.get(`http://localhost:8080/api/schedules/my-schedules?username=${user.value.username}&startDate=${startDate}&endDate=${endDate}`, configHeader()),
+      axios.get(`http://localhost:8080/api/timekeeping/me?username=${user.value.username}&startDate=${startDate}&endDate=${endDate}`, configHeader())
+    ]);
+    
+    scheduleList.value = resSched.data;
+    timekeepingList.value = resTk.data;
+  } catch (err) {
+    console.error('Lỗi lấy dữ liệu cá nhân', err);
+  }
+};
+
+onMounted(() => {
+  if (!user.value.username) {
+    router.push('/login');
+    return;
+  }
+  fetchData();
+});
 </script>
 
 <style scoped>
-.staff-wrapper {
-  background: var(--bg-root);
+.staff-dashboard {
+  background-color: var(--bg-root);
   min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  color: var(--text-main);
+  font-family: 'Inter', sans-serif;
 }
-.staff-content {
-  text-align: center;
-  padding: 60px 40px;
+
+.staff-header {
   background: var(--bg-card);
+  padding: 15px 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+.brand { display: flex; align-items: center; gap: 15px; }
+.brand-icon { font-size: 2.2rem; }
+.brand h2 { margin: 0; font-size: 1.3rem; color: var(--primary); }
+.brand p { margin: 5px 0 0 0; font-size: 0.9rem; color: var(--text-muted); }
+
+.btn-back {
+  background: var(--border-light);
+  color: var(--text-main);
+  border: 1px solid var(--border);
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: 0.2s;
+}
+.btn-back:hover {
+  background: var(--primary);
+  color: var(--bg-dark);
+  border-color: var(--primary);
+}
+
+.staff-content {
+  padding: 30px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+.tabs button {
+  padding: 12px 24px;
+  border: none;
+  background: var(--bg-card);
+  border-radius: 8px 8px 0 0;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.3s;
+  color: var(--text-muted);
+  font-size: 1rem;
+}
+.tabs button.active {
+  background: var(--primary);
+  color: var(--bg-dark);
+}
+
+.tab-panel {
+  background: var(--bg-card);
+  padding: 25px;
+  border-radius: 0 8px 8px 8px;
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border);
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.panel-header h3 { margin: 0; color: var(--text-heading); font-size: 1.4rem; }
+
+.date-picker { display: flex; align-items: center; gap: 10px; }
+.date-picker input {
+  background: var(--bg-root); color: var(--text-main);
+  border: 1px solid var(--border); padding: 8px 12px;
+  border-radius: 6px; outline: none;
+}
+
+/* TABLE STYLES */
+.data-table {
+  width: 100%; border-collapse: collapse; margin-top: 10px;
+}
+.data-table th, .data-table td {
+  padding: 12px 15px; border-bottom: 1px solid var(--border-light); text-align: left;
+}
+.data-table th {
+  background: var(--bg-root); color: var(--text-secondary); font-weight: 600;
+}
+.data-table tr:hover { background: rgba(255,255,255,0.03); }
+.text-center { text-align: center !important; color: var(--text-muted); }
+
+/* BADGES */
+.shift-badge { background: #3498db; color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.85rem; font-weight: 600; }
+.status-badge { padding: 5px 10px; border-radius: 15px; font-size: 0.85rem; font-weight: bold; }
+.status-success { background: rgba(39, 174, 96, 0.2); color: #2ecc71; }
+.status-warning { background: rgba(243, 156, 18, 0.2); color: #f1c40f; }
+.status-danger { background: rgba(231, 76, 60, 0.2); color: #e74c3c; }
+.status-secondary { background: rgba(149, 165, 166, 0.2); color: #bdc3c7; }
+
+/* SALARY CARD */
+.salary-card {
+  background: var(--bg-root);
   border: 1px solid var(--border-light);
-  border-radius: var(--radius-xl);
-  max-width: 500px;
-  box-shadow: var(--shadow-lg);
+  border-radius: 12px;
+  padding: 30px;
+  max-width: 600px;
+  margin: 0 auto;
 }
-.staff-icon { font-size: 4rem; margin-bottom: 20px; }
-h1 { font-size: 2rem; color: var(--text-heading); margin: 0 0 12px 0; font-weight: 800; }
-p { color: var(--text-muted); margin: 0 0 32px 0; }
-.staff-actions { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
-.btn-primary {
-  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-  color: var(--bg-dark); border: none; padding: 13px 24px;
-  border-radius: var(--radius-md); cursor: pointer;
-  font-weight: 700; font-size: 0.95rem; font-family: inherit;
-  transition: var(--transition);
+.salary-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 15px;
+  font-size: 1.1rem;
 }
-.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,212,170,0.4); }
-.btn-secondary {
-  background: transparent; border: 1px solid var(--border);
-  color: var(--text-secondary); padding: 13px 24px;
-  border-radius: var(--radius-md); cursor: pointer;
-  font-weight: 600; font-size: 0.95rem; font-family: inherit;
-  transition: var(--transition);
+.salary-row.total {
+  font-size: 1.4rem;
+  margin-top: 15px;
 }
-.btn-secondary:hover { border-color: var(--primary); color: var(--primary); }
+.text-primary { color: var(--primary); }
+.text-success { color: #2ecc71; }
+.salary-note {
+  margin-top: 25px;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  text-align: center;
+  font-style: italic;
+}
+hr { border-color: var(--border-light); margin: 20px 0; }
+
+.fade-in { animation: fadeIn 0.3s ease-in-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 </style>

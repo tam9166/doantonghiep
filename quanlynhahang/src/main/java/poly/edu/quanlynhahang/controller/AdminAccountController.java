@@ -21,6 +21,10 @@ import poly.edu.quanlynhahang.entity.Authority;
 import poly.edu.quanlynhahang.repository.AccountRepository;
 import poly.edu.quanlynhahang.repository.AuthorityRepository;
 import poly.edu.quanlynhahang.repository.RoleRepository;
+import poly.edu.quanlynhahang.entity.WorkSchedule;
+import poly.edu.quanlynhahang.entity.Timekeeping;
+import poly.edu.quanlynhahang.repository.WorkScheduleRepository;
+import poly.edu.quanlynhahang.repository.TimekeepingRepository;
 
 @CrossOrigin("*")
 @RestController
@@ -31,20 +35,35 @@ public class AdminAccountController {
     @Autowired private AccountRepository accountRepository;
     @Autowired private RoleRepository roleRepository;
     @Autowired private AuthorityRepository authorityRepository;
+    @Autowired private poly.edu.quanlynhahang.repository.OrderRepository orderRepository;
+    @Autowired private WorkScheduleRepository workScheduleRepository;
+    @Autowired private TimekeepingRepository timekeepingRepository;
 
     // 1. Lấy danh sách nhân viên
     @GetMapping
     public ResponseEntity<?> getAllStaff() {
-        List<java.util.Map<String, Object>> result = accountRepository.findAll().stream().map(acc -> {
+        List<java.util.Map<String, Object>> result = accountRepository.findAll().stream()
+            .filter(acc -> {
+                List<Authority> auths = acc.getAuthorities();
+                if (auths == null || auths.isEmpty()) {
+                    String un = acc.getUsername().toLowerCase();
+                    return un.equals("admin") || un.equals("manager") || un.equals("bep1") || un.equals("pv1");
+                }
+                return auths.stream().anyMatch(a -> {
+                    String roleName = a.getRole().getName();
+                    return roleName.contains("ADMIN") || roleName.contains("MANAGER") || 
+                           roleName.contains("KITCHEN") || roleName.contains("WAITER") || 
+                           roleName.contains("CASHIER");
+                });
+            })
+            .map(acc -> {
             java.util.Map<String, Object> map = new java.util.HashMap<>();
             map.put("username", acc.getUsername());
             map.put("fullname", acc.getFullname());
             map.put("email", acc.getEmail());
             String roleStr = "ROLE_USER";
-            List<Authority> auths = authorityRepository.findAll().stream()
-                .filter(a -> a.getAccount() != null && acc.getUsername().equals(a.getAccount().getUsername()))
-                .collect(Collectors.toList());
-            if (!auths.isEmpty()) {
+            List<Authority> auths = acc.getAuthorities();
+            if (auths != null && !auths.isEmpty()) {
                 // Find highest role
                 List<String> roles = auths.stream()
                         .map(a -> a.getRole().getName())
@@ -57,6 +76,8 @@ public class AdminAccountController {
                     roleStr = "ROLE_KITCHEN";
                 } else if (roles.contains("ROLE_WAITER")) {
                     roleStr = "ROLE_WAITER";
+                } else if (roles.contains("ROLE_CASHIER")) {
+                    roleStr = "ROLE_CASHIER";
                 } else {
                     roleStr = roles.get(0);
                 }
@@ -116,5 +137,65 @@ public class AdminAccountController {
             return ResponseEntity.ok("Đã xóa tài khoản nhân viên!");
         }
         return ResponseEntity.badRequest().body("Không tìm thấy nhân viên!");
+    }
+
+    // 4. Cập nhật thông tin nhân viên
+    @org.springframework.web.bind.annotation.PutMapping("/{username}")
+    public ResponseEntity<?> updateStaff(@PathVariable String username, @RequestBody Account staffReq, @RequestParam(required = false) String roleId) {
+        return accountRepository.findById(username).map(existing -> {
+            if (staffReq.getFullname() != null) existing.setFullname(staffReq.getFullname());
+            if (staffReq.getEmail() != null) existing.setEmail(staffReq.getEmail());
+            if (staffReq.getPassword() != null && !staffReq.getPassword().isEmpty()) {
+                existing.setPassword(staffReq.getPassword());
+            }
+            
+            accountRepository.save(existing);
+            
+            // Cập nhật role nếu có
+            if (roleId != null && !roleId.isEmpty()) {
+                List<Authority> auths = authorityRepository.findAll().stream()
+                    .filter(a -> a.getAccount() != null && username.equals(a.getAccount().getUsername()))
+                    .collect(Collectors.toList());
+                authorityRepository.deleteAll(auths);
+                
+                roleRepository.findByName(roleId).ifPresent(role -> {
+                    Authority newAuth = new Authority();
+                    newAuth.setAccount(existing);
+                    newAuth.setRole(role);
+                    authorityRepository.save(newAuth);
+                });
+            }
+            return ResponseEntity.ok("Cập nhật tài khoản thành công!");
+        }).orElse(ResponseEntity.badRequest().body("Không tìm thấy tài khoản nhân viên!"));
+    }
+    // 5. Lấy danh sách khách hàng
+    @GetMapping("/customers")
+    public ResponseEntity<?> getAllCustomers() {
+        List<java.util.Map<String, Object>> result = accountRepository.findAll().stream()
+            .filter(acc -> {
+                List<Authority> auths = acc.getAuthorities();
+                if (auths == null || auths.isEmpty()) {
+                    String un = acc.getUsername().toLowerCase();
+                    return !un.equals("admin") && !un.equals("manager") && !un.equals("bep1") && !un.equals("pv1");
+                }
+                // Khách hàng là người CHỈ có ROLE_USER hoặc không có role nào khác ngoài ROLE_USER
+                return auths.stream().allMatch(a -> a.getRole().getName().equals("ROLE_USER") || a.getRole().getName().equals("USER"));
+            })
+            .map(acc -> {
+                java.util.Map<String, Object> map = new java.util.HashMap<>();
+                map.put("username", acc.getUsername());
+                map.put("fullname", acc.getFullname());
+                map.put("email", acc.getEmail());
+                map.put("points", acc.getPoints());
+                map.put("membershipTier", acc.getMembershipTier());
+                return map;
+            }).collect(Collectors.toList());
+        return ResponseEntity.ok(result);
+    }
+
+    // 6. Xem lịch sử hóa đơn của khách hàng
+    @GetMapping("/customers/{username}/orders")
+    public ResponseEntity<?> getCustomerOrders(@PathVariable String username) {
+        return ResponseEntity.ok(orderRepository.findByAccountUsername(username));
     }
 }

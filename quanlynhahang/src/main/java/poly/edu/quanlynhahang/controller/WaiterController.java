@@ -31,7 +31,7 @@ public class WaiterController {
 
     // 2. Xác nhận đã bưng món ra bàn (Chuyển Status sang 3 - Đang ăn)
     @PutMapping("/orders/{id}/serve")
-    public ResponseEntity<?> confirmServed(@PathVariable Long id) {
+    public ResponseEntity<?> confirmServed(@PathVariable Integer id) {
         return orderRepository.findById(id).map(order -> {
             order.setStatus(3);
             orderRepository.save(order);

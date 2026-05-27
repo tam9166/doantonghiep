@@ -20,9 +20,12 @@
           <span class="live-dot"></span>
           <span>LIVE</span>
         </div>
+        <button @click="$router.push('/staff')" class="btn-profile" style="background:#8e44ad; color:white; padding:8px 15px; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">👤 Cá Nhân</button>
         <button @click="handleLogout" class="btn-logout">🚪 Tan Ca</button>
       </div>
     </header>
+
+    <TimekeepingWidget />
 
     <!-- Stats Bar -->
     <div class="stats-bar">
@@ -75,17 +78,20 @@
               </div>
               <!-- Chi tiết món ăn -->
               <div class="serve-dishes">
-                <div v-for="(detail, idx) in order.orderDetails" :key="idx" class="serve-dish-item">
-                  <img v-if="detail.product?.image" :src="detail.product.image" class="serve-dish-thumb" />
-                  <span v-else class="serve-dish-icon">🍽️</span>
-                  <span class="serve-dish-name">{{ detail.product?.name || 'Món ăn' }}</span>
-                  <span class="serve-dish-qty">x{{ detail.quantity }}</span>
-                  <span class="serve-dish-price">{{ detail.price?.toLocaleString() }}đ</span>
-                </div>
+                <template v-for="(detail, idx) in order.orderDetails" :key="idx">
+                  <div class="serve-dish-item" v-if="Number(order.status) === 2 || detail.status === 1">
+                    <img v-if="detail.product?.image" :src="detail.product.image" class="serve-dish-thumb" />
+                    <span v-else class="serve-dish-icon">🍽️</span>
+                    <span class="serve-dish-name">{{ detail.product?.name || 'Món ăn' }}</span>
+                    <span class="serve-dish-qty">x{{ detail.quantity }}</span>
+                    <button v-if="Number(order.status) === 6" @click="markDishServed(order, detail.id)" class="btn-dish-served" style="margin-left: auto;">✅ Đã Bưng</button>
+                    <span v-else class="serve-dish-price">{{ detail.price?.toLocaleString() }}đ</span>
+                  </div>
+                </template>
               </div>
             </div>
-            <button @click="markAsServed(order.id)" class="btn-served">
-              ✔ ĐÃ BƯNG RA BÀN
+            <button v-if="Number(order.status) === 2" @click="markAsServed(order.id)" class="btn-served">
+              ✔ BƯNG TOÀN BỘ BÀN NÀY
             </button>
           </div>
         </div>
@@ -123,9 +129,7 @@
 
             <!-- Hành động Bàn CÓ KHÁCH -->
             <div class="table-actions" v-if="table.isOccupied === 2">
-              <button @click.stop="openInvoice(table)" class="btn-print">🖨️ Bill</button>
-              <button @click.stop="openMoveTable(table)" class="btn-move">🔄 Chuyển</button>
-              <button @click.stop="openCheckoutModal(table)" class="btn-checkout">💰 Thu Tiền</button>
+              <button @click.stop="openMoveTable(table)" class="btn-move">🔄 Chuyển Bàn</button>
             </div>
             <div class="table-actions" v-if="table.isOccupied === 2" style="margin-top: 5px;">
                <button @click.stop="goAddItem(table)" class="btn-add-item">➕ Gọi Thêm</button>
@@ -380,6 +384,7 @@ import axios from 'axios';
 import { useRouter } from 'vue-router';
 import SockJS from 'sockjs-client';
 import { Stomp } from '@stomp/stompjs';
+import TimekeepingWidget from '../components/TimekeepingWidget.vue';
 
 const router = useRouter();
 const toastMsg = ref('');
@@ -395,7 +400,12 @@ const aiLoading = ref(false);
 const aiResponse = ref('');
 
 // FIX LỖI ÉP KIỂU: Dùng Number() để đảm bảo lọc đúng số 2
-const readyOrders = computed(() => orders.value.filter(o => Number(o.status) === 2));
+const readyOrders = computed(() => {
+  return orders.value.filter(o => 
+    Number(o.status) === 2 || 
+    (Number(o.status) === 6 && o.orderDetails?.some(d => d.status === 1))
+  );
+});
 const cookingOrders = computed(() => orders.value.filter(o => Number(o.status) === 1 || Number(o.status) === 6));
 const occupiedTables = computed(() => tables.value.filter(t => t.isOccupied === 2 || t.isOccupied === 3));
 const emptyTables = computed(() => tables.value.filter(t => t.isOccupied === 0));
@@ -431,8 +441,8 @@ const playNotificationSound = () => {
 // === TABLE NAME ===
 const getTableName = (address) => {
   if (!address) return 'Ship / Mang về';
-  const match = address.match(/Bàn[:\s]+([^\s|]+)/);
-  return match ? match[1].trim() : 'Ship / Mang về';
+  const match = address.match(/Bàn:\s*(.*?)\s*\|/);
+  return match ? match[1].trim() : address;
 };
 
 const getTableClass = (status) => {
@@ -502,7 +512,7 @@ const fetchData = async () => {
 
 const markAsServed = async (id) => {
   try {
-    await axios.put(`http://localhost:8080/api/admin/orders/${id}/status?status=3`, {}, {
+    await axios.put(`http://localhost:8080/api/admin/orders/${id}/status?status=7`, {}, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     });
     toastMsg.value = '✅ Đã bưng ra bàn thành công!';
@@ -511,12 +521,34 @@ const markAsServed = async (id) => {
   } catch (error) { alert('Lỗi hệ thống!'); }
 };
 
+const markDishServed = async (order, detailId) => {
+  try {
+    await axios.put(`http://localhost:8080/api/orders/details/${detailId}/status?status=2`, {}, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    toastMsg.value = '✅ Đã bưng món!';
+    setTimeout(() => { toastMsg.value = ''; }, 2000);
+    fetchData();
+  } catch (err) { alert('Lỗi cập nhật!'); }
+};
+
 // Nút KHÁCH VỀ: chuyển bàn sang trạng thái Cần dọn (3)
 const markAsCleaning = async (table) => {
+  const hasUnpaidOrder = orders.value.some(o => 
+    !o.isPaid && 
+    Number(o.status) !== 3 && // Not cancelled
+    Number(o.status) !== 4 && // Not completed
+    o.address && getTableName(o.address) === table.name
+  );
+
+  if (hasUnpaidOrder) {
+    alert(`❌ Khách bàn ${table.name} chưa thanh toán xong!\nVui lòng chờ Thu Ngân xác nhận thanh toán trước khi cho khách về.`);
+    return;
+  }
+
   const confirmed = confirm(
     `🏠 Xác nhận Khách Về tại "${table.name}"?\n\n` +
-    `✅ Bàn sẽ được chuyển sang trạng thái Cần Dọn.\n` +
-    `Đã thu tiền xong chưa?`
+    `✅ Bàn sẽ được chuyển sang trạng thái Cần Dọn.`
   );
   if (!confirmed) return;
 
@@ -649,9 +681,11 @@ const getDetailStatusClass = (status) => {
   return 'badge-done';
 };
 
-// === GỌI THÊM MÓN (truyền tên bàn) ===
+// ==============================
+// 10. GỌI THÊM MÓN
+// ==============================
 const goAddItem = (table) => {
-  router.push({ path: '/dine-in', query: { table: table.name } });
+  router.push(`/dine-in?table=${encodeURIComponent(table.name)}`);
 };
 
 // Chuyển Bàn Logic
@@ -788,6 +822,10 @@ const connectWebSocket = () => {
   stompClient.connect({}, (frame) => {
     stompClient.subscribe('/topic/waiter', (message) => {
       if (message.body === 'ORDER_READY') {
+        fetchData();
+      } else if (message.body === 'ORDER_PAID') {
+        toastMsg.value = '💰 Thu ngân vừa xác nhận thanh toán!';
+        setTimeout(() => { toastMsg.value = ''; }, 3500);
         fetchData();
       }
     });
@@ -1022,7 +1060,23 @@ onUnmounted(() => {
 }
 .serve-dish-icon { font-size: 1.2rem; }
 .serve-dish-name { font-size: 0.85rem; font-weight: 600; color: var(--text-heading); flex: 1; }
-.serve-dish-price { font-size: 0.8rem; font-weight: bold; color: var(--text-muted); }
+.serve-dish-price { color: #e74c3c; font-weight: bold; margin-left: auto; }
+
+.btn-dish-served {
+  background: #27ae60;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: 0.2s;
+}
+.btn-dish-served:hover {
+  background: #2ecc71;
+  transform: scale(1.05);
+}
+
 .serve-dish-qty {
   font-size: 0.78rem; font-weight: 800;
   background: rgba(0,212,170,0.15); color: var(--primary);

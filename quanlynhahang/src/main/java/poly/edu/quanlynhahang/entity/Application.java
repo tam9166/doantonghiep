@@ -34,6 +34,9 @@ public class Application {
 
     private Integer postId;
 
+    @Column(name = "cv_file", columnDefinition = "nvarchar(500)")
+    private String cvFile;
+
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "create_date")
     private Date createDate = new Date();

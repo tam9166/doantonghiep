@@ -7,9 +7,11 @@ import java.util.Random;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -205,6 +207,93 @@ public class OrderController {
             "message", "Đặt hàng thành công! Mã: " + uniqueOrderCode,
             "orderId", savedOrder.getId()
         ));
+    }
+
+
+    @PostMapping("/merge-tables")
+    public ResponseEntity<?> mergeTables(@RequestBody java.util.Map<String, String> payload) {
+        String fromTable = payload.get("fromTable");
+        String toTable = payload.get("toTable");
+        
+        Optional<Order> sourceOrderOpt = orderRepository.findAll().stream()
+            .filter(o -> o.getAddress() != null && o.getAddress().contains(fromTable) && (o.getIsPaid() == null || !o.getIsPaid()) && o.getStatus() != 3)
+            .findFirst();
+            
+        Optional<Order> targetOrderOpt = orderRepository.findAll().stream()
+            .filter(o -> o.getAddress() != null && o.getAddress().contains(toTable) && (o.getIsPaid() == null || !o.getIsPaid()) && o.getStatus() != 3)
+            .findFirst();
+            
+        if (sourceOrderOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body("Bàn nguồn không có hóa đơn nào đang mở!");
+        }
+        if (targetOrderOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body("Bàn đích không có hóa đơn nào đang mở! Vui lòng order món cho bàn đích trước.");
+        }
+        
+        Order sourceOrder = sourceOrderOpt.get();
+        Order targetOrder = targetOrderOpt.get();
+        
+        // Chuyển toàn bộ món từ hóa đơn cũ sang hóa đơn mới
+        if (sourceOrder.getOrderDetails() != null) {
+            for (OrderDetail detail : sourceOrder.getOrderDetails()) {
+                detail.setOrder(targetOrder);
+                orderDetailRepository.save(detail);
+            }
+        }
+        
+        // Hủy hóa đơn cũ
+        sourceOrder.setStatus(3);
+        orderRepository.save(sourceOrder);
+        
+        // Giải phóng bàn cũ
+        tableRepository.findAll().stream()
+            .filter(t -> t.getName().equals(fromTable))
+            .findFirst()
+            .ifPresent(t -> {
+                t.setIsOccupied(0);
+                t.setReservedTime(null);
+                tableRepository.save(t);
+            });
+            
+        messagingTemplate.convertAndSend("/topic/orders", "TABLE_MERGED");
+        
+        return ResponseEntity.ok(java.util.Map.of("message", "Gộp bàn thành công!"));
+    }
+
+    @org.springframework.web.bind.annotation.PutMapping("/details/{detailId}/status")
+    public ResponseEntity<?> updateOrderDetailStatus(@PathVariable Integer detailId, @org.springframework.web.bind.annotation.RequestParam Integer status) {
+        return orderDetailRepository.findById(detailId).map(detail -> {
+            detail.setStatus(status);
+            orderDetailRepository.save(detail);
+
+            Order order = detail.getOrder();
+            if (order != null) {
+                boolean allDone = true;
+                boolean anyReady = false;
+                if (order.getOrderDetails() != null) {
+                    for (OrderDetail d : order.getOrderDetails()) {
+                        if (d.getStatus() == null || d.getStatus() == 0) {
+                            allDone = false;
+                        }
+                        if (d.getStatus() != null && d.getStatus() == 1) {
+                            anyReady = true;
+                        }
+                    }
+                }
+                
+                if (allDone && (order.getStatus() == 1 || order.getStatus() == 6)) {
+                    order.setStatus(2); // Cả bàn đã xong, chờ bưng
+                    orderRepository.save(order);
+                } else if (anyReady && order.getStatus() == 1) {
+                    order.setStatus(6); // Đang nấu (có món xong trước)
+                    orderRepository.save(order);
+                }
+
+                messagingTemplate.convertAndSend("/topic/waiter", "DISH_STATUS_CHANGED");
+                messagingTemplate.convertAndSend("/topic/kitchen", "DISH_STATUS_CHANGED");
+            }
+            return ResponseEntity.ok("Cập nhật món thành công!");
+        }).orElse(ResponseEntity.badRequest().body("Lỗi không tìm thấy món!"));
     }
 
     private String generateUnique4DigitCode() {

@@ -73,23 +73,36 @@
               <span class="badge badge-reserved">🟡 Đã Đặt Trước</span>
               <span class="badge badge-occupied">🔴 Đang Phục Vụ</span>
               <span class="badge badge-cleaning">🟣 Chờ Dọn Bàn</span>
+              <span class="badge" style="background: rgba(52,152,219,0.1); color: #2980b9;">🔗 Đã Ghép</span>
             </div>
             
-            <button @click="toggleHeatmap" class="btn-heatmap" :class="{'active': showHeatmap}">
-              🔥 {{ showHeatmap ? 'Tắt Bản Đồ Nhiệt' : 'Bật Bản Đồ Nhiệt' }}
-            </button>
+            <div style="display: flex; gap: 10px;">
+              <button @click="showMergeModal = true" class="g-btn-warning" style="padding: 8px 16px; border-radius: 20px; font-weight: bold; border: none; cursor: pointer;">
+                🔗 Gộp Bàn
+              </button>
+              <button @click="isRealisticView = !isRealisticView" class="btn-heatmap" :class="{'active': isRealisticView}" style="border-color: var(--primary); color: var(--primary);">
+                🗺️ {{ isRealisticView ? 'Tắt Sơ Đồ Thực Tế' : 'Bật Sơ Đồ Thực Tế' }}
+              </button>
+              <button @click="toggleHeatmap" class="btn-heatmap" :class="{'active': showHeatmap}">
+                🔥 {{ showHeatmap ? 'Tắt Bản Đồ Nhiệt' : 'Bật Bản Đồ Nhiệt' }}
+              </button>
+            </div>
           </div>
 
           <div v-for="(tables, floorName) in groupedTables" :key="floorName" class="floor-section">
             <h2 class="floor-title">📍 {{ floorName }}</h2>
-            <div class="table-grid">
+            <div :class="[isRealisticView ? getRealisticClass(floorName) : 'table-grid']">
               <div
                 v-for="t in tables"
                 :key="t.id"
                 class="table-box"
-                :class="{ 'empty-bg': t.isOccupied === 0, 'reserved-bg': t.isOccupied === 1, 'occupied-bg': t.isOccupied === 2, 'cleaning-bg': t.isOccupied === 3 }"
+                :class="[
+                  { 'empty-bg': t.isOccupied === 0, 'reserved-bg': t.isOccupied === 1, 'occupied-bg': t.isOccupied === 2, 'cleaning-bg': t.isOccupied === 3, 'linked-bg': t.isOccupied === 5 },
+                  isRealisticView ? 'realistic-table' : ''
+                ]"
               >
-                <button @click="deleteTable(t.id)" class="btn-del" title="Xóa bàn">✖</button>
+                <button v-if="t.isOccupied !== 5" @click="deleteTable(t.id)" class="btn-del" title="Xóa bàn">✖</button>
+                <button v-if="t.isOccupied === 5" @click="unlinkTable(t.id)" class="btn-unlink" title="Tách bàn">✂️</button>
                 <button @click="openQrModal(t.name)" class="btn-qr" title="Mã QR gọi món">📱</button>
                 <span v-if="t.viewType" class="view-tag">★ {{ t.viewType }}</span>
                 <span v-if="t.capacity" class="capacity-tag">👥 {{ t.capacity }}</span>
@@ -107,6 +120,7 @@
                   <option value="1">🟡 Giữ Chỗ (Cọc)</option>
                   <option value="2">🔴 Khách Đang Ăn</option>
                   <option value="3">🟣 Chờ Dọn Bàn</option>
+                  <option value="5" disabled>🔗 Đã Ghép Bàn</option>
                 </select>
               </div>
             </div>
@@ -118,6 +132,44 @@
         </div>
       </div>
     </main>
+
+    <!-- Merge Table Modal -->
+    <div v-if="showMergeModal" class="modal-overlay" @click.self="showMergeModal = false">
+      <div class="qr-box" style="max-width: 500px; text-align: left;">
+        <h3 style="text-align: center; color: var(--primary); margin-bottom: 20px;">🔗 Gộp Bàn / Chuyển Bàn</h3>
+        <div class="form-group">
+          <label>Chế Độ Gộp</label>
+          <select v-model="mergeData.type" class="g-form-control">
+            <option value="ORDER">Dồn Hóa Đơn (Bàn đang có khách)</option>
+            <option value="PHYSICAL">Ghép Bàn (Bàn trống / Đặt trước)</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-top: 15px;">
+          <label>Chọn bàn cần chuyển đi / ghép (Bàn nguồn)</label>
+          <select v-model="mergeData.fromTable" class="g-form-control">
+            <option value="">-- Chọn bàn --</option>
+            <option v-for="t in (mergeData.type === 'ORDER' ? activeTables : tablesList)" :key="t.id" :value="t.id">{{ t.name }} ({{ t.floor }})</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-top: 15px;">
+          <label>Chọn bàn đích (Bàn chính)</label>
+          <select v-model="mergeData.toTable" class="g-form-control">
+            <option value="">-- Chọn bàn --</option>
+            <option v-for="t in (mergeData.type === 'ORDER' ? activeTables : tablesList)" :key="t.id" :value="t.id" :disabled="t.id === mergeData.fromTable">{{ t.name }} ({{ t.floor }})</option>
+          </select>
+        </div>
+        <p v-if="mergeData.type === 'ORDER'" style="color: #e74c3c; font-size: 0.85rem; font-style: italic; margin-top: 15px;">
+          Lưu ý: Toàn bộ món ăn của bàn nguồn sẽ được chuyển sang bàn đích. Bàn nguồn sẽ trở thành bàn trống.
+        </p>
+        <p v-else style="color: #3498db; font-size: 0.85rem; font-style: italic; margin-top: 15px;">
+          Lưu ý: Bàn nguồn sẽ được đánh dấu là "Đã Ghép" vào bàn đích. Có thể tách ra sau này.
+        </p>
+        <div style="display:flex; gap:10px; margin-top:20px;">
+          <button @click="executeMerge" class="g-btn-primary" style="flex:1; padding: 10px;">Xác Nhận Gộp</button>
+          <button @click="showMergeModal = false" class="btn-cancel" style="flex:1;">Hủy Bỏ</button>
+        </div>
+      </div>
+    </div>
 
     <!-- QR Code Modal -->
     <div v-if="showQrModal" class="modal-overlay" @click.self="showQrModal = false">
@@ -144,6 +196,72 @@ import QrcodeVue from 'qrcode.vue';
 
 const tablesList = ref([]);
 const newTable = ref({ name: '', floor: 'Tầng 2 (Sảnh Tiệc)', capacity: 4, viewType: '' });
+
+const isRealisticView = ref(false);
+const showMergeModal = ref(false);
+const mergeData = ref({ type: 'PHYSICAL', fromTable: '', toTable: '' });
+
+const activeTables = computed(() => {
+  return tablesList.value.filter(t => t.isOccupied === 1 || t.isOccupied === 2 || t.isOccupied === 3);
+});
+
+const executeMerge = async () => {
+  if (!mergeData.value.fromTable || !mergeData.value.toTable) {
+    alert('Vui lòng chọn đầy đủ bàn nguồn và bàn đích!');
+    return;
+  }
+  
+  const fromT = tablesList.value.find(t => t.id === mergeData.value.fromTable);
+  const toT = tablesList.value.find(t => t.id === mergeData.value.toTable);
+  
+  if (!confirm(`Bạn chắc chắn muốn ghép/gộp ${fromT.name} vào ${toT.name}?`)) return;
+  
+  try {
+    const token = localStorage.getItem('token');
+    
+    if (mergeData.value.type === 'ORDER') {
+      const res = await axios.post('http://localhost:8080/api/orders/merge-tables', {
+        fromTable: fromT.name,
+        toTable: toT.name
+      }, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      alert(res.data.message || 'Gộp bàn thành công!');
+    } else {
+      const res = await axios.put(`http://localhost:8080/api/tables/${fromT.id}/link/${toT.id}`, {}, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      alert(res.data || 'Ghép bàn vật lý thành công!');
+    }
+    
+    showMergeModal.value = false;
+    mergeData.value = { type: 'PHYSICAL', fromTable: '', toTable: '' };
+    fetchTables();
+  } catch (err) {
+    alert(err.response?.data || 'Lỗi khi thao tác. Vui lòng kiểm tra lại!');
+  }
+};
+
+const unlinkTable = async (id) => {
+  if (!confirm('Bạn có chắc chắn muốn tách bàn này ra không?')) return;
+  try {
+    const token = localStorage.getItem('token');
+    const res = await axios.put(`http://localhost:8080/api/tables/${id}/unlink`, {}, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    alert(res.data || 'Tách bàn thành công!');
+    fetchTables();
+  } catch (err) {
+    alert('Lỗi khi tách bàn!');
+  }
+};
+
+const getRealisticClass = (floor) => {
+  if (floor.includes('Tầng 2')) return 'realistic-hall';
+  if (floor.includes('VIP')) return 'realistic-vip';
+  if (floor.includes('Tầng 6')) return 'realistic-rooftop';
+  return 'table-grid';
+};
 
 const showQrModal = ref(false);
 const qrTable = ref('');
@@ -380,6 +498,12 @@ onMounted(fetchTables);
 }
 .cleaning-bg .table-status-dot { background: #9b59b6; box-shadow: 0 0 8px rgba(155,89,182,0.6); }
 
+.linked-bg {
+  border-color: rgba(52,152,219,0.3);
+  background: linear-gradient(135deg, var(--bg-card2), rgba(52,152,219,0.04));
+}
+.linked-bg .table-status-dot { background: #2980b9; box-shadow: 0 0 8px rgba(52,152,219,0.6); }
+
 .btn-del {
   position: absolute; top: 8px; left: 8px;
   background: rgba(0,0,0,0.3); border: none;
@@ -389,6 +513,16 @@ onMounted(fetchTables);
   display: flex; align-items: center; justify-content: center;
 }
 .btn-del:hover { background: rgba(231,76,60,0.4); color: #e74c3c; }
+
+.btn-unlink {
+  position: absolute; top: 8px; left: 8px;
+  background: rgba(41, 128, 185, 0.2); border: none;
+  color: #2980b9; border-radius: 50%;
+  width: 24px; height: 24px; font-size: 0.9rem;
+  cursor: pointer; transition: var(--transition);
+  display: flex; align-items: center; justify-content: center;
+}
+.btn-unlink:hover { background: rgba(41, 128, 185, 0.4); transform: scale(1.1); }
 
 .btn-qr {
   position: absolute; top: 8px; right: 8px;
@@ -454,4 +588,43 @@ onMounted(fetchTables);
 .heat-medium { background: linear-gradient(135deg, rgba(243,156,18,0.9), rgba(211,84,0,0.9)); }
 .heat-low { background: linear-gradient(135deg, rgba(241,196,15,0.8), rgba(243,156,18,0.8)); }
 .heat-none { background: rgba(149,165,166,0.8); color: #ecf0f1; font-size: 1.2rem; }
+
+/* Realistic View Styles */
+.realistic-hall {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 30px;
+  background: url('https://www.transparenttextures.com/patterns/wood-pattern.png'), #f8f9fa;
+  padding: 40px; border-radius: 12px; border: 8px solid #bdc3c7;
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.1);
+}
+.realistic-vip {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+  background: #34495e; padding: 20px; border-radius: 8px;
+}
+.realistic-vip .table-box {
+  background: #ecf0f1; border: 4px solid #f1c40f; border-radius: 0;
+  position: relative; padding: 30px 10px;
+}
+.realistic-vip .table-box::before {
+  content: "Cửa vào"; position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%);
+  background: #34495e; color: #fff; padding: 2px 10px; font-size: 0.6rem;
+}
+.realistic-rooftop {
+  display: flex; flex-wrap: wrap; justify-content: space-around; gap: 40px;
+  background: #a9dfbf; padding: 50px 20px; border-radius: 50px;
+  border: 4px dashed #27ae60; position: relative;
+}
+.realistic-rooftop::after {
+  content: "🌴 Cây xanh & View Sông 🌊"; position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+  color: #2c3e50; font-weight: bold; font-size: 1.2rem; opacity: 0.4;
+}
+
+.realistic-table {
+  width: 160px; height: 160px; border-radius: 50%;
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+  margin: 10px;
+}
+.realistic-hall .realistic-table {
+  width: 200px; height: 100px; border-radius: 8px; /* Bàn chữ nhật */
+}
 </style>

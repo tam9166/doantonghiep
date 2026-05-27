@@ -107,4 +107,33 @@ public class RestaurantTableController {
             return ResponseEntity.ok("Cập nhật thành công!");
         }).orElse(ResponseEntity.badRequest().body("Lỗi!"));
     }
+
+    @PutMapping("/{id}/link/{targetId}")
+    public ResponseEntity<?> linkTable(@PathVariable Integer id, @PathVariable Integer targetId) {
+        java.util.Optional<RestaurantTable> sourceOpt = tableRepository.findById(id);
+        java.util.Optional<RestaurantTable> targetOpt = tableRepository.findById(targetId);
+        
+        if (sourceOpt.isEmpty() || targetOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body("Không tìm thấy bàn!");
+        }
+        
+        RestaurantTable source = sourceOpt.get();
+        RestaurantTable target = targetOpt.get();
+        
+        source.setIsOccupied(5); // 5 = Trạng thái Đã Ghép
+        source.setReservedTime("[GHÉP VỚI: " + target.getName() + "]");
+        tableRepository.save(source);
+        
+        return ResponseEntity.ok("Ghép bàn thành công!");
+    }
+
+    @PutMapping("/{id}/unlink")
+    public ResponseEntity<?> unlinkTable(@PathVariable Integer id) {
+        return tableRepository.findById(id).map(table -> {
+            table.setIsOccupied(0);
+            table.setReservedTime(null);
+            tableRepository.save(table);
+            return ResponseEntity.ok("Tách bàn thành công!");
+        }).orElse(ResponseEntity.badRequest().body("Lỗi không tìm thấy bàn!"));
+    }
 }

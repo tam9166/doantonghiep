@@ -14,11 +14,15 @@
           📦 Tồn Kho
           <span v-if="lowStockCount > 0" class="badge-warn">{{ lowStockCount }}</span>
         </button>
-        <button @click="activeTab = 'menu'" :class="['tab-btn', { active: activeTab === 'menu' }]">🍽️ Thực Đơn & Chi Phí</button>
+        <button @click="activeTab = 'menu'" :class="['tab-btn', { active: activeTab === 'menu' }]">🍽️ Thực Đơn</button>
+        <button @click="activeTab = 'ai-kitchen'" :class="['tab-btn', { active: activeTab === 'ai-kitchen' }]">🤖 Gom Món (AI)</button>
+        <button @click="$router.push('/staff')" class="btn-profile" style="background:#8e44ad; color:white; padding:8px 15px; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">👤 Cá Nhân</button>
         <button @click="fetchOrders" class="btn-refresh">🔄</button>
         <button @click="handleLogout" class="btn-logout">🚪 Đăng Xuất</button>
       </div>
     </header>
+
+    <TimekeepingWidget />
 
     <!-- Stats Bar -->
     <div class="stats-bar">
@@ -53,8 +57,10 @@
           <p>Hệ thống sẽ tự động cập nhật khi có đơn mới.</p>
         </div>
 
-        <div v-if="pendingOrders.length > 0" class="kitchen-ai-action">
-          <button @click="getAiKitchenAdvice" class="btn-ai-analyze">🤖 AI Gợi Ý Nấu</button>
+        <div v-if="pendingOrders.length === 0" class="empty-state">
+          <div class="empty-icon">✅</div>
+          <h2>Không có đơn nào cần nấu!</h2>
+          <p>Hệ thống sẽ tự động cập nhật khi có đơn mới.</p>
         </div>
 
         <div class="orders-grid">
@@ -66,20 +72,24 @@
             </div>
             <div v-if="getNote(order)" class="order-note">📝 {{ getNote(order) }}</div>
             <div class="dish-list">
-              <div v-for="(detail, idx) in order.orderDetails" :key="idx" class="dish-item">
+              <div v-for="detail in order.orderDetails" :key="detail.id" class="dish-item" :class="{ 'dish-done': detail.status >= 1 }">
                 <img v-if="detail.product?.image" :src="detail.product.image" class="dish-thumb" />
                 <span v-else class="dish-thumb-placeholder">🍽️</span>
-                <div class="dish-info">
+                <div class="dish-info" style="flex:1;">
                   <strong>{{ detail.product?.name || 'Món ăn' }}</strong>
                   <span class="dish-qty">x{{ detail.quantity }}</span>
+                </div>
+                <div class="dish-action">
+                  <button v-if="!detail.status || detail.status === 0" @click="markDishReady(detail.id)" class="btn-dish-done" title="Xong món này">✅</button>
+                  <span v-else style="color: #27ae60; font-size:1.2rem; font-weight:bold;" title="Đã báo phục vụ bưng">✔️ Xong</span>
                 </div>
               </div>
             </div>
             <div class="card-footer">
               <span class="dish-count">{{ getDishCount(order) }} món</span>
               <div style="display: flex; gap: 8px;">
-                <button v-if="order.status === 1" @click="startCooking(order.id)" class="btn-start">🔥 Làm</button>
-                <button @click="markReady(order.id)" class="btn-done">✅ Xong</button>
+                <button v-if="order.status === 1" @click="startCooking(order.id)" class="btn-start">🔥 Bắt đầu làm</button>
+                <button v-if="order.status === 6" @click="markReady(order.id)" class="btn-done">✅ Hoàn thành toàn bộ</button>
               </div>
             </div>
           </div>
@@ -169,6 +179,41 @@
           </div>
         </div>
       </div>
+
+      <!-- ========== TAB 4: NẤU GOM MÓN (AI) ========== -->
+      <div v-if="activeTab === 'ai-kitchen'">
+        <div class="inv-header">
+          <h2>🤖 Phân Tích Gom Món (AI)</h2>
+          <p class="inv-sub">Tự động gộp các món giống nhau từ nhiều bàn để nấu chung 1 mẻ, tiết kiệm thời gian.</p>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+          <button @click="analyzeDishes" class="btn-ai-analyze" :disabled="aiLoading">
+            {{ aiLoading ? '⏳ Đang phân tích...' : '🧠 Phân Tích Ngay' }}
+          </button>
+        </div>
+        
+        <div v-if="aiResponse" class="ai-result" style="margin-bottom: 20px; font-size: 1.1rem; background: #fff; padding: 20px; border-radius: 8px; border-left: 5px solid #8e44ad; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+          <strong style="color: #8e44ad;">💡 AI Bếp Trưởng Gợi Ý:</strong>
+          <pre style="white-space: pre-wrap; font-family: inherit; margin-top:10px; line-height: 1.5;">{{ aiResponse }}</pre>
+        </div>
+
+        <div class="menu-grid">
+          <div v-for="(group, key) in aggregatedDishes" :key="key" class="menu-card" style="position:relative; flex-direction: column; text-align:center; align-items: stretch; padding: 20px;">
+            <div class="menu-info" style="text-align: center; width: 100%;">
+              <h3 style="font-size: 1.4rem; color: #d35400;">{{ group.name }}</h3>
+              <div style="font-size: 2rem; font-weight: bold; margin: 10px 0; color: var(--primary);">Tổng số lượng: {{ group.totalQuantity }}</div>
+              <p style="color: #7f8c8d; font-size: 0.95rem; margin-bottom: 10px;">Gộp từ các bàn: <strong>{{ group.tables.join(', ') }}</strong></p>
+            </div>
+            <div class="menu-action" style="justify-content: center; width: 100%; border-top: 1px dashed var(--border-light); padding-top: 15px;">
+              <button @click="markGroupReady(group.details)" class="btn-done" style="width: 100%; font-size: 1.1rem; padding: 12px; background: #27ae60; color: white;">✅ Đã Nấu Xong {{ group.totalQuantity }} Phần</button>
+            </div>
+          </div>
+        </div>
+        <div v-if="Object.keys(aggregatedDishes).length === 0" class="empty-state">
+          <p>Tất cả các món đã được nấu xong!</p>
+        </div>
+      </div>
     </main>
 
     <!-- Recipe Breakdown Modal -->
@@ -244,6 +289,7 @@ import axios from 'axios';
 import { useRouter } from 'vue-router';
 import SockJS from 'sockjs-client';
 import { Stomp } from '@stomp/stompjs';
+import TimekeepingWidget from '../components/TimekeepingWidget.vue';
 
 const router = useRouter();
 const orders = ref([]);
@@ -323,12 +369,16 @@ const fetchIngredients = async () => {
 const fetchProducts = async () => {
   try {
     const res = await axios.get('http://localhost:8080/api/products');
-    products.value = res.data;
+products.value = res.data;
   } catch (err) { console.error('Lỗi lấy sản phẩm:', err); }
 };
 
 // === COMPUTED ===
-const totalDishes = computed(() => pendingOrders.value.reduce((sum, o) => sum + (o.orderDetails?.reduce((s, d) => s + d.quantity, 0) || 0), 0));
+const totalDishes = computed(() => {
+  return pendingOrders.value.reduce((total, order) => {
+    return total + order.orderDetails.filter(d => !d.status || d.status === 0).reduce((sum, d) => sum + d.quantity, 0);
+  }, 0);
+});
 const sortedOrders = computed(() => [...pendingOrders.value].sort((a, b) => new Date(a.createDate) - new Date(b.createDate)));
 const lowStockCount = computed(() => ingredients.value.filter(i => i.quantity <= i.minStock).length);
 
@@ -340,6 +390,7 @@ const todayCompleted = computed(() => todayOrders.value.filter(o => o.status >= 
 const todayDishes = computed(() => todayOrders.value.filter(o => o.status >= 2).reduce((sum, o) => sum + (o.orderDetails?.reduce((s, d) => s + d.quantity, 0) || 0), 0));
 
 // === HELPERS ===
+const showToast = (msg) => { toastMsg.value = msg; setTimeout(() => { toastMsg.value = ''; }, 3000); };
 const getDishCount = (order) => order.orderDetails?.reduce((s, d) => s + d.quantity, 0) || 0;
 
 const getElapsedTime = (createDate) => {
@@ -357,8 +408,8 @@ const getUrgencyClass = (o) => { const m = getElapsedMinutes(o.createDate); retu
 
 const getTableName = (order) => {
   if (!order.address) return '🛵 Giao hàng';
-  const match = order.address.match(/Bàn[:\s]+([^\s|]+)/);
-  return match ? `🪑 Bàn ${match[1]}` : order.address;
+  const match = order.address.match(/Bàn:\s*(.*?)\s*\|/);
+  return match ? `🪑 ${match[1].trim()}` : order.address;
 };
 const getNote = (order) => { if (!order.address) return ''; const m = order.address.match(/GhiChú:\s*([^|]+)/i); return m ? m[1].trim() : ''; };
 
@@ -386,11 +437,87 @@ const getStockBarClass = (ing) => {
 // === ACTIONS ===
 const markReady = async (id) => {
   try {
-    await axios.put(`http://localhost:8080/api/admin/orders/${id}/status?status=2`, {}, configHeader());
-    toastMsg.value = '✅ Đã chuyển món cho phục vụ!';
-    setTimeout(() => { toastMsg.value = ''; }, 2500);
+    const token = localStorage.getItem('token');
+    await axios.put(`http://localhost:8080/api/orders/${id}/status?status=2`, {}, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
     fetchOrders();
-  } catch (err) { alert('Lỗi cập nhật trạng thái!'); }
+    showToast('✅ Đã báo phục vụ: Bàn #' + id);
+  } catch (err) {
+    alert('Lỗi cập nhật!');
+  }
+};
+
+const markDishReady = async (detailId) => {
+  try {
+    const token = localStorage.getItem('token');
+    await axios.put(`http://localhost:8080/api/orders/details/${detailId}/status?status=1`, {}, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    fetchOrders();
+    showToast('✅ Món đã xong, báo phục vụ bưng!');
+  } catch (err) {
+    alert('Lỗi cập nhật món!');
+  }
+};
+
+const aggregatedDishes = computed(() => {
+  const groups = {};
+  pendingOrders.value.forEach(order => {
+    order.orderDetails.forEach(detail => {
+      if (!detail.status || detail.status === 0) {
+        const prodName = detail.product?.name || 'Món ăn';
+        if (!groups[prodName]) {
+          groups[prodName] = { name: prodName, totalQuantity: 0, tables: [], details: [] };
+        }
+        groups[prodName].totalQuantity += detail.quantity;
+        groups[prodName].details.push(detail.id);
+        const tName = order.address ? order.address.replace('Bàn ', '').replace(' [TẠI QUÁN]', '') : order.id;
+        if (!groups[prodName].tables.includes(tName)) {
+          groups[prodName].tables.push(tName);
+        }
+      }
+    });
+  });
+  return groups;
+});
+
+const analyzeDishes = async () => {
+  const dishes = Object.values(aggregatedDishes.value).map(g => `${g.name} (SL: ${g.totalQuantity})`).join(', ');
+  if (!dishes) {
+    alert('Không có món nào chờ nấu!');
+    return;
+  }
+  
+  aiLoading.value = true;
+  try {
+    const token = localStorage.getItem('token');
+    const res = await axios.post('http://localhost:8080/api/chatbot/kitchen/suggest', { dishes }, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    aiResponse.value = res.data.reply;
+  } catch (err) {
+    aiResponse.value = 'Lỗi kết nối AI!';
+  } finally {
+    aiLoading.value = false;
+  }
+};
+
+const markGroupReady = async (detailIds) => {
+  if (!confirm(`Xác nhận đã nấu xong tất cả ${detailIds.length} phần của món này?`)) return;
+  try {
+    const token = localStorage.getItem('token');
+    for (const detailId of detailIds) {
+      await axios.put(`http://localhost:8080/api/orders/details/${detailId}/status?status=1`, {}, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+    }
+    fetchOrders();
+    aiResponse.value = '';
+    showToast('✅ Đã báo phục vụ bưng các món gộp!');
+  } catch (err) {
+    alert('Lỗi cập nhật!');
+  }
 };
 
 const startCooking = async (id) => {
@@ -580,6 +707,27 @@ onUnmounted(() => {
 .dish-list { padding: 12px 18px; }
 .dish-item { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border-light); }
 .dish-item:last-child { border-bottom: none; }
+.dish-item.dish-done {
+  opacity: 0.6;
+  background: #f1fff6;
+  border-color: #2ecc71;
+}
+.dish-action {
+  display: flex;
+  align-items: center;
+}
+.btn-dish-done {
+  background: transparent;
+  border: 1px solid #bdc3c7;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 4px 8px;
+  transition: 0.2s;
+}
+.btn-dish-done:hover {
+  background: #2ecc71;
+  border-color: #2ecc71;
+}
 .dish-thumb { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border); }
 .dish-thumb-placeholder { font-size: 1.5rem; width: 40px; text-align: center; }
 .dish-info { flex: 1; }

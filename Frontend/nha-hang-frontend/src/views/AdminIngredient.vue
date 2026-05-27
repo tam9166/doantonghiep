@@ -77,11 +77,16 @@
           🍳 Công Thức Nấu (Định lượng)
         </button>
         <button @click="activeTab = 'invoices'" :class="['tab-btn', { active: activeTab === 'invoices' }]">
-          📄 Hóa Đơn Nhập Hàng
+          📄 Lịch Sử Nhập Hàng
         </button>
-        <button @click="analyzeInventory" class="btn-ai-forecast" style="margin-left:auto;">
-           🤖 AI Dự Báo Nhập Kho
-        </button>
+        <div style="margin-left: auto; display: flex; gap: 10px;">
+          <button @click="openCreateInvoiceModal" class="g-btn-primary">
+             📦 Nhập Hàng Vào Kho
+          </button>
+          <button @click="analyzeInventory" class="btn-ai-forecast">
+             🤖 AI Dự Báo Nhập Kho
+          </button>
+        </div>
       </div>
 
       <!-- ================== TAB 1: KHO NGUYÊN LIỆU ================== -->
@@ -256,8 +261,8 @@
         <div class="content-grid">
           <div class="form-card" style="grid-column: span 12;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-              <h3>📄 Quản Lý Hóa Đơn Nhập Kho</h3>
-              <button @click="openCreateInvoiceModal" class="g-btn-primary">➕ Tạo Hóa Đơn Mới</button>
+              <h3>📄 Lịch Sử Các Đợt Nhập Hàng (Hóa Đơn)</h3>
+              <button @click="openCreateInvoiceModal" class="g-btn-primary">📦 Nhập Hàng Mới</button>
             </div>
             
             <table class="g-table">
@@ -371,6 +376,7 @@
               <th>Số Lượng Còn</th>
               <th>Đơn Giá</th>
               <th>Tổng Tiền</th>
+              <th>Thao Tác</th>
             </tr>
           </thead>
           <tbody>
@@ -383,9 +389,12 @@
               <td>{{ b.quantity }}</td>
               <td>{{ b.unitPrice?.toLocaleString() }}đ</td>
               <td style="color: #e74c3c; font-weight: bold;">{{ (b.quantity * (b.unitPrice || 0)).toLocaleString() }}đ</td>
+              <td>
+                <button @click="deleteBatch(b.id)" class="btn-sm btn-delete">🗑️ Xóa</button>
+              </td>
             </tr>
             <tr v-if="selectedBatches.length === 0">
-              <td colspan="5" style="text-align: center; color: var(--text-muted)">Chưa có lô hàng nào!</td>
+              <td colspan="6" style="text-align: center; color: var(--text-muted)">Chưa có lô hàng nào!</td>
             </tr>
           </tbody>
         </table>
@@ -396,7 +405,7 @@
     <div v-if="showCreateInvoiceModal" class="modal-overlay" @click.self="showCreateInvoiceModal = false">
       <div class="modal-content" style="max-width: 800px; width: 90%;">
         <div class="modal-header">
-          <h3>📝 Lập Hóa Đơn Nhập Hàng</h3>
+          <h3>📦 Phiếu Nhập Hàng Vào Kho</h3>
           <button @click="showCreateInvoiceModal = false" class="btn-close">✖</button>
         </div>
         <div class="modal-body">
@@ -454,7 +463,7 @@
           </div>
 
           <div class="form-actions">
-            <button @click="submitInvoice" class="g-btn-primary">💾 Lưu Hóa Đơn</button>
+            <button @click="submitInvoice" class="g-btn-primary">✅ Xác Nhận Nhập Kho</button>
             <button @click="showCreateInvoiceModal = false" class="g-btn-secondary">Hủy</button>
           </div>
         </div>
@@ -657,6 +666,18 @@ const viewBatches = async (id) => {
   } catch (err) { alert('Lỗi tải danh sách lô hàng'); }
 };
 
+const deleteBatch = async (batchId) => {
+  if (!confirm('Bạn có chắc muốn xóa lô hàng này? (Dùng để loại bỏ các lô đã hết hạn hoặc sai lệch)')) return;
+  try {
+    await axios.delete(`http://localhost:8080/api/admin/ingredients/batches/${batchId}`, configHeader());
+    showToast('🗑️ Đã xóa lô hàng!');
+    showBatchesModal.value = false;
+    loadData();
+  } catch (err) {
+    alert('Không thể xóa lô hàng này!');
+  }
+};
+
 // === TAB 2: RECIPES ===
 const filteredProducts = computed(() => {
   if (!searchProduct.value) return products.value;
@@ -736,6 +757,61 @@ const applyForecast = async (ingName, amount) => {
   batchForm.value = { quantity: amount, unitPrice: ing.unitPrice || 0, expirationDate: '' };
   showForecastModal.value = false;
   showRestockModal.value = true;
+};
+
+// ================== HÓA ĐƠN NHẬP HÀNG ==================
+const openCreateInvoiceModal = () => {
+  invoiceForm.value = { supplier: '', note: '', items: [{ ingredientId: '', quantity: 1, unitPrice: 0, expirationDate: '' }] };
+  showCreateInvoiceModal.value = true;
+};
+
+const onInvoiceItemIngChange = (item) => {
+  const ing = ingredients.value.find(i => i.id === item.ingredientId);
+  if (ing) {
+    item.unitPrice = ing.unitPrice || 0;
+  }
+};
+
+const calculateInvoiceTotal = () => {
+  return invoiceForm.value.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+};
+
+const submitInvoice = async () => {
+  const validItems = invoiceForm.value.items.filter(i => i.ingredientId && i.quantity > 0);
+  if (validItems.length === 0) return alert('Vui lòng thêm ít nhất 1 nguyên liệu hợp lệ!');
+  
+  try {
+    const payload = {
+      supplier: invoiceForm.value.supplier,
+      note: invoiceForm.value.note,
+      items: validItems.map(i => ({
+        ingredientId: i.ingredientId,
+        quantity: i.quantity,
+        unitPrice: i.unitPrice,
+        expirationDate: i.expirationDate ? new Date(i.expirationDate).toISOString() : null
+      }))
+    };
+    
+    await axios.post('http://localhost:8080/api/admin/import-invoices', payload, configHeader());
+    showToast('📦 Đã nhập hàng thành công! Đã tạo phiếu lưu kho.');
+    showCreateInvoiceModal.value = false;
+    fetchInvoices();
+    // Cập nhật lại kho
+    const res = await axios.get('http://localhost:8080/api/admin/ingredients', configHeader());
+    ingredients.value = res.data;
+  } catch (err) {
+    alert('Lỗi tạo phiếu nhập kho!');
+    console.error(err);
+  }
+};
+
+const viewInvoiceDetails = async (id) => {
+  selectedInvoiceId.value = id;
+  try {
+    const res = await axios.get(`http://localhost:8080/api/admin/import-invoices/${id}`, configHeader());
+    invoiceDetails.value = res.data;
+    showInvoiceDetailsModal.value = true;
+  } catch (err) { console.error('Lỗi lấy chi tiết HD:', err); }
 };
 
 onMounted(() => {

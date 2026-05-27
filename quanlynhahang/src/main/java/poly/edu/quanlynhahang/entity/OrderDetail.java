@@ -22,6 +22,9 @@ public class OrderDetail {
     
     private Integer quantity;
 
+    @jakarta.persistence.Column(columnDefinition = "int default 0")
+    private Integer status = 0; // 0: Chờ nấu, 1: Đã nấu xong, 2: Đã phục vụ
+
     // Khóa ngoại biết chi tiết này là của món ăn nào
     @ManyToOne
     @JoinColumn(name = "product_id")

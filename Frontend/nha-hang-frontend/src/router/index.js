@@ -37,7 +37,8 @@ const router = createRouter({
     { path: '/waiter', name: 'Waiter', component: Waiter },
     { path: '/staff', name: 'Staff', component: () => import('../views/Staff.vue') },
     { path: '/admin/ingredients', name: 'AdminIngredient', component: () => import('../views/AdminIngredient.vue') },
-    { path: '/admin/vouchers', name: 'AdminVoucher', component: () => import('../views/AdminVoucher.vue') }
+    { path: '/admin/vouchers', name: 'AdminVoucher', component: () => import('../views/AdminVoucher.vue') },
+    { path: '/cashier', name: 'Cashier', component: () => import('../views/CashierView.vue') }
   ]
 })
 
@@ -96,6 +97,14 @@ router.beforeEach((to, from) => {
   if (to.path.startsWith('/waiter')) {
     if (!token || (!userRoles.includes('ROLE_WAITER') && !userRoles.includes('ROLE_ADMIN') && !userRoles.includes('ROLE_MANAGER'))) {
       alert('Khu vực hạn chế: Chỉ dành cho bộ phận Phục vụ và Ban Quản Lý!')
+      return '/'
+    }
+  }
+
+  // 5. KHU VỰC THU NGÂN (Cho phép Thu ngân + Quản Lý + Admin)
+  if (to.path.startsWith('/cashier')) {
+    if (!token || (!userRoles.includes('ROLE_CASHIER') && !userRoles.includes('ROLE_ADMIN') && !userRoles.includes('ROLE_MANAGER'))) {
+      alert('Khu vực hạn chế: Chỉ dành cho bộ phận Thu ngân và Ban Quản Lý!')
       return '/'
     }
   }

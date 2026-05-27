@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestBody;
 
 import poly.edu.quanlynhahang.entity.Order;
 import poly.edu.quanlynhahang.repository.OrderRepository;
@@ -27,7 +28,7 @@ import poly.edu.quanlynhahang.repository.OrderRepository;
 @RestController
 @RequestMapping("/api/admin/orders")
 // ✅ FIX: Dùng hasAnyAuthority với ROLE_ prefix đầy đủ
-@PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_KITCHEN', 'ROLE_WAITER')")
+@PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_KITCHEN', 'ROLE_WAITER', 'ROLE_CASHIER')")
 public class AdminOrderController {
 
     @Autowired
@@ -116,7 +117,7 @@ public class AdminOrderController {
     // 🌟 API MỚI: XỬ LÝ NÚT BẤM "XONG MÓN" HOẶC "ĐÃ BƯNG RA BÀN"
     @PutMapping("/{id}/status")
     public ResponseEntity<?> updateOrderStatus(@PathVariable Integer id, @RequestParam Integer status) {
-        return orderRepository.findById(Long.valueOf(id)).map(order -> {
+        return orderRepository.findById(id).map(order -> {
             if (status == 4 && order.getStatus() != 4 && order.getAccount() != null) {
                 poly.edu.quanlynhahang.entity.Account acc = order.getAccount();
                 double total = order.getOrderDetails().stream().mapToDouble(d -> d.getPrice() * d.getQuantity()).sum();
@@ -141,13 +142,37 @@ public class AdminOrderController {
         }).orElse(ResponseEntity.badRequest().body("Không tìm thấy đơn hàng!"));
     }
 
+    @PutMapping("/{id}/pay")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_CASHIER', 'ROLE_WAITER')")
+    public ResponseEntity<?> payOrder(@PathVariable Integer id) {
+        java.util.Optional<Order> orderOpt = orderRepository.findById(id);
+        if (orderOpt.isPresent()) {
+            Order order = orderOpt.get();
+            order.setIsPaid(true);
+            order.setStatus(4); 
+            orderRepository.save(order);
+            messagingTemplate.convertAndSend("/topic/waiter", "ORDER_PAID");
+            return ResponseEntity.ok(order);
+        }
+        return ResponseEntity.badRequest().body("Đơn hàng không tồn tại!");
+    }
+
     // 🌟 API MỚI: CHUYỂN BÀN (Cập nhật địa chỉ đơn hàng)
     @PutMapping("/{id}/address")
-    public ResponseEntity<?> updateOrderAddress(@PathVariable Long id, @RequestParam String newAddress) {
+    public ResponseEntity<?> updateOrderAddress(@PathVariable Integer id, @RequestParam String newAddress) {
         return orderRepository.findById(id).map(order -> {
             order.setAddress(newAddress);
             orderRepository.save(order);
             return ResponseEntity.ok("Cập nhật địa chỉ/bàn thành công!");
+        }).orElse(ResponseEntity.badRequest().body("Không tìm thấy đơn hàng!"));
+    }
+
+    @PutMapping("/{id}/cancel")
+    public ResponseEntity<?> cancelOrder(@PathVariable Integer id, @RequestBody Map<String, String> body) {
+        return orderRepository.findById(id).map(order -> {
+            order.setStatus(3);
+            orderRepository.save(order);
+            return ResponseEntity.ok("Hủy đơn hàng thành công!");
         }).orElse(ResponseEntity.badRequest().body("Không tìm thấy đơn hàng!"));
     }
 
