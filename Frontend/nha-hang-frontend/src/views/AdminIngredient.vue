@@ -76,6 +76,9 @@
         <button @click="activeTab = 'recipes'" :class="['tab-btn', { active: activeTab === 'recipes' }]">
           🍳 Công Thức Nấu (Định lượng)
         </button>
+        <button @click="activeTab = 'invoices'" :class="['tab-btn', { active: activeTab === 'invoices' }]">
+          📄 Hóa Đơn Nhập Hàng
+        </button>
         <button @click="analyzeInventory" class="btn-ai-forecast" style="margin-left:auto;">
            🤖 AI Dự Báo Nhập Kho
         </button>
@@ -137,7 +140,6 @@
                   <th>Đơn Giá</th>
                   <th>Tồn Kho</th>
                   <th>Trạng Thái</th>
-                  <th>Nhập Kho</th>
                   <th>Thao Tác</th>
                 </tr>
               </thead>
@@ -157,13 +159,10 @@
                     <span v-else class="g-badge g-badge-success">Đủ</span>
                   </td>
                   <td>
-                    <button @click="openRestockModal(ing)" class="btn-restock">📦 Nhập Lô Mới</button>
-                    <button @click="viewBatches(ing.id)" class="btn-restock" style="background: #3498db; margin-left: 5px;">👀 Xem Các Lô</button>
-                  </td>
-                  <td>
-                    <div class="action-buttons">
-                      <button @click="startEditIng(ing)" class="btn-edit">✏️</button>
-                      <button @click="deleteIngredient(ing.id)" class="g-btn-danger">🗑</button>
+                    <div class="action-btns">
+                      <button @click="viewBatches(ing.id)" class="btn-sm btn-secondary">👀 Lịch Sử Lô</button>
+                      <button @click="startEditIng(ing)" class="btn-sm btn-edit">✏️ Sửa</button>
+                      <button @click="deleteIngredient(ing.id)" class="btn-sm btn-delete">🗑️ Xóa</button>
                     </div>
                   </td>
                 </tr>
@@ -248,6 +247,46 @@
           <div v-else class="empty-selection">
             <div class="icon">👈</div>
             <h3>Chọn một món ăn bên trái để thiết lập công thức</h3>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================== TAB 3: HÓA ĐƠN NHẬP HÀNG ================== -->
+      <div v-if="activeTab === 'invoices'" class="tab-content">
+        <div class="content-grid">
+          <div class="form-card" style="grid-column: span 12;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+              <h3>📄 Quản Lý Hóa Đơn Nhập Kho</h3>
+              <button @click="openCreateInvoiceModal" class="g-btn-primary">➕ Tạo Hóa Đơn Mới</button>
+            </div>
+            
+            <table class="g-table">
+              <thead>
+                <tr>
+                  <th>Mã HĐ</th>
+                  <th>Ngày Nhập</th>
+                  <th>Nhà Cung Cấp</th>
+                  <th>Tổng Tiền</th>
+                  <th>Ghi Chú</th>
+                  <th>Thao Tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="inv in invoices" :key="inv.id">
+                  <td style="font-weight: bold; color: var(--primary);">#{{ inv.id }}</td>
+                  <td>{{ new Date(inv.importDate).toLocaleString('vi-VN') }}</td>
+                  <td>{{ inv.supplier || '---' }}</td>
+                  <td style="color: #e74c3c; font-weight: bold;">{{ inv.totalAmount?.toLocaleString() || 0 }}đ</td>
+                  <td>{{ inv.note || '---' }}</td>
+                  <td>
+                    <button @click="viewInvoiceDetails(inv.id)" class="btn-sm btn-secondary">👀 Chi Tiết</button>
+                  </td>
+                </tr>
+                <tr v-if="invoices.length === 0">
+                  <td colspan="6" style="text-align: center; color: var(--text-muted)">Chưa có hóa đơn nào!</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -352,6 +391,107 @@
         </table>
       </div>
     </div>
+
+    <!-- Create Invoice Modal -->
+    <div v-if="showCreateInvoiceModal" class="modal-overlay" @click.self="showCreateInvoiceModal = false">
+      <div class="modal-content" style="max-width: 800px; width: 90%;">
+        <div class="modal-header">
+          <h3>📝 Lập Hóa Đơn Nhập Hàng</h3>
+          <button @click="showCreateInvoiceModal = false" class="btn-close">✖</button>
+        </div>
+        <div class="modal-body">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+            <div class="form-group">
+              <label>Nhà Cung Cấp</label>
+              <input v-model="invoiceForm.supplier" placeholder="VD: Công ty TNHH Thực Phẩm A" class="g-form-control" />
+            </div>
+            <div class="form-group">
+              <label>Ghi Chú</label>
+              <input v-model="invoiceForm.note" placeholder="VD: Nhập hàng tuần 1 tháng 11" class="g-form-control" />
+            </div>
+          </div>
+          
+          <h4>Danh Sách Nguyên Liệu Nhập</h4>
+          <table class="g-table" style="margin-top: 10px; margin-bottom: 20px;">
+            <thead>
+              <tr>
+                <th>Nguyên liệu</th>
+                <th>Số lượng</th>
+                <th>Đơn giá (VNĐ)</th>
+                <th>Thành tiền</th>
+                <th>Hạn SD (Tùy chọn)</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(item, index) in invoiceForm.items" :key="index">
+                <td>
+                  <select v-model="item.ingredientId" class="g-form-control" @change="onInvoiceItemIngChange(item)">
+                    <option value="" disabled>-- Chọn --</option>
+                    <option v-for="ing in ingredients" :key="ing.id" :value="ing.id">{{ ing.name }}</option>
+                  </select>
+                </td>
+                <td>
+                  <input v-model="item.quantity" type="number" step="0.1" class="g-form-control" style="width: 80px;" />
+                </td>
+                <td>
+                  <input v-model="item.unitPrice" type="number" step="500" class="g-form-control" style="width: 120px;" />
+                </td>
+                <td style="color: #e74c3c; font-weight: bold;">{{ ((item.quantity || 0) * (item.unitPrice || 0)).toLocaleString() }}đ</td>
+                <td>
+                  <input v-model="item.expirationDate" type="date" class="g-form-control" style="width: 140px;" />
+                </td>
+                <td>
+                  <button @click="invoiceForm.items.splice(index, 1)" class="btn-sm btn-delete">🗑</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <button @click="invoiceForm.items.push({ ingredientId: '', quantity: 1, unitPrice: 0, expirationDate: '' })" class="btn-sm btn-secondary" style="margin-bottom: 20px;">➕ Thêm dòng</button>
+          
+          <div style="text-align: right; font-size: 1.2rem; font-weight: bold; margin-bottom: 20px;">
+            Tổng Tiền: <span style="color: #e74c3c;">{{ calculateInvoiceTotal().toLocaleString() }}đ</span>
+          </div>
+
+          <div class="form-actions">
+            <button @click="submitInvoice" class="g-btn-primary">💾 Lưu Hóa Đơn</button>
+            <button @click="showCreateInvoiceModal = false" class="g-btn-secondary">Hủy</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- View Invoice Details Modal -->
+    <div v-if="showInvoiceDetailsModal" class="modal-overlay" @click.self="showInvoiceDetailsModal = false">
+      <div class="modal-content" style="max-width: 800px; width: 90%;">
+        <div class="modal-header">
+          <h3>Chi Tiết Hóa Đơn #{{ selectedInvoiceId }}</h3>
+          <button @click="showInvoiceDetailsModal = false" class="btn-close">✖</button>
+        </div>
+        <div class="modal-body">
+          <table class="g-table">
+            <thead>
+              <tr>
+                <th>Nguyên Liệu</th>
+                <th>Số Lượng</th>
+                <th>Đơn Giá</th>
+                <th>Thành Tiền</th>
+                <th>Hạn SD</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="b in invoiceDetails" :key="b.id">
+                <td>{{ b.ingredient?.name }}</td>
+                <td>{{ b.quantity }} {{ b.ingredient?.unit }}</td>
+                <td>{{ b.unitPrice?.toLocaleString() }}đ</td>
+                <td style="color: #e74c3c; font-weight: bold;">{{ ((b.quantity || 0) * (b.unitPrice || 0)).toLocaleString() }}đ</td>
+                <td>{{ b.expirationDate ? new Date(b.expirationDate).toLocaleDateString('vi-VN') : '---' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -378,6 +518,7 @@ const isKitchenOnly = computed(() => {
 const activeTab = ref('inventory');
 const ingredients = ref([]);
 const products = ref([]);
+const categories = ref([]);
 const stats = ref({ total: 0, lowStock: 0, outOfStock: 0, expiringBatchesCount: 0 });
 const toastMsg = ref('');
 
@@ -415,6 +556,14 @@ const isForecasting = ref(false);
 const forecastResults = ref([]);
 const forecastError = ref('');
 
+// Invoices State
+const invoices = ref([]);
+const showCreateInvoiceModal = ref(false);
+const invoiceForm = ref({ supplier: '', note: '', items: [] });
+const showInvoiceDetailsModal = ref(false);
+const selectedInvoiceId = ref(null);
+const invoiceDetails = ref([]);
+
 const getToken = () => localStorage.getItem('token');
 const configHeader = () => ({ headers: { 'Authorization': `Bearer ${getToken()}` } });
 
@@ -431,7 +580,19 @@ const loadData = async () => {
 
     const resProd = await axios.get('http://localhost:8080/api/products');
     products.value = resProd.data;
+
+    const resCat = await axios.get('http://localhost:8080/api/categories');
+    categories.value = resCat.data;
+    
+    await fetchInvoices();
   } catch (err) { console.error(err); }
+};
+
+const fetchInvoices = async () => {
+  try {
+    const res = await axios.get('http://localhost:8080/api/admin/import-invoices', configHeader());
+    invoices.value = res.data;
+  } catch (err) { console.error('Lỗi lấy danh sách hóa đơn:', err); }
 };
 
 // === TAB 1: INVENTORY ===

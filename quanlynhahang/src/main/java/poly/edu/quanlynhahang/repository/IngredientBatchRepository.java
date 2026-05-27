@@ -12,6 +12,8 @@ import java.util.Date;
 @Repository
 public interface IngredientBatchRepository extends JpaRepository<IngredientBatch, Long> {
     
+    List<IngredientBatch> findByIngredientIdOrderByExpirationDateAsc(Long ingredientId);
+
     // Lấy các lô hàng của 1 nguyên liệu, ưu tiên lô có hạn sử dụng gần nhất (FEFO - First Expired First Out)
     // Chỉ lấy lô còn số lượng > 0
     @Query("SELECT b FROM IngredientBatch b WHERE b.ingredient = :ingredient AND b.quantity > 0 ORDER BY b.expirationDate ASC")
