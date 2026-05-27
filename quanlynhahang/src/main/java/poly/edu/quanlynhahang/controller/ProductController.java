@@ -23,6 +23,9 @@ public class ProductController {
     @Autowired
     private poly.edu.quanlynhahang.repository.ReviewRepository reviewRepository;
 
+    @Autowired
+    private poly.edu.quanlynhahang.repository.RecipeRepository recipeRepository;
+
     // API lấy tất cả món ăn
     @GetMapping
     public List<Product> getAllProducts() {
@@ -30,6 +33,16 @@ public class ProductController {
         for (Product p : products) {
             Double avg = reviewRepository.getAverageRatingByProductId(p.getId());
             p.setAverageRating(avg != null ? Math.round(avg * 10.0) / 10.0 : 0.0);
+            
+            // Tính giá vốn (costPrice)
+            List<poly.edu.quanlynhahang.entity.Recipe> recipes = recipeRepository.findByProduct(p);
+            double cost = 0;
+            for(poly.edu.quanlynhahang.entity.Recipe r : recipes) {
+                if (r.getIngredient() != null && r.getIngredient().getUnitPrice() != null) {
+                    cost += r.getIngredient().getUnitPrice() * r.getAmountRequired();
+                }
+            }
+            p.setCostPrice(cost);
         }
         return products;
     }
@@ -41,6 +54,16 @@ public class ProductController {
         for (Product p : products) {
             Double avg = reviewRepository.getAverageRatingByProductId(p.getId());
             p.setAverageRating(avg != null ? Math.round(avg * 10.0) / 10.0 : 0.0);
+            
+            // Tính giá vốn (costPrice)
+            List<poly.edu.quanlynhahang.entity.Recipe> recipes = recipeRepository.findByProduct(p);
+            double cost = 0;
+            for(poly.edu.quanlynhahang.entity.Recipe r : recipes) {
+                if (r.getIngredient() != null && r.getIngredient().getUnitPrice() != null) {
+                    cost += r.getIngredient().getUnitPrice() * r.getAmountRequired();
+                }
+            }
+            p.setCostPrice(cost);
         }
         return products;
     }

@@ -83,7 +83,8 @@
                   <th>Ảnh</th>
                   <th>Tên món</th>
                   <th>Danh mục</th>
-                  <th>Giá (VNĐ)</th>
+                  <th>Giá Bán (VNĐ)</th>
+                  <th>Giá Vốn (VNĐ)</th>
                   <th>Đánh giá</th>
                   <th>Trạng thái</th>
                   <th>Hành động</th>
@@ -97,6 +98,7 @@
                   <td><strong class="product-name">{{ p.name }}</strong></td>
                   <td><span class="category-chip">{{ p.category ? p.category.name : 'Chưa phân loại' }}</span></td>
                   <td class="price-text">{{ p.price.toLocaleString() }}đ</td>
+                  <td style="color: #e74c3c; font-weight: bold;">{{ p.costPrice > 0 ? p.costPrice.toLocaleString() + 'đ' : 'N/A' }}</td>
                   <td><strong style="color: #f1c40f;">{{ p.averageRating > 0 ? '⭐ ' + p.averageRating : 'N/A' }}</strong></td>
                   <td>
                     <span :class="p.status === false ? 'g-badge g-badge-danger' : 'g-badge g-badge-success'">

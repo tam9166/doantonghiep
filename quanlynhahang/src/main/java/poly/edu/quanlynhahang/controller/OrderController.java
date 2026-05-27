@@ -28,7 +28,9 @@ import poly.edu.quanlynhahang.repository.OrderRepository;
 import poly.edu.quanlynhahang.repository.ProductRepository;
 import poly.edu.quanlynhahang.repository.RecipeRepository;
 import poly.edu.quanlynhahang.repository.IngredientRepository;
+import poly.edu.quanlynhahang.repository.IngredientBatchRepository;
 import poly.edu.quanlynhahang.repository.RestaurantTableRepository;
+import poly.edu.quanlynhahang.entity.IngredientBatch;
 import poly.edu.quanlynhahang.entity.Recipe;
 
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -44,6 +46,7 @@ public class OrderController {
     @Autowired private RestaurantTableRepository tableRepository;
     @Autowired private RecipeRepository recipeRepository;
     @Autowired private IngredientRepository ingredientRepository;
+    @Autowired private IngredientBatchRepository ingredientBatchRepository;
     @Autowired private SimpMessagingTemplate messagingTemplate;
     @Autowired private poly.edu.quanlynhahang.repository.VoucherRepository voucherRepository;
 
@@ -148,15 +151,35 @@ public class OrderController {
             });
         }
 
-        // 🌟 TỰ ĐỘNG TRỪ KHO NGUYÊN LIỆU
+        // 🌟 TỰ ĐỘNG TRỪ KHO NGUYÊN LIỆU (FEFO - Trừ theo lô hết hạn trước)
         for (OrderDetailRequest item : orderRequest.getItems()) {
             productRepository.findById(item.getProductId()).ifPresent(product -> {
                 List<Recipe> recipes = recipeRepository.findByProduct(product);
                 for (Recipe recipe : recipes) {
                     var ingredient = recipe.getIngredient();
-                    if (ingredient != null && ingredient.getQuantity() != null) {
+                    if (ingredient != null) {
                         double deduct = recipe.getAmountRequired() * item.getQuantity();
-                        ingredient.setQuantity(Math.max(0, ingredient.getQuantity() - deduct));
+                        
+                        // Lấy các lô hàng còn tồn kho, ưu tiên hết hạn trước
+                        List<IngredientBatch> batches = ingredientBatchRepository.findAvailableBatchesOrderByExpirationAsc(ingredient);
+                        
+                        for (IngredientBatch batch : batches) {
+                            if (deduct <= 0) break; // Đã trừ đủ
+                            
+                            if (batch.getQuantity() >= deduct) {
+                                batch.setQuantity(batch.getQuantity() - deduct);
+                                deduct = 0;
+                            } else {
+                                deduct -= batch.getQuantity();
+                                batch.setQuantity(0.0);
+                            }
+                            ingredientBatchRepository.save(batch);
+                        }
+                        
+                        // Cập nhật lại tổng tồn kho của Ingredient
+                        double totalQuantity = ingredientBatchRepository.findAvailableBatchesOrderByExpirationAsc(ingredient)
+                                .stream().mapToDouble(IngredientBatch::getQuantity).sum();
+                        ingredient.setQuantity(totalQuantity);
                         ingredientRepository.save(ingredient);
                     }
                 }

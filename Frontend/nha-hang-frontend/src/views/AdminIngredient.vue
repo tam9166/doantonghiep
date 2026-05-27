@@ -59,6 +59,13 @@
             <span class="stat-label">Hết Hàng</span>
           </div>
         </div>
+        <div class="stat-card stat-warn">
+          <div class="stat-icon">📅</div>
+          <div class="stat-info">
+            <span class="stat-value">{{ stats.expiringBatchesCount || 0 }}</span>
+            <span class="stat-label">Lô Sắp Hết Hạn (3 Ngày)</span>
+          </div>
+        </div>
       </div>
 
       <!-- Tabs Control -->
@@ -145,10 +152,8 @@
                     <span v-else class="g-badge g-badge-success">Đủ</span>
                   </td>
                   <td>
-                    <div class="restock-group">
-                      <input type="number" v-model="restockValues[ing.id]" placeholder="+0" class="restock-input" step="0.1"/>
-                      <button @click="handleRestock(ing.id)" class="btn-restock">Nhập</button>
-                    </div>
+                    <button @click="openRestockModal(ing)" class="btn-restock">📦 Nhập Lô Mới</button>
+                    <button @click="viewBatches(ing.id)" class="btn-restock" style="background: #3498db; margin-left: 5px;">👀 Xem Các Lô</button>
                   </td>
                   <td>
                     <div class="action-buttons">
@@ -279,6 +284,67 @@
         </div>
       </div>
     </div>
+
+    <!-- Restock Modal (Nhập Lô Mới) -->
+    <div v-if="showRestockModal" class="modal-overlay" @click.self="showRestockModal = false">
+      <div class="form-card" style="max-width: 500px; width: 100%; z-index: 1000; position: relative;">
+        <h3>📦 Nhập Lô Mới - {{ selectedIngForRestock?.name }}</h3>
+        
+        <div class="form-group">
+          <label>Số lượng nhập ({{ selectedIngForRestock?.unit }}) *</label>
+          <input v-model="batchForm.quantity" type="number" step="0.1" class="g-form-control" />
+        </div>
+        
+        <div class="form-group">
+          <label>Đơn giá nhập (VNĐ)</label>
+          <input v-model="batchForm.unitPrice" type="number" step="500" class="g-form-control" />
+        </div>
+        
+        <div class="form-group">
+          <label>Hạn sử dụng *</label>
+          <input v-model="batchForm.expirationDate" type="date" class="g-form-control" />
+        </div>
+
+        <div class="form-actions" style="flex-direction: row; gap: 10px;">
+          <button @click="submitBatch" class="g-btn-primary" style="flex:1;">✅ Xác Nhận Nhập Kho</button>
+          <button @click="showRestockModal = false" class="btn-cancel" style="flex:1;">Hủy</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- View Batches Modal -->
+    <div v-if="showBatchesModal" class="modal-overlay" @click.self="showBatchesModal = false">
+      <div class="table-card" style="max-width: 800px; width: 100%; z-index: 1000; position: relative; max-height: 80vh; overflow-y: auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-light); padding-bottom: 10px; margin-bottom: 20px;">
+           <h3 style="margin: 0; border: none; padding: 0;">📦 Danh Sách Lô Hàng</h3>
+           <button @click="showBatchesModal = false" style="background: none; border: none; font-size: 1.5rem; color: #e74c3c; cursor: pointer;">✖</button>
+        </div>
+        <table class="g-table">
+          <thead>
+            <tr>
+              <th>Ngày Nhập</th>
+              <th>Hạn Sử Dụng</th>
+              <th>Số Lượng Còn</th>
+              <th>Đơn Giá</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="b in selectedBatches" :key="b.id">
+              <td>{{ new Date(b.importDate).toLocaleDateString('vi-VN') }}</td>
+              <td :style="{ color: isExpiring(b.expirationDate) ? '#e74c3c' : 'inherit', fontWeight: isExpiring(b.expirationDate) ? 'bold' : 'normal' }">
+                {{ b.expirationDate ? new Date(b.expirationDate).toLocaleDateString('vi-VN') : '---' }}
+                <span v-if="isExpiring(b.expirationDate)">⚠️</span>
+              </td>
+              <td>{{ b.quantity }}</td>
+              <td>{{ b.unitPrice?.toLocaleString() }}đ</td>
+            </tr>
+            <tr v-if="selectedBatches.length === 0">
+              <td colspan="4" style="text-align: center; color: var(--text-muted)">Chưa có lô hàng nào!</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -305,14 +371,30 @@ const isKitchenOnly = computed(() => {
 const activeTab = ref('inventory');
 const ingredients = ref([]);
 const products = ref([]);
-const stats = ref({ total: 0, lowStock: 0, outOfStock: 0 });
+const stats = ref({ total: 0, lowStock: 0, outOfStock: 0, expiringBatchesCount: 0 });
 const toastMsg = ref('');
 
 // Tab 1 State
 const isEditingIng = ref(false);
 const editingIngId = ref(null);
 const ingForm = ref({ name: '', unit: '', minStock: 5.0, unitPrice: 0, image: '' });
-const restockValues = ref({});
+
+// Batch State
+const showRestockModal = ref(false);
+const selectedIngForRestock = ref(null);
+const batchForm = ref({ quantity: 0, unitPrice: 0, expirationDate: '' });
+
+const showBatchesModal = ref(false);
+const selectedBatches = ref([]);
+
+const isExpiring = (dateStr) => {
+  if (!dateStr) return false;
+  const d = new Date(dateStr);
+  const now = new Date();
+  const diffTime = d - now;
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays <= 3; // <= 3 days is considered expiring
+};
 
 // Tab 2 State
 const searchProduct = ref('');
@@ -382,15 +464,30 @@ const deleteIngredient = async (id) => {
   } catch (err) { alert('Không thể xóa vì nguyên liệu này đang có trong công thức!'); }
 };
 
-const handleRestock = async (id) => {
-  const amount = parseFloat(restockValues.value[id]);
-  if (!amount || amount <= 0) return;
+const openRestockModal = (ing) => {
+  selectedIngForRestock.value = ing;
+  batchForm.value = { quantity: 0, unitPrice: ing.unitPrice || 0, expirationDate: '' };
+  showRestockModal.value = true;
+};
+
+const submitBatch = async () => {
+  if (!batchForm.value.quantity || batchForm.value.quantity <= 0) return alert('Số lượng phải > 0');
+  if (!batchForm.value.expirationDate) return alert('Vui lòng chọn hạn sử dụng!');
+  
   try {
-    const res = await axios.put(`http://localhost:8080/api/admin/ingredients/${id}/restock?amount=${amount}`, {}, configHeader());
-    showToast(`📦 ${res.data.message}`);
-    restockValues.value[id] = '';
+    await axios.post(`http://localhost:8080/api/admin/ingredients/${selectedIngForRestock.value.id}/batches`, batchForm.value, configHeader());
+    showToast(`📦 Đã nhập lô mới thành công!`);
+    showRestockModal.value = false;
     loadData();
   } catch (err) { alert('Lỗi nhập kho'); }
+};
+
+const viewBatches = async (id) => {
+  try {
+    const res = await axios.get(`http://localhost:8080/api/admin/ingredients/${id}/batches`, configHeader());
+    selectedBatches.value = res.data;
+    showBatchesModal.value = true;
+  } catch (err) { alert('Lỗi tải danh sách lô hàng'); }
 };
 
 // === TAB 2: RECIPES ===
@@ -467,13 +564,11 @@ const applyForecast = async (ingName, amount) => {
   const ing = ingredients.value.find(i => i.name.toLowerCase() === ingName.toLowerCase());
   if (!ing) return alert(`Không tìm thấy nguyên liệu "${ingName}" trong hệ thống!`);
   
-  try {
-    const res = await axios.put(`http://localhost:8080/api/admin/ingredients/${ing.id}/restock?amount=${amount}`, {}, configHeader());
-    showToast(`📦 ${res.data.message}`);
-    forecastResults.value = forecastResults.value.filter(r => r.name !== ingName);
-    loadData();
-    if(forecastResults.value.length === 0) showForecastModal.value = false;
-  } catch (err) { alert('Lỗi duyệt nhập kho!'); }
+  // Open restock modal and pre-fill amount
+  selectedIngForRestock.value = ing;
+  batchForm.value = { quantity: amount, unitPrice: ing.unitPrice || 0, expirationDate: '' };
+  showForecastModal.value = false;
+  showRestockModal.value = true;
 };
 
 onMounted(() => {

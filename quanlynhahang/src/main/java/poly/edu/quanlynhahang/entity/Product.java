@@ -44,6 +44,9 @@ public class Product {
     @jakarta.persistence.Transient
     private Double averageRating;
 
+    @jakarta.persistence.Transient
+    private Double costPrice;
+
     // Khóa ngoại liên kết với Category
     @ManyToOne
     @JoinColumn(name = "category_id")

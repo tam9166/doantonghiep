@@ -104,7 +104,17 @@
           <p>Quản lý cần thêm nguyên liệu từ trang Admin.</p>
         </div>
 
-        <div class="inv-grid" v-else>
+        <div v-if="expiringBatches.length > 0" class="expiring-alert">
+          <h3 style="color: #e74c3c; margin-top: 0;">⚠️ Cảnh báo: Sắp hết hạn sử dụng</h3>
+          <ul style="margin: 0; padding-left: 20px;">
+            <li v-for="b in expiringBatches" :key="b.id">
+              <strong>{{ b.ingredient.name }}</strong> - Còn <strong>{{ b.quantity }} {{ b.ingredient.unit }}</strong> 
+              (Hết hạn: {{ new Date(b.expirationDate).toLocaleDateString('vi-VN') }})
+            </li>
+          </ul>
+        </div>
+
+        <div class="inv-grid" v-else-if="ingredients.length > 0">
           <div v-for="ing in ingredients" :key="ing.id" :class="['inv-card', getStockClass(ing)]">
             <div class="inv-card-top">
               <div class="inv-icon">{{ getStockIcon(ing) }}</div>
@@ -195,6 +205,7 @@ const orders = ref([]);
 const pendingOrders = ref([]);
 const allOrders = ref([]);
 const ingredients = ref([]);
+const expiringBatches = ref([]);
 const products = ref([]);
 const toastMsg = ref('');
 const now = ref(new Date());
@@ -252,6 +263,10 @@ const fetchIngredients = async () => {
   try {
     const res = await axios.get('http://localhost:8080/api/admin/ingredients', configHeader());
     ingredients.value = res.data;
+    
+    // Lấy lô hàng sắp hết hạn
+    const resExp = await axios.get('http://localhost:8080/api/admin/ingredients/expiring-batches', configHeader());
+    expiringBatches.value = resExp.data;
   } catch (err) { console.error('Lỗi lấy nguyên liệu:', err); }
 };
 
@@ -522,6 +537,16 @@ onUnmounted(() => {
 .inv-header { margin-bottom: 24px; }
 .inv-header h2 { color: var(--text-heading); font-size: 1.4rem; font-weight: 800; margin: 0 0 6px 0; }
 .inv-sub { color: var(--text-muted); font-size: 0.9rem; margin: 0; }
+
+.expiring-alert {
+  background: rgba(231,76,60,0.1);
+  border: 1px solid rgba(231,76,60,0.3);
+  padding: 15px 20px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  color: #e74c3c;
+}
+.expiring-alert li { margin-bottom: 5px; }
 
 .inv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
 .inv-card {

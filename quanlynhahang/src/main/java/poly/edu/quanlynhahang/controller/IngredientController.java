@@ -18,8 +18,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Date;
+import java.util.Calendar;
+
 import poly.edu.quanlynhahang.entity.Ingredient;
+import poly.edu.quanlynhahang.entity.IngredientBatch;
 import poly.edu.quanlynhahang.repository.IngredientRepository;
+import poly.edu.quanlynhahang.repository.IngredientBatchRepository;
 
 @CrossOrigin("*")
 @RestController
@@ -29,6 +34,9 @@ public class IngredientController {
 
     @Autowired
     private IngredientRepository ingredientRepository;
+
+    @Autowired
+    private IngredientBatchRepository ingredientBatchRepository;
 
     // 1. Lấy tất cả nguyên liệu
     @GetMapping
@@ -65,21 +73,54 @@ public class IngredientController {
         return ResponseEntity.badRequest().body("Không tìm thấy nguyên liệu!");
     }
 
-    // 4. Nhập thêm hàng (cộng số lượng)
-    @PutMapping("/{id}/restock")
+    // 4. Nhập thêm hàng (Thêm Lô mới)
+    @PostMapping("/{id}/batches")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_KITCHEN')")
-    public ResponseEntity<?> restock(@PathVariable Long id, @RequestParam Double amount) {
+    public ResponseEntity<?> addBatch(@PathVariable Long id, @RequestBody IngredientBatch batch) {
         var ingOpt = ingredientRepository.findById(id);
         if (ingOpt.isPresent()) {
             Ingredient ing = ingOpt.get();
-            ing.setQuantity(ing.getQuantity() + amount);
+            batch.setIngredient(ing);
+            batch.setImportDate(new Date());
+            
+            IngredientBatch savedBatch = ingredientBatchRepository.save(batch);
+            
+            // Cập nhật lại tổng tồn kho
+            double totalQuantity = ingredientBatchRepository.findAvailableBatchesOrderByExpirationAsc(ing)
+                    .stream().mapToDouble(IngredientBatch::getQuantity).sum();
+            ing.setQuantity(totalQuantity);
+            
+            // Cập nhật giá nhập mới nhất vào bảng nguyên liệu chính để tham khảo
+            if (batch.getUnitPrice() != null) {
+                ing.setUnitPrice(batch.getUnitPrice());
+            }
             ingredientRepository.save(ing);
-            Map<String, Object> result = new HashMap<>();
-            result.put("message", "Đã nhập thêm " + amount + " " + ing.getUnit() + " " + ing.getName());
-            result.put("newQuantity", ing.getQuantity());
-            return ResponseEntity.ok(result);
+            
+            return ResponseEntity.ok(savedBatch);
         }
         return ResponseEntity.badRequest().body("Không tìm thấy nguyên liệu!");
+    }
+
+    // 4.1. Lấy danh sách lô hàng của 1 nguyên liệu
+    @GetMapping("/{id}/batches")
+    public ResponseEntity<?> getBatches(@PathVariable Long id) {
+        var ingOpt = ingredientRepository.findById(id);
+        if (ingOpt.isPresent()) {
+            List<IngredientBatch> batches = ingredientBatchRepository.findByIngredientOrderByImportDateDesc(ingOpt.get());
+            return ResponseEntity.ok(batches);
+        }
+        return ResponseEntity.badRequest().body("Không tìm thấy nguyên liệu!");
+    }
+
+    // 4.2. Lấy danh sách lô hàng sắp hết hạn (trong vòng 3 ngày)
+    @GetMapping("/expiring-batches")
+    public ResponseEntity<?> getExpiringBatches(@RequestParam(defaultValue = "3") int daysThreshold) {
+        Calendar cal = Calendar.getInstance();
+        cal.add(Calendar.DAY_OF_YEAR, daysThreshold);
+        Date targetDate = cal.getTime();
+        
+        List<IngredientBatch> expiring = ingredientBatchRepository.findExpiringBatches(targetDate);
+        return ResponseEntity.ok(expiring);
     }
 
     // 5. Cập nhật số lượng trực tiếp
@@ -121,10 +162,16 @@ public class IngredientController {
             return q <= 0;
         }).count();
 
+        // Đếm số lô sắp hết hạn trong 3 ngày
+        Calendar cal = Calendar.getInstance();
+        cal.add(Calendar.DAY_OF_YEAR, 3);
+        List<IngredientBatch> expiringBatches = ingredientBatchRepository.findExpiringBatches(cal.getTime());
+
         Map<String, Object> stats = new HashMap<>();
         stats.put("total", total);
         stats.put("lowStock", lowStock);
         stats.put("outOfStock", outOfStock);
+        stats.put("expiringBatchesCount", expiringBatches.size());
         return ResponseEntity.ok(stats);
     }
 }
