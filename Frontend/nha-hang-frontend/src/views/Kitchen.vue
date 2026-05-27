@@ -161,12 +161,10 @@
               <span :class="['menu-status', product.available ? 'status-on' : 'status-off']">
                 {{ product.available ? '✅ Đang bán' : '❌ Hết món' }}
               </span>
-              <div style="display: flex; gap: 5px;">
-                <button @click="viewRecipeDetails(product)" class="btn-toggle-menu" style="border-color: #3498db; color: #3498db; background: rgba(52,152,219,0.1)">👁️ Công thức</button>
-                <button @click="toggleAvailable(product)" :class="['btn-toggle-menu', product.available ? 'btn-off' : 'btn-on']">
-                  {{ product.available ? '⏸ Báo Hết' : '▶ Mở Bán' }}
-                </button>
-              </div>
+              <button @click="viewRecipeDetails(product)" class="btn-toggle-menu" style="border-color: #3498db; color: #3498db; background: rgba(52,152,219,0.1)">👁️ Công thức</button>
+              <button @click="toggleAvailable(product)" :class="['btn-toggle-menu', product.available ? 'btn-off' : 'btn-on']">
+                {{ product.available ? '⏸ Báo Hết' : '▶ Mở Bán' }}
+              </button>
             </div>
           </div>
         </div>
@@ -641,7 +639,7 @@ onUnmounted(() => {
 .bar-out { background: #e74c3c; }
 
 /* ========== MENU TAB ========== */
-.menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+.menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 14px; }
 .menu-card {
   display: flex; align-items: center; gap: 14px;
   background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 14px;
