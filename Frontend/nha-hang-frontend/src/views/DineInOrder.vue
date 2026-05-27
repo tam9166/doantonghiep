@@ -99,58 +99,41 @@
       <div class="cart-summary" @click="showModal = true">
         <span class="cart-icon">🛒 <span class="badge">{{ totalItems }}</span></span>
         <div class="cart-text">
-          <span class="cart-price">{{ cartTotal.toLocaleString() }}đ</span>
-          <span v-if="tierDiscount > 0" class="cart-discount-badge">
-            🏷️ Thẻ {{ userProfile?.membershipTier }}: Giảm {{ tierDiscount * 100 }}%
-          </span>
+          <span class="cart-price">{{ cartSubtotal.toLocaleString() }}đ</span>
         </div>
       </div>
-      <button class="btn-checkout" @click="showModal = true">Thanh Toán</button>
+      <button class="btn-checkout" @click="showModal = true">🍳 Gửi Bếp</button>
     </div>
 
-    <!-- Giỏ hàng Modal -->
+    <!-- Xác nhận gọi món Modal -->
     <div v-if="showModal" class="g-modal-overlay" @click.self="showModal = false">
       <div class="g-modal-box" style="max-width: 550px; max-height: 90vh; overflow-y: auto;">
-        <h3>Xác Nhận Đặt Món</h3>
+        <h3>🍳 Xác Nhận Gọi Món</h3>
         
-        <div class="cart-details" style="max-height: 150px; overflow-y: auto; margin-bottom: 15px; padding-right: 10px;">
-          <div v-for="(item, idx) in cart" :key="idx" style="display: flex; justify-content: space-between; border-bottom: 1px dashed rgba(255,255,255,0.1); padding: 5px 0;">
+        <div class="cart-details" style="max-height: 250px; overflow-y: auto; margin-bottom: 15px; padding-right: 10px;">
+          <div v-for="(item, idx) in cart" :key="idx" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed rgba(255,255,255,0.1); padding: 8px 0;">
             <span>{{ item.name }} <strong>(x{{ item.quantity }})</strong></span>
-            <span>{{ (item.price * item.quantity).toLocaleString() }}đ</span>
-          </div>
-        </div>
-
-        <div class="form-group mt-3">
-          <label>Nhập mã Voucher (nếu có)</label>
-          <div style="display: flex; gap: 10px;">
-            <input v-model="voucherCode" type="text" class="g-form-control" placeholder="MAGIAMGIA..." />
-            <button @click="applyVoucher" class="g-btn-primary">Áp dụng</button>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span>{{ (item.price * item.quantity).toLocaleString() }}đ</span>
+              <button @click="cart.splice(idx, 1)" style="background:none; border:none; color:#e74c3c; cursor:pointer; font-size:1rem;">✖</button>
+            </div>
           </div>
         </div>
 
         <div class="cart-total" style="margin-top: 20px; text-align: center;">
-          <p style="color: var(--text-primary); font-weight: bold; margin-bottom: 5px;">Tổng cộng: {{ cartSubtotal.toLocaleString() }}đ</p>
-          <p v-if="discountAmount > 0" style="color: #2ecc71; font-weight: bold; margin-bottom: 5px;">
-            Giảm giá: -{{ discountAmount.toLocaleString() }}đ
-          </p>
-          <h4 style="color: var(--primary); font-size: 1.4rem; margin-top: 10px; border-top: 1px dashed rgba(0,212,170,0.3); padding-top: 10px;">Thành tiền: {{ finalTotal.toLocaleString() }}đ</h4>
-        </div>
-
-        <div class="qr-container" style="text-align: center; margin: 20px 0;">
-          <img :src="vietQrUrl" alt="VietQR" style="width: 180px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.5);" />
-        </div>
-
-        <div class="form-group mt-3">
-          <label>Mã giao dịch (Sau khi CK) *:</label>
-          <input v-model="txCode" type="text" class="g-form-control" placeholder="Nhập mã GD..." />
+          <h4 style="color: var(--primary); font-size: 1.4rem; border-top: 1px dashed rgba(0,212,170,0.3); padding-top: 10px;">Tạm tính: {{ cartSubtotal.toLocaleString() }}đ</h4>
+          <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 5px;">💡 Thanh toán sau khi dùng bữa xong</p>
         </div>
 
         <div class="modal-actions mt-4" style="display: flex; gap: 10px;">
           <button @click="showModal = false" class="g-btn-outline" style="flex:1;">Quay lại</button>
-          <button @click="submitOrder" class="g-btn-primary" style="flex:1;">Xác nhận đặt</button>
+          <button @click="submitOrder" class="g-btn-primary" style="flex:1;">🍳 Gửi Bếp Ngay</button>
         </div>
       </div>
     </div>
+
+    <!-- Toast thông báo -->
+    <div v-if="toastMsg" class="toast-notification">{{ toastMsg }}</div>
   </div>
 </template>
 
@@ -166,8 +149,8 @@ const allTables = ref([]);
 const cart = ref([]);
 const selectedTable = ref("");
 const isTableLocked = ref(false);
-const txCode = ref("");
 const showModal = ref(false);
+const toastMsg = ref('');
 
 // AI Voice
 const isListening = ref(false);
@@ -408,25 +391,24 @@ const applyVoucher = async () => {
 };
 
 const submitOrder = async () => {
-  if (!txCode.value) return alert("Vui lòng nhập Mã giao dịch để nhà hàng xác nhận!");
+  if (cart.value.length === 0) return alert("Giỏ hàng trống!");
   
   const token = localStorage.getItem('token') || ''; 
   const today = new Date().toLocaleDateString('en-CA');
   const now = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-  const infoFull = `[TẠI QUÁN] Bàn: ${selectedTable.value} | Lúc: ${now} ngày ${today} | MãGD: ${txCode.value}`;
+  const infoFull = `[TẠI QUÁN] Bàn: ${selectedTable.value} | Lúc: ${now} ngày ${today}`;
   const formattedItems = cart.value.map(item => ({ productId: item.productId, quantity: item.quantity }));
 
   try {
     await axios.post('http://localhost:8080/api/orders/checkout', {
       address: infoFull,
-      voucherCode: voucherDiscountPercent.value > 0 ? voucherCode.value : null,
       items: formattedItems
     }, { headers: { 'Authorization': `Bearer ${token}` } });
 
-    alert("🎉 Chúc mừng bạn đã đặt món thành công!");
     cart.value = [];
     showModal.value = false;
-    router.push('/'); 
+    toastMsg.value = '🍳 Đã gửi đơn xuống bếp thành công! Món ăn đang được chuẩn bị...';
+    setTimeout(() => { toastMsg.value = ''; }, 4000);
   } catch (error) {
     alert("Lỗi: Vui lòng thử lại!");
   }
@@ -566,4 +548,27 @@ onMounted(loadData);
 .voice-box .mic-icon { font-size: 3.5rem; margin-bottom: 15px; display: inline-block; padding: 10px; }
 .voice-box .pulse { animation: mic-pulse 1.5s infinite; border-radius: 50%; background: rgba(231,76,60,0.2); }
 .voice-text { margin: 15px 0; font-size: 1rem; color: var(--text-secondary); white-space: pre-line; }
+
+/* Toast Notification */
+.toast-notification {
+  position: fixed;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-card);
+  color: var(--primary);
+  padding: 14px 28px;
+  border-radius: 30px;
+  border: 1px solid var(--primary);
+  box-shadow: 0 0 30px rgba(0,212,170,0.3);
+  font-weight: bold;
+  z-index: 1000;
+  animation: toastSlideUp 0.3s ease;
+  text-align: center;
+  max-width: 90%;
+}
+@keyframes toastSlideUp {
+  from { transform: translate(-50%, 20px); opacity: 0; }
+  to { transform: translate(-50%, 0); opacity: 1; }
+}
 </style>

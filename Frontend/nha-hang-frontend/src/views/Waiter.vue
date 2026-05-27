@@ -125,10 +125,11 @@
             <div class="table-actions" v-if="table.isOccupied === 2">
               <button @click.stop="openInvoice(table)" class="btn-print">🖨️ Bill</button>
               <button @click.stop="openMoveTable(table)" class="btn-move">🔄 Chuyển</button>
-              <button @click.stop="markAsCleaning(table)" class="btn-checkout">🏠 Về</button>
+              <button @click.stop="openCheckoutModal(table)" class="btn-checkout">💰 Thu Tiền</button>
             </div>
             <div class="table-actions" v-if="table.isOccupied === 2" style="margin-top: 5px;">
                <button @click.stop="goAddItem(table)" class="btn-add-item">➕ Gọi Thêm</button>
+               <button @click.stop="markAsCleaning(table)" class="btn-cancel-book" style="background: rgba(155, 89, 182, 0.1); color: #9b59b6; border-color: rgba(155, 89, 182, 0.3);">🏠 Về</button>
             </div>
 
             <!-- Hành động Bàn CẦN DỌN -->
@@ -299,6 +300,76 @@
     <!-- Toast Notification -->
     <div v-if="toastMsg" class="toast-notification">
       {{ toastMsg }}
+    </div>
+
+    <!-- Checkout Modal -->
+    <div v-if="checkoutOrder" class="modal-overlay" @click.self="checkoutOrder = null">
+      <div class="invoice-modal printable-area">
+        <div class="modal-header hide-on-print">
+          <h2>💰 Thanh Toán - Bàn {{ checkoutTableName }}</h2>
+          <button @click="checkoutOrder = null" class="btn-close">✖</button>
+        </div>
+
+        <div class="invoice-content">
+          <div class="invoice-brand">
+            <h1>Mộc Vị <span>RESTAURANT</span></h1>
+            <p>HÓA ĐƠN THANH TOÁN</p>
+            <div class="brand-address">Bàn: {{ checkoutTableName }}</div>
+          </div>
+
+          <table class="print-table">
+            <thead>
+              <tr>
+                <th style="width:10%">STT</th>
+                <th style="width:10%">Ảnh</th>
+                <th style="width:30%">Tên Món</th>
+                <th style="width:18%; text-align:right">Đơn Giá</th>
+                <th style="width:12%; text-align:center">SL</th>
+                <th style="width:20%; text-align:right">Thành Tiền</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(detail, index) in checkoutOrder.orderDetails" :key="index">
+                <td style="text-align:center">{{ index + 1 }}</td>
+                <td>
+                  <img v-if="detail.product?.image" :src="detail.product.image" class="bill-thumb" />
+                  <span v-else class="no-img-icon">🍽️</span>
+                </td>
+                <td><strong>{{ detail.product?.name }}</strong></td>
+                <td style="text-align:right">{{ (detail.price / detail.quantity).toLocaleString() }}đ</td>
+                <td style="text-align:center">{{ detail.quantity }}</td>
+                <td style="text-align:right; font-weight: bold;">{{ detail.price.toLocaleString() }}đ</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="invoice-total">
+            <div class="total-row">
+              <span>TỔNG CỘNG:</span>
+              <span>{{ calculateTotal(checkoutOrder).toLocaleString() }} đ</span>
+            </div>
+          </div>
+
+          <div class="qr-payment">
+            <img :src="`https://img.vietqr.io/image/vietcombank-1047187126-compact2.png?amount=${calculateTotal(checkoutOrder)}&addInfo=Thanh toan ban ${checkoutTableName}&accountName=NGUYEN QUANG NHAT`" alt="QR Code" />
+            <p>Quét QR để thanh toán</p>
+          </div>
+
+          <div class="invoice-footer">
+            <p>Cảm ơn quý khách!</p>
+          </div>
+        </div>
+
+        <div class="modal-actions hide-on-print" style="display: flex; flex-direction: column; gap: 10px; padding: 15px;">
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <input v-model="checkoutTxCode" type="text" placeholder="Nhập mã giao dịch..." style="flex:1; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem;" />
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button @click="printCheckoutInvoice" class="btn-export" style="flex:1; background: #3498db;">🖨️ In Hóa Đơn</button>
+            <button @click="confirmCheckout" class="btn-export" style="flex:1;">✅ Xác Nhận Đã Thu Tiền</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -508,6 +579,52 @@ const calculateTotal = (order) => {
 };
 
 const printInvoice = () => { window.print(); };
+
+// === THANH TOÁN ===
+const checkoutOrder = ref(null);
+const checkoutTableName = ref('');
+const checkoutTxCode = ref('');
+
+const openCheckoutModal = (table) => {
+  const activeOrder = getActiveOrderForTable(table.name);
+  if (activeOrder) {
+    checkoutOrder.value = activeOrder;
+    checkoutTableName.value = table.name;
+    checkoutTxCode.value = '';
+  } else {
+    alert('Không tìm thấy đơn hàng nào đang mở cho bàn này!');
+  }
+};
+
+const confirmCheckout = async () => {
+  if (!checkoutTxCode.value) return alert('Vui lòng nhập mã giao dịch để xác nhận thanh toán!');
+  if (!checkoutOrder.value) return;
+  
+  const token = localStorage.getItem('token');
+  try {
+    // 1. Cập nhật đơn hàng → status 4 (Hoàn thành)
+    await axios.put(`http://localhost:8080/api/admin/orders/${checkoutOrder.value.id}/status?status=4`, {}, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    // 2. Cập nhật bàn → status 3 (Cần dọn)
+    const table = tables.value.find(t => t.name === checkoutTableName.value);
+    if (table) {
+      await axios.put(`http://localhost:8080/api/tables/${table.id}/status?status=3`, {}, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+    }
+    
+    checkoutOrder.value = null;
+    toastMsg.value = `✅ Thanh toán bàn ${checkoutTableName.value} thành công! MãGD: ${checkoutTxCode.value}`;
+    setTimeout(() => { toastMsg.value = ''; }, 4000);
+    fetchData();
+  } catch (error) {
+    alert('Lỗi khi xác nhận thanh toán!');
+  }
+};
+
+const printCheckoutInvoice = () => { window.print(); };
 
 // === XEM CHI TIẾT ĐƠN TẠI BÀN ===
 const detailTable = ref(null);

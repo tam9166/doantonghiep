@@ -109,21 +109,25 @@ public class OrderController {
 
         Account account = accountOpt.get();
         double discount = 0;
-        if ("Kim Cương".equals(account.getMembershipTier())) discount = 0.15;
-        else if ("Vàng".equals(account.getMembershipTier())) discount = 0.10;
-        else if ("Bạc".equals(account.getMembershipTier())) discount = 0.05;
 
-        // Xử lý Voucher nếu có
-        if (orderRequest.getVoucherCode() != null && !orderRequest.getVoucherCode().isEmpty()) {
-            Optional<Voucher> vOpt = voucherRepository.findByCode(orderRequest.getVoucherCode());
-            if (vOpt.isPresent() && !vOpt.get().getIsUsed()) {
-                Voucher voucher = vOpt.get();
-                // Check if it belongs to this user
-                if (voucher.getAccount() == null || voucher.getAccount().getUsername().equals(account.getUsername())) {
-                    discount += (double) voucher.getDiscountPercent() / 100.0;
-                    // Mark as used
-                    voucher.setIsUsed(true);
-                    voucherRepository.save(voucher);
+        // 🌟 Đơn TẠI QUÁN: Không áp dụng giảm giá lúc gọi món (thanh toán sau)
+        boolean isDineIn = orderRequest.getAddress() != null && orderRequest.getAddress().contains("[TẠI QUÁN]");
+        
+        if (!isDineIn) {
+            if ("Kim Cương".equals(account.getMembershipTier())) discount = 0.15;
+            else if ("Vàng".equals(account.getMembershipTier())) discount = 0.10;
+            else if ("Bạc".equals(account.getMembershipTier())) discount = 0.05;
+
+            // Xử lý Voucher nếu có (chỉ cho đơn giao hàng / đặt bàn)
+            if (orderRequest.getVoucherCode() != null && !orderRequest.getVoucherCode().isEmpty()) {
+                Optional<Voucher> vOpt = voucherRepository.findByCode(orderRequest.getVoucherCode());
+                if (vOpt.isPresent() && !vOpt.get().getIsUsed()) {
+                    Voucher voucher = vOpt.get();
+                    if (voucher.getAccount() == null || voucher.getAccount().getUsername().equals(account.getUsername())) {
+                        discount += (double) voucher.getDiscountPercent() / 100.0;
+                        voucher.setIsUsed(true);
+                        voucherRepository.save(voucher);
+                    }
                 }
             }
         }
