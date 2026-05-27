@@ -301,7 +301,7 @@
         </div>
         
         <div class="form-group">
-          <label>Đơn giá nhập (VNĐ)</label>
+          <label>Đơn giá nhập (VNĐ / 1 đơn vị)</label>
           <input v-model="batchForm.unitPrice" type="number" step="500" class="g-form-control" />
         </div>
         
@@ -331,6 +331,7 @@
               <th>Hạn Sử Dụng</th>
               <th>Số Lượng Còn</th>
               <th>Đơn Giá</th>
+              <th>Tổng Tiền</th>
             </tr>
           </thead>
           <tbody>
@@ -342,9 +343,10 @@
               </td>
               <td>{{ b.quantity }}</td>
               <td>{{ b.unitPrice?.toLocaleString() }}đ</td>
+              <td style="color: #e74c3c; font-weight: bold;">{{ (b.quantity * (b.unitPrice || 0)).toLocaleString() }}đ</td>
             </tr>
             <tr v-if="selectedBatches.length === 0">
-              <td colspan="4" style="text-align: center; color: var(--text-muted)">Chưa có lô hàng nào!</td>
+              <td colspan="5" style="text-align: center; color: var(--text-muted)">Chưa có lô hàng nào!</td>
             </tr>
           </tbody>
         </table>
