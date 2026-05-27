@@ -68,6 +68,9 @@ public class IngredientController {
             if (details.getUnitPrice() != null) {
                 ing.setUnitPrice(details.getUnitPrice());
             }
+            if (details.getShelfLifeDays() != null) {
+                ing.setShelfLifeDays(details.getShelfLifeDays());
+            }
             return ResponseEntity.ok(ingredientRepository.save(ing));
         }
         return ResponseEntity.badRequest().body("Không tìm thấy nguyên liệu!");
@@ -82,6 +85,14 @@ public class IngredientController {
             Ingredient ing = ingOpt.get();
             batch.setIngredient(ing);
             batch.setImportDate(new Date());
+            
+            // Tự động tính ngày hết hạn nếu chưa có
+            if (batch.getExpirationDate() == null) {
+                Calendar cal = Calendar.getInstance();
+                cal.setTime(batch.getImportDate());
+                cal.add(Calendar.DAY_OF_YEAR, ing.getShelfLifeDays() != null ? ing.getShelfLifeDays() : 30);
+                batch.setExpirationDate(cal.getTime());
+            }
             
             IngredientBatch savedBatch = ingredientBatchRepository.save(batch);
             

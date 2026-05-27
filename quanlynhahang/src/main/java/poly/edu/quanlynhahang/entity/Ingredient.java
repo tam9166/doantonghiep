@@ -31,4 +31,7 @@ public class Ingredient {
     private Double unitPrice = 0.0;
 
     private String image;
+
+    @Column(name = "shelf_life_days")
+    private Integer shelfLifeDays = 30; // Mặc định 30 ngày
 }

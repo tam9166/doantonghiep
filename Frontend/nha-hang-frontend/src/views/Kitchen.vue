@@ -14,7 +14,7 @@
           📦 Tồn Kho
           <span v-if="lowStockCount > 0" class="badge-warn">{{ lowStockCount }}</span>
         </button>
-        <button @click="activeTab = 'menu'" :class="['tab-btn', { active: activeTab === 'menu' }]">🍽️ Báo Hết Món</button>
+        <button @click="activeTab = 'menu'" :class="['tab-btn', { active: activeTab === 'menu' }]">🍽️ Thực Đơn & Chi Phí</button>
         <button @click="fetchOrders" class="btn-refresh">🔄</button>
         <button @click="handleLogout" class="btn-logout">🚪 Đăng Xuất</button>
       </div>
@@ -141,11 +141,11 @@
         </div>
       </div>
 
-      <!-- ========== TAB 3: BÁO HẾT MÓN ========== -->
+      <!-- ========== TAB 3: THỰC ĐƠN & CHI PHÍ ========== -->
       <div v-if="activeTab === 'menu'">
         <div class="inv-header">
-          <h2>🍽️ Quản Lý Trạng Thái Món Ăn</h2>
-          <p class="inv-sub">Bấm để báo hết hoặc mở bán lại món. Cập nhật ngay trên Menu khách.</p>
+          <h2>🍽️ Quản Lý Thực Đơn & Chi Phí</h2>
+          <p class="inv-sub">Xem chi phí nguyên liệu của món và quản lý trạng thái bán (Báo hết/Mở bán).</p>
         </div>
 
         <div class="menu-grid">
@@ -153,21 +153,68 @@
             <img :src="product.image || 'https://placehold.co/80x80/0d1b2a/00d4aa?text=🍽'" class="menu-img" />
             <div class="menu-info">
               <h4>{{ product.name }}</h4>
-              <span class="menu-price">{{ product.price?.toLocaleString() }}đ</span>
-              <span class="menu-cat">{{ product.category?.name || '' }}</span>
+              <span class="menu-price">Bán: {{ product.price?.toLocaleString() }}đ</span>
+              <span class="menu-cost" v-if="product.costPrice > 0">Vốn: {{ product.costPrice?.toLocaleString() }}đ</span>
+              <span class="menu-cost" v-else>Vốn: Chưa tính</span>
             </div>
             <div class="menu-action">
               <span :class="['menu-status', product.available ? 'status-on' : 'status-off']">
                 {{ product.available ? '✅ Đang bán' : '❌ Hết món' }}
               </span>
-              <button @click="toggleAvailable(product)" :class="['btn-toggle-menu', product.available ? 'btn-off' : 'btn-on']">
-                {{ product.available ? '⏸ Báo Hết' : '▶ Mở Bán' }}
-              </button>
+              <div style="display: flex; gap: 5px;">
+                <button @click="viewRecipeDetails(product)" class="btn-toggle-menu" style="border-color: #3498db; color: #3498db; background: rgba(52,152,219,0.1)">👁️ Công thức</button>
+                <button @click="toggleAvailable(product)" :class="['btn-toggle-menu', product.available ? 'btn-off' : 'btn-on']">
+                  {{ product.available ? '⏸ Báo Hết' : '▶ Mở Bán' }}
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </main>
+
+    <!-- Recipe Breakdown Modal -->
+    <div v-if="showRecipeModal" class="modal-overlay" @click.self="showRecipeModal = false">
+      <div class="ai-modal" style="width: 600px;">
+        <div class="modal-header">
+          <h2>🍳 Chi phí nguyên liệu: {{ selectedProductForRecipe?.name }}</h2>
+          <button @click="showRecipeModal = false" class="btn-close">✖</button>
+        </div>
+        <div class="modal-body" style="max-height: 60vh; overflow-y: auto; padding: 0 20px 20px 20px;">
+          <table class="g-table" style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+            <thead>
+              <tr style="border-bottom: 1px solid var(--border-light); text-align: left;">
+                <th style="padding: 10px;">Nguyên liệu</th>
+                <th style="padding: 10px;">Định lượng</th>
+                <th style="padding: 10px;">Đơn giá nhập</th>
+                <th style="padding: 10px;">Thành tiền</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="rec in currentProductRecipes" :key="rec.id" style="border-bottom: 1px solid var(--border-light);">
+                <td style="padding: 10px;"><strong>{{ rec.ingredient?.name }}</strong></td>
+                <td style="padding: 10px;">{{ rec.amountRequired }} {{ rec.ingredient?.unit }}</td>
+                <td style="padding: 10px;">{{ (rec.ingredient?.unitPrice || 0).toLocaleString() }}đ</td>
+                <td style="padding: 10px; color: #e74c3c; font-weight: bold;">
+                  {{ ((rec.ingredient?.unitPrice || 0) * rec.amountRequired).toLocaleString() }}đ
+                </td>
+              </tr>
+              <tr v-if="currentProductRecipes.length === 0">
+                <td colspan="4" style="text-align: center; padding: 20px; color: var(--text-muted)">Chưa có công thức cho món này.</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="3" style="padding: 15px 10px; text-align: right; font-weight: bold; font-size: 1.1rem;">Tổng chi phí vốn:</td>
+                <td style="padding: 15px 10px; color: #e74c3c; font-weight: 900; font-size: 1.2rem;">
+                  {{ selectedProductForRecipe?.costPrice?.toLocaleString() || 0 }}đ
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
 
     <!-- AI Modal -->
     <div v-if="showAiModal" class="modal-overlay" @click.self="showAiModal = false">
@@ -217,6 +264,11 @@ let stompClient = null;
 const showAiModal = ref(false);
 const aiLoading = ref(false);
 const aiResponse = ref('');
+
+// Recipe Modal state
+const showRecipeModal = ref(false);
+const selectedProductForRecipe = ref(null);
+const currentProductRecipes = ref([]);
 
 const getToken = () => localStorage.getItem('token');
 const configHeader = () => ({ headers: { 'Authorization': `Bearer ${getToken()}` } });
@@ -364,6 +416,17 @@ const toggleAvailable = async (product) => {
       alert("Lỗi khi cập nhật trạng thái món ăn!");
       product.available = originalState; // revert if error
     }
+};
+
+const viewRecipeDetails = async (product) => {
+  selectedProductForRecipe.value = product;
+  try {
+    const res = await axios.get(`http://localhost:8080/api/admin/recipes/product/${product.id}`, configHeader());
+    currentProductRecipes.value = res.data;
+    showRecipeModal.value = true;
+  } catch (err) {
+    alert("Không thể tải công thức món ăn!");
+  }
 };
 
 // === AI ASSISTANT ===
@@ -587,9 +650,10 @@ onUnmounted(() => {
 .menu-card:hover { border-color: var(--primary); box-shadow: var(--shadow-md); }
 .menu-card.menu-disabled { opacity: 0.55; border-color: rgba(231,76,60,0.2); }
 .menu-img { width: 56px; height: 56px; border-radius: 10px; object-fit: cover; border: 1px solid var(--border); flex-shrink: 0; }
-.menu-info { flex: 1; }
+.menu-info { flex: 1; display: flex; flex-direction: column; }
 .menu-info h4 { margin: 0 0 4px 0; color: var(--text-heading); font-size: 0.95rem; }
 .menu-price { color: var(--primary); font-weight: 700; font-size: 0.88rem; }
+.menu-cost { color: #e74c3c; font-weight: 700; font-size: 0.85rem; margin-top: 3px; }
 .menu-cat { margin-left: 8px; color: var(--text-muted); font-size: 0.78rem; }
 .menu-action { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; flex-shrink: 0; }
 .menu-status { font-size: 0.78rem; font-weight: 700; }

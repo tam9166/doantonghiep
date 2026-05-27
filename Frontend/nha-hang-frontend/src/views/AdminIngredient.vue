@@ -109,6 +109,11 @@
             </div>
 
             <div class="form-group">
+              <label>Thời gian bảo quản (Ngày)</label>
+              <input v-model="ingForm.shelfLifeDays" type="number" placeholder="VD: 30" class="g-form-control" />
+            </div>
+
+            <div class="form-group">
               <label>Link hình ảnh (Tùy chọn)</label>
               <input v-model="ingForm.image" placeholder="URL..." class="g-form-control" />
             </div>
@@ -301,7 +306,7 @@
         </div>
         
         <div class="form-group">
-          <label>Hạn sử dụng *</label>
+          <label>Hạn sử dụng (Tùy chọn - Hệ thống sẽ tự tính theo TG bảo quản nếu để trống)</label>
           <input v-model="batchForm.expirationDate" type="date" class="g-form-control" />
         </div>
 
@@ -377,7 +382,7 @@ const toastMsg = ref('');
 // Tab 1 State
 const isEditingIng = ref(false);
 const editingIngId = ref(null);
-const ingForm = ref({ name: '', unit: '', minStock: 5.0, unitPrice: 0, image: '' });
+const ingForm = ref({ name: '', unit: '', minStock: 5.0, unitPrice: 0, shelfLifeDays: 30, image: '' });
 
 // Batch State
 const showRestockModal = ref(false);
@@ -431,13 +436,13 @@ const loadData = async () => {
 const startEditIng = (ing) => {
   isEditingIng.value = true;
   editingIngId.value = ing.id;
-  ingForm.value = { name: ing.name, unit: ing.unit, minStock: ing.minStock, unitPrice: ing.unitPrice || 0, image: ing.image || '' };
+  ingForm.value = { name: ing.name, unit: ing.unit, minStock: ing.minStock, unitPrice: ing.unitPrice || 0, shelfLifeDays: ing.shelfLifeDays || 30, image: ing.image || '' };
 };
 
 const cancelEditIng = () => {
   isEditingIng.value = false;
   editingIngId.value = null;
-  ingForm.value = { name: '', unit: '', minStock: 5.0, unitPrice: 0, image: '' };
+  ingForm.value = { name: '', unit: '', minStock: 5.0, unitPrice: 0, shelfLifeDays: 30, image: '' };
 };
 
 const saveIngredient = async () => {
@@ -472,7 +477,6 @@ const openRestockModal = (ing) => {
 
 const submitBatch = async () => {
   if (!batchForm.value.quantity || batchForm.value.quantity <= 0) return alert('Số lượng phải > 0');
-  if (!batchForm.value.expirationDate) return alert('Vui lòng chọn hạn sử dụng!');
   
   try {
     await axios.post(`http://localhost:8080/api/admin/ingredients/${selectedIngForRestock.value.id}/batches`, batchForm.value, configHeader());
