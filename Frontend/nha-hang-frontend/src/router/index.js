@@ -85,26 +85,26 @@ router.beforeEach((to, from) => {
     }
   }
 
-  // 3. KHU VỰC BẾP (Cho phép Bếp + Quản Lý + Admin)
+  // 3. KHU VỰC BẾP (Chỉ cho phép Bếp)
   if (to.path.startsWith('/kitchen')) {
-    if (!token || (!userRoles.includes('ROLE_KITCHEN') && !userRoles.includes('ROLE_ADMIN') && !userRoles.includes('ROLE_MANAGER'))) {
-      alert('Khu vực hạn chế: Chỉ dành cho bộ phận Bếp và Ban Quản Lý!')
+    if (!token || !userRoles.includes('ROLE_KITCHEN')) {
+      alert('Khu vực hạn chế: Chỉ dành cho bộ phận Bếp!')
       return '/'
     }
   }
 
-  // 4. KHU VỰC PHỤC VỤ (Cho phép Phục vụ + Quản Lý + Admin)
+  // 4. KHU VỰC PHỤC VỤ (Chỉ cho phép Phục vụ)
   if (to.path.startsWith('/waiter')) {
-    if (!token || (!userRoles.includes('ROLE_WAITER') && !userRoles.includes('ROLE_ADMIN') && !userRoles.includes('ROLE_MANAGER'))) {
-      alert('Khu vực hạn chế: Chỉ dành cho bộ phận Phục vụ và Ban Quản Lý!')
+    if (!token || !userRoles.includes('ROLE_WAITER')) {
+      alert('Khu vực hạn chế: Chỉ dành cho bộ phận Phục vụ!')
       return '/'
     }
   }
 
-  // 5. KHU VỰC THU NGÂN (Cho phép Thu ngân + Quản Lý + Admin)
+  // 5. KHU VỰC THU NGÂN (Chỉ cho phép Thu ngân)
   if (to.path.startsWith('/cashier')) {
-    if (!token || (!userRoles.includes('ROLE_CASHIER') && !userRoles.includes('ROLE_ADMIN') && !userRoles.includes('ROLE_MANAGER'))) {
-      alert('Khu vực hạn chế: Chỉ dành cho bộ phận Thu ngân và Ban Quản Lý!')
+    if (!token || !userRoles.includes('ROLE_CASHIER')) {
+      alert('Khu vực hạn chế: Chỉ dành cho bộ phận Thu ngân!')
       return '/'
     }
   }

@@ -1,34 +1,6 @@
 <template>
-  <div class="menu-wrapper">
-    <header class="navbar">
-      <div class="nav-container">
-        <div class="logo" @click="$router.push('/')">
-          <span class="logo-icon">🍽️</span>
-          <div>
-            <h2>NHÀ HÀNG MỘC VỊ</h2>
-            <p>ĐÀ NẴNG</p>
-          </div>
-        </div>
-        <nav class="nav-links">
-          <router-link to="/">Trang chủ</router-link>
-          <a href="#" class="active">Thực đơn</a>
-          <router-link to="/reservation">Đặt chỗ</router-link>
-          <router-link to="/dine-in">Tại bàn</router-link>
-        </nav>
-        <div class="nav-right">
-          <template v-if="!isLoggedIn">
-            <button @click="$router.push('/login')" class="btn-nav-outline">Đăng nhập</button>
-          </template>
-          <template v-else>
-            <button @click="$router.push('/history')" class="btn-nav-outline">📜 Lịch Sử</button>
-            <button @click="$router.push('/profile')" class="btn-nav-outline">👤 Hồ sơ</button>
-            <button @click="showCheckoutModal = true" class="btn-cart">
-              🛒 Giỏ hàng ({{ cart.length }})
-            </button>
-          </template>
-        </div>
-      </div>
-    </header>
+  <CustomerLayout>
+    <div class="menu-wrapper">
 
     <main class="menu-content">
       <h1 class="page-title">Thực Đơn Giao Hàng</h1>
@@ -52,8 +24,17 @@
             <span style="color: #666; font-size: 0.8rem">Chưa có đánh giá</span>
           </div>
           <p class="price">{{ product.price.toLocaleString() }} VNĐ</p>
-          <button class="btn-add" @click="addToCart(product)">+ Thêm vào giỏ</button>
+          <button v-if="!isAdminOrManager" class="btn-add" @click="addToCart(product)">+ Thêm vào giỏ</button>
+          <button v-else class="btn-add btn-disabled" disabled>Chỉ xem (Admin)</button>
         </div>
+      </div>
+      
+      <!-- Floating Cart Button -->
+      <div v-if="cart.length > 0 && !isAdminOrManager" class="floating-cart" @click="showCheckoutModal = true">
+        <span class="cart-icon">🛒</span>
+        <span class="cart-count">{{ cart.length }} món</span>
+        <span class="cart-total">{{ cartTotal.toLocaleString() }}đ</span>
+        <span class="cart-checkout">Thanh toán →</span>
       </div>
     </main>
 
@@ -106,18 +87,25 @@
       </div>
     </div>
   </div>
+  </CustomerLayout>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 import { useRouter } from 'vue-router';
+import CustomerLayout from '@/components/CustomerLayout.vue';
 
 const products = ref([]);
 const categories = ref([]);
 const cart = ref([]);
 const router = useRouter();
 const isLoggedIn = ref(false);
+const userRoles = ref([]);
+
+const isAdminOrManager = computed(() => {
+  return userRoles.value.includes('ROLE_ADMIN') || userRoles.value.includes('ROLE_MANAGER');
+});
 
 const showCheckoutModal = ref(false);
 const selectedCategory = ref(null); 
@@ -196,6 +184,16 @@ onMounted(() => {
   fetchCategories();
   const token = localStorage.getItem('token');
   if (token) isLoggedIn.value = true;
+  
+  const storedUser = localStorage.getItem('user');
+  if (storedUser) {
+    try {
+      const parsed = JSON.parse(storedUser);
+      if (parsed && parsed.roles) {
+        userRoles.value = parsed.roles;
+      }
+    } catch (e) {}
+  }
 });
 </script>
 
@@ -281,4 +279,21 @@ onMounted(() => {
   font-weight: 800; transition: var(--transition);
 }
 .btn-add:hover { background: var(--primary); color: #040914; box-shadow: 0 5px 15px rgba(0,212,170,0.4); }
+.btn-disabled { opacity: 0.5; cursor: not-allowed !important; }
+.btn-disabled:hover { background: rgba(0,212,170,0.1); color: var(--primary); box-shadow: none; }
+
+/* Floating Cart */
+.floating-cart {
+  position: fixed; bottom: 30px; right: 30px; z-index: 99;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  padding: 15px 25px; border-radius: 50px;
+  display: flex; align-items: center; gap: 15px;
+  cursor: pointer; box-shadow: 0 10px 30px rgba(0,212,170,0.4);
+  color: #040914; font-weight: 800; transition: var(--transition);
+}
+.floating-cart:hover { transform: translateY(-5px); box-shadow: 0 15px 40px rgba(0,212,170,0.6); }
+.cart-icon { font-size: 1.5rem; }
+.cart-count { background: #040914; color: var(--primary); padding: 4px 10px; border-radius: 20px; font-size: 0.85rem; }
+.cart-total { font-size: 1.1rem; }
+.cart-checkout { margin-left: 10px; background: rgba(4,9,20,0.1); padding: 5px 15px; border-radius: 20px; }
 </style>

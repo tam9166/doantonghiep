@@ -88,6 +88,12 @@ public class ChatbotController {
                            "Nhiệm vụ: Phân tích thời tiết và CHỌN RA ĐÚNG 2 MÓN ĂN phù hợp nhất. VD: Trời lạnh/mưa thì chọn Lẩu, Nướng, Cay nóng. Trời nóng thì chọn Nước ép, Đồ mát. " +
                            "YÊU CẦU BẮT BUỘC: TRẢ VỀ DUY NHẤT 1 MẢNG JSON hợp lệ. Định dạng JSON: [{\"id\": 1, \"reason\": \"Trời mưa lạnh rất hợp ăn Lẩu Thái chua cay\"}]. KHÔNG trả lời thêm bất kỳ từ nào. KHÔNG dùng ```json.";
             combinedText = systemPrompt + "\n\nDanh sách Menu:\n" + menu + "\n\nThời tiết hiện tại ở nhà hàng: " + userMessage + "\n\nHãy trả về JSON:";
+        } else if ("COMBO_RECOMMEND".equals(type)) {
+            String menu = payload.get("menu");
+            systemPrompt = "Bạn là Trợ lý AI tư vấn Combo món ăn của Mộc Vị Restaurant. Bạn sẽ nhận được thông tin số lượng khách, Thời tiết hiện tại và Menu nhà hàng. " +
+                           "Nhiệm vụ: Dựa vào số người và thời tiết, hãy thiết kế 1 COMBO hợp lý nhất bao gồm món ăn và nước uống vừa đủ cho số người đó (Ví dụ: 2 người thì cần 2-3 món ăn, 2 nước uống. Có thể gọi số lượng món > 1 nếu cần). " +
+                           "YÊU CẦU BẮT BUỘC: TRẢ VỀ DUY NHẤT 1 MẢNG JSON. Định dạng JSON: [{\"id\": 1, \"quantity\": 2, \"reason\": \"Trời mưa nên ăn 1 lẩu và 2 trà ấm cho 2 người...\"}]. Chỉ cần ghi 'reason' ở item đầu tiên. KHÔNG dùng ```json hay markdown.";
+            combinedText = systemPrompt + "\n\nDanh sách Menu:\n" + menu + "\n\nYêu cầu của khách: " + userMessage + "\n\nHãy trả về JSON Combo:";
         } else if ("CUSTOMER_ANALYTICS".equals(type)) {
             systemPrompt = "Bạn là Chuyên gia Chăm sóc Khách hàng AI của Mộc Vị Restaurant. Bạn sẽ nhận được dữ liệu (JSON) gồm thông tin hạng thẻ hiện tại của khách và danh sách các hóa đơn họ đã tiêu dùng. " +
                            "Nhiệm vụ của bạn là: 1) Tính tổng số tiền khách đã chi tiêu (tất cả các hóa đơn hoàn thành). 2) Đánh giá thói quen tiêu dùng (khách hay ăn gì, khung giờ nào). 3) Đưa ra lời khuyên cho Quản lý nhà hàng về cách tri ân hoặc chăm sóc khách này dựa trên hạng thẻ của họ. " +

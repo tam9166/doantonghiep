@@ -114,37 +114,31 @@
           </div>
         </div>
 
-        <div class="table-grid">
-          <div
-            v-for="table in tables"
-            :key="table.id"
-            :class="['table-box', getTableClass(table.isOccupied)]"
-            @click="table.isOccupied >= 1 ? openTableDetail(table) : null"
-          >
-            <div class="table-status-dot"></div>
-            <h4>{{ table.name }}</h4>
-            <span class="table-status-text">
-              {{ table.isOccupied === 0 ? 'Trống' : table.isOccupied === 1 ? 'Đã Cọc' : table.isOccupied === 3 ? 'Cần Dọn' : 'Có Khách' }}
-            </span>
+        <div v-for="(tablesInFloor, floorName) in tablesByFloor" :key="floorName" class="floor-section">
+          <div class="floor-header">
+            <h3 class="floor-title">
+              <span v-if="floorName.toLowerCase().includes('vip')">👑</span>
+              <span v-else-if="floorName.toLowerCase().includes('thượng')">☁️</span>
+              <span v-else>🏢</span>
+              {{ floorName }}
+            </h3>
+            <div class="floor-divider"></div>
+          </div>
 
-            <!-- Hành động Bàn CÓ KHÁCH -->
-            <div class="table-actions" v-if="table.isOccupied === 2">
-              <button @click.stop="openMoveTable(table)" class="btn-move">🔄 Chuyển Bàn</button>
-            </div>
-            <div class="table-actions" v-if="table.isOccupied === 2" style="margin-top: 5px;">
-               <button @click.stop="goAddItem(table)" class="btn-add-item">➕ Gọi Thêm</button>
-               <button @click.stop="markAsCleaning(table)" class="btn-cancel-book" style="background: rgba(155, 89, 182, 0.1); color: #9b59b6; border-color: rgba(155, 89, 182, 0.3);">🏠 Về</button>
-            </div>
-
-            <!-- Hành động Bàn CẦN DỌN -->
-            <div class="table-actions" v-if="table.isOccupied === 3">
-              <button @click.stop="checkoutTable(table)" class="btn-add-item" style="background: rgba(155, 89, 182, 0.1); color: #9b59b6; border-color: rgba(155, 89, 182, 0.3);">✅ Đã Dọn Xong</button>
-            </div>
-
-            <!-- Hành động Bàn ĐẶT CỌC -->
-            <div class="table-actions" v-if="table.isOccupied === 1">
-              <button @click.stop="upgradeToOccupied(table)" class="btn-upgrade">✅ Khách Đến</button>
-              <button @click.stop="cancelBooking(table)" class="btn-cancel-book">❌ Hủy Cọc</button>
+          <div class="table-grid">
+            <div
+              v-for="table in tablesInFloor"
+              :key="table.id"
+              :class="['table-box', getTableClass(table.isOccupied), { 'vip-table': table.floor && table.floor.toLowerCase().includes('vip') }]"
+              @click="openTableDetail(table)"
+            >
+              <div class="table-chairs"></div>
+              <div class="table-content">
+                <h4>{{ table.name }}</h4>
+                <span class="table-status-text">
+                  {{ table.isOccupied === 0 ? 'Trống' : table.isOccupied === 1 ? 'Đã Cọc' : table.isOccupied === 3 ? 'Cần Dọn' : 'Có Khách' }}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -187,9 +181,30 @@
             <div class="ai-upsell-action">
               <button @click="getAiUpsellAdvice" class="btn-ai-analyze">💡 AI Gợi Ý Mời Món</button>
             </div>
+
+            <!-- Hành động Bàn CÓ KHÁCH -->
+            <div class="modal-table-actions" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+               <button @click="openMoveTable(detailTable)" class="btn-action-large" style="background: rgba(243, 156, 18, 0.2); color: #f39c12; border: 1px solid #f39c12;">🔄 Chuyển Bàn</button>
+               <button @click="goAddItem(detailTable)" class="btn-action-large" style="background: rgba(46, 204, 113, 0.2); color: #2ecc71; border: 1px solid #2ecc71;">➕ Gọi Thêm</button>
+               <button @click="openMergeTable(detailTable)" class="btn-action-large" style="background: rgba(52, 152, 219, 0.2); color: #3498db; border: 1px solid #3498db;">🔗 Gộp Bàn</button>
+               <button @click="openSplitTable(detailTable)" class="btn-action-large" style="background: rgba(230, 126, 34, 0.2); color: #e67e22; border: 1px solid #e67e22;">✂️ Tách Bàn</button>
+               <button @click="markAsCleaning(detailTable)" class="btn-action-large" style="grid-column: span 2; background: rgba(155, 89, 182, 0.2); color: #9b59b6; border: 1px solid #9b59b6;">🏠 Khách Đã Về (Cần Dọn)</button>
+            </div>
+          </div>
+          <div v-else-if="detailTable.isOccupied === 3" style="padding: 30px; text-align: center;">
+            <p style="font-size: 1.2rem; margin-bottom: 20px;">Bàn này đang cần dọn dẹp</p>
+            <button @click="checkoutTable(detailTable)" class="btn-action-large" style="width: 100%; background: rgba(46, 204, 113, 0.2); color: #2ecc71; border: 1px solid #2ecc71;">✅ Đã Dọn Xong</button>
+          </div>
+          <div v-else-if="detailTable.isOccupied === 1" style="padding: 30px; text-align: center;">
+            <p style="font-size: 1.2rem; margin-bottom: 20px;">Bàn đang được khách đặt cọc trước</p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <button @click="upgradeToOccupied(detailTable)" class="btn-action-large" style="background: rgba(46, 204, 113, 0.2); color: #2ecc71; border: 1px solid #2ecc71;">✅ Khách Đã Đến</button>
+              <button @click="cancelBooking(detailTable)" class="btn-action-large" style="background: rgba(231, 76, 60, 0.2); color: #e74c3c; border: 1px solid #e74c3c;">❌ Khách Hủy</button>
+            </div>
           </div>
           <div v-else class="empty-state" style="padding: 30px;">
-            <p>Không tìm thấy đơn hàng cho bàn này</p>
+            <p>Bàn này đang trống</p>
+            <button @click="goAddItem(detailTable)" class="btn-action-large" style="width: 100%; margin-top: 15px; background: rgba(46, 204, 113, 0.2); color: #2ecc71; border: 1px solid #2ecc71;">👨‍👩‍👧 Đón Khách Mới</button>
           </div>
         </div>
       </div>
@@ -282,7 +297,7 @@
     <div v-if="showMoveModal" class="modal-overlay" @click.self="showMoveModal = false">
       <div class="move-modal">
         <div class="modal-header">
-          <h2>Chuyển Khách Tự Động</h2>
+          <h2>🔄 Chuyển Bàn</h2>
           <button @click="showMoveModal = false" class="btn-close">✖</button>
         </div>
         <div class="modal-body">
@@ -296,6 +311,71 @@
           </select>
           <div class="move-actions">
             <button @click="confirmMoveTable" class="btn-confirm-move" :disabled="!targetTableId">Xác Nhận Chuyển</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Gộp Bàn -->
+    <div v-if="showMergeModal" class="modal-overlay" @click.self="showMergeModal = false">
+      <div class="move-modal">
+        <div class="modal-header">
+          <h2>🔗 Gộp Bàn</h2>
+          <button @click="showMergeModal = false" class="btn-close">✖</button>
+        </div>
+        <div class="modal-body">
+          <p>Gộp toàn bộ món từ <strong>Bàn {{ movingTable?.name }}</strong> sang:</p>
+          <label>Chọn bàn cần gộp vào (Có Khách):</label>
+          <select v-model="targetMergeTableId" class="select-table">
+            <option value="" disabled>-- Vui lòng chọn bàn --</option>
+            <option v-for="t in occupiedTables.filter(x => x.id !== movingTable?.id)" :key="t.id" :value="t.id">
+              Bàn {{ t.name }}
+            </option>
+          </select>
+          <div class="move-actions">
+            <button @click="confirmMergeTable" class="btn-confirm-move" :disabled="!targetMergeTableId" style="background:#3498db">Gộp Bàn Ngay</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Tách Bàn -->
+    <div v-if="showSplitModal" class="modal-overlay" @click.self="showSplitModal = false">
+      <div class="move-modal" style="width: 500px;">
+        <div class="modal-header">
+          <h2>✂️ Tách Bàn (Chuyển Món)</h2>
+          <button @click="showSplitModal = false" class="btn-close">✖</button>
+        </div>
+        <div class="modal-body">
+          <p>Tách món từ <strong>Bàn {{ movingTable?.name }}</strong> sang một bàn trống mới.</p>
+          
+          <label>Chọn bàn mới để tách khách sang:</label>
+          <select v-model="splitTargetTableId" class="select-table" style="margin-bottom: 15px;">
+            <option value="" disabled>-- Vui lòng chọn bàn trống --</option>
+            <option v-for="t in emptyTables" :key="t.id" :value="t.id">
+              Bàn {{ t.name }}
+            </option>
+            <option v-for="t in occupiedTables.filter(x => x.id !== movingTable?.id)" :key="t.id" :value="t.id">
+              Bàn {{ t.name }} (Có Khách)
+            </option>
+          </select>
+          
+          <label>Chọn các món cần tách sang bàn mới:</label>
+          <div style="max-height: 300px; overflow-y: auto; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px;">
+            <div v-for="detail in splitSourceOrder?.orderDetails" :key="detail.id" style="display: flex; align-items: center; justify-content: space-between; padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <input type="checkbox" :id="'chk-'+detail.id" :checked="selectedDetailIds.includes(detail.id)" @change="toggleDetailSplit(detail.id)" style="width: 20px; height: 20px;" />
+                <label :for="'chk-'+detail.id" style="margin:0; cursor:pointer;">
+                  <strong>{{ detail.product?.name }}</strong> (x{{ detail.quantity }})
+                </label>
+              </div>
+              <span>{{ detail.price.toLocaleString() }}đ</span>
+            </div>
+            <p v-if="splitSourceOrder?.orderDetails?.length === 0" style="text-align: center; color: #999;">Không có món nào.</p>
+          </div>
+
+          <div class="move-actions" style="margin-top: 20px;">
+            <button @click="confirmSplitTable" class="btn-confirm-move" :disabled="!splitTargetTableId || selectedDetailIds.length === 0" style="background:#e67e22; width: 100%;">Xác Nhận Tách ({{ selectedDetailIds.length }} món)</button>
           </div>
         </div>
       </div>
@@ -398,6 +478,19 @@ let stompClient = null;
 const showAiModal = ref(false);
 const aiLoading = ref(false);
 const aiResponse = ref('');
+
+const tablesByFloor = computed(() => {
+  const groups = {};
+  tables.value.forEach(table => {
+    let floorName = table.floor || 'Khu Vực Chung';
+    if (!groups[floorName]) groups[floorName] = [];
+    groups[floorName].push(table);
+  });
+  return Object.keys(groups).sort().reduce((acc, key) => {
+    acc[key] = groups[key];
+    return acc;
+  }, {});
+});
 
 // FIX LỖI ÉP KIỂU: Dùng Number() để đảm bảo lọc đúng số 2
 const readyOrders = computed(() => {
@@ -737,6 +830,89 @@ const confirmMoveTable = async () => {
   } catch (error) {
     console.error("Lỗi chuyển bàn", error);
     alert("Có lỗi xảy ra khi chuyển bàn!");
+  }
+};
+
+// ==============================
+// 12. GỘP BÀN & TÁCH BÀN
+// ==============================
+const showMergeModal = ref(false);
+const targetMergeTableId = ref("");
+
+const openMergeTable = (table) => {
+  movingTable.value = table;
+  targetMergeTableId.value = "";
+  showMergeModal.value = true;
+};
+
+const confirmMergeTable = async () => {
+  if (!targetMergeTableId.value || !movingTable.value) return;
+
+  const targetTable = tables.value.find(t => t.id === targetMergeTableId.value);
+  if (!targetTable) return;
+
+  const token = localStorage.getItem('token');
+  try {
+    await axios.post('http://localhost:8080/api/orders/merge-tables', {
+      fromTable: movingTable.value.name,
+      toTable: targetTable.name
+    }, { headers: { 'Authorization': `Bearer ${token}` } });
+
+    toastMsg.value = `✅ Đã gộp bàn ${movingTable.value.name} vào bàn ${targetTable.name} thành công!`;
+    setTimeout(() => { toastMsg.value = ''; }, 3500);
+    showMergeModal.value = false;
+    fetchData();
+  } catch(error) {
+    alert(error.response?.data || "Lỗi gộp bàn!");
+  }
+};
+
+const showSplitModal = ref(false);
+const splitTargetTableId = ref("");
+const splitSourceOrder = ref(null);
+const selectedDetailIds = ref([]);
+
+const openSplitTable = (table) => {
+  movingTable.value = table;
+  splitTargetTableId.value = "";
+  selectedDetailIds.value = [];
+  splitSourceOrder.value = getActiveOrderForTable(table.name);
+  if (!splitSourceOrder.value) {
+    alert("Không tìm thấy đơn hàng cho bàn này!");
+    return;
+  }
+  showSplitModal.value = true;
+};
+
+const toggleDetailSplit = (id) => {
+  if (selectedDetailIds.value.includes(id)) {
+    selectedDetailIds.value = selectedDetailIds.value.filter(x => x !== id);
+  } else {
+    selectedDetailIds.value.push(id);
+  }
+};
+
+const confirmSplitTable = async () => {
+  if (!splitTargetTableId.value || selectedDetailIds.value.length === 0) {
+    alert("Vui lòng chọn bàn đích và ít nhất 1 món để chuyển!");
+    return;
+  }
+  
+  const targetTable = tables.value.find(t => t.id === splitTargetTableId.value);
+  const token = localStorage.getItem('token');
+  try {
+    await axios.post('http://localhost:8080/api/orders/split-table', {
+      fromTable: movingTable.value.name,
+      toTable: targetTable.name,
+      detailIds: selectedDetailIds.value
+    }, { headers: { 'Authorization': `Bearer ${token}` } });
+
+    toastMsg.value = `✅ Đã tách ${selectedDetailIds.value.length} món sang bàn ${targetTable.name} thành công!`;
+    setTimeout(() => { toastMsg.value = ''; }, 3500);
+    showSplitModal.value = false;
+    fetchData();
+  } catch(error) {
+    alert(error.response?.data || "Lỗi tách bàn!");
   }
 };
 
@@ -1101,95 +1277,105 @@ onUnmounted(() => {
 .empty-icon { font-size: 3rem; margin-bottom: 10px; }
 .empty-state p { font-size: 0.95rem; }
 
-/* Table Grid */
+/* Table Grid Redesign */
+.floor-section { margin-top: 40px; }
+.floor-header { display: flex; align-items: center; gap: 15px; margin-bottom: 15px; }
+.floor-title { font-size: 1.2rem; font-weight: 800; color: var(--text-primary); }
+.floor-divider { flex-grow: 1; height: 1px; background: var(--border-light); }
+
 .table-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 35px;
+  padding: 20px 0;
 }
 .table-box {
   background: var(--bg-card);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
-  padding: 18px 12px;
-  text-align: center;
-  position: relative;
-  transition: var(--transition);
-}
-.table-box:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
-.table-occupied { cursor: pointer; }
-.table-status-dot {
-  width: 10px; height: 10px;
   border-radius: 50%;
-  margin: 0 auto 10px auto;
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  border: 4px solid var(--border);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.2), inset 0 0 20px rgba(0,0,0,0.5);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  cursor: pointer;
 }
-.table-box h4 { margin: 0 0 6px 0; font-size: 0.95rem; color: var(--text-primary); }
-.table-status-text { font-size: 0.8rem; font-weight: 600; }
+.table-box::before, .table-box::after, .table-chairs::before, .table-chairs::after {
+  content: '';
+  position: absolute;
+  width: 45px; height: 12px;
+  background: var(--border);
+  border-radius: 10px;
+  transition: 0.3s;
+  box-shadow: 0 5px 10px rgba(0,0,0,0.3);
+}
+.table-box::before { top: -16px; left: 50%; transform: translateX(-50%); }
+.table-box::after { bottom: -16px; left: 50%; transform: translateX(-50%); }
+.table-chairs { position: absolute; inset: 0; pointer-events: none; }
+.table-chairs::before { left: -16px; top: 50%; transform: translateY(-50%) rotate(90deg); }
+.table-chairs::after { right: -16px; top: 50%; transform: translateY(-50%) rotate(90deg); }
+
+.table-content {
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.table-box h4 { margin: 0; font-size: 1.6rem; font-weight: 900; color: var(--text-heading); text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+.table-status-text { font-size: 0.85rem; font-weight: bold; padding: 4px 10px; border-radius: 20px; background: rgba(0,0,0,0.7); color: #fff; margin-top: 8px; border: 1px solid rgba(255,255,255,0.1); }
 
 /* Table Status Colors */
-.table-empty { border-color: rgba(0,212,170,0.3); }
-.table-empty .table-status-dot { background: var(--primary); box-shadow: 0 0 8px rgba(0,212,170,0.6); }
-.table-empty .table-status-text { color: var(--primary); }
+.table-empty { border-color: #2ecc71; }
+.table-empty::before, .table-empty::after, .table-empty .table-chairs::before, .table-empty .table-chairs::after { background: #2ecc71; }
 
-.table-booked { border-color: rgba(241,196,15,0.3); }
-.table-booked .table-status-dot { background: #f1c40f; box-shadow: 0 0 8px rgba(241,196,15,0.6); }
-.table-booked .table-status-text { color: #f1c40f; }
+.table-booked { border-color: #f1c40f; }
+.table-booked::before, .table-booked::after, .table-booked .table-chairs::before, .table-booked .table-chairs::after { background: #f1c40f; }
 
-.table-occupied { border-color: rgba(231,76,60,0.3); }
-.table-occupied .table-status-dot { background: #e74c3c; box-shadow: 0 0 8px rgba(231,76,60,0.6); }
-.table-occupied .table-status-text { color: #e74c3c; }
+.table-occupied { border-color: #e74c3c; animation: pulse-red 2s infinite; }
+.table-occupied::before, .table-occupied::after, .table-occupied .table-chairs::before, .table-occupied .table-chairs::after { background: #e74c3c; }
 
-.table-cleaning { border-color: rgba(155, 89, 182, 0.3); }
-.table-cleaning .table-status-dot { background: #9b59b6; box-shadow: 0 0 8px rgba(155, 89, 182, 0.6); }
-.table-cleaning .table-status-text { color: #9b59b6; }
+@keyframes pulse-red {
+  0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7), inset 0 0 20px rgba(0,0,0,0.5); }
+  70% { box-shadow: 0 0 0 15px rgba(231, 76, 60, 0), inset 0 0 20px rgba(0,0,0,0.5); }
+  100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0), inset 0 0 20px rgba(0,0,0,0.5); }
+}
 
-/* Table Actions */
-.table-actions {
+.table-cleaning { border-color: #9b59b6; }
+.table-cleaning::before, .table-cleaning::after, .table-cleaning .table-chairs::before, .table-cleaning .table-chairs::after { background: #9b59b6; }
+
+/* Table Actions Menu now in Modal */
+.btn-action-large {
+  padding: 12px;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.8);
+  border: 1px solid rgba(255,255,255,0.1);
+  width: max-content;
+}
+.table-box:hover { z-index: 5; }
+.table-box:hover .table-actions {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(10px);
+}
+.btn-action {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-primary);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.2s;
   display: flex;
-  gap: 6px;
-  margin-top: 12px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
 }
-.btn-print {
-  flex: 1;
-  background: rgba(52, 152, 219, 0.1);
-  color: #3498db;
-  border: 1px solid rgba(52, 152, 219, 0.3);
-  padding: 6px;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: bold;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-.btn-print:hover { background: #3498db; color: white; }
-
-.btn-move {
-  flex: 1;
-  background: rgba(243, 156, 18, 0.1);
-  color: #f39c12;
-  border: 1px solid rgba(243, 156, 18, 0.3);
-  padding: 6px;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: bold;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-.btn-move:hover { background: #f39c12; color: white; }
-
-.btn-checkout {
-  flex: 1;
-  background: rgba(231, 76, 60, 0.1);
-  color: #e74c3c;
-  border: 1px solid rgba(231, 76, 60, 0.3);
-  padding: 6px;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: bold;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-.btn-checkout:hover { background: #e74c3c; color: white; }
+.btn-action:hover:not(:disabled) { background: rgba(255,255,255,0.1); transform: scale(1.05); }
 
 .btn-add-item {
   width: 100%;

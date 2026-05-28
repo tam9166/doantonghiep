@@ -1,23 +1,7 @@
 <template>
+  <AdminLayout>
   <div class="admin-wrapper luxury-theme">
-    <header class="g-navbar">
-      <div class="g-logo">
-        <h2>Mộc Vị <span>RESTAURANT</span></h2>
-        <p>Premium Analytics Dashboard</p>
-      </div>
-      <nav class="g-nav-links">
-        <router-link to="/admin">Thực Đơn</router-link>
-        <router-link to="/admin/categories">Danh Mục</router-link>
-        <router-link to="/admin/ingredients">Nguyên Liệu</router-link>
-        <router-link to="/admin/tables">Sơ Đồ Bàn</router-link>
-        <router-link to="/admin/orders">Đơn Hàng</router-link>
-        <router-link to="/admin/vouchers">Khuyến Mãi</router-link>
-        <router-link to="/admin/staff">Nhân Sự</router-link>
-        <router-link to="/admin/posts">Bài Đăng</router-link>
-        <router-link to="/admin/analytics" class="active">Thống Kê</router-link>
-      </nav>
-      <button @click="$router.push('/')" class="g-btn-nav">🏠 Trang Khách</button>
-    </header>
+    
 
     <main class="admin-content">
       <div class="header-actions">
@@ -190,9 +174,12 @@
       </div>
     </div>
   </div>
+  </AdminLayout>
 </template>
 
 <script setup>
+import AdminLayout from '@/components/AdminLayout.vue';
+
 import { ref, onMounted, computed, watch } from 'vue';
 import axios from 'axios';
 import {
@@ -222,6 +209,7 @@ const aiLoading = ref(false);
 const aiResponse = ref('');
 
 const allSchedules = ref([]);
+const staffList = ref([]);
 
 // Financial totals
 const totalRevenue = ref(0);
@@ -302,17 +290,19 @@ const fetchData = async () => {
     const endStr = today.toISOString().split('T')[0];
     const startStr = lastYear.toISOString().split('T')[0];
 
-    const [resOrders, resRecipes, resIngredients, resSchedules] = await Promise.all([
+    const [resOrders, resRecipes, resIngredients, resSchedules, resStaff] = await Promise.all([
       axios.get('http://localhost:8080/api/admin/orders', { headers }),
       axios.get('http://localhost:8080/api/admin/recipes', { headers }),
       axios.get('http://localhost:8080/api/admin/ingredients', { headers }),
-      axios.get(`http://localhost:8080/api/schedules?startDate=${startStr}&endDate=${endStr}`, { headers })
+      axios.get(`http://localhost:8080/api/schedules?startDate=${startStr}&endDate=${endStr}`, { headers }),
+      axios.get('http://localhost:8080/api/admin/staff', { headers })
     ]);
 
     orders.value = resOrders.data.filter(o => o.status === 4);
     recipes.value = resRecipes.data;
     ingredients.value = resIngredients.data;
     allSchedules.value = resSchedules.data;
+    staffList.value = resStaff.data;
 
     processData();
   } catch (error) {
@@ -339,12 +329,18 @@ const processData = () => {
     daysCount = 365;
   }
 
+  // Map username -> role
+  const staffMap = {};
+  staffList.value.forEach(st => {
+    staffMap[st.username] = st.role;
+  });
+
   // Tính chi phí lương theo chức vụ (chia cho 28 công/tháng)
   // Bếp: 7.000.000 / 28 ≈ 250.000đ/ca
   // Phục vụ / Thu ngân: 6.000.000 / 28 ≈ 214.286đ/ca
   let calculatedStaffCost = 0;
   filteredSchedules.forEach(s => {
-    const role = s.account?.role || 'ROLE_WAITER';
+    const role = staffMap[s.account?.username] || 'ROLE_WAITER';
     if (role === 'ROLE_KITCHEN') {
       calculatedStaffCost += 250000; // 7tr / 28
     } else if (role === 'ROLE_MANAGER') {

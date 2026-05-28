@@ -1,28 +1,8 @@
 <template>
+  <CustomerLayout>
   <div class="profile-wrapper">
     <!-- Navbar -->
-    <header class="navbar">
-      <div class="nav-container">
-        <div class="logo" @click="$router.push('/')">
-          <span class="logo-icon">🍽️</span>
-          <div>
-            <h2>NHÀ HÀNG MỘC VỊ</h2>
-            <p>ĐÀ NẴNG</p>
-          </div>
-        </div>
-        <nav class="nav-links">
-          <router-link to="/">Trang chủ</router-link>
-          <router-link to="/menu">Thực đơn</router-link>
-          <router-link to="/reservation">Đặt chỗ</router-link>
-          <router-link to="/dine-in">Tại bàn</router-link>
-        </nav>
-        <div class="nav-right">
-          <button @click="$router.push('/history')" class="btn-nav-outline">📜 Lịch Sử</button>
-          <button @click="$router.push('/profile')" class="btn-cart">👤 Hồ sơ</button>
-          <button @click="handleLogout" class="btn-logout">Đăng xuất</button>
-        </div>
-      </div>
-    </header>
+    
 
     <main class="profile-content">
       <div class="profile-card">
@@ -81,9 +61,12 @@
       </div>
     </main>
   </div>
+  </CustomerLayout>
 </template>
 
 <script setup>
+import CustomerLayout from '@/components/CustomerLayout.vue';
+
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
 import { useRouter } from 'vue-router';

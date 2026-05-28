@@ -1,23 +1,7 @@
 <template>
+  <CustomerLayout>
   <div class="reservation-luxury">
-    <header class="luxury-navbar">
-      <div class="nav-container">
-        <div class="logo" @click="$router.push('/')">
-          <span class="logo-icon">🍽️</span>
-          <h2>Mộc Vị <span class="gold-text">RESTAURANT</span></h2>
-        </div>
-        <nav class="nav-links">
-          <router-link to="/">Trang chủ</router-link>
-          <router-link to="/menu">Thực đơn</router-link>
-          <a href="#" class="active">Đặt chỗ</a>
-          <router-link to="/dine-in">Tại bàn</router-link>
-        </nav>
-        <div class="nav-right-rsv">
-          <button @click="$router.push('/history')" class="btn-rsv-nav">📜 Lịch Sử</button>
-          <button @click="$router.push('/login')" class="btn-rsv-nav">🔐 Đăng nhập</button>
-        </div>
-      </div>
-    </header>
+    
 
     <main class="content-wrap">
       <div class="booking-card">
@@ -132,16 +116,20 @@
             </div>
             <div class="btn-group mt-20">
               <button @click="step = 3" class="lux-btn-outline">QUAY LẠI</button>
-              <button @click="submitReservation" class="lux-btn">HOÀN TẤT ĐẶT BÀN</button>
+              <button v-if="!isAdminOrManager" @click="submitReservation" class="lux-btn">HOÀN TẤT ĐẶT BÀN</button>
+              <button v-else class="lux-btn btn-disabled" disabled>Chỉ xem (Admin)</button>
             </div>
           </div>
         </transition>
       </div>
     </main>
   </div>
+  </CustomerLayout>
 </template>
 
 <script setup>
+import CustomerLayout from '@/components/CustomerLayout.vue';
+
 import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 import { useRouter } from 'vue-router';
@@ -156,6 +144,11 @@ const products = ref([]);
 const selectedFloor = ref('Tầng 2');
 const selectedTable = ref(null);
 const preOrderCart = ref([]);
+const userRoles = ref([]);
+
+const isAdminOrManager = computed(() => {
+  return userRoles.value.includes('ROLE_ADMIN') || userRoles.value.includes('ROLE_MANAGER');
+});
 
 const foodTotal = computed(() => preOrderCart.value.reduce((total, item) => total + (item.price * item.quantity), 0));
 const finalPayAmount = computed(() => preOrderCart.value.length > 0 ? foodTotal.value : 500000);
@@ -167,6 +160,16 @@ onMounted(async () => {
     const resProd = await axios.get('http://localhost:8080/api/products');
     products.value = resProd.data;
   } catch (err) {}
+  
+  const storedUser = localStorage.getItem('user');
+  if (storedUser) {
+    try {
+      const parsed = JSON.parse(storedUser);
+      if (parsed && parsed.roles) {
+        userRoles.value = parsed.roles;
+      }
+    } catch (e) {}
+  }
 });
 
 const nextToTable = async () => {
@@ -258,6 +261,7 @@ const submitReservation = async () => {
 .block-btn { width: 100%; }
 .mt-20 { margin-top: 20px;} .mt-10 { margin-top: 10px;}
 .btn-group { display: flex; justify-content: space-between;}
+.btn-disabled { opacity: 0.5; cursor: not-allowed !important; background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border); }
 
 .floor-tabs { display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;}
 .floor-tabs button { background: var(--bg-input); border: 1px solid var(--border); padding: 10px 20px; border-radius: 20px; cursor: pointer; font-weight: 600; color: var(--text-secondary); transition: 0.3s;}

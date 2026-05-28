@@ -1,63 +1,7 @@
 <template>
-  <div class="home-wrapper">
-    <!-- Navbar -->
-    <header class="navbar">
-      <div class="nav-container">
-        <div class="logo" @click="$router.push('/')">
-          <span class="logo-icon">🍽️</span>
-          <div class="logo-text">
-            <h2>NHÀ HÀNG MỘC VỊ</h2>
-            <p>ĐÀ NẴNG</p>
-          </div>
-        </div>
+  <CustomerLayout transparent-nav>
+    <div class="home-wrapper">
 
-        <nav class="nav-links">
-          <a href="#" class="active">{{ $t('nav.home') }}</a>
-          <router-link to="/menu">{{ $t('nav.menu') }}</router-link>
-          <router-link to="/reservation">{{ $t('nav.booking') }}</router-link>
-          <router-link to="/dine-in">{{ $t('nav.dine_in') }}</router-link>
-        </nav>
-
-        <div class="nav-right">
-          <select v-model="currentLang" @change="changeLanguage" class="lang-switch">
-            <option value="vi">🇻🇳 VN</option>
-            <option value="en">🇺🇸 EN</option>
-          </select>
-          
-          <template v-if="!isLoggedIn">
-            <button @click="$router.push('/login')" class="btn-nav">{{ $t('nav.login') }}</button>
-            <button @click="$router.push('/register')" class="btn-nav btn-nav-filled">Đăng ký</button>
-          </template>
-
-          <template v-else>
-            <button @click="$router.push('/history')" class="btn-nav">📜 Lịch sử</button>
-            <button @click="$router.push('/profile')" class="btn-nav">👤 Hồ sơ</button>
-
-            <button
-              v-if="user && (user.roles.includes('ROLE_ADMIN') || user.roles.includes('ROLE_MANAGER'))"
-              @click="$router.push('/admin')"
-              class="btn-nav btn-admin"
-            >⚙️ Admin</button>
-
-            <button
-              v-if="user && user.roles.includes('ROLE_KITCHEN')"
-              @click="$router.push('/kitchen')"
-              class="btn-nav btn-kitchen"
-            >👨‍🍳 Bếp</button>
-
-            <button
-              v-if="user && user.roles.includes('ROLE_WAITER')"
-              @click="$router.push('/waiter')"
-              class="btn-nav btn-waiter"
-            >🏃 Phục vụ</button>
-
-            <button @click="handleLogout" class="btn-nav btn-logout-nav">Đăng xuất</button>
-          </template>
-        </div>
-      </div>
-    </header>
-
-    <!-- Hero Banner -->
     <section class="hero-banner">
       <div class="hero-overlay"></div>
       <div class="hero-content">
@@ -437,6 +381,7 @@
     </div>
 
   </div>
+  </CustomerLayout>
 </template>
 
 <script setup>
@@ -444,6 +389,7 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import axios from 'axios';
+import CustomerLayout from '@/components/CustomerLayout.vue';
 
 const router = useRouter();
 const { locale } = useI18n();

@@ -1,34 +1,9 @@
 <template>
+  <AdminLayout>
   <div class="admin-wrapper">
-    <header class="g-navbar" v-if="!isKitchenOnly">
-      <div class="g-logo">
-        <h2>Mộc Vị <span>RESTAURANT</span></h2>
-        <p>Admin Dashboard</p>
-      </div>
-      <nav class="g-nav-links">
-        <router-link to="/admin">Thực Đơn</router-link>
-        <router-link to="/admin/categories">Danh Mục</router-link>
-        <router-link to="/admin/ingredients" class="active">Nguyên Liệu</router-link>
-        <router-link to="/admin/tables">Sơ Đồ Bàn</router-link>
-        <router-link to="/admin/orders">Đơn Hàng</router-link>
-        <router-link to="/admin/vouchers">Khuyến Mãi</router-link>
-        <router-link to="/admin/staff">Nhân Sự</router-link>
-        <router-link to="/admin/posts">Bài Đăng</router-link>
-        <router-link to="/admin/analytics">Thống Kê</router-link>
-      </nav>
-      <button @click="$router.push('/')" class="g-btn-nav">🏠 Trang Khách</button>
-    </header>
+    
 
-    <header class="g-navbar" v-else>
-      <div class="g-logo">
-        <h2>Mộc Vị <span>RESTAURANT</span></h2>
-        <p>Kitchen Inventory</p>
-      </div>
-      <nav class="g-nav-links">
-        <router-link to="/kitchen" class="active">🔙 Quay Lại Bếp</router-link>
-      </nav>
-      <button @click="$router.push('/kitchen')" class="g-btn-nav">🏠 Về Bếp</button>
-    </header>
+    
 
     <main class="admin-content">
       <div class="page-header">
@@ -502,9 +477,12 @@
       </div>
     </div>
   </div>
+  </AdminLayout>
 </template>
 
 <script setup>
+import AdminLayout from '@/components/AdminLayout.vue';
+
 import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 

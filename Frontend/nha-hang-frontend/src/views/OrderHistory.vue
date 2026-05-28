@@ -1,25 +1,7 @@
 <template>
-  <div class="history-wrapper">
-    <header class="history-navbar">
-      <div class="nav-container">
-        <div class="logo" @click="$router.push('/')">
-          <span class="logo-icon">🍽️</span>
-          <div>
-            <h2>NHÀ HÀNG MỘC VỊ</h2>
-            <p>ĐÀ NẴNG</p>
-          </div>
-        </div>
-        <nav class="nav-links">
-          <router-link to="/">Trang chủ</router-link>
-          <router-link to="/menu">Thực đơn</router-link>
-          <router-link to="/reservation">Đặt chỗ</router-link>
-          <router-link to="/dine-in">Tại bàn</router-link>
-        </nav>
-        <div class="nav-right">
-          <span class="nav-badge">📜 Lịch Sử Đơn Hàng</span>
-        </div>
-      </div>
-    </header>
+  <CustomerLayout>
+    <div class="history-wrapper">
+
 
     <div class="history-container">
       
@@ -95,11 +77,13 @@
       </div>
     </div>
   </div>
+  </CustomerLayout>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
+import CustomerLayout from '@/components/CustomerLayout.vue';
 
 const orders = ref([]);
 const showReview = ref(false);

@@ -26,30 +26,28 @@
 
     <div class="cashier-content" v-if="activeTab === 'pending'">
       <div class="orders-list-panel">
-        <h3>Các Đơn Hàng Tại Quán (Chờ thanh toán)</h3>
-        
-        <div v-if="pendingOrders.length === 0" class="empty-state">
-          <span>Không có đơn hàng nào cần thanh toán.</span>
-        </div>
+        <h3>Sơ Đồ Bàn Nhà Hàng</h3>
 
-        <div class="order-grid">
-          <div v-for="order in pendingOrders" :key="order.id" class="order-card" @click="selectOrder(order)" :class="{ active: selectedOrder?.id === order.id }">
-            <div class="order-header">
-              <span class="table-name">{{ getTableName(order.address) }}</span>
-              <span class="order-id">#{{ order.id }}</span>
+        <div class="table-grid">
+          <div
+            v-for="table in tables"
+            :key="table.id"
+            :class="['table-box', getTableClass(table.isOccupied), { 'selected-table': selectedOrder && getTableName(selectedOrder.address) === table.name }]"
+            @click="selectOrderForTable(table)"
+          >
+            <div class="table-chairs"></div>
+            <div class="table-content">
+              <h4>{{ table.name }}</h4>
+              <span class="table-status-text">
+                {{ table.isOccupied === 0 ? 'Trống' : table.isOccupied === 1 ? 'Đã Cọc' : table.isOccupied === 3 ? 'Cần Dọn' : 'Có Khách' }}
+              </span>
             </div>
-            <div class="order-body">
-              <p>Khách hàng: {{ order.account ? order.account.fullname : 'Khách vãng lai' }}</p>
-              <p>Trạng thái: 
-                <span v-if="Number(order.status) === 0" style="color: #f39c12;">⏳ Chờ duyệt</span>
-                <span v-else-if="Number(order.status) === 1" style="color: #3498db;">🍳 Chờ nấu</span>
-                <span v-else-if="Number(order.status) === 6" style="color: #e67e22;">🔥 Đang nấu</span>
-                <span v-else-if="Number(order.status) === 2" style="color: #2ecc71;">🛎️ Đã lên món (Chờ bưng)</span>
-                <span v-else-if="Number(order.status) === 7" style="color: #9b59b6;">✅ Khách đang dùng bữa</span>
-              </p>
-            </div>
-            <div class="order-footer">
-              <span class="total-price">{{ calculateTotal(order).toLocaleString() }}đ</span>
+            
+            <!-- Hiển thị nhanh số tiền nếu bàn có khách -->
+            <div class="table-actions" v-if="table.isOccupied >= 2">
+              <button class="btn-action" style="color:#f1c40f; font-size: 1.1rem; border:none;">
+                 {{ getPendingTotalForTable(table.name).toLocaleString() }}đ
+              </button>
             </div>
           </div>
         </div>
@@ -382,6 +380,40 @@ const calculateTotal = (order) => {
   return order.orderDetails.reduce((sum, item) => sum + item.price, 0);
 };
 
+const tables = ref([]);
+
+const fetchTables = async () => {
+  try {
+    const res = await axios.get('http://localhost:8080/api/tables', configHeader());
+    tables.value = res.data;
+  } catch (err) {
+    console.error('Lỗi lấy bàn:', err);
+  }
+};
+
+const getTableClass = (status) => {
+  if (status === 0) return 'table-empty';
+  if (status === 1) return 'table-booked';
+  if (status === 3) return 'table-cleaning';
+  return 'table-occupied';
+};
+
+const selectOrderForTable = (table) => {
+  if (table.isOccupied === 0 || table.isOccupied === 1) return;
+  const order = pendingOrders.value.find(o => o.address && getTableName(o.address) === table.name);
+  if (order) {
+    selectedOrder.value = order;
+  } else {
+    selectedOrder.value = null;
+    alert("Bàn này chưa gọi món hoặc đã thanh toán xong!");
+  }
+};
+
+const getPendingTotalForTable = (tableName) => {
+  const order = pendingOrders.value.find(o => o.address && getTableName(o.address) === tableName);
+  return order ? calculateTotal(order) : 0;
+};
+
 const fetchOrders = async () => {
   try {
     const res = await axios.get('http://localhost:8080/api/admin/orders', configHeader());
@@ -396,25 +428,34 @@ const fetchOrders = async () => {
     if (selectedOrder.value && !pendingOrders.value.find(o => o.id === selectedOrder.value.id)) {
       selectedOrder.value = null;
     }
+    
+    // Đồng thời gọi bảng để cập nhật map bàn
+    await fetchTables();
   } catch (err) {
     console.error('Lỗi lấy đơn hàng:', err);
   }
-};
-
-const selectOrder = (order) => {
-  selectedOrder.value = order;
 };
 
 const payOrder = async () => {
   if (!selectedOrder.value) return;
   if (!confirm('Xác nhận khách đã thanh toán tiền cho đơn hàng này?')) return;
   
+  const token = localStorage.getItem('token');
   try {
+    // Update order status
     await axios.put(`http://localhost:8080/api/admin/orders/${selectedOrder.value.id}/pay`, {}, configHeader());
-    alert('Thanh toán thành công!');
-    selectedOrder.value.isPaid = true;
     
-    // Gửi thông báo socket (nếu cần) hoặc tải lại
+    // Update table status to 3 (Cleaning) if it was a table order
+    const tableName = getTableName(selectedOrder.value.address);
+    const table = tables.value.find(t => t.name === tableName);
+    if (table) {
+      await axios.put(`http://localhost:8080/api/tables/${table.id}/status?status=3`, {}, { headers: { 'Authorization': `Bearer ${token}` } });
+    }
+
+    alert('Thanh toán thành công! Bàn đang chờ dọn dẹp.');
+    selectedOrder.value.isPaid = true;
+    selectedOrder.value = null;
+    
     fetchOrders();
   } catch (err) {
     alert('Lỗi khi thanh toán');
@@ -508,32 +549,107 @@ onUnmounted(() => {
   padding: 20px;
   border: 1px solid var(--border);
   box-shadow: var(--shadow-md);
+  overflow-y: auto;
 }
 .orders-list-panel h3 { color: var(--text-heading); margin-top: 0; }
 .empty-state { color: var(--text-muted); font-style: italic; }
 
-.order-grid {
+/* Table Grid Redesign (Copied from Waiter) */
+.table-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 15px;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 30px;
   margin-top: 20px;
+  padding: 20px 0;
 }
-.order-card {
-  background: var(--bg-card2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 15px;
+.table-box {
+  background: var(--bg-card);
+  border-radius: 50%;
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  border: 4px solid var(--border);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.2), inset 0 0 10px rgba(0,0,0,0.5);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   cursor: pointer;
-  transition: var(--transition);
 }
-.order-card:hover { border-color: var(--primary); box-shadow: var(--shadow-glow); }
-.order-card.active { border-color: var(--primary); background: var(--primary-glow2); }
-.order-header { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid var(--border-light); padding-bottom: 5px; }
-.table-name { color: var(--text-heading); font-size: 1.2rem; }
-.order-id { color: var(--text-muted); }
-.order-body p { margin: 5px 0; font-size: 0.9rem; color: var(--text-secondary); }
-.order-footer { margin-top: 10px; text-align: right; }
-.total-price { color: var(--primary); font-weight: 900; font-size: 1.2rem; }
+.table-box.selected-table {
+  border-color: #3498db !important;
+  box-shadow: 0 0 30px rgba(52,152,219,0.8), inset 0 0 20px rgba(52,152,219,0.5) !important;
+  transform: scale(1.05);
+}
+.table-box::before, .table-box::after, .table-chairs::before, .table-chairs::after {
+  content: '';
+  position: absolute;
+  width: 35px; height: 10px;
+  background: var(--border);
+  border-radius: 10px;
+  transition: 0.3s;
+  box-shadow: 0 5px 10px rgba(0,0,0,0.3);
+}
+.table-box::before { top: -14px; left: 50%; transform: translateX(-50%); } 
+.table-box::after { bottom: -14px; left: 50%; transform: translateX(-50%); } 
+.table-chairs { position: absolute; inset: 0; pointer-events: none; }
+.table-chairs::before { left: -14px; top: 50%; transform: translateY(-50%) rotate(90deg); } 
+.table-chairs::after { right: -14px; top: 50%; transform: translateY(-50%) rotate(90deg); } 
+
+.table-content {
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.table-box h4 { margin: 0; font-size: 1.3rem; font-weight: 900; color: var(--text-heading); text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+.table-status-text { font-size: 0.75rem; font-weight: bold; padding: 4px 8px; border-radius: 20px; background: rgba(0,0,0,0.7); color: #fff; margin-top: 8px; border: 1px solid rgba(255,255,255,0.1); }
+
+/* Table Status Colors */
+.table-empty { border-color: #2ecc71; opacity: 0.5; }
+.table-empty::before, .table-empty::after, .table-empty .table-chairs::before, .table-empty .table-chairs::after { background: #2ecc71; }
+
+.table-booked { border-color: #f1c40f; }
+.table-booked::before, .table-booked::after, .table-booked .table-chairs::before, .table-booked .table-chairs::after { background: #f1c40f; }
+
+.table-occupied { 
+  border-color: #e74c3c; 
+  animation: pulse-red 2s infinite;
+}
+.table-occupied::before, .table-occupied::after, .table-occupied .table-chairs::before, .table-occupied .table-chairs::after { background: #e74c3c; }
+
+@keyframes pulse-red {
+  0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7), inset 0 0 10px rgba(0,0,0,0.5); }
+  70% { box-shadow: 0 0 0 10px rgba(231, 76, 60, 0), inset 0 0 10px rgba(0,0,0,0.5); }
+  100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0), inset 0 0 10px rgba(0,0,0,0.5); }
+}
+
+.table-cleaning { border-color: #9b59b6; }
+.table-cleaning::before, .table-cleaning::after, .table-cleaning .table-chairs::before, .table-cleaning .table-chairs::after { background: #9b59b6; }
+
+.table-actions {
+  position: absolute;
+  top: 90%;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  opacity: 0;
+  visibility: hidden;
+  transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  z-index: 10;
+  background: var(--bg-card);
+  padding: 6px;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.8);
+  border: 1px solid rgba(255,255,255,0.1);
+  width: max-content;
+}
+.table-box:hover { z-index: 5; }
+.table-box:hover .table-actions {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(10px);
+}
+.btn-action { background: transparent; }
 
 .invoice-panel {
   background: var(--bg-card);

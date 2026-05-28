@@ -260,6 +260,94 @@ public class OrderController {
         return ResponseEntity.ok(java.util.Map.of("message", "Gộp bàn thành công!"));
     }
 
+    @PostMapping("/split-table")
+    public ResponseEntity<?> splitTable(@RequestBody java.util.Map<String, Object> payload) {
+        String fromTable = (String) payload.get("fromTable");
+        String toTable = (String) payload.get("toTable");
+        List<?> rawIds = (List<?>) payload.get("detailIds");
+
+        if (fromTable == null || toTable == null || rawIds == null || rawIds.isEmpty()) {
+            return ResponseEntity.badRequest().body("Dữ liệu không hợp lệ!");
+        }
+        
+        List<Integer> detailIds = rawIds.stream()
+            .map(id -> Integer.parseInt(id.toString()))
+            .collect(java.util.stream.Collectors.toList());
+
+        Optional<Order> sourceOrderOpt = orderRepository.findAll().stream()
+            .filter(o -> o.getAddress() != null && o.getAddress().contains(fromTable) && (o.getIsPaid() == null || !o.getIsPaid()) && o.getStatus() != 3)
+            .findFirst();
+
+        if (sourceOrderOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body("Bàn nguồn không có hóa đơn nào đang mở!");
+        }
+
+        Order sourceOrder = sourceOrderOpt.get();
+        
+        // Cố gắng tìm Order của bàn đích
+        Optional<Order> targetOrderOpt = orderRepository.findAll().stream()
+            .filter(o -> o.getAddress() != null && o.getAddress().contains(toTable) && (o.getIsPaid() == null || !o.getIsPaid()) && o.getStatus() != 3)
+            .findFirst();
+        
+        Order targetOrder;
+        if (targetOrderOpt.isPresent()) {
+            targetOrder = targetOrderOpt.get();
+        } else {
+            // Tạo Order mới cho bàn đích
+            String uniqueOrderCode = generateUnique4DigitCode();
+            targetOrder = new Order();
+            targetOrder.setAccount(sourceOrder.getAccount()); // copy account
+            targetOrder.setAddress("MÃ ĐƠN: #" + uniqueOrderCode + " | Bàn: " + toTable + " | [TẠI QUÁN]");
+            targetOrder.setCreateDate(new Date());
+            targetOrder.setStatus(sourceOrder.getStatus()); // copy status
+            targetOrder = orderRepository.save(targetOrder);
+            
+            // Cập nhật trạng thái bàn đích
+            final String fUniqueOrderCode = uniqueOrderCode;
+            tableRepository.findAll().stream()
+                .filter(t -> t.getName().equals(toTable))
+                .findFirst()
+                .ifPresent(t -> {
+                    t.setIsOccupied(2); // Có khách
+                    t.setReservedTime("Đơn: #" + fUniqueOrderCode);
+                    tableRepository.save(t);
+                });
+        }
+        
+        final Order finalTargetOrder = targetOrder;
+        // Di chuyển các order detail
+        for (Integer detailId : detailIds) {
+            orderDetailRepository.findById(detailId).ifPresent(detail -> {
+                if (detail.getOrder().getId().equals(sourceOrder.getId())) {
+                    detail.setOrder(finalTargetOrder);
+                    orderDetailRepository.save(detail);
+                }
+            });
+        }
+
+        // Nếu bàn nguồn không còn OrderDetail nào, thì Hủy order đó và giải phóng bàn
+        long remainingItems = orderDetailRepository.findAll().stream()
+            .filter(d -> d.getOrder().getId().equals(sourceOrder.getId()))
+            .count();
+            
+        if (remainingItems == 0) {
+            sourceOrder.setStatus(3); // Hủy
+            orderRepository.save(sourceOrder);
+            tableRepository.findAll().stream()
+                .filter(t -> t.getName().equals(fromTable))
+                .findFirst()
+                .ifPresent(t -> {
+                    t.setIsOccupied(0);
+                    t.setReservedTime(null);
+                    tableRepository.save(t);
+                });
+        }
+
+        messagingTemplate.convertAndSend("/topic/orders", "TABLE_SPLIT");
+        
+        return ResponseEntity.ok(java.util.Map.of("message", "Tách bàn thành công!"));
+    }
+
     @org.springframework.web.bind.annotation.PutMapping("/details/{detailId}/status")
     public ResponseEntity<?> updateOrderDetailStatus(@PathVariable Integer detailId, @org.springframework.web.bind.annotation.RequestParam Integer status) {
         return orderDetailRepository.findById(detailId).map(detail -> {

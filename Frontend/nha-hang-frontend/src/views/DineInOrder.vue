@@ -1,25 +1,7 @@
 <template>
+  <CustomerLayout>
   <div class="dine-in-wrapper">
-    <header class="dinein-navbar">
-      <div class="nav-container">
-        <div class="logo" @click="$router.push('/')">
-          <span class="logo-icon">🍽️</span>
-          <div>
-            <h2>NHÀ HÀNG MỘC VỊ</h2>
-            <p>ĐÀ NẴNG</p>
-          </div>
-        </div>
-        <nav class="nav-links">
-          <router-link to="/">Trang chủ</router-link>
-          <router-link to="/menu">Thực đơn</router-link>
-          <router-link to="/reservation">Đặt chỗ</router-link>
-          <a href="#" class="active">Tại bàn</a>
-        </nav>
-        <div class="nav-right">
-          <button @click="$router.push('/history')" class="btn-nav-dinein">📜 Lịch Sử</button>
-        </div>
-      </div>
-    </header>
+    
 
     <main class="main-content">
       <div class="table-selection-box">
@@ -43,25 +25,41 @@
 
       <div class="product-list" v-if="selectedTable">
         <!-- AI Suggestion Section -->
-        <div v-if="aiCombo.length > 0" class="ai-suggestion-box">
+        <div class="ai-suggestion-box">
           <div class="ai-header">
             <h3>🤖 Smart Suggestion</h3>
             <span class="ai-badge">AI Gợi Ý</span>
           </div>
-          <p class="ai-desc">{{ aiRecommendationReason || 'Đang phân tích thời tiết và thực đơn...' }}</p>
           
-          <div class="combo-grid">
-            <div v-for="product in aiCombo" :key="'ai-'+product.id" class="combo-item">
-              <img :src="product.image || 'https://via.placeholder.com/100'" alt="food" />
-              <div class="product-info">
-                <h4>{{ product.name }}</h4>
-                <p class="price">{{ product.price.toLocaleString() }}đ</p>
-              </div>
-              <button class="btn-add-item" @click="addToCart(product)">Thêm</button>
+          <div v-if="aiCombo.length === 0 && !isFetchingAI">
+            <p class="ai-desc">Để đưa ra gợi ý hợp lý nhất, bạn đi mấy người?</p>
+            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+              <input type="number" v-model="partySize" min="1" placeholder="Nhập số người" class="form-control" style="width: 150px; background: rgba(0,0,0,0.2); color: white;" />
+              <button class="btn-add-item" @click="fetchComboForParty">Nhận gợi ý</button>
             </div>
           </div>
-          <div class="ai-action">
-            <button class="btn-add-combo" @click="addComboToCart">🛒 Thêm Cả Combo</button>
+          <div v-else-if="isFetchingAI">
+            <p class="ai-desc">Đang phân tích và thiết kế thực đơn cho {{ partySize }} người...</p>
+          </div>
+          <div v-else>
+            <p class="ai-desc">{{ aiRecommendationReason }}</p>
+            
+            <div class="combo-grid">
+              <div v-for="product in aiCombo" :key="'ai-'+product.id" class="combo-item">
+                <img :src="product.image || 'https://via.placeholder.com/100'" alt="food" />
+                <div class="product-info">
+                  <h4>{{ product.name }} <span v-if="product.suggestedQuantity > 1" style="color: var(--primary);">x{{product.suggestedQuantity}}</span></h4>
+                  <p class="price">{{ product.price.toLocaleString() }}đ</p>
+                </div>
+                <button v-if="!isAdminOrManager" class="btn-add-item" @click="addToCart(product, product.suggestedQuantity || 1)">Thêm</button>
+                <button v-else class="btn-add-item btn-disabled" disabled>Chỉ xem</button>
+              </div>
+            </div>
+            <div class="ai-action" style="display: flex; gap: 10px; justify-content: center;">
+              <button v-if="!isAdminOrManager" class="btn-add-combo" @click="addComboToCart">🛒 Thêm Cả Combo</button>
+              <button v-else class="btn-add-combo btn-disabled" disabled>Chỉ xem (Admin)</button>
+              <button class="btn-cancel" style="padding: 10px 20px; border-radius: 20px;" @click="aiCombo = []">Thử lại</button>
+            </div>
           </div>
         </div>
 
@@ -72,7 +70,8 @@
             <h4>{{ product.name }}</h4>
             <p class="price">{{ product.price.toLocaleString() }}đ</p>
           </div>
-          <button class="btn-add-item" @click="addToCart(product)">Thêm</button>
+          <button v-if="!isAdminOrManager" class="btn-add-item" @click="addToCart(product)">Thêm</button>
+          <button v-else class="btn-add-item btn-disabled" disabled>Chỉ xem</button>
         </div>
       </div>
       <div v-else class="empty-state">
@@ -80,7 +79,7 @@
       </div>
 
       <!-- FAB Voice Order -->
-      <div v-if="selectedTable" class="fab-mic" @click="startVoiceOrder" :class="{'recording': isListening}">
+      <div v-if="selectedTable && !isAdminOrManager" class="fab-mic" @click="startVoiceOrder" :class="{'recording': isListening}">
         🎙️
       </div>
 
@@ -135,9 +134,12 @@
     <!-- Toast thông báo -->
     <div v-if="toastMsg" class="toast-notification">{{ toastMsg }}</div>
   </div>
+  </CustomerLayout>
 </template>
 
 <script setup>
+import CustomerLayout from '@/components/CustomerLayout.vue';
+
 import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 import { useRouter, useRoute } from 'vue-router';
@@ -151,6 +153,11 @@ const selectedTable = ref("");
 const isTableLocked = ref(false);
 const showModal = ref(false);
 const toastMsg = ref('');
+const userRoles = ref([]);
+
+const isAdminOrManager = computed(() => {
+  return userRoles.value.includes('ROLE_ADMIN') || userRoles.value.includes('ROLE_MANAGER');
+});
 
 // AI Voice
 const isListening = ref(false);
@@ -204,8 +211,15 @@ const vietQrUrl = computed(() => {
 // AI Suggestion Logic
 const aiCombo = ref([]);
 const aiRecommendationReason = ref('');
+const partySize = ref('');
+const isFetchingAI = ref(false);
 
-const fetchWeatherAI = async () => {
+const fetchComboForParty = async () => {
+  if (!partySize.value || partySize.value < 1) {
+    alert("Vui lòng nhập số người hợp lệ!");
+    return;
+  }
+  isFetchingAI.value = true;
   try {
     // Gọi API thời tiết Đà Nẵng
     const wRes = await axios.get('https://api.open-meteo.com/v1/forecast?latitude=16.0678&longitude=108.2208&current_weather=true');
@@ -218,9 +232,11 @@ const fetchWeatherAI = async () => {
 
     // Gọi Backend AI
     const menuStr = activeProducts.value.map(p => `${p.id}-${p.name}`).join(', ');
+    const message = `Khách đi ${partySize.value} người. Thời tiết hiện tại: ${weatherStr}`;
+    
     const aiRes = await axios.post('http://localhost:8080/api/chatbot/chat', {
-      type: 'WEATHER_RECOMMEND',
-      message: weatherStr,
+      type: 'COMBO_RECOMMEND',
+      message: message,
       menu: menuStr
     });
 
@@ -228,21 +244,42 @@ const fetchWeatherAI = async () => {
     reply = reply.replace(/```json/g, '').replace(/```/g, '').trim();
     const suggestions = JSON.parse(reply);
 
-    aiCombo.value = suggestions.map(s => activeProducts.value.find(p => p.id == s.id)).filter(p => p != null);
+    aiCombo.value = suggestions.map(s => {
+      const p = activeProducts.value.find(prod => prod.id == s.id);
+      if (p) return { ...p, suggestedQuantity: s.quantity || 1 };
+      return null;
+    }).filter(p => p != null);
+    
     if(suggestions.length > 0) aiRecommendationReason.value = suggestions[0].reason;
 
   } catch(e) {
-    console.error("Lỗi AI Weather:", e);
-    // Fallback
+    console.error("Lỗi AI Recommend:", e);
+    // Fallback thông minh theo số lượng người khi AI bị lỗi (Hết hạn Key)
     if (activeProducts.value.length >= 2) {
-      aiCombo.value = activeProducts.value.slice(0, 2);
-      aiRecommendationReason.value = "Combo Gợi Ý Mặc Định";
+      let pSize = parseInt(partySize.value) || 2;
+      let foodQty = Math.max(1, Math.ceil(pSize / 2)); // 2 người 1 phần đồ ăn lớn
+      let drinkQty = pSize; // Mỗi người 1 phần nước
+      
+      // Tìm danh sách thức ăn và đồ uống
+      let drinks = activeProducts.value.filter(p => p.category && (p.category.name.toLowerCase().includes('nước') || p.category.name.toLowerCase().includes('uống') || p.category.name.toLowerCase().includes('trà') || p.category.name.toLowerCase().includes('cafe')));
+      let foods = activeProducts.value.filter(p => !p.category || (!p.category.name.toLowerCase().includes('nước') && !p.category.name.toLowerCase().includes('uống') && !p.category.name.toLowerCase().includes('trà') && !p.category.name.toLowerCase().includes('cafe')));
+      
+      let selectedFood = foods.length > 0 ? foods[0] : activeProducts.value[0];
+      let selectedDrink = drinks.length > 0 ? drinks[0] : (activeProducts.value[1] || activeProducts.value[0]);
+
+      aiCombo.value = [
+        { ...selectedFood, suggestedQuantity: foodQty },
+        { ...selectedDrink, suggestedQuantity: drinkQty }
+      ];
+      aiRecommendationReason.value = `(Hệ thống AI đang bảo trì) Gợi ý Combo dự phòng đủ cho ${pSize} người (Gồm Đồ ăn và Nước uống).`;
     }
+  } finally {
+    isFetchingAI.value = false;
   }
 };
 
 const addComboToCart = () => {
-  aiCombo.value.forEach(p => addToCart(p));
+  aiCombo.value.forEach(p => addToCart(p, p.suggestedQuantity || 1));
   alert('Đã thêm Combo Gợi ý vào giỏ hàng!');
 };
 
@@ -273,8 +310,15 @@ const loadData = async () => {
       else if (userProfile.value.membershipTier === 'Bạc') tierDiscount.value = 0.05;
     }
     
-    // Gọi Weather AI sau khi load xong products
-    fetchWeatherAI();
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        const parsed = JSON.parse(storedUser);
+        if (parsed && parsed.roles) {
+          userRoles.value = parsed.roles;
+        }
+      } catch (e) {}
+    }
     
   } catch (error) { console.error(error); }
 };
@@ -468,6 +512,7 @@ onMounted(loadData);
 .price { color: var(--primary); font-weight: bold; margin: 0; font-size: 1rem; }
 .btn-add-item { background: var(--primary-glow); color: var(--primary); border: 1px solid var(--primary); padding: 8px 15px; border-radius: 20px; font-weight: bold; cursor: pointer; transition: 0.3s;}
 .btn-add-item:hover { background: var(--primary); color: var(--bg-dark); }
+.btn-disabled { opacity: 0.5; cursor: not-allowed !important; background: var(--bg-root); color: var(--text-muted); border: 1px solid var(--border); }
 
 .empty-state { text-align: center; padding: 40px 20px; color: var(--text-muted); background: var(--bg-card); border-radius: 10px; border: 1px dashed var(--border); }
 
