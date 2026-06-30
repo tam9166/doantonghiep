@@ -1,0 +1,290 @@
+/* ============================================================
+   ADMIN 3D EFFECTS - Premium UI Enhancement
+   ============================================================
+   Hiệu ứng 3D CSS cho toàn bộ giao diện Admin
+   - 3D Card Hover, Floating Elements, Depth Shadows
+   - Glassmorphism Pro, Neon Glow, Tilt Animations
+   ============================================================ */
+
+/* === CSS Variables cho 3D === */
+:root {
+  --depth-shadow-1: 0 2px 4px rgba(0,0,0,0.2), 0 4px 8px rgba(0,0,0,0.15);
+  --depth-shadow-2: 0 4px 8px rgba(0,0,0,0.3), 0 8px 16px rgba(0,0,0,0.2), 0 16px 32px rgba(0,0,0,0.1);
+  --depth-shadow-3: 0 8px 16px rgba(0,0,0,0.4), 0 16px 32px rgba(0,0,0,0.3), 0 32px 64px rgba(0,0,0,0.15);
+  --glow-primary: 0 0 20px rgba(0, 212, 170, 0.3), 0 0 40px rgba(0, 212, 170, 0.1);
+  --glow-warning: 0 0 20px rgba(241, 196, 15, 0.3);
+  --glow-danger: 0 0 20px rgba(231, 76, 60, 0.3);
+  --glass-bg: rgba(255, 255, 255, 0.03);
+  --glass-border: rgba(255, 255, 255, 0.08);
+}
+
+/* === 3D Card Base === */
+.card-3d {
+  position: relative;
+  transform-style: preserve-3d;
+  perspective: 1000px;
+  transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1),
+              box-shadow 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+.card-3d:hover {
+  transform: translateY(-6px) rotateX(2deg) rotateY(-1deg);
+  box-shadow: var(--depth-shadow-3);
+}
+
+/* === Floating Animation === */
+@keyframes float3d {
+  0%, 100% { transform: translateY(0px) rotateX(0deg); }
+  25% { transform: translateY(-5px) rotateX(1deg); }
+  50% { transform: translateY(-8px) rotateX(0deg); }
+  75% { transform: translateY(-3px) rotateX(-1deg); }
+}
+.float-card {
+  animation: float3d 6s ease-in-out infinite;
+  transform-style: preserve-3d;
+}
+.float-card:nth-child(2) { animation-delay: -1.5s; }
+.float-card:nth-child(3) { animation-delay: -3s; }
+.float-card:nth-child(4) { animation-delay: -4.5s; }
+
+/* === Depth Shadow Cards === */
+.depth-card {
+  position: relative;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: var(--depth-shadow-1);
+  transition: all 0.35s cubic-bezier(0.25, 0.8, 0.25, 1);
+  overflow: hidden;
+}
+.depth-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 1;
+}
+.depth-card:hover {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: var(--depth-shadow-2);
+  border-color: rgba(0, 212, 170, 0.15);
+}
+
+/* === Glassmorphism Pro === */
+.glass-pro {
+  background: linear-gradient(135deg, rgba(8, 16, 31, 0.8) 0%, rgba(12, 24, 48, 0.6) 100%);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3),
+              inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* === Neon Glow Effects === */
+.neon-glow {
+  position: relative;
+}
+.neon-glow::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(0, 212, 170, 0.2), rgba(52, 152, 219, 0.2));
+  z-index: -1;
+  filter: blur(8px);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.neon-glow:hover::after {
+  opacity: 1;
+}
+
+.neon-badge {
+  text-shadow: 0 0 8px currentColor;
+  filter: drop-shadow(0 0 4px currentColor);
+}
+
+/* === 3D Button Press === */
+.btn-3d {
+  position: relative;
+  transform: translateZ(0);
+  transition: all 0.15s ease;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.3), var(--depth-shadow-1);
+}
+.btn-3d:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.3), var(--depth-shadow-2);
+}
+.btn-3d:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0,0,0,0.2);
+}
+
+/* === Tilt Card on Hover === */
+.tilt-card {
+  transform-style: preserve-3d;
+  perspective: 800px;
+  transition: transform 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+.tilt-card:hover {
+  transform: perspective(800px) rotateY(-3deg) rotateX(2deg) scale(1.02);
+}
+.tilt-card .tilt-content {
+  transform: translateZ(20px);
+  transition: transform 0.5s;
+}
+.tilt-card:hover .tilt-content {
+  transform: translateZ(30px);
+}
+
+/* === Parallax Header === */
+.parallax-header {
+  position: relative;
+  overflow: hidden;
+}
+.parallax-header::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at 30% 40%, rgba(0, 212, 170, 0.08) 0%, transparent 50%),
+              radial-gradient(circle at 70% 60%, rgba(52, 152, 219, 0.06) 0%, transparent 50%);
+  animation: parallaxMove 20s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes parallaxMove {
+  0%, 100% { transform: translate(0, 0); }
+  33% { transform: translate(2%, -1%); }
+  66% { transform: translate(-1%, 2%); }
+}
+
+/* === Shimmer Loading === */
+@keyframes shimmer3d {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.shimmer-3d {
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.04) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer3d 2s ease-in-out infinite;
+}
+
+/* === Stat Counter Pop === */
+@keyframes countPop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+.stat-pop {
+  animation: countPop 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+/* === 3D Ring Pulse (Notification) === */
+@keyframes ringPulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.6); }
+  70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(231, 76, 60, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
+}
+.ring-pulse {
+  animation: ringPulse 2s ease-in-out infinite;
+}
+
+/* === Gradient Text 3D === */
+.text-3d {
+  background: linear-gradient(135deg, #00d4aa, #3498db, #9b59b6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: none;
+  filter: drop-shadow(0 2px 4px rgba(0, 212, 170, 0.3));
+}
+
+/* === Timeline 3D Line === */
+.timeline-3d {
+  position: relative;
+}
+.timeline-3d::before {
+  content: '';
+  position: absolute;
+  left: 24px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(180deg, rgba(0, 212, 170, 0.6), rgba(52, 152, 219, 0.6), rgba(155, 89, 182, 0.6));
+  box-shadow: 0 0 8px rgba(0, 212, 170, 0.3);
+}
+
+.timeline-dot {
+  position: relative;
+  z-index: 2;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--primary, #00d4aa);
+  box-shadow: 0 0 0 4px rgba(0, 212, 170, 0.2), 0 0 12px rgba(0, 212, 170, 0.4);
+}
+
+/* === Urgency Badges === */
+.urgency-critical {
+  background: rgba(231, 76, 60, 0.15);
+  color: #e74c3c;
+  border: 1px solid rgba(231, 76, 60, 0.3);
+  box-shadow: var(--glow-danger);
+  animation: ringPulse 2s ease-in-out infinite;
+}
+.urgency-warning {
+  background: rgba(241, 196, 15, 0.15);
+  color: #f1c40f;
+  border: 1px solid rgba(241, 196, 15, 0.3);
+  box-shadow: var(--glow-warning);
+}
+.urgency-info {
+  background: rgba(52, 152, 219, 0.15);
+  color: #3498db;
+  border: 1px solid rgba(52, 152, 219, 0.3);
+}
+
+/* === Smooth Page Transition === */
+.page-3d-enter {
+  animation: page3dIn 0.5s ease-out;
+}
+@keyframes page3dIn {
+  from {
+    opacity: 0;
+    transform: perspective(800px) rotateX(-5deg) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: perspective(800px) rotateX(0) translateY(0);
+  }
+}
+
+/* === Responsive 3D adjustments === */
+@media (max-width: 768px) {
+  .float-card { animation: none; }
+  .tilt-card:hover { transform: none; }
+  .card-3d:hover { transform: translateY(-3px); }
+}
+
+/* === Notification Bell Animation === */
+@keyframes bellSwing {
+  0% { transform: rotate(0deg); }
+  10% { transform: rotate(15deg); }
+  20% { transform: rotate(-13deg); }
+  30% { transform: rotate(10deg); }
+  40% { transform: rotate(-8deg); }
+  50% { transform: rotate(5deg); }
+  60% { transform: rotate(-3deg); }
+  70% { transform: rotate(2deg); }
+  80% { transform: rotate(-1deg); }
+  100% { transform: rotate(0deg); }
+}
+.bell-swing {
+  animation: bellSwing 1s ease-in-out;
+  transform-origin: top center;
+}

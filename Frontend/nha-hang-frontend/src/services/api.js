@@ -43,11 +43,25 @@ api.interceptors.response.use(
 
       // Token hết hạn hoặc không hợp lệ
       if (status === 401) {
+        // Kiểm tra role trước khi xóa để redirect đúng trang
+        const storedUser = localStorage.getItem('user')
+        let isStaff = false
+        if (storedUser) {
+          try {
+            const staffRoles = ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_KITCHEN', 'ROLE_WAITER', 'ROLE_CASHIER']
+            const roles = JSON.parse(storedUser).roles || []
+            isStaff = roles.some(r => staffRoles.includes(r))
+          } catch (e) { /* ignore */ }
+        }
+
         localStorage.removeItem('token')
         localStorage.removeItem('user')
-        // Chỉ redirect nếu không phải trang login
-        if (router.currentRoute.value.path !== '/login') {
-          router.push('/login')
+
+        // Redirect về đúng trang đăng nhập
+        const currentPath = router.currentRoute.value.path
+        const loginPath = isStaff ? '/staff-login' : '/login'
+        if (currentPath !== '/login' && currentPath !== '/staff-login') {
+          router.push(loginPath)
         }
       }
     }

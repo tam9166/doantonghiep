@@ -7,7 +7,12 @@
 
     <main class="admin-content">
       <div class="page-header">
-        <h1 class="page-title">Quản Lý Nguyên Liệu & Công Thức</h1>
+        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 5px;">
+          <button v-if="isKitchenOnly" @click="$router.push('/kitchen')" class="g-btn-outline" style="border-radius: 100px; padding: 6px 15px; border-color: rgba(255,255,255,0.2);">
+            ← Quay Lại Bếp
+          </button>
+          <h1 class="page-title" style="margin: 0;">Quản Lý Nguyên Liệu & Công Thức</h1>
+        </div>
         <p class="page-subtitle">Kiểm soát tồn kho, thiết lập định lượng và tự động trừ nguyên liệu</p>
       </div>
 
@@ -237,9 +242,35 @@
           <div class="form-card" style="grid-column: span 12;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
               <h3>📄 Lịch Sử Các Đợt Nhập Hàng (Hóa Đơn)</h3>
-              <button @click="openCreateInvoiceModal" class="g-btn-primary">📦 Nhập Hàng Mới</button>
+              <button @click="openCreateInvoiceModal" class="g-btn-primary hide-on-print">📦 Nhập Hàng Mới</button>
             </div>
             
+            <!-- Filter & Search for Invoices -->
+            <div class="filter-bar hide-on-print" style="display: flex; gap: 16px; margin-bottom: 20px; align-items: flex-end;">
+              <div class="filter-item">
+                <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 6px;">⏱️ Lọc thời gian</span>
+                <select v-model="invoiceTimeFilter" class="g-form-control" style="width: 200px;">
+                  <option value="all">Tất cả thời gian</option>
+                  <option value="today">Hôm nay</option>
+                  <option value="week">7 Ngày qua</option>
+                  <option value="month">Tháng này</option>
+                  <option value="year">Năm nay</option>
+                </select>
+              </div>
+              <div class="filter-item" style="flex: 1;">
+                <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 6px;">🔍 Tìm hóa đơn</span>
+                <input
+                  v-model="invoiceSearchQuery"
+                  type="text"
+                  placeholder="Nhập mã phiếu hoặc nhà cung cấp..."
+                  class="g-form-control"
+                />
+              </div>
+              <button v-if="invoiceSearchQuery || invoiceTimeFilter !== 'all'" @click="resetInvoiceFilters" class="g-btn-secondary" style="padding: 12px 20px; white-space: nowrap;">
+                ✕ Xóa lọc
+              </button>
+            </div>
+
             <table class="g-table">
               <thead>
                 <tr>
@@ -248,22 +279,22 @@
                   <th>Nhà Cung Cấp</th>
                   <th>Tổng Tiền</th>
                   <th>Ghi Chú</th>
-                  <th>Thao Tác</th>
+                  <th class="hide-on-print">Thao Tác</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="inv in invoices" :key="inv.id">
+                <tr v-for="inv in filteredInvoices" :key="inv.id">
                   <td style="font-weight: bold; color: var(--primary);">#{{ inv.id }}</td>
                   <td>{{ new Date(inv.importDate).toLocaleString('vi-VN') }}</td>
                   <td>{{ inv.supplier || '---' }}</td>
                   <td style="color: #e74c3c; font-weight: bold;">{{ inv.totalAmount?.toLocaleString() || 0 }}đ</td>
                   <td>{{ inv.note || '---' }}</td>
-                  <td>
+                  <td class="hide-on-print">
                     <button @click="viewInvoiceDetails(inv.id)" class="btn-sm btn-secondary">👀 Chi Tiết</button>
                   </td>
                 </tr>
-                <tr v-if="invoices.length === 0">
-                  <td colspan="6" style="text-align: center; color: var(--text-muted)">Chưa có hóa đơn nào!</td>
+                <tr v-if="filteredInvoices.length === 0">
+                  <td colspan="6" style="text-align: center; color: var(--text-muted)">Không tìm thấy hóa đơn nào phù hợp!</td>
                 </tr>
               </tbody>
             </table>
@@ -384,6 +415,11 @@
           <button @click="showCreateInvoiceModal = false" class="btn-close">✖</button>
         </div>
         <div class="modal-body">
+          <div v-if="ingredients.length === 0" style="padding: 20px; background: rgba(231,76,60,0.1); border: 1px solid #e74c3c; border-radius: 8px; color: #e74c3c; margin-bottom: 20px; text-align: center;">
+            <strong>⚠️ Kho chưa có nguyên liệu nào!</strong><br>
+            Vui lòng thêm "Nguyên Liệu Mới" ở tab <strong>Kho Nguyên Liệu</strong> trước khi lập phiếu nhập kho.
+          </div>
+          
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
             <div class="form-group">
               <label>Nhà Cung Cấp</label>
@@ -447,32 +483,61 @@
 
     <!-- View Invoice Details Modal -->
     <div v-if="showInvoiceDetailsModal" class="modal-overlay" @click.self="showInvoiceDetailsModal = false">
-      <div class="modal-content" style="max-width: 800px; width: 90%;">
-        <div class="modal-header">
-          <h3>Chi Tiết Hóa Đơn #{{ selectedInvoiceId }}</h3>
+      <div class="modal-content printable-area" style="max-width: 800px; width: 90%; background: #ffffff; color: #111;">
+        <div class="modal-header hide-on-print">
+          <h3>Chi Tiết Phiếu Nhập Kho #{{ selectedInvoiceId }}</h3>
           <button @click="showInvoiceDetailsModal = false" class="btn-close">✖</button>
         </div>
-        <div class="modal-body">
-          <table class="g-table">
+        <div class="modal-body invoice-content">
+          <div class="invoice-brand" style="text-align: center; border-bottom: 2px solid #111; padding-bottom: 20px; margin-bottom: 28px;">
+             <h1 style="margin: 0; font-size: 2rem; color: #111;">PHIẾU NHẬP KHO</h1>
+             <p style="margin: 4px 0 0 0; color: #777; font-size: 0.9rem;">Hệ Thống Quản Lý Kho Mộc Vị</p>
+          </div>
+          <div class="invoice-meta" style="display: flex; justify-content: space-between; margin-bottom: 28px;">
+             <div class="meta-left">
+                <p style="margin: 6px 0; color: #444;"><strong>Mã phiếu:</strong> <span style="background: #111; color: #00b894; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: 800;">#{{ selectedInvoiceId }}</span></p>
+                <p style="margin: 6px 0; color: #444;"><strong>Ngày nhập:</strong> {{ selectedInvoice ? new Date(selectedInvoice.importDate).toLocaleString('vi-VN') : '---' }}</p>
+             </div>
+             <div class="meta-right" style="text-align: right;">
+                <p style="margin: 6px 0; color: #444;"><strong>Nhà cung cấp:</strong> {{ selectedInvoice?.supplier || '---' }}</p>
+                <p style="margin: 6px 0; color: #444;"><strong>Ghi chú:</strong> {{ selectedInvoice?.note || '---' }}</p>
+             </div>
+          </div>
+          <table class="print-table g-table" style="width: 100%; margin-bottom: 28px; border-collapse: collapse;">
             <thead>
               <tr>
-                <th>Nguyên Liệu</th>
-                <th>Số Lượng</th>
-                <th>Đơn Giá</th>
-                <th>Thành Tiền</th>
-                <th>Hạn SD</th>
+                <th style="background: #111; color: white; padding: 12px; font-size: 0.88rem; text-transform: uppercase;">Nguyên Liệu</th>
+                <th style="background: #111; color: white; padding: 12px; font-size: 0.88rem; text-transform: uppercase;">Số Lượng</th>
+                <th style="background: #111; color: white; padding: 12px; font-size: 0.88rem; text-transform: uppercase;">Đơn Giá</th>
+                <th style="background: #111; color: white; padding: 12px; font-size: 0.88rem; text-transform: uppercase;">Thành Tiền</th>
+                <th style="background: #111; color: white; padding: 12px; font-size: 0.88rem; text-transform: uppercase;">Hạn SD</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="b in invoiceDetails" :key="b.id">
-                <td>{{ b.ingredient?.name }}</td>
-                <td>{{ b.quantity }} {{ b.ingredient?.unit }}</td>
-                <td>{{ b.unitPrice?.toLocaleString() }}đ</td>
-                <td style="color: #e74c3c; font-weight: bold;">{{ ((b.quantity || 0) * (b.unitPrice || 0)).toLocaleString() }}đ</td>
-                <td>{{ b.expirationDate ? new Date(b.expirationDate).toLocaleDateString('vi-VN') : '---' }}</td>
+                <td style="border-bottom: 1px solid #ddd; padding: 14px 12px; color: #333;">{{ b.ingredient?.name }}</td>
+                <td style="border-bottom: 1px solid #ddd; padding: 14px 12px; color: #333;">{{ b.quantity }} {{ b.ingredient?.unit }}</td>
+                <td style="border-bottom: 1px solid #ddd; padding: 14px 12px; color: #333;">{{ b.unitPrice?.toLocaleString() }}đ</td>
+                <td style="border-bottom: 1px solid #ddd; padding: 14px 12px; color: #e74c3c; font-weight: bold;">{{ ((b.quantity || 0) * (b.unitPrice || 0)).toLocaleString() }}đ</td>
+                <td style="border-bottom: 1px solid #ddd; padding: 14px 12px; color: #333;">{{ b.expirationDate ? new Date(b.expirationDate).toLocaleDateString('vi-VN') : '---' }}</td>
               </tr>
             </tbody>
           </table>
+          <div class="invoice-total" style="display: flex; justify-content: flex-end; margin-top: 20px;">
+             <table class="total-table" style="min-width: 300px; border-collapse: collapse;">
+                <tr class="total-row" style="border-top: 2px solid #111; font-size: 1.15rem; color: #c0392b; font-weight: 900;">
+                   <td style="padding: 12px 10px;">TỔNG TIỀN:</td>
+                   <td style="text-align: right; padding: 12px 10px;">{{ selectedInvoice?.totalAmount?.toLocaleString() || 0 }} đ</td>
+                </tr>
+             </table>
+          </div>
+          
+          <div class="invoice-footer" style="text-align: center; margin-top: 40px; border-top: 1px solid #eee; padding-top: 20px;">
+             <p class="system-msg" style="font-size: 0.8rem; color: #999; margin: 0;">Phiếu nhập kho được tạo tự động bởi hệ thống Quản Lý Nhà Hàng MỘC VỊ</p>
+          </div>
+        </div>
+        <div class="modal-actions hide-on-print" style="padding: 20px; background: #f8f9fa; text-align: center; border-top: 1px solid #eee;">
+           <button @click="exportInvoiceToPDF" class="g-btn-primary" style="padding: 12px 24px; font-size: 1rem; font-weight: 800; cursor: pointer; border: none; border-radius: 8px;">📥 In Phiếu Nhập Kho</button>
         </div>
       </div>
     </div>
@@ -545,11 +610,51 @@ const forecastError = ref('');
 
 // Invoices State
 const invoices = ref([]);
+const invoiceSearchQuery = ref('');
+const invoiceTimeFilter = ref('all');
 const showCreateInvoiceModal = ref(false);
 const invoiceForm = ref({ supplier: '', note: '', items: [] });
 const showInvoiceDetailsModal = ref(false);
 const selectedInvoiceId = ref(null);
 const invoiceDetails = ref([]);
+
+const selectedInvoice = computed(() => invoices.value.find(i => i.id === selectedInvoiceId.value));
+
+const filteredInvoices = computed(() => {
+  let result = invoices.value;
+  if (invoiceTimeFilter.value !== 'all') {
+    const now = new Date();
+    result = result.filter(inv => {
+      if (!inv.importDate) return true;
+      const invDate = new Date(inv.importDate);
+      if (invoiceTimeFilter.value === 'today') return invDate.toDateString() === now.toDateString();
+      if (invoiceTimeFilter.value === 'week') {
+        const diffDays = Math.ceil(Math.abs(now - invDate) / (1000 * 60 * 60 * 24));
+        return diffDays <= 7;
+      }
+      if (invoiceTimeFilter.value === 'month') return invDate.getMonth() === now.getMonth() && invDate.getFullYear() === now.getFullYear();
+      if (invoiceTimeFilter.value === 'year') return invDate.getFullYear() === now.getFullYear();
+      return true;
+    });
+  }
+  if (invoiceSearchQuery.value.trim()) {
+    const q = invoiceSearchQuery.value.toLowerCase().trim();
+    result = result.filter(inv => 
+      String(inv.id).includes(q) || 
+      (inv.supplier && inv.supplier.toLowerCase().includes(q))
+    );
+  }
+  return result;
+});
+
+const resetInvoiceFilters = () => {
+  invoiceSearchQuery.value = '';
+  invoiceTimeFilter.value = 'all';
+};
+
+const exportInvoiceToPDF = () => {
+  window.print();
+};
 
 const getToken = () => localStorage.getItem('token');
 const configHeader = () => ({ headers: { 'Authorization': `Bearer ${getToken()}` } });
@@ -893,5 +998,71 @@ onMounted(() => {
 .forecast-action { text-align: right; min-width: 140px; }
 .forecast-qty { display: block; margin-bottom: 10px; font-size: 0.95rem; color: var(--text-muted); }
 @keyframes pulse-ai { from { transform: scale(1); opacity: 0.7; } to { transform: scale(1.2); opacity: 1; } }
+
+.modal-content {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+.modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.modal-header h3 { margin: 0; color: var(--primary); font-size: 1.2rem; }
+.btn-close {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: 0.3s;
+}
+.btn-close:hover { color: #e74c3c; transform: scale(1.1); }
+.modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  body * { visibility: hidden !important; }
+  .printable-area,
+  .printable-area * { visibility: visible !important; }
+  .printable-area {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: none !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    background: white !important;
+    color: #111 !important;
+    padding: 0 !important;
+    z-index: 99999 !important;
+  }
+  .invoice-content { padding: 16px !important; }
+  .invoice-brand { padding-bottom: 10px !important; margin-bottom: 12px !important; }
+  .invoice-brand h1 { font-size: 1.3rem !important; }
+  .invoice-meta { margin-bottom: 12px !important; }
+  .print-table th { padding: 7px 8px !important; font-size: 0.78rem !important; }
+  .print-table td { padding: 7px 8px !important; font-size: 0.82rem !important; }
+  .invoice-total { margin-top: 10px !important; }
+  .total-table td { padding: 4px 8px !important; font-size: 0.88rem !important; }
+  .invoice-footer { margin-top: 16px !important; padding-top: 10px !important; }
+  .hide-on-print { display: none !important; }
+}
 </style>
 

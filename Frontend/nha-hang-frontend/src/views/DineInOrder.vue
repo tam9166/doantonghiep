@@ -4,6 +4,14 @@
     
 
     <main class="main-content">
+      <div style="margin-bottom: 20px;">
+        <button v-if="userRoles.includes('ROLE_WAITER')" @click="$router.push('/waiter')" class="g-btn-outline" style="border-radius: 100px; padding: 8px 20px; border-color: rgba(255,255,255,0.2);">
+          ← Quay Lại Phục Vụ
+        </button>
+        <button v-else @click="$router.back()" class="g-btn-outline" style="border-radius: 100px; padding: 8px 20px; border-color: rgba(255,255,255,0.2);">
+          ← Quay Lại
+        </button>
+      </div>
       <div class="table-selection-box">
         <label>📍 Bạn đang ngồi ở bàn nào?</label>
         <select v-model="selectedTable" class="form-control table-select" :disabled="isTableLocked">
@@ -63,6 +71,22 @@
           </div>
         </div>
 
+        <!-- Món ăn bán chạy / Gợi ý -->
+        <div v-if="suggestedProducts.length > 0" class="suggested-section">
+          <h3 class="section-title"><span style="color: #f1c40f">🌟</span> Gợi Ý Cho Bạn (Bán Chạy)</h3>
+          <div class="suggested-grid">
+            <div v-for="product in suggestedProducts" :key="'sugg-'+product.id" class="suggested-card">
+              <div class="sugg-badge">HOT</div>
+              <img :src="product.image || 'https://via.placeholder.com/150'" alt="food" />
+              <div class="sugg-info">
+                <h4>{{ product.name }}</h4>
+                <p class="price">{{ product.price.toLocaleString() }}đ</p>
+              </div>
+              <button v-if="!isAdminOrManager" class="btn-sugg-add" @click="addToCart(product, 1)">Thêm Ngay</button>
+            </div>
+          </div>
+        </div>
+
         <h3 class="section-title">Thực Đơn Đầy Đủ</h3>
         <div v-for="product in activeProducts" :key="product.id" class="product-item">
           <img :src="product.image || 'https://via.placeholder.com/100'" alt="food" />
@@ -109,18 +133,25 @@
       <div class="g-modal-box" style="max-width: 550px; max-height: 90vh; overflow-y: auto;">
         <h3>🍳 Xác Nhận Gọi Món</h3>
         
-        <div class="cart-details" style="max-height: 250px; overflow-y: auto; margin-bottom: 15px; padding-right: 10px;">
-          <div v-for="(item, idx) in cart" :key="idx" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed rgba(255,255,255,0.1); padding: 8px 0;">
-            <span>{{ item.name }} <strong>(x{{ item.quantity }})</strong></span>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span>{{ (item.price * item.quantity).toLocaleString() }}đ</span>
-              <button @click="cart.splice(idx, 1)" style="background:none; border:none; color:#e74c3c; cursor:pointer; font-size:1rem;">✖</button>
+        <div class="cart-details" style="max-height: 300px; overflow-y: auto; margin-bottom: 15px; padding-right: 10px;">
+          <div v-for="(item, idx) in cart" :key="idx" class="cart-item-row">
+            <div class="cart-item-info">
+              <span class="cart-item-name">{{ item.name }}</span>
+              <span class="cart-item-price">{{ (item.price * item.quantity).toLocaleString() }}đ</span>
+            </div>
+            <div class="cart-item-controls">
+              <button class="qty-btn qty-minus" @click="decreaseQty(idx)">−</button>
+              <span class="qty-display">{{ item.quantity }}</span>
+              <button class="qty-btn qty-plus" @click="increaseQty(idx)">+</button>
+              <button class="qty-btn qty-remove" @click="cart.splice(idx, 1)">✖</button>
             </div>
           </div>
         </div>
 
         <div class="cart-total" style="margin-top: 20px; text-align: center;">
-          <h4 style="color: var(--primary); font-size: 1.4rem; border-top: 1px dashed rgba(0,212,170,0.3); padding-top: 10px;">Tạm tính: {{ cartSubtotal.toLocaleString() }}đ</h4>
+          <h4 style="color: var(--primary); font-size: 1.1rem; border-top: 1px dashed rgba(0,212,170,0.3); padding-top: 10px;">Tạm tính: {{ cartSubtotal.toLocaleString() }}đ</h4>
+          <h4 style="color: var(--primary); font-size: 1.1rem;">Thuế GTGT: {{ cartTax.toLocaleString() }}đ</h4>
+          <h4 style="color: #ff4757; font-size: 1.4rem; margin-top: 5px;">Tổng cộng: {{ finalTotal.toLocaleString() }}đ</h4>
           <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 5px;">💡 Thanh toán sau khi dùng bữa xong</p>
         </div>
 
@@ -147,6 +178,7 @@ import { useRouter, useRoute } from 'vue-router';
 const router = useRouter();
 const route = useRoute();
 const products = ref([]);
+const suggestedProducts = ref([]);
 const allTables = ref([]);
 const cart = ref([]);
 const selectedTable = ref("");
@@ -193,8 +225,15 @@ const discountAmount = computed(() => {
   return cartSubtotal.value * discount;
 });
 
+const cartTax = computed(() => {
+  let discount = tierDiscount.value;
+  if (voucherDiscountPercent.value > 0) discount += (voucherDiscountPercent.value / 100);
+  if (discount > 1) discount = 1;
+  return cart.value.reduce((sum, item) => sum + ((item.price * item.quantity * (1 - discount)) * (item.taxRate || 8) / 100), 0);
+});
+
 const finalTotal = computed(() => {
-  return cartSubtotal.value - discountAmount.value;
+  return cartSubtotal.value - discountAmount.value + cartTax.value;
 });
 
 const cartTotal = computed(() => finalTotal.value);
@@ -242,6 +281,12 @@ const fetchComboForParty = async () => {
 
     let reply = aiRes.data.reply;
     reply = reply.replace(/```json/g, '').replace(/```/g, '').trim();
+    
+    // Kiểm tra xem phản hồi có phải là JSON hợp lệ không để tránh lỗi console
+    if (!reply.startsWith('[') && !reply.startsWith('{')) {
+      throw new Error("AI trả về định dạng không hợp lệ: " + reply);
+    }
+    
     const suggestions = JSON.parse(reply);
 
     aiCombo.value = suggestions.map(s => {
@@ -254,24 +299,50 @@ const fetchComboForParty = async () => {
 
   } catch(e) {
     console.error("Lỗi AI Recommend:", e);
-    // Fallback thông minh theo số lượng người khi AI bị lỗi (Hết hạn Key)
+    // Fallback thông minh theo số lượng người khi AI bị lỗi
     if (activeProducts.value.length >= 2) {
       let pSize = parseInt(partySize.value) || 2;
-      let foodQty = Math.max(1, Math.ceil(pSize / 2)); // 2 người 1 phần đồ ăn lớn
-      let drinkQty = pSize; // Mỗi người 1 phần nước
       
-      // Tìm danh sách thức ăn và đồ uống
+      // Phân loại món ăn và nước uống
       let drinks = activeProducts.value.filter(p => p.category && (p.category.name.toLowerCase().includes('nước') || p.category.name.toLowerCase().includes('uống') || p.category.name.toLowerCase().includes('trà') || p.category.name.toLowerCase().includes('cafe')));
       let foods = activeProducts.value.filter(p => !p.category || (!p.category.name.toLowerCase().includes('nước') && !p.category.name.toLowerCase().includes('uống') && !p.category.name.toLowerCase().includes('trà') && !p.category.name.toLowerCase().includes('cafe')));
       
-      let selectedFood = foods.length > 0 ? foods[0] : activeProducts.value[0];
-      let selectedDrink = drinks.length > 0 ? drinks[0] : (activeProducts.value[1] || activeProducts.value[0]);
+      // Số món ăn khác nhau: ceil(số người * 0.7), tối thiểu 2, tối đa số món có sẵn
+      let numFoodTypes = Math.max(2, Math.ceil(pSize * 0.7));
+      numFoodTypes = Math.min(numFoodTypes, foods.length);
+      
+      // Chọn ngẫu nhiên các món ăn khác nhau
+      let shuffledFoods = [...foods].sort(() => Math.random() - 0.5);
+      let selectedFoods = shuffledFoods.slice(0, numFoodTypes);
+      
+      // Chọn 1-2 loại nước uống khác nhau
+      let numDrinkTypes = Math.min(Math.max(1, Math.ceil(pSize / 3)), drinks.length || 1);
+      let shuffledDrinks = [...drinks].sort(() => Math.random() - 0.5);
+      let selectedDrinks = shuffledDrinks.slice(0, numDrinkTypes);
+      
+      // Tính số lượng mỗi món
+      let combo = [];
+      selectedFoods.forEach((food, idx) => {
+        let qty = idx === 0 ? Math.ceil(pSize / numFoodTypes) + 1 : Math.ceil(pSize / numFoodTypes);
+        combo.push({ ...food, suggestedQuantity: Math.max(1, qty) });
+      });
+      
+      // Mỗi người 1 nước, chia đều cho các loại nước
+      let drinksPerType = Math.ceil(pSize / numDrinkTypes);
+      selectedDrinks.forEach(drink => {
+        combo.push({ ...drink, suggestedQuantity: drinksPerType });
+      });
+      
+      // Nếu không có nước riêng, chọn bất kỳ sản phẩm nào chưa được chọn
+      if (selectedDrinks.length === 0 && activeProducts.value.length > numFoodTypes) {
+        let remaining = activeProducts.value.filter(p => !selectedFoods.find(f => f.id === p.id));
+        if (remaining.length > 0) {
+          combo.push({ ...remaining[0], suggestedQuantity: pSize });
+        }
+      }
 
-      aiCombo.value = [
-        { ...selectedFood, suggestedQuantity: foodQty },
-        { ...selectedDrink, suggestedQuantity: drinkQty }
-      ];
-      aiRecommendationReason.value = `(Hệ thống AI đang bảo trì) Gợi ý Combo dự phòng đủ cho ${pSize} người (Gồm Đồ ăn và Nước uống).`;
+      aiCombo.value = combo;
+      aiRecommendationReason.value = `(Hệ thống AI đang bảo trì) Gợi ý Combo dự phòng ${combo.length} món đa dạng cho ${pSize} người (Gồm ${selectedFoods.length} món ăn + ${selectedDrinks.length || 1} loại nước uống).`;
     }
   } finally {
     isFetchingAI.value = false;
@@ -320,13 +391,37 @@ const loadData = async () => {
       } catch (e) {}
     }
     
+    // Tải Món Gợi Ý (Bán Chạy)
+    try {
+      const response = await axios.get('http://localhost:8080/api/admin/popular-items/products?limit=4', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      if (response.data && response.data.length > 0) {
+         suggestedProducts.value = response.data
+           .map(item => products.value.find(p => p.id === item.productId))
+           .filter(p => p != null).slice(0, 4);
+      }
+    } catch (err) { console.log('Lỗi lấy gợi ý: ', err); }
+
   } catch (error) { console.error(error); }
 };
 
 const addToCart = (product, qty = 1) => {
   const existing = cart.value.find(item => item.productId === product.id);
   if (existing) existing.quantity += qty;
-  else cart.value.push({ productId: product.id, name: product.name, price: product.price, quantity: qty });
+  else cart.value.push({ productId: product.id, name: product.name, price: product.price, quantity: qty, taxRate: product.taxRate || 8 });
+};
+
+const increaseQty = (idx) => {
+  cart.value[idx].quantity++;
+};
+
+const decreaseQty = (idx) => {
+  if (cart.value[idx].quantity > 1) {
+    cart.value[idx].quantity--;
+  } else {
+    cart.value.splice(idx, 1);
+  }
 };
 
 const closeVoiceModal = () => {
@@ -462,6 +557,82 @@ onMounted(loadData);
 </script>
 
 <style scoped>
+/* Cart Item Controls */
+.cart-item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px dashed rgba(255,255,255,0.1);
+  padding: 10px 0;
+  gap: 10px;
+}
+.cart-item-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.cart-item-name {
+  font-weight: 600;
+  color: var(--text-heading);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cart-item-price {
+  font-size: 0.85rem;
+  color: var(--primary);
+  font-weight: 700;
+}
+.cart-item-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.qty-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+.qty-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: rgba(0,212,170,0.1);
+}
+.qty-minus:hover {
+  border-color: #e74c3c;
+  color: #e74c3c;
+  background: rgba(231,76,60,0.1);
+}
+.qty-remove {
+  background: none;
+  border: none;
+  color: #e74c3c;
+  font-size: 0.9rem;
+  margin-left: 4px;
+}
+.qty-remove:hover {
+  color: #ff6b6b;
+  background: rgba(231,76,60,0.15);
+}
+.qty-display {
+  min-width: 28px;
+  text-align: center;
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--text-heading);
+}
 .dine-in-wrapper { font-family: 'Outfit', -apple-system, sans-serif; background-color: var(--bg-root); min-height: 100vh; padding-bottom: 80px; color: var(--text-primary); }
 
 /* Navbar */
@@ -515,6 +686,22 @@ onMounted(loadData);
 .btn-disabled { opacity: 0.5; cursor: not-allowed !important; background: var(--bg-root); color: var(--text-muted); border: 1px solid var(--border); }
 
 .empty-state { text-align: center; padding: 40px 20px; color: var(--text-muted); background: var(--bg-card); border-radius: 10px; border: 1px dashed var(--border); }
+
+/* Suggested Section */
+.suggested-section { margin-bottom: 25px; text-align: left; background: rgba(241, 196, 15, 0.05); padding: 15px; border-radius: 12px; border: 1px solid rgba(241, 196, 15, 0.2); }
+.suggested-section .section-title { font-size: 1.2rem; margin-bottom: 15px; color: #f1c40f; border-bottom: none; }
+.suggested-grid { display: flex; gap: 15px; overflow-x: auto; padding-bottom: 10px; }
+.suggested-grid::-webkit-scrollbar { height: 6px; }
+.suggested-grid::-webkit-scrollbar-thumb { background: #f1c40f; border-radius: 10px; }
+.suggested-card { min-width: 160px; background: rgba(0,0,0,0.5); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; position: relative; border: 1px solid rgba(241, 196, 15, 0.3); transition: 0.3s; }
+.suggested-card:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(241, 196, 15, 0.2); }
+.sugg-badge { position: absolute; top: -5px; right: -5px; background: #e74c3c; color: white; padding: 3px 6px; border-radius: 6px; font-weight: 900; font-size: 0.7rem; transform: rotate(10deg); box-shadow: 0 2px 5px rgba(231,76,60,0.5); }
+.suggested-card img { width: 100%; height: 100px; object-fit: cover; border-radius: 8px; margin-bottom: 10px; }
+.sugg-info { flex: 1; }
+.sugg-info h4 { margin: 0 0 5px 0; font-size: 0.95rem; color: white; }
+.sugg-info .price { color: #f1c40f; font-weight: bold; font-size: 1rem; margin: 0; }
+.btn-sugg-add { background: #f1c40f; color: #000; border: none; padding: 6px; border-radius: 6px; font-weight: bold; margin-top: 10px; cursor: pointer; transition: 0.3s; font-size: 0.85rem;}
+.btn-sugg-add:hover { background: #fff; }
 
 /* AI Suggestion */
 .ai-suggestion-box {

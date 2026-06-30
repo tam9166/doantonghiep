@@ -4,6 +4,11 @@
 
 
     <div class="history-container">
+      <div style="margin-bottom: 20px;">
+        <button @click="$router.back()" class="g-btn-outline" style="border-radius: 100px; padding: 8px 20px; border-color: rgba(255,255,255,0.2);">
+          ← Quay Lại
+        </button>
+      </div>
       
       <!-- VIP CARD SECTION -->
       <div v-if="userProfile" class="vip-card-wrapper">

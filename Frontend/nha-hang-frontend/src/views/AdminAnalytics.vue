@@ -271,7 +271,15 @@ const buildCostMap = () => {
     if (!productId) return;
     const ingUnitPrice = recipe.ingredient?.unitPrice || 0;
     const amountReq = recipe.amountRequired || 0;
-    const costPerServing = amountReq * ingUnitPrice;
+    const unit = (recipe.ingredient?.unit || '').toLowerCase();
+    
+    // Nếu đơn giá là cho 1Kg hoặc 1L, nhưng định lượng ghi là g hoặc ml thì cần chia 1000
+    let finalAmount = amountReq;
+    if (unit === 'g' || unit === 'ml') {
+      finalAmount = amountReq / 1000;
+    }
+    
+    const costPerServing = finalAmount * ingUnitPrice;
     if (!costMap[productId]) {
       costMap[productId] = 0;
     }

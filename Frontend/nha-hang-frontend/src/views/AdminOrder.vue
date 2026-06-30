@@ -353,6 +353,8 @@ const getCountdown = (address) => {
 // 🌟 Auto-activate scheduled reservation orders every 30s
 const activateScheduled = async () => {
   try {
+    const token = localStorage.getItem('token');
+    if (!token || token === 'null' || token === 'undefined') return; // Skip if no valid token
     await axios.put('http://localhost:8080/api/admin/orders/activate-scheduled', {}, configHeader());
     loadData(); // Refresh list
   } catch (err) { /* silent */ }

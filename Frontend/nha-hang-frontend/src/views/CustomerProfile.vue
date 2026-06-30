@@ -5,6 +5,11 @@
     
 
     <main class="profile-content">
+      <div style="margin-bottom: 20px;">
+        <button @click="$router.back()" class="g-btn-outline" style="border-radius: 100px; padding: 8px 20px; border-color: rgba(255,255,255,0.2);">
+          ← Quay Lại
+        </button>
+      </div>
       <div class="profile-card">
         <div class="profile-header">
           <div class="avatar-circle">

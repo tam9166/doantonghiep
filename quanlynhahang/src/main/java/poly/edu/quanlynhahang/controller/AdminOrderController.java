@@ -22,7 +22,10 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestBody;
 
 import poly.edu.quanlynhahang.entity.Order;
+import poly.edu.quanlynhahang.entity.RestaurantTable;
 import poly.edu.quanlynhahang.repository.OrderRepository;
+import poly.edu.quanlynhahang.repository.RestaurantTableRepository;
+import poly.edu.quanlynhahang.service.ActivityLogService;
 
 @CrossOrigin(origins = "*", maxAge = 3600)
 @RestController
@@ -35,7 +38,13 @@ public class AdminOrderController {
     private OrderRepository orderRepository;
 
     @Autowired
+    private RestaurantTableRepository tableRepository;
+
+    @Autowired
     private org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
+
+    @Autowired
+    private ActivityLogService activityLogService;
 
     @GetMapping
     public ResponseEntity<?> getAllOrders() {
@@ -57,7 +66,7 @@ public class AdminOrderController {
         int totalItemsSold = 0;
         for (Order order : completedOrders) {
             if (order.getOrderDetails() != null) {
-                totalRevenue += order.getOrderDetails().stream().mapToDouble(d -> d.getPrice()).sum();
+                totalRevenue += order.getTotalAmount() != null && order.getTotalAmount() > 0 ? order.getTotalAmount() : order.getOrderDetails().stream().mapToDouble(d -> (d.getPrice() != null ? d.getPrice() : 0) + (d.getTaxAmount() != null ? d.getTaxAmount() : 0)).sum();
                 totalItemsSold += order.getOrderDetails().stream().mapToInt(d -> d.getQuantity()).sum();
             }
         }
@@ -82,7 +91,7 @@ public class AdminOrderController {
         for (Order o : completedOrders) {
             if (o.getCreateDate() != null && o.getOrderDetails() != null) {
                 String dateStr = sdf.format(o.getCreateDate());
-                double rev = o.getOrderDetails().stream().mapToDouble(d -> d.getPrice()).sum();
+                double rev = o.getTotalAmount() != null && o.getTotalAmount() > 0 ? o.getTotalAmount() : o.getOrderDetails().stream().mapToDouble(d -> (d.getPrice() != null ? d.getPrice() : 0) + (d.getTaxAmount() != null ? d.getTaxAmount() : 0)).sum();
                 revenueByDate.put(dateStr, revenueByDate.getOrDefault(dateStr, 0.0) + rev);
             }
         }
@@ -132,6 +141,11 @@ public class AdminOrderController {
             order.setStatus(status);
             orderRepository.save(order);
             
+            String[] statusLabels = {"Đang chờ", "Đang làm món", "Đã gửi bếp", "Đã hủy", "Hoàn thành", "Đặt trước", "Gửi lại bếp"};
+            String statusText = status >= 0 && status < statusLabels.length ? statusLabels[status] : "status=" + status;
+            activityLogService.log("UPDATE", "Order", String.valueOf(id),
+                    "Cập nhật trạng thái đơn #" + id + " → " + statusText);
+            
             if (status == 1 || status == 6) {
                 messagingTemplate.convertAndSend("/topic/kitchen", "NEW_ORDER");
             } else if (status == 2) {
@@ -174,6 +188,48 @@ public class AdminOrderController {
             orderRepository.save(order);
             return ResponseEntity.ok("Hủy đơn hàng thành công!");
         }).orElse(ResponseEntity.badRequest().body("Không tìm thấy đơn hàng!"));
+    }
+
+    @PutMapping("/{id}/cancel-with-refund")
+    public ResponseEntity<?> cancelOrderWithRefund(@PathVariable Integer id) {
+        return orderRepository.findById(id).map(order -> {
+            order.setStatus(3);
+            Double refundAmount = (order.getDeposit() != null ? order.getDeposit() : 0.0) / 2.0;
+            orderRepository.save(order);
+            
+            // Giải phóng bàn (nếu có)
+            if (order.getAddress() != null) {
+                // Address: "MÃ ĐƠN: #1234 | Bàn: Tầng 2 - Sảnh..."
+                String address = order.getAddress();
+                if (address.contains("Bàn: ")) {
+                    String[] parts = address.split("\\|");
+                    for (String part : parts) {
+                        if (part.trim().startsWith("Bàn: ")) {
+                            String tableName = part.replace("Bàn: ", "").trim();
+                            // Loại bỏ các chữ dư thừa có thể sinh ra như lúc, ngày
+                            if (tableName.contains(" |")) {
+                                tableName = tableName.substring(0, tableName.indexOf(" |"));
+                            }
+                            // Giải phóng bàn
+                            List<RestaurantTable> tables = tableRepository.findAll();
+                            for (RestaurantTable t : tables) {
+                                if (t.getName().equalsIgnoreCase(tableName)) {
+                                    t.setIsOccupied(0);
+                                    t.setReservedTime(null);
+                                    tableRepository.save(t);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return ResponseEntity.ok(java.util.Map.of(
+                "message", "Hủy bàn thành công. Cần hoàn lại: " + refundAmount + "đ",
+                "refundAmount", refundAmount
+            ));
+        }).orElse(ResponseEntity.badRequest().body(java.util.Map.of("message", "Không tìm thấy đơn hàng!")));
     }
 
     // 🌟 API MỚI: TỰ ĐỘNG KÍCH HOẠT ĐƠN ĐẶT BÀN HẸN GIờ

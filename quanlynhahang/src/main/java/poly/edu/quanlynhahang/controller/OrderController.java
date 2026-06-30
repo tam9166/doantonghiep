@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -89,14 +90,19 @@ public class OrderController {
 
     @PostMapping("/checkout")
     public ResponseEntity<?> checkout(@RequestBody OrderRequest orderRequest) {
-        String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        String currentUsername = SecurityContextHolder.getContext().getAuthentication() != null ? 
+                                 SecurityContextHolder.getContext().getAuthentication().getName() : "anonymousUser";
+        
         Optional<Account> accountOpt = accountRepository.findById(currentUsername);
         
-        if (!accountOpt.isPresent()) return ResponseEntity.badRequest().body("Lỗi tài khoản!");
-
         String uniqueOrderCode = generateUnique4DigitCode();
         Order order = new Order();
-        order.setAccount(accountOpt.get());
+        
+        if (accountOpt.isPresent()) {
+            order.setAccount(accountOpt.get());
+        } else {
+            order.setAccount(null); // Khách vãng lai (Guest)
+        }
         
         String finalAddress = "MÃ ĐƠN: #" + uniqueOrderCode + " | " + orderRequest.getAddress();
         order.setAddress(finalAddress);
@@ -110,15 +116,19 @@ public class OrderController {
             order.setStatus(1); // Chuyển thẳng bếp
         }
         
+        if (orderRequest.getDeposit() != null) {
+            order.setDeposit(orderRequest.getDeposit());
+        }
+        
         Order savedOrder = orderRepository.save(order);
 
-        Account account = accountOpt.get();
+        Account account = accountOpt.orElse(null);
         double discount = 0;
 
         // 🌟 Đơn TẠI QUÁN: Không áp dụng giảm giá lúc gọi món (thanh toán sau)
         boolean isDineIn = orderRequest.getAddress() != null && orderRequest.getAddress().contains("[TẠI QUÁN]");
         
-        if (!isDineIn) {
+        if (!isDineIn && account != null) {
             if ("Kim Cương".equals(account.getMembershipTier())) discount = 0.15;
             else if ("Vàng".equals(account.getMembershipTier())) discount = 0.10;
             else if ("Bạc".equals(account.getMembershipTier())) discount = 0.05;
@@ -142,16 +152,34 @@ public class OrderController {
 
         final double finalDiscount = discount;
 
+        double[] totals = new double[2];
+
         for (OrderDetailRequest item : orderRequest.getItems()) {
             productRepository.findById(item.getProductId()).ifPresent(product -> {
                 OrderDetail detail = new OrderDetail();
                 detail.setOrder(savedOrder);
                 detail.setProduct(product);
                 detail.setQuantity(item.getQuantity());
-                detail.setPrice(product.getPrice() * item.getQuantity() * (1 - finalDiscount));
+                
+                double subTotalLine = product.getPrice() * item.getQuantity() * (1 - finalDiscount);
+                double itemTaxRate = product.getTaxRate() != null ? product.getTaxRate() : 8.0;
+                double taxAmountLine = subTotalLine * itemTaxRate / 100.0;
+
+                detail.setPrice(subTotalLine);
+                detail.setTaxRate(itemTaxRate);
+                detail.setTaxAmount(taxAmountLine);
+                
+                totals[0] += subTotalLine;
+                totals[1] += taxAmountLine;
+
                 orderDetailRepository.save(detail);
             });
         }
+        
+        savedOrder.setSubTotal(totals[0]);
+        savedOrder.setTaxAmount(totals[1]);
+        savedOrder.setTotalAmount(totals[0] + totals[1]);
+        orderRepository.save(savedOrder);
 
         // 🌟 TỰ ĐỘNG TRỪ KHO NGUYÊN LIỆU (FEFO - Trừ theo lô hết hạn trước)
         for (OrderDetailRequest item : orderRequest.getItems()) {
@@ -183,6 +211,17 @@ public class OrderController {
                                 .stream().mapToDouble(IngredientBatch::getQuantity).sum();
                         ingredient.setQuantity(totalQuantity);
                         ingredientRepository.save(ingredient);
+                        
+                        // Tự động báo hết món nếu nguyên liệu không đủ
+                        List<Recipe> relatedRecipes = recipeRepository.findByIngredient(ingredient);
+                        for (Recipe r : relatedRecipes) {
+                            if (r.getProduct() != null && r.getProduct().getAvailable()) {
+                                if (totalQuantity < r.getAmountRequired()) {
+                                    r.getProduct().setAvailable(false);
+                                    productRepository.save(r.getProduct());
+                                }
+                            }
+                        }
                     }
                 }
             });
@@ -210,6 +249,92 @@ public class OrderController {
     }
 
 
+    @PutMapping("/{id}/add-items")
+    public ResponseEntity<?> addItemsToOrder(@PathVariable Integer id, @RequestBody OrderRequest orderRequest) {
+        Optional<Order> orderOpt = orderRepository.findById(id);
+        if (!orderOpt.isPresent()) return ResponseEntity.badRequest().body("Không tìm thấy đơn hàng!");
+        
+        Order savedOrder = orderOpt.get();
+
+        double[] totals = new double[2];
+        totals[0] = savedOrder.getSubTotal() != null ? savedOrder.getSubTotal() : 0.0;
+        totals[1] = savedOrder.getTaxAmount() != null ? savedOrder.getTaxAmount() : 0.0;
+
+        for (OrderDetailRequest item : orderRequest.getItems()) {
+            productRepository.findById(item.getProductId()).ifPresent(product -> {
+                OrderDetail detail = new OrderDetail();
+                detail.setOrder(savedOrder);
+                detail.setProduct(product);
+                detail.setQuantity(item.getQuantity());
+                
+                double subTotalLine = product.getPrice() * item.getQuantity();
+                double itemTaxRate = product.getTaxRate() != null ? product.getTaxRate() : 8.0;
+                double taxAmountLine = subTotalLine * itemTaxRate / 100.0;
+
+                detail.setPrice(subTotalLine);
+                detail.setTaxRate(itemTaxRate);
+                detail.setTaxAmount(taxAmountLine);
+                detail.setStatus(1);
+                
+                totals[0] += subTotalLine;
+                totals[1] += taxAmountLine;
+
+                orderDetailRepository.save(detail);
+            });
+        }
+        
+        savedOrder.setSubTotal(totals[0]);
+        savedOrder.setTaxAmount(totals[1]);
+        savedOrder.setTotalAmount(totals[0] + totals[1]);
+
+        // TỰ ĐỘNG TRỪ KHO NGUYÊN LIỆU (FEFO)
+        for (OrderDetailRequest item : orderRequest.getItems()) {
+            productRepository.findById(item.getProductId()).ifPresent(product -> {
+                List<Recipe> recipes = recipeRepository.findByProduct(product);
+                for (Recipe recipe : recipes) {
+                    var ingredient = recipe.getIngredient();
+                    if (ingredient != null) {
+                        double deduct = recipe.getAmountRequired() * item.getQuantity();
+                        List<IngredientBatch> batches = ingredientBatchRepository.findAvailableBatchesOrderByExpirationAsc(ingredient);
+                        for (IngredientBatch batch : batches) {
+                            if (deduct <= 0) break;
+                            if (batch.getQuantity() >= deduct) {
+                                batch.setQuantity(batch.getQuantity() - deduct);
+                                deduct = 0;
+                            } else {
+                                deduct -= batch.getQuantity();
+                                batch.setQuantity(0.0);
+                            }
+                            ingredientBatchRepository.save(batch);
+                        }
+                        double totalQuantity = ingredientBatchRepository.findAvailableBatchesOrderByExpirationAsc(ingredient)
+                                .stream().mapToDouble(IngredientBatch::getQuantity).sum();
+                        ingredient.setQuantity(totalQuantity);
+                        ingredientRepository.save(ingredient);
+                        
+                        List<Recipe> relatedRecipes = recipeRepository.findByIngredient(ingredient);
+                        for (Recipe r : relatedRecipes) {
+                            if (r.getProduct() != null && r.getProduct().getAvailable()) {
+                                if (totalQuantity < r.getAmountRequired()) {
+                                    r.getProduct().setAvailable(false);
+                                    productRepository.save(r.getProduct());
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        savedOrder.setStatus(1);
+        orderRepository.save(savedOrder);
+        
+        org.springframework.messaging.simp.SimpMessagingTemplate mt = messagingTemplate;
+        if(mt != null) mt.convertAndSend("/topic/kitchen", "NEW_ORDER");
+        
+        return ResponseEntity.ok(java.util.Map.of("message", "Gọi thêm món thành công!"));
+    }
+
     @PostMapping("/merge-tables")
     public ResponseEntity<?> mergeTables(@RequestBody java.util.Map<String, String> payload) {
         String fromTable = payload.get("fromTable");
@@ -234,24 +359,33 @@ public class OrderController {
         Order targetOrder = targetOrderOpt.get();
         
         // Chuyển toàn bộ món từ hóa đơn cũ sang hóa đơn mới
+        double transferSub = 0.0;
+        double transferTax = 0.0;
         if (sourceOrder.getOrderDetails() != null) {
             for (OrderDetail detail : sourceOrder.getOrderDetails()) {
                 detail.setOrder(targetOrder);
                 orderDetailRepository.save(detail);
+                transferSub += detail.getPrice() != null ? detail.getPrice() : 0.0;
+                transferTax += detail.getTaxAmount() != null ? detail.getTaxAmount() : 0.0;
             }
         }
+        
+        targetOrder.setSubTotal((targetOrder.getSubTotal() != null ? targetOrder.getSubTotal() : 0.0) + transferSub);
+        targetOrder.setTaxAmount((targetOrder.getTaxAmount() != null ? targetOrder.getTaxAmount() : 0.0) + transferTax);
+        targetOrder.setTotalAmount(targetOrder.getSubTotal() + targetOrder.getTaxAmount());
+        orderRepository.save(targetOrder);
         
         // Hủy hóa đơn cũ
         sourceOrder.setStatus(3);
         orderRepository.save(sourceOrder);
         
-        // Giải phóng bàn cũ
+        // Đánh dấu bàn cũ là Đã Ghép thay vì Trống
         tableRepository.findAll().stream()
             .filter(t -> t.getName().equals(fromTable))
             .findFirst()
             .ifPresent(t -> {
-                t.setIsOccupied(0);
-                t.setReservedTime(null);
+                t.setIsOccupied(5);
+                t.setReservedTime("[GHÉP VỚI: " + toTable + "]");
                 tableRepository.save(t);
             });
             
@@ -315,15 +449,31 @@ public class OrderController {
         }
         
         final Order finalTargetOrder = targetOrder;
+        double moveSub = 0.0;
+        double moveTax = 0.0;
         // Di chuyển các order detail
         for (Integer detailId : detailIds) {
-            orderDetailRepository.findById(detailId).ifPresent(detail -> {
+            Optional<OrderDetail> detailOpt = orderDetailRepository.findById(detailId);
+            if (detailOpt.isPresent()) {
+                OrderDetail detail = detailOpt.get();
                 if (detail.getOrder().getId().equals(sourceOrder.getId())) {
                     detail.setOrder(finalTargetOrder);
                     orderDetailRepository.save(detail);
+                    moveSub += detail.getPrice() != null ? detail.getPrice() : 0.0;
+                    moveTax += detail.getTaxAmount() != null ? detail.getTaxAmount() : 0.0;
                 }
-            });
+            }
         }
+        
+        sourceOrder.setSubTotal(Math.max(0, (sourceOrder.getSubTotal() != null ? sourceOrder.getSubTotal() : 0.0) - moveSub));
+        sourceOrder.setTaxAmount(Math.max(0, (sourceOrder.getTaxAmount() != null ? sourceOrder.getTaxAmount() : 0.0) - moveTax));
+        sourceOrder.setTotalAmount(sourceOrder.getSubTotal() + sourceOrder.getTaxAmount());
+        orderRepository.save(sourceOrder);
+        
+        finalTargetOrder.setSubTotal((finalTargetOrder.getSubTotal() != null ? finalTargetOrder.getSubTotal() : 0.0) + moveSub);
+        finalTargetOrder.setTaxAmount((finalTargetOrder.getTaxAmount() != null ? finalTargetOrder.getTaxAmount() : 0.0) + moveTax);
+        finalTargetOrder.setTotalAmount(finalTargetOrder.getSubTotal() + finalTargetOrder.getTaxAmount());
+        orderRepository.save(finalTargetOrder);
 
         // Nếu bàn nguồn không còn OrderDetail nào, thì Hủy order đó và giải phóng bàn
         long remainingItems = orderDetailRepository.findAll().stream()

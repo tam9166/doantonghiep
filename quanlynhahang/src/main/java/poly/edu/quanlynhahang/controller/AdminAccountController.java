@@ -61,6 +61,8 @@ public class AdminAccountController {
             map.put("username", acc.getUsername());
             map.put("fullname", acc.getFullname());
             map.put("email", acc.getEmail());
+            map.put("shift", acc.getShift());
+            map.put("assignedArea", acc.getAssignedArea());
             String roleStr = "ROLE_USER";
             List<Authority> auths = acc.getAuthorities();
             if (auths != null && !auths.isEmpty()) {
@@ -148,6 +150,8 @@ public class AdminAccountController {
             if (staffReq.getPassword() != null && !staffReq.getPassword().isEmpty()) {
                 existing.setPassword(staffReq.getPassword());
             }
+            if (staffReq.getShift() != null) existing.setShift(staffReq.getShift());
+            if (staffReq.getAssignedArea() != null) existing.setAssignedArea(staffReq.getAssignedArea());
             
             accountRepository.save(existing);
             

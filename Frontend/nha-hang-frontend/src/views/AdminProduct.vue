@@ -33,6 +33,11 @@
           </div>
 
           <div class="form-group">
+            <label>Thuế suất (%)</label>
+            <input v-model="formData.taxRate" type="number" placeholder="VD: 8" class="g-form-control" />
+          </div>
+
+          <div class="form-group">
             <label>Trạng thái</label>
             <select v-model="formData.status" class="g-form-control">
               <option :value="true">✅ Đang bán (Còn hàng)</option>
@@ -69,6 +74,7 @@
                   <th>Tên món</th>
                   <th>Danh mục</th>
                   <th>Giá Bán (VNĐ)</th>
+                  <th>Thuế (%)</th>
                   <th>Giá Vốn (VNĐ)</th>
                   <th>Đánh giá</th>
                   <th>Trạng thái</th>
@@ -83,6 +89,7 @@
                   <td><strong class="product-name">{{ p.name }}</strong></td>
                   <td><span class="category-chip">{{ p.category ? p.category.name : 'Chưa phân loại' }}</span></td>
                   <td class="price-text">{{ p.price.toLocaleString() }}đ</td>
+                  <td>{{ p.taxRate !== null && p.taxRate !== undefined ? p.taxRate + '%' : '8%' }}</td>
                   <td style="color: #e74c3c; font-weight: bold;">{{ p.costPrice > 0 ? p.costPrice.toLocaleString() + 'đ' : 'N/A' }}</td>
                   <td><strong style="color: #f1c40f;">{{ p.averageRating > 0 ? '⭐ ' + p.averageRating : 'N/A' }}</strong></td>
                   <td>
@@ -125,7 +132,7 @@ const isEditing = ref(false);
 const editingId = ref(null);
 
 const formData = ref({
-  name: '', price: '', description: '', image: '', categoryId: '', status: true
+  name: '', price: '', description: '', image: '', categoryId: '', status: true, taxRate: 8
 });
 
 const getAuthConfig = () => {
@@ -156,7 +163,8 @@ const startEdit = (product) => {
     description: product.description || '',
     image: product.image || '',
     categoryId: product.category ? product.category.id : '',
-    status: product.status !== false
+    status: product.status !== false,
+    taxRate: product.taxRate !== null && product.taxRate !== undefined ? product.taxRate : 8
   };
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
@@ -164,7 +172,7 @@ const startEdit = (product) => {
 const cancelEdit = () => {
   isEditing.value = false;
   editingId.value = null;
-  formData.value = { name: '', price: '', description: '', image: '', categoryId: '', status: true };
+  formData.value = { name: '', price: '', description: '', image: '', categoryId: '', status: true, taxRate: 8 };
 };
 
 const saveProduct = async () => {
@@ -178,6 +186,7 @@ const saveProduct = async () => {
     description: formData.value.description,
     image: formData.value.image,
     status: formData.value.status,
+    taxRate: formData.value.taxRate,
     category: { id: formData.value.categoryId }
   };
 

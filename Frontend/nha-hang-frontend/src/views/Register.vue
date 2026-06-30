@@ -1,11 +1,15 @@
 <template>
   <div class="register-page">
+    <router-link to="/" class="g-back-btn-floating">
+      <span>←</span> Về Trang Chủ
+    </router-link>
+    
     <!-- Left Panel -->
     <div class="register-visual">
       <div class="visual-overlay"></div>
       <div class="visual-content">
         <div class="visual-badge">✦ GIA NHẬP MỘC VỊ</div>
-        <h1>Tạo tài khoản<br><span>miễn phí</span></h1>
+        <h1 class="text-gradient">Tạo tài khoản<br><span>miễn phí</span></h1>
         <p>Đăng ký để đặt bàn, gọi món, tích điểm và nhận nhiều ưu đãi hấp dẫn.</p>
         
         <div class="benefits-list">

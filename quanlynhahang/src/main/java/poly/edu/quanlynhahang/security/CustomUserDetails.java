@@ -44,6 +44,12 @@ public class CustomUserDetails implements UserDetails {
         else if (username.equals("pv1") && authorities.stream().noneMatch(a -> a.getAuthority().equals("ROLE_WAITER"))) {
             authorities.add(new SimpleGrantedAuthority("ROLE_WAITER"));
         }
+        else if (username.equals("tn1") && authorities.stream().noneMatch(a -> a.getAuthority().equals("ROLE_CASHIER"))) {
+            authorities.add(new SimpleGrantedAuthority("ROLE_CASHIER"));
+        }
+        else if (username.equals("ql1") && authorities.stream().noneMatch(a -> a.getAuthority().equals("ROLE_MANAGER"))) {
+            authorities.add(new SimpleGrantedAuthority("ROLE_MANAGER"));
+        }
         else if (username.equals("admin") && authorities.stream().noneMatch(a -> a.getAuthority().equals("ROLE_ADMIN"))) {
             authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
         }

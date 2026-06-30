@@ -1,11 +1,15 @@
 <template>
   <div class="login-page">
+    <router-link to="/" class="g-back-btn-floating">
+      <span>←</span> Về Trang Chủ
+    </router-link>
+    
     <!-- Left Panel - Visual -->
     <div class="login-visual">
       <div class="visual-overlay"></div>
       <div class="visual-content">
         <div class="visual-badge">✦ NHÀ HÀNG MỘC VỊ — ĐÀ NẴNG</div>
-        <h1>Chào mừng<br>trở lại<span>.</span></h1>
+        <h1 class="text-gradient">Chào mừng<br>trở lại<span>.</span></h1>
         <p>Đăng nhập để trải nghiệm ẩm thực tuyệt vời và quản lý đơn hàng của bạn.</p>
         
         <!-- Floating cards -->
@@ -146,40 +150,23 @@ const handleLogin = async () => {
     const res = await api.post('/api/auth/login', form.value)
 
     localStorage.setItem('token', res.data.token)
-
-    let userRoles = res.data.roles
-    if (res.data.username === 'bep1') {
-      userRoles = ['ROLE_KITCHEN']
-    } else if (res.data.username === 'pv1') {
-      userRoles = ['ROLE_WAITER']
-    } else if (res.data.username === 'admin') {
-      userRoles = ['ROLE_ADMIN']
-    }
-
     localStorage.setItem('user', JSON.stringify({
       username: res.data.username,
-      roles: userRoles
+      roles: res.data.roles
     }))
 
     toast.success(`Chào mừng ${res.data.username}!`, 'Đăng nhập thành công')
 
-    // Redirect theo vai trò
+    // Khách hàng luôn redirect về trang chủ
     setTimeout(() => {
-      if (userRoles.includes('ROLE_KITCHEN')) {
-        window.location.href = '/kitchen'
-      } else if (userRoles.includes('ROLE_WAITER')) {
-        window.location.href = '/waiter'
-      } else if (userRoles.includes('ROLE_CASHIER')) {
-        window.location.href = '/cashier'
-      } else if (userRoles.includes('ROLE_ADMIN') || userRoles.includes('ROLE_MANAGER')) {
-        window.location.href = '/admin'
-      } else {
-        window.location.href = '/'
-      }
+      window.location.href = '/'
     }, 800)
 
   } catch (error) {
-    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+    if (error.response && error.response.status === 403) {
+      // Nhân viên nhầm trang đăng nhập
+      errorMsg.value = error.response.data || 'Vui lòng sử dụng trang đăng nhập dành cho nhân viên.'
+    } else if (error.response && error.response.status === 401) {
       errorMsg.value = 'Sai tài khoản hoặc mật khẩu!'
     } else if (error.request) {
       errorMsg.value = 'Không thể kết nối Server. Vui lòng kiểm tra Backend.'

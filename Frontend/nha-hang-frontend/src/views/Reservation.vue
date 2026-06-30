@@ -4,8 +4,13 @@
     
 
     <main class="content-wrap">
+      <div style="margin-bottom: 20px; width: 100%; max-width: 800px; display: flex;">
+        <button @click="$router.back()" class="lux-btn-outline" style="border-radius: 100px; padding: 8px 20px;">
+          ← Quay Lại
+        </button>
+      </div>
       <div class="booking-card">
-        <h1 class="elegant-title">RESERVATION</h1>
+        <h1 class="elegant-title text-gradient">RESERVATION</h1>
         <p class="elegant-subtitle">Trải nghiệm không gian ẩm thực thượng lưu</p>
 
         <div class="step-progress">
@@ -34,9 +39,13 @@
           <div v-else-if="step === 2" class="step-panel">
             <h3 class="panel-title">Sơ đồ bàn khả dụng</h3>
             <div class="floor-tabs">
-              <button :class="{'active': selectedFloor === 'Tầng 2'}" @click="selectedFloor = 'Tầng 2'">Tầng 2 (VIP)</button>
-              <button :class="{'active': selectedFloor === 'Tầng 3'}" @click="selectedFloor = 'Tầng 3'">Tầng 3 (Standard)</button>
-              <button :class="{'active': selectedFloor === 'Sân thượng'}" @click="selectedFloor = 'Sân thượng'">Rooftop</button>
+              <button 
+                v-for="floor in uniqueFloors" 
+                :key="floor"
+                :class="{'active': selectedFloor === floor}" 
+                @click="selectedFloor = floor">
+                {{ floor }}
+              </button>
             </div>
 
             <div class="table-grid-lux">
@@ -71,6 +80,44 @@
             </div>
 
             <div v-if="showMenu" class="menu-preorder">
+              <!-- AI Suggestion Section -->
+              <div class="ai-suggestion-box">
+                <div class="ai-header">
+                  <h3>🤖 Smart Suggestion</h3>
+                  <span class="ai-badge">AI Gợi Ý</span>
+                </div>
+                
+                <div v-if="aiCombo.length === 0 && !isFetchingAI">
+                  <p class="ai-desc">Để đưa ra gợi ý hợp lý nhất, bạn đi mấy người?</p>
+                  <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <input type="number" v-model="partySize" min="1" placeholder="Nhập số người" class="form-control lux-input" style="width: 150px; background: rgba(0,0,0,0.2); color: white;" />
+                    <button class="lux-btn" style="padding: 10px; border-radius: 6px;" @click="fetchComboForParty">Nhận gợi ý</button>
+                  </div>
+                </div>
+                <div v-else-if="isFetchingAI">
+                  <p class="ai-desc">Đang phân tích và thiết kế thực đơn cho {{ partySize }} người...</p>
+                </div>
+                <div v-else>
+                  <p class="ai-desc">{{ aiRecommendationReason }}</p>
+                  
+                  <div class="combo-grid">
+                    <div v-for="product in aiCombo" :key="'ai-'+product.id" class="combo-item" style="display: flex; gap:10px; align-items:center; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; margin-bottom: 5px;">
+                      <img :src="product.image || 'https://via.placeholder.com/100'" alt="food" style="width: 50px; height: 50px; border-radius: 6px; object-fit: cover;" />
+                      <div class="product-info" style="flex:1;">
+                        <h4 style="margin:0; font-size: 1rem;">{{ product.name }} <span v-if="product.suggestedQuantity > 1" style="color: var(--primary);">x{{product.suggestedQuantity}}</span></h4>
+                        <p class="price" style="margin:0; color: #bbb;">{{ product.price.toLocaleString() }}đ</p>
+                      </div>
+                      <button class="lux-btn" style="padding: 5px 15px; border-radius:6px; min-width: auto;" @click="addToPreOrder(product, product.suggestedQuantity || 1)">Thêm</button>
+                    </div>
+                  </div>
+                  <div class="ai-action" style="display: flex; gap: 10px; justify-content: center; margin-top: 15px;">
+                    <button class="lux-btn" @click="addComboToCart">🛒 Thêm Cả Combo</button>
+                    <button class="lux-btn-outline" @click="aiCombo = []">Thử lại</button>
+                  </div>
+                </div>
+              </div>
+
+              <h4 style="margin: 20px 0 10px; color: var(--primary);">Thực Đơn Đầy Đủ</h4>
               <div class="menu-list">
                 <div v-for="p in products" :key="p.id" class="menu-item-lux" v-show="p.status !== false">
                   <img :src="p.image" />
@@ -84,8 +131,20 @@
               <div class="cart-lux" v-if="preOrderCart.length > 0">
                 <h4>Giỏ Hàng</h4>
                 <div v-for="(item, idx) in preOrderCart" :key="idx" class="c-item">
-                  <span>{{ item.name }} (x{{ item.quantity }})</span>
-                  <span @click="preOrderCart.splice(idx,1)" class="del">✖</span>
+                  <div style="flex: 1; min-width: 0;">
+                    <span style="font-weight: 600;">{{ item.name }}</span>
+                    <div style="font-size: 0.85rem; color: var(--primary); font-weight: 700;">{{ (item.price * item.quantity).toLocaleString() }}đ</div>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+                    <button @click="decreasePreOrderQty(idx)" class="qty-btn-rsv qty-minus-rsv">−</button>
+                    <span style="min-width: 24px; text-align: center; font-weight: 800;">{{ item.quantity }}</span>
+                    <button @click="increasePreOrderQty(idx)" class="qty-btn-rsv qty-plus-rsv">+</button>
+                    <button @click="preOrderCart.splice(idx,1)" class="del">✖</button>
+                  </div>
+                </div>
+                <div style="font-size: 0.9rem; margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px; margin-bottom: 10px;">
+                  <p style="margin: 0 0 5px 0;">Tạm tính: {{ foodSubtotal.toLocaleString() }}đ</p>
+                  <p style="margin: 0;">Thuế GTGT: {{ foodTax.toLocaleString() }}đ</p>
                 </div>
                 <button @click="step = 4" class="lux-btn block-btn mt-10">THANH TOÁN: {{ foodTotal.toLocaleString() }}đ</button>
               </div>
@@ -141,17 +200,32 @@ const form = ref({ date: '', time: '', phone: '', txCode: '' });
 
 const tablesList = ref([]);
 const products = ref([]);
-const selectedFloor = ref('Tầng 2');
+const selectedFloor = ref('');
 const selectedTable = ref(null);
 const preOrderCart = ref([]);
 const userRoles = ref([]);
+
+const aiCombo = ref([]);
+const aiRecommendationReason = ref('');
+const partySize = ref('');
+const isFetchingAI = ref(false);
 
 const isAdminOrManager = computed(() => {
   return userRoles.value.includes('ROLE_ADMIN') || userRoles.value.includes('ROLE_MANAGER');
 });
 
-const foodTotal = computed(() => preOrderCart.value.reduce((total, item) => total + (item.price * item.quantity), 0));
+const foodSubtotal = computed(() => preOrderCart.value.reduce((total, item) => total + (item.price * item.quantity), 0));
+const foodTax = computed(() => preOrderCart.value.reduce((total, item) => total + ((item.price * item.quantity) * (item.taxRate || 8) / 100), 0));
+const foodTotal = computed(() => foodSubtotal.value + foodTax.value);
 const finalPayAmount = computed(() => preOrderCart.value.length > 0 ? foodTotal.value : 500000);
+
+const uniqueFloors = computed(() => {
+  const floors = new Set();
+  tablesList.value.forEach(t => {
+    if (t.floor) floors.add(t.floor.trim());
+  });
+  return Array.from(floors).sort();
+});
 
 const filteredTables = computed(() => tablesList.value.filter(t => String(t.floor).trim() === String(selectedFloor.value).trim()));
 
@@ -177,15 +251,130 @@ const nextToTable = async () => {
   try {
     const res = await axios.get(`http://localhost:8080/api/tables/check-availability?date=${form.value.date}&time=${form.value.time}`);
     tablesList.value = res.data;
+    if (tablesList.value.length > 0 && uniqueFloors.value.length > 0) {
+      selectedFloor.value = uniqueFloors.value[0];
+    }
     step.value = 2;
   } catch (err) { alert("Lỗi tải sơ đồ bàn!"); }
 };
 
 const selectTable = (table) => { if (table.isOccupied === 0) selectedTable.value = table; };
 
-const addToPreOrder = (p) => {
+const fetchComboForParty = async () => {
+  if (!partySize.value || partySize.value < 1) {
+    alert("Vui lòng nhập số người hợp lệ!");
+    return;
+  }
+  isFetchingAI.value = true;
+  try {
+    const wRes = await axios.get('https://api.open-meteo.com/v1/forecast?latitude=16.0678&longitude=108.2208&current_weather=true');
+    const weather = wRes.data.current_weather;
+    const weatherCode = weather.weathercode;
+    let weatherStr = `Trời quang, nhiệt độ ${weather.temperature}°C`;
+    if (weatherCode >= 50 && weatherCode <= 69) weatherStr = `Trời đang mưa lất phất, nhiệt độ ${weather.temperature}°C`;
+    else if (weatherCode >= 70) weatherStr = `Trời mưa to/tuyết, nhiệt độ ${weather.temperature}°C`;
+    else if (weather.temperature > 30) weatherStr = `Trời nắng nóng, nhiệt độ ${weather.temperature}°C`;
+
+    const activeProds = products.value.filter(p => p.status !== false);
+    const menuStr = activeProds.map(p => `${p.id}-${p.name}`).join(', ');
+    const message = `Khách đi ${partySize.value} người. Thời tiết hiện tại: ${weatherStr}`;
+    
+    const aiRes = await axios.post('http://localhost:8080/api/chatbot/chat', {
+      type: 'COMBO_RECOMMEND',
+      message: message,
+      menu: menuStr
+    });
+
+    let reply = aiRes.data.reply;
+    reply = reply.replace(/```json/g, '').replace(/```/g, '').trim();
+    
+    if (!reply.startsWith('[') && !reply.startsWith('{')) {
+      throw new Error("AI trả về định dạng không hợp lệ: " + reply);
+    }
+    
+    const suggestions = JSON.parse(reply);
+
+    aiCombo.value = suggestions.map(s => {
+      const p = activeProds.find(prod => prod.id == s.id);
+      if (p) return { ...p, suggestedQuantity: s.quantity || 1 };
+      return null;
+    }).filter(p => p != null);
+    
+    if(suggestions.length > 0) aiRecommendationReason.value = suggestions[0].reason;
+
+  } catch(e) {
+    console.error("Lỗi AI Recommend:", e);
+    const activeProds = products.value.filter(p => p.status !== false);
+    if (activeProds.length >= 2) {
+      let pSize = parseInt(partySize.value) || 2;
+      
+      // Phân loại món ăn và nước uống
+      let drinks = activeProds.filter(p => p.category && (p.category.name.toLowerCase().includes('nước') || p.category.name.toLowerCase().includes('uống') || p.category.name.toLowerCase().includes('trà') || p.category.name.toLowerCase().includes('cafe')));
+      let foods = activeProds.filter(p => !p.category || (!p.category.name.toLowerCase().includes('nước') && !p.category.name.toLowerCase().includes('uống') && !p.category.name.toLowerCase().includes('trà') && !p.category.name.toLowerCase().includes('cafe')));
+      
+      // Số món ăn khác nhau: ceil(số người * 0.7), tối thiểu 2, tối đa số món có sẵn
+      let numFoodTypes = Math.max(2, Math.ceil(pSize * 0.7));
+      numFoodTypes = Math.min(numFoodTypes, foods.length);
+      
+      // Chọn ngẫu nhiên các món ăn khác nhau
+      let shuffledFoods = [...foods].sort(() => Math.random() - 0.5);
+      let selectedFoods = shuffledFoods.slice(0, numFoodTypes);
+      
+      // Chọn 1-2 loại nước uống khác nhau
+      let numDrinkTypes = Math.min(Math.max(1, Math.ceil(pSize / 3)), drinks.length || 1);
+      let shuffledDrinks = [...drinks].sort(() => Math.random() - 0.5);
+      let selectedDrinks = shuffledDrinks.slice(0, numDrinkTypes);
+      
+      // Tính số lượng mỗi món
+      let combo = [];
+      selectedFoods.forEach((food, idx) => {
+        // Chia đều số lượng cho các món, mỗi món ít nhất 1 phần
+        let qty = idx === 0 ? Math.ceil(pSize / numFoodTypes) + 1 : Math.ceil(pSize / numFoodTypes);
+        combo.push({ ...food, suggestedQuantity: Math.max(1, qty) });
+      });
+      
+      // Mỗi người 1 nước, chia đều cho các loại nước
+      let drinksPerType = Math.ceil(pSize / numDrinkTypes);
+      selectedDrinks.forEach(drink => {
+        combo.push({ ...drink, suggestedQuantity: drinksPerType });
+      });
+      
+      // Nếu không có nước riêng, chọn bất kỳ sản phẩm nào chưa được chọn
+      if (selectedDrinks.length === 0 && activeProds.length > numFoodTypes) {
+        let remaining = activeProds.filter(p => !selectedFoods.find(f => f.id === p.id));
+        if (remaining.length > 0) {
+          combo.push({ ...remaining[0], suggestedQuantity: pSize });
+        }
+      }
+
+      aiCombo.value = combo;
+      aiRecommendationReason.value = `(Hệ thống AI đang bảo trì) Gợi ý Combo dự phòng ${combo.length} món đa dạng cho ${pSize} người (Gồm ${selectedFoods.length} món ăn + ${selectedDrinks.length || 1} loại nước uống).`;
+    }
+  } finally {
+    isFetchingAI.value = false;
+  }
+};
+
+const addComboToCart = () => {
+  aiCombo.value.forEach(p => addToPreOrder(p, p.suggestedQuantity || 1));
+  alert('Đã thêm combo vào giỏ hàng!');
+};
+
+const addToPreOrder = (p, qty = 1) => {
   const ex = preOrderCart.value.find(i => i.productId === p.id);
-  if (ex) ex.quantity++; else preOrderCart.value.push({ productId: p.id, name: p.name, price: p.price, quantity: 1 });
+  if (ex) ex.quantity += qty; else preOrderCart.value.push({ productId: p.id, name: p.name, price: p.price, quantity: qty, taxRate: p.taxRate || 8 });
+};
+
+const increasePreOrderQty = (idx) => {
+  preOrderCart.value[idx].quantity++;
+};
+
+const decreasePreOrderQty = (idx) => {
+  if (preOrderCart.value[idx].quantity > 1) {
+    preOrderCart.value[idx].quantity--;
+  } else {
+    preOrderCart.value.splice(idx, 1);
+  }
 };
 
 const submitReservation = async () => {
@@ -199,8 +388,11 @@ const submitReservation = async () => {
   const formattedItems = preOrderCart.value.map(i => ({ productId: i.productId, quantity: i.quantity }));
 
   try {
-    await axios.post('http://localhost:8080/api/orders/checkout', { address: infoFull, items: formattedItems }, 
-    { headers: { 'Authorization': `Bearer ${token}` } });
+    await axios.post('http://localhost:8080/api/orders/checkout', { 
+      address: infoFull, 
+      items: formattedItems,
+      deposit: finalPayAmount.value 
+    }, { headers: { 'Authorization': `Bearer ${token}` } });
     alert("🎉 Cảm ơn quý khách! Bàn đã được đặt thành công.");
     router.push('/history'); 
   } catch (error) { alert("Lỗi đặt bàn!"); }
@@ -240,7 +432,7 @@ const submitReservation = async () => {
 }
 .btn-rsv-nav:hover { border-color: var(--primary); color: var(--primary); background: rgba(0,212,170,0.1); }
 
-.content-wrap { display: flex; justify-content: center; align-items: center; min-height: 80vh; padding: 40px 20px; }
+.content-wrap { display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 80vh; padding: 40px 20px; }
 .booking-card { background: var(--bg-card); max-width: 800px; width: 100%; border-radius: 15px; padding: 40px; box-shadow: var(--shadow-lg); border: 1px solid var(--border-light); }
 .elegant-title { text-align: center; color: var(--primary); font-size: 2.5rem; margin-bottom: 5px; font-weight: 900; letter-spacing: 2px;}
 .elegant-subtitle { text-align: center; color: var(--text-secondary); margin-bottom: 30px;}
@@ -285,6 +477,21 @@ const submitReservation = async () => {
 
 .menu-preorder { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-top: 20px;}
 .menu-list { max-height: 350px; overflow-y: auto; padding-right: 10px;}
+.btn-group { display: flex; gap: 15px; margin-top: 30px; }
+
+/* AI Suggestion Styles */
+.ai-suggestion-box {
+  background: rgba(13, 27, 42, 0.6);
+  border: 1px solid rgba(0, 255, 170, 0.2);
+  border-radius: 12px;
+  padding: 15px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 15px rgba(0, 255, 170, 0.05);
+}
+.ai-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.ai-header h3 { margin: 0; font-size: 1.1rem; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+.ai-badge { background: var(--primary); color: var(--bg-dark); font-size: 0.75rem; font-weight: bold; padding: 3px 8px; border-radius: 12px; }
+.ai-desc { font-size: 0.9rem; color: #ccc; margin-bottom: 10px; font-style: italic; }
 .menu-item-lux { display: flex; gap: 15px; margin-bottom: 15px; border-bottom: 1px dashed var(--border); padding-bottom: 10px; align-items: center;}
 .menu-item-lux img { width: 60px; height: 60px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border);}
 .menu-item-lux .info h5 { margin: 0 0 5px 0; font-size: 1rem; color: var(--text-heading);}
@@ -293,8 +500,18 @@ const submitReservation = async () => {
 .add-btn:hover { background: var(--primary); color: var(--bg-dark); }
 .cart-lux { background: var(--bg-card2); padding: 15px; border-radius: 10px; border: 1px solid var(--border);}
 .cart-lux h4 { margin-top: 0; border-bottom: 1px dashed var(--border); padding-bottom: 10px; color: var(--text-heading);}
-.c-item { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 8px; color: var(--text-primary);}
-.del { color: #e74c3c; cursor: pointer; font-size: 0.8rem;}
+.c-item { display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; margin-bottom: 8px; color: var(--text-primary); padding: 6px 0; border-bottom: 1px dashed rgba(255,255,255,0.06);}
+.del { color: #e74c3c; cursor: pointer; font-size: 0.8rem; background: none; border: none; margin-left: 4px; transition: 0.2s; }
+.del:hover { color: #ff6b6b; }
+.qty-btn-rsv {
+  width: 28px; height: 28px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--bg-input);
+  color: var(--text-primary); font-size: 1rem; font-weight: 700;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s ease;
+}
+.qty-btn-rsv:hover { border-color: var(--primary); color: var(--primary); background: rgba(0,212,170,0.1); }
+.qty-minus-rsv:hover { border-color: #e74c3c; color: #e74c3c; background: rgba(231,76,60,0.1); }
 
 .payment-box-lux { display: flex; gap: 30px; background: var(--bg-card2); padding: 20px; border-radius: 10px; border: 1px solid var(--border);}
 .p-info { flex: 1;}

@@ -48,22 +48,71 @@ public class AuthController {
     @Autowired
     private AuthorityRepository authorityRepository;
 
-    // API 1: ĐĂNG NHẬP
+    // Danh sách các role nhân sự (dùng chung cho cả 2 endpoint)
+    private static final List<String> STAFF_ROLES = List.of(
+        "ROLE_ADMIN", "ROLE_MANAGER", "ROLE_KITCHEN", "ROLE_WAITER", "ROLE_CASHIER"
+    );
+
+    // API 1: ĐĂNG NHẬP KHÁCH HÀNG (Chặn nhân sự)
     @PostMapping("/login")
-    public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest) {
+    public ResponseEntity<?> customerLogin(@RequestBody LoginRequest loginRequest) {
+        try {
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
 
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
+            SecurityContextHolder.getContext().setAuthentication(authentication);
 
-        SecurityContextHolder.getContext().setAuthentication(authentication);
+            String jwt = jwtUtils.generateJwtToken(authentication);
+            
+            List<String> roles = authentication.getAuthorities().stream()
+                    .map(item -> item.getAuthority())
+                    .collect(Collectors.toList());
 
-        String jwt = jwtUtils.generateJwtToken(authentication);
-        
-        List<String> roles = authentication.getAuthorities().stream()
-                .map(item -> item.getAuthority())
-                .collect(Collectors.toList());
+            // 🛡️ CHẶN: Nếu tài khoản có role nhân sự → không cho đăng nhập ở cổng khách hàng
+            if (roles.stream().anyMatch(STAFF_ROLES::contains)) {
+                SecurityContextHolder.clearContext();
+                return ResponseEntity.status(403)
+                    .body("Vui lòng sử dụng trang đăng nhập dành cho nhân viên.");
+            }
 
-        return ResponseEntity.ok(new JwtResponse(jwt, loginRequest.getUsername(), roles));
+            // Lấy thông tin phụ của user
+            Account acc = accountRepository.findById(loginRequest.getUsername()).orElse(new Account());
+
+            return ResponseEntity.ok(new JwtResponse(jwt, loginRequest.getUsername(), roles, acc.getAssignedArea(), acc.getShift()));
+        } catch (org.springframework.security.authentication.BadCredentialsException e) {
+            return ResponseEntity.status(401).body("Sai tài khoản hoặc mật khẩu.");
+        }
+    }
+
+    // API 1B: ĐĂNG NHẬP NHÂN SỰ / ADMIN (Chặn khách hàng)
+    @PostMapping("/staff/login")
+    public ResponseEntity<?> staffLogin(@RequestBody LoginRequest loginRequest) {
+        try {
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
+
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+
+            String jwt = jwtUtils.generateJwtToken(authentication);
+            
+            List<String> roles = authentication.getAuthorities().stream()
+                    .map(item -> item.getAuthority())
+                    .collect(Collectors.toList());
+
+            // 🛡️ CHẶN: Nếu tài khoản KHÔNG có role nhân sự → không cho đăng nhập ở cổng quản trị
+            if (roles.stream().noneMatch(STAFF_ROLES::contains)) {
+                SecurityContextHolder.clearContext();
+                return ResponseEntity.status(403)
+                    .body("Tài khoản không có quyền truy cập hệ thống quản trị.");
+            }
+
+            // Lấy thông tin phụ của user
+            Account acc = accountRepository.findById(loginRequest.getUsername()).orElse(new Account());
+
+            return ResponseEntity.ok(new JwtResponse(jwt, loginRequest.getUsername(), roles, acc.getAssignedArea(), acc.getShift()));
+        } catch (org.springframework.security.authentication.BadCredentialsException e) {
+            return ResponseEntity.status(401).body("Sai tài khoản hoặc mật khẩu nội bộ.");
+        }
     }
 
     // API 2: ĐĂNG KÝ TÀI KHOẢN MỚI

@@ -37,6 +37,18 @@ public class Order {
     // Trạng thái đơn hàng: 0 - Chờ xác nhận, 1 - Đang làm món, 2 - Đã giao, 3 - Đã hủy
     private Integer status = 0;
 
+    @Column(name = "sub_total")
+    private Double subTotal = 0.0;
+
+    @Column(name = "tax_amount")
+    private Double taxAmount = 0.0;
+
+    @Column(name = "total_amount")
+    private Double totalAmount = 0.0;
+
+    @Column(name = "deposit")
+    private Double deposit = 0.0;
+
     // Khóa ngoại liên kết với bảng Account (người đặt hàng)
     @ManyToOne
     @JoinColumn(name = "username")

@@ -19,6 +19,12 @@ public class OrderDetail {
     private Integer id;
 
     private Double price;
+
+    @jakarta.persistence.Column(name = "tax_rate", columnDefinition = "FLOAT DEFAULT 8.0")
+    private Double taxRate = 8.0;
+
+    @jakarta.persistence.Column(name = "tax_amount", columnDefinition = "FLOAT DEFAULT 0.0")
+    private Double taxAmount = 0.0;
     
     private Integer quantity;
 

@@ -26,6 +26,7 @@ import poly.edu.quanlynhahang.entity.Ingredient;
 import poly.edu.quanlynhahang.entity.IngredientBatch;
 import poly.edu.quanlynhahang.repository.IngredientRepository;
 import poly.edu.quanlynhahang.repository.IngredientBatchRepository;
+import poly.edu.quanlynhahang.service.ActivityLogService;
 
 @CrossOrigin("*")
 @RestController
@@ -38,6 +39,9 @@ public class IngredientController {
 
     @Autowired
     private IngredientBatchRepository ingredientBatchRepository;
+
+    @Autowired
+    private ActivityLogService activityLogService;
 
     // 1. Lấy tất cả nguyên liệu
     @GetMapping
@@ -52,7 +56,10 @@ public class IngredientController {
     public ResponseEntity<?> create(@RequestBody Ingredient ingredient) {
         if (ingredient.getQuantity() == null) ingredient.setQuantity(0.0);
         if (ingredient.getMinStock() == null) ingredient.setMinStock(5.0);
-        return ResponseEntity.ok(ingredientRepository.save(ingredient));
+        Ingredient saved = ingredientRepository.save(ingredient);
+        activityLogService.log("CREATE", "Ingredient", String.valueOf(saved.getId()),
+                "Thêm nguyên liệu mới: " + saved.getName() + " (" + saved.getUnit() + ")");
+        return ResponseEntity.ok(saved);
     }
 
     // 3. Cập nhật nguyên liệu
@@ -62,6 +69,7 @@ public class IngredientController {
         var ingOpt = ingredientRepository.findById(id);
         if (ingOpt.isPresent()) {
             Ingredient ing = ingOpt.get();
+            String oldInfo = ing.getName() + " | minStock: " + ing.getMinStock() + " | unitPrice: " + ing.getUnitPrice();
             ing.setName(details.getName());
             ing.setUnit(details.getUnit());
             ing.setMinStock(details.getMinStock());
@@ -72,7 +80,11 @@ public class IngredientController {
             if (details.getShelfLifeDays() != null) {
                 ing.setShelfLifeDays(details.getShelfLifeDays());
             }
-            return ResponseEntity.ok(ingredientRepository.save(ing));
+            Ingredient saved = ingredientRepository.save(ing);
+            String newInfo = saved.getName() + " | minStock: " + saved.getMinStock() + " | unitPrice: " + saved.getUnitPrice();
+            activityLogService.log("UPDATE", "Ingredient", String.valueOf(id),
+                    "Cập nhật nguyên liệu: " + saved.getName(), oldInfo, newInfo);
+            return ResponseEntity.ok(saved);
         }
         return ResponseEntity.badRequest().body("Không tìm thấy nguyên liệu!");
     }
@@ -175,7 +187,10 @@ public class IngredientController {
         if (!ingredientRepository.existsById(id)) {
             return ResponseEntity.badRequest().body("Không tìm thấy nguyên liệu!");
         }
+        String name = ingredientRepository.findById(id).map(Ingredient::getName).orElse("#" + id);
         ingredientRepository.deleteById(id);
+        activityLogService.log("DELETE", "Ingredient", String.valueOf(id),
+                "Xóa nguyên liệu: " + name);
         return ResponseEntity.ok("Đã xóa nguyên liệu!");
     }
 

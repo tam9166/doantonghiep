@@ -8,5 +8,6 @@ import lombok.Data;
 public class OrderRequest {
     private String address;
     private String voucherCode;
+    private Double deposit;
     private List<OrderDetailRequest> items; // Danh sách các món ăn trong giỏ
 }

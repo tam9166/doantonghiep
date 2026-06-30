@@ -11,4 +11,6 @@ public interface RecipeRepository extends JpaRepository<Recipe, Integer> { // D�
     
     // Đã đổi tên hàm: Tìm công thức dựa vào nguyên một Object Product
     List<Recipe> findByProduct(Product product);
+
+    List<Recipe> findByIngredient(poly.edu.quanlynhahang.entity.Ingredient ingredient);
 }

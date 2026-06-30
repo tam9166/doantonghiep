@@ -36,6 +36,12 @@ public class Account {
     @Column(name = "membership_tier", columnDefinition = "nvarchar(50) default 'Đồng'")
     private String membershipTier = "Đồng";
 
+    @Column(name = "shift", columnDefinition = "nvarchar(50)")
+    private String shift;
+
+    @Column(name = "assigned_area", columnDefinition = "nvarchar(100)")
+    private String assignedArea;
+
     @JsonIgnore
     @OneToMany(mappedBy = "account", fetch = FetchType.EAGER)
     private List<Authority> authorities;

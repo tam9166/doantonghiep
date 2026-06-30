@@ -6,6 +6,22 @@
       <h1 class="page-title">Thực Đơn Giao Hàng</h1>
       <p class="page-subtitle">Chọn món ngon - Giao nóng hổi tận nhà</p>
 
+      <!-- Món ăn gợi ý -->
+      <div v-if="suggestedProducts.length > 0" class="suggested-section">
+        <h2 class="section-title"><span style="color: #f1c40f">🌟</span> Gợi Ý Cho Bạn</h2>
+        <div class="suggested-grid">
+          <div v-for="product in suggestedProducts" :key="'sugg-'+product.id" class="suggested-card">
+            <div class="sugg-badge">HOT</div>
+            <img :src="product.image || 'https://via.placeholder.com/150'" alt="food" />
+            <div class="sugg-info">
+              <h3>{{ product.name }}</h3>
+              <p class="price">{{ product.price.toLocaleString() }}đ</p>
+            </div>
+            <button v-if="!isAdminOrManager" class="btn-sugg-add" @click="addToCart(product)">Thêm Ngay</button>
+          </div>
+        </div>
+      </div>
+
       <div class="category-filter">
         <button :class="{'active': selectedCategory === null}" @click="selectedCategory = null">Tất cả món</button>
         <button v-for="c in categories" :key="c.id" :class="{'active': selectedCategory === c.id}" @click="selectedCategory = c.id">
@@ -60,7 +76,9 @@
             <h4 style="color: var(--primary); margin: 0 0 10px 0;">💳 Chuyển khoản qua VietQR</h4>
             <div style="display: flex; gap: 15px; align-items: center;">
               <div style="flex: 1;">
-                <p>Tổng tiền: <strong style="color: #ff4757; font-size: 1.2rem;">{{ cartTotal.toLocaleString() }}đ</strong></p>
+                <p style="margin-bottom: 5px;">Tạm tính: <strong>{{ cartSubtotal.toLocaleString() }}đ</strong></p>
+                <p style="margin-bottom: 5px;">Thuế GTGT: <strong>{{ cartTax.toLocaleString() }}đ</strong></p>
+                <p>Tổng thanh toán: <strong style="color: #ff4757; font-size: 1.2rem;">{{ cartTotal.toLocaleString() }}đ</strong></p>
                 <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; margin-top: 10px;">
                   <p>Ngân hàng: <strong>Vietcombank</strong></p>
                   <p>STK: <strong>1047187126</strong></p>
@@ -97,6 +115,7 @@ import { useRouter } from 'vue-router';
 import CustomerLayout from '@/components/CustomerLayout.vue';
 
 const products = ref([]);
+const suggestedProducts = ref([]);
 const categories = ref([]);
 const cart = ref([]);
 const router = useRouter();
@@ -113,9 +132,16 @@ const selectedCategory = ref(null);
 // Cập nhật orderInfo để bỏ paymentMethod, thêm fullname và txCode
 const orderInfo = ref({ fullname: '', phone: '', address: '', txCode: '' });
 
-// Tính tổng tiền giỏ hàng để hiện lên QR
-const cartTotal = computed(() => {
+const cartSubtotal = computed(() => {
   return cart.value.reduce((total, item) => total + (item.price * item.quantity), 0);
+});
+
+const cartTax = computed(() => {
+  return cart.value.reduce((total, item) => total + ((item.price * item.quantity) * (item.taxRate || 8) / 100), 0);
+});
+
+const cartTotal = computed(() => {
+  return cartSubtotal.value + cartTax.value;
 });
 
 const fetchProducts = async () => {
@@ -132,6 +158,22 @@ const fetchCategories = async () => {
   } catch (error) { console.error(error); }
 };
 
+const fetchSuggested = async () => {
+  try {
+    const token = localStorage.getItem('token');
+    const response = await axios.get('http://localhost:8080/api/admin/popular-items/products?limit=4', {
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+    });
+    // Lọc ra các món có isPopular = true hoặc lấy thẳng top 4
+    if (response.data && response.data.length > 0) {
+       // get full product info from id
+       suggestedProducts.value = response.data
+         .map(item => products.value.find(p => p.id === item.productId))
+         .filter(p => p != null).slice(0, 4);
+    }
+  } catch (error) { console.error('Lỗi lấy gợi ý:', error); }
+};
+
 const filteredProducts = computed(() => {
   const activeProducts = products.value.filter(p => p.status !== false);
   if (selectedCategory.value === null) return activeProducts;
@@ -143,7 +185,7 @@ const addToCart = (product) => {
   if (existing) {
     existing.quantity++;
   } else {
-    cart.value.push({ productId: product.id, quantity: 1, name: product.name, price: product.price });
+    cart.value.push({ productId: product.id, quantity: 1, name: product.name, price: product.price, taxRate: product.taxRate || 8 });
   }
   alert(`Đã thêm ${product.name} vào giỏ!`);
 };
@@ -179,9 +221,10 @@ const submitShipOrder = async () => {
   }
 };
 
-onMounted(() => {
-  fetchProducts();
-  fetchCategories();
+onMounted(async () => {
+  await fetchProducts();
+  await fetchCategories();
+  await fetchSuggested();
   const token = localStorage.getItem('token');
   if (token) isLoggedIn.value = true;
   
@@ -239,7 +282,22 @@ onMounted(() => {
 
 .menu-content { max-width: 1400px; margin: 60px auto; padding: 0 20px; text-align: center;}
 .page-title { font-size: 3rem; color: var(--text-heading); font-weight: 900; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; }
-.page-subtitle { color: var(--primary); font-size: 1.2rem; margin-bottom: 40px; font-weight: 600; }
+.page-subtitle { color: var(--primary); font-size: 1.2rem; margin-bottom: 30px; font-weight: 600; }
+
+.suggested-section { margin-bottom: 50px; text-align: left; background: rgba(241, 196, 15, 0.05); padding: 25px; border-radius: 20px; border: 1px solid rgba(241, 196, 15, 0.2); }
+.suggested-section .section-title { font-size: 1.8rem; margin-bottom: 20px; color: #f1c40f; font-weight: 900; }
+.suggested-grid { display: flex; gap: 20px; overflow-x: auto; padding-bottom: 15px; }
+.suggested-grid::-webkit-scrollbar { height: 8px; }
+.suggested-grid::-webkit-scrollbar-thumb { background: #f1c40f; border-radius: 10px; }
+.suggested-card { min-width: 250px; background: rgba(0,0,0,0.5); border-radius: 15px; padding: 15px; display: flex; flex-direction: column; position: relative; border: 1px solid rgba(241, 196, 15, 0.3); transition: 0.3s; }
+.suggested-card:hover { transform: translateY(-5px); box-shadow: 0 5px 15px rgba(241, 196, 15, 0.2); }
+.sugg-badge { position: absolute; top: -10px; right: -10px; background: #e74c3c; color: white; padding: 5px 10px; border-radius: 10px; font-weight: 900; font-size: 0.8rem; transform: rotate(10deg); box-shadow: 0 2px 10px rgba(231,76,60,0.5); }
+.suggested-card img { width: 100%; height: 140px; object-fit: cover; border-radius: 10px; margin-bottom: 15px; }
+.sugg-info { flex: 1; }
+.sugg-info h3 { margin: 0 0 5px 0; font-size: 1.1rem; color: white; }
+.sugg-info .price { color: #f1c40f; font-weight: bold; font-size: 1.2rem; margin: 0; }
+.btn-sugg-add { background: #f1c40f; color: #000; border: none; padding: 10px; border-radius: 8px; font-weight: bold; margin-top: 15px; cursor: pointer; transition: 0.3s; }
+.btn-sugg-add:hover { background: #fff; }
 
 .category-filter { display: flex; gap: 12px; justify-content: center; margin-bottom: 50px; flex-wrap: wrap; }
 .category-filter button {

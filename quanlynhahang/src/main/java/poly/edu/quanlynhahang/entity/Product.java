@@ -29,6 +29,9 @@ public class Product {
     @Column(nullable = false)
     private Double price;
 
+    @Column(name = "tax_rate", columnDefinition = "FLOAT DEFAULT 8.0")
+    private Double taxRate = 8.0;
+
     @Column(length = 255)
     private String image;
 

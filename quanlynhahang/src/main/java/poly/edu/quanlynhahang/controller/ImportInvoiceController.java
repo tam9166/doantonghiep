@@ -17,8 +17,9 @@ import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-
 import org.springframework.security.access.prepost.PreAuthorize;
+
+import poly.edu.quanlynhahang.service.ActivityLogService;
 
 @RestController
 @RequestMapping("/api/admin/import-invoices")
@@ -34,6 +35,9 @@ public class ImportInvoiceController {
 
     @Autowired
     private IngredientRepository ingredientRepository;
+
+    @Autowired
+    private ActivityLogService activityLogService;
 
     @GetMapping
     public ResponseEntity<List<ImportInvoice>> getAllInvoices() {
@@ -108,6 +112,10 @@ public class ImportInvoiceController {
         
         savedInvoice.setTotalAmount(totalAmount);
         importInvoiceRepository.save(savedInvoice);
+
+        activityLogService.log("CREATE", "ImportInvoice", String.valueOf(savedInvoice.getId()),
+                "Nhập kho mới #" + savedInvoice.getId() + " - NCC: " + request.getSupplier() +
+                " - Tổng: " + totalAmount + "đ");
 
         return ResponseEntity.ok(savedInvoice);
     }

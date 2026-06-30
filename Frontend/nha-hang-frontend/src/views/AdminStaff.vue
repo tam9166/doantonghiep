@@ -13,6 +13,7 @@
         <button :class="{ active: currentTab === 'staff' }" @click="currentTab = 'staff'">Tài Khoản Nhân Viên</button>
         <button :class="{ active: currentTab === 'customer' }" @click="currentTab = 'customer'">Khách Hàng</button>
         <button :class="{ active: currentTab === 'schedule' }" @click="currentTab = 'schedule'">Xếp Lịch Làm Việc</button>
+        <button :class="{ active: currentTab === 'zones' }" @click="currentTab = 'zones'; fetchZones()">📍 Phân Khu Vực Phục Vụ</button>
         <button :class="{ active: currentTab === 'timekeeping' }" @click="currentTab = 'timekeeping'">Báo Cáo Chấm Công</button>
         <button :class="{ active: currentTab === 'salary' }" @click="currentTab = 'salary'">Bảng Lương</button>
       </div>
@@ -33,6 +34,8 @@
               <th>Username</th>
               <th>Họ Tên</th>
               <th>Email</th>
+              <th>Ca Làm</th>
+              <th>Khu Vực</th>
               <th>Vị Trí (Role)</th>
               <th>Hành Động</th>
             </tr>
@@ -42,6 +45,8 @@
               <td>{{ staff.username }}</td>
               <td>{{ staff.fullname }}</td>
               <td>{{ staff.email }}</td>
+              <td>{{ staff.shift || 'N/A' }}</td>
+              <td>{{ staff.assignedArea || 'N/A' }}</td>
               <td>
                 <span class="role-badge" :class="staff.role">{{ translateRole(staff.role) }}</span>
               </td>
@@ -144,6 +149,100 @@
             </tr>
             <tr v-if="filteredScheduleList.length === 0">
               <td colspan="5" class="text-center">Không có lịch làm việc nào phù hợp.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- TAB: PHÂN KHU VỰC PHỤC VỤ -->
+      <div v-if="currentTab === 'zones'" class="tab-panel">
+        <div class="panel-header">
+          <h3>📍 Phân Công Khu Vực Phục Vụ Theo Tầng & Ca</h3>
+          <div style="display:flex; gap:15px; align-items:center;">
+            <div class="date-picker">
+              <label>Ngày: </label>
+              <input type="date" v-model="zoneDate" @change="fetchZones" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Form phân công -->
+        <div class="zone-form">
+          <select class="g-form-control" v-model="newZone.username" style="width: 200px;">
+            <option value="">-- Chọn nhân viên phục vụ --</option>
+            <option v-for="staff in waiterList" :key="staff.username" :value="staff.username">{{ staff.fullname }} ({{ staff.username }})</option>
+          </select>
+          <select class="g-form-control" v-model="newZone.floor" style="width: 220px;">
+            <option value="">-- Chọn tầng --</option>
+            <option v-for="f in floorList" :key="f" :value="f">{{ f }}</option>
+          </select>
+          <select class="g-form-control" v-model="newZone.shift" style="width: 150px;">
+            <option value="Sáng">Ca Sáng</option>
+            <option value="Chiều">Ca Chiều</option>
+            <option value="Tối">Ca Tối</option>
+          </select>
+          <label style="display:flex; align-items:center; gap:5px; font-weight:bold; color:var(--primary); white-space:nowrap;">
+            <input type="checkbox" v-model="zoneRepeatWeek" /> 7 ngày
+          </label>
+          <button class="g-btn-primary" @click="addZoneAssignment">📌 Phân Công</button>
+        </div>
+
+        <!-- Bản đồ khu vực: Ai phục vụ tầng nào -->
+        <div class="zone-map-section">
+          <h4 style="color:var(--primary); margin-bottom: 15px;">🗺️ Bản Đồ Phân Công Hôm Nay
+            <select v-model="zoneMapShift" @change="fetchZoneMap" style="margin-left:15px; padding:5px 10px; border-radius:6px; background:var(--bg-root); color:var(--text-heading); border:1px solid var(--border); font-weight:bold;">
+              <option value="">Tất cả ca</option>
+              <option value="Sáng">Ca Sáng</option>
+              <option value="Chiều">Ca Chiều</option>
+              <option value="Tối">Ca Tối</option>
+            </select>
+          </h4>
+          <div class="zone-map-grid">
+            <div v-for="(staffList2, floorName) in zoneMap" :key="floorName" class="zone-map-card">
+              <div class="zone-map-floor">
+                <span v-if="floorName.toLowerCase().includes('vip')">👑</span>
+                <span v-else-if="floorName.toLowerCase().includes('thượng')">☁️</span>
+                <span v-else>🏢</span>
+                {{ floorName }}
+              </div>
+              <div class="zone-map-staff">
+                <div v-for="s in staffList2" :key="s.username" class="zone-staff-chip">
+                  <span class="zone-chip-avatar">👤</span>
+                  <div>
+                    <div class="zone-chip-name">{{ s.fullname }}</div>
+                    <div class="zone-chip-shift">Ca {{ s.shift }}</div>
+                  </div>
+                </div>
+                <div v-if="staffList2.length === 0" style="color:var(--text-muted); font-style:italic; padding:10px;">Chưa phân công</div>
+              </div>
+            </div>
+            <div v-if="Object.keys(zoneMap).length === 0" style="grid-column: 1 / -1; text-align:center; color:var(--text-muted); padding:40px;">
+              Chưa có phân công nào cho ngày này. Hãy sử dụng form bên trên để phân công.
+            </div>
+          </div>
+        </div>
+
+        <!-- Bảng chi tiết phân công -->
+        <table class="data-table mt-20">
+          <thead>
+            <tr>
+              <th>Ngày</th>
+              <th>Ca Làm</th>
+              <th>Tầng / Khu Vực</th>
+              <th>Nhân Viên</th>
+              <th>Hành Động</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="zone in zoneList" :key="zone.id">
+              <td>{{ new Date(zone.workDate).toLocaleDateString('vi-VN') }}</td>
+              <td><span class="shift-badge" :class="'shift-' + zone.shift">{{ zone.shift }}</span></td>
+              <td><strong>{{ zone.floor }}</strong></td>
+              <td>{{ zone.account.fullname }} ({{ zone.account.username }})</td>
+              <td><button class="g-btn-danger" @click="deleteZoneAssignment(zone.id)">Xóa</button></td>
+            </tr>
+            <tr v-if="zoneList.length === 0">
+              <td colspan="5" class="text-center">Chưa có phân công khu vực nào cho ngày này.</td>
             </tr>
           </tbody>
         </table>
@@ -259,6 +358,19 @@
             <option value="ROLE_MANAGER">Quản Lý (Manager)</option>
           </select>
         </div>
+        <div class="form-group" v-if="newStaff.role === 'ROLE_WAITER'">
+          <label>Ca Làm Mặc Định</label>
+          <select class="g-form-control" v-model="newStaff.shift">
+            <option value="">-- Chọn Ca --</option>
+            <option value="Sáng">Sáng</option>
+            <option value="Chiều">Chiều</option>
+            <option value="Tối">Tối</option>
+          </select>
+        </div>
+        <div class="form-group" v-if="newStaff.role === 'ROLE_WAITER'">
+          <label>Khu Vực Phục Vụ</label>
+          <input type="text" class="g-form-control" v-model="newStaff.assignedArea" placeholder="Vd: Tầng 1, Tầng 2..." />
+        </div>
         <div class="modal-actions" style="margin-top: 20px; text-align: right;">
           <button class="g-btn-danger" style="margin-right: 10px;" @click="showAddModal = false">Hủy</button>
           <button class="g-btn-primary" @click="createStaff">Xác Nhận</button>
@@ -295,6 +407,19 @@
             <option value="ROLE_MANAGER">Quản Lý (Manager)</option>
             <option value="ROLE_ADMIN" v-if="editStaff.role === 'ROLE_ADMIN'">Admin</option>
           </select>
+        </div>
+        <div class="form-group" v-if="editStaff.role === 'ROLE_WAITER'">
+          <label>Ca Làm Mặc Định</label>
+          <select class="g-form-control" v-model="editStaff.shift">
+            <option value="">-- Chọn Ca --</option>
+            <option value="Sáng">Sáng</option>
+            <option value="Chiều">Chiều</option>
+            <option value="Tối">Tối</option>
+          </select>
+        </div>
+        <div class="form-group" v-if="editStaff.role === 'ROLE_WAITER'">
+          <label>Khu Vực Phục Vụ</label>
+          <input type="text" class="g-form-control" v-model="editStaff.assignedArea" placeholder="Vd: Tầng 1, Tầng 2..." />
         </div>
         <div class="modal-actions" style="margin-top: 20px; text-align: right;">
           <button class="g-btn-danger" style="margin-right: 10px;" @click="showEditModal = false">Đóng</button>
@@ -502,10 +627,10 @@ const filteredTimekeepingList = computed(() => {
 });
 
 const showAddModal = ref(false);
-const newStaff = ref({ username: '', password: '', fullname: '', email: '', role: 'ROLE_WAITER' });
+const newStaff = ref({ username: '', password: '', fullname: '', email: '', role: 'ROLE_WAITER', shift: '', assignedArea: '' });
 
 const showEditModal = ref(false);
-const editStaff = ref({ username: '', password: '', fullname: '', email: '', role: '' });
+const editStaff = ref({ username: '', password: '', fullname: '', email: '', role: '', shift: '', assignedArea: '' });
 
 // Lấy ngày hôm nay định dạng yyyy-MM-dd
 const todayStr = new Date().toISOString().split('T')[0];
@@ -628,7 +753,7 @@ const createStaff = async () => {
     await axios.post(`http://localhost:8080/api/admin/staff?roleId=${roleId}`, payload, configHeader());
     alert('Thêm nhân viên thành công!');
     showAddModal.value = false;
-    newStaff.value = { username: '', password: '', fullname: '', email: '', role: 'ROLE_WAITER' };
+    newStaff.value = { username: '', password: '', fullname: '', email: '', role: 'ROLE_WAITER', shift: '', assignedArea: '' };
     fetchStaff();
   } catch (err) {
     alert('Lỗi tạo nhân viên: ' + (err.response?.data || err.message));
@@ -641,7 +766,9 @@ const openEditModal = (staff) => {
     password: '',
     fullname: staff.fullname,
     email: staff.email,
-    role: staff.role
+    role: staff.role,
+    shift: staff.shift || '',
+    assignedArea: staff.assignedArea || ''
   };
   showEditModal.value = true;
 };
@@ -650,7 +777,9 @@ const updateStaff = async () => {
   try {
     const payload = { 
       fullname: editStaff.value.fullname, 
-      email: editStaff.value.email 
+      email: editStaff.value.email,
+      shift: editStaff.value.shift,
+      assignedArea: editStaff.value.assignedArea
     };
     if (editStaff.value.password) {
       payload.password = editStaff.value.password;
@@ -795,12 +924,100 @@ const fetchSalary = async () => {
   }
 };
 
+// === PHÂN KHU VỰC PHỤC VỤ ===
+const zoneDate = ref(todayStr);
+const zoneList = ref([]);
+const floorList = ref([]);
+const zoneMap = ref({});
+const zoneMapShift = ref('');
+const zoneRepeatWeek = ref(false);
+const newZone = ref({ username: '', floor: '', shift: 'Sáng' });
+
+const waiterList = computed(() => {
+  return staffList.value.filter(s => s.role === 'ROLE_WAITER');
+});
+
+const fetchFloors = async () => {
+  try {
+    const res = await axios.get('http://localhost:8080/api/service-zones/floors', configHeader());
+    floorList.value = res.data;
+  } catch (err) {
+    console.error('Lỗi lấy danh sách tầng', err);
+  }
+};
+
+const fetchZones = async () => {
+  try {
+    const res = await axios.get(`http://localhost:8080/api/service-zones?date=${zoneDate.value}`, configHeader());
+    zoneList.value = res.data;
+    fetchZoneMap();
+  } catch (err) {
+    console.error('Lỗi lấy phân công khu vực', err);
+  }
+};
+
+const fetchZoneMap = async () => {
+  try {
+    let url = `http://localhost:8080/api/service-zones/map?date=${zoneDate.value}`;
+    if (zoneMapShift.value) url += `&shift=${encodeURIComponent(zoneMapShift.value)}`;
+    const res = await axios.get(url, configHeader());
+    zoneMap.value = res.data;
+  } catch (err) {
+    console.error('Lỗi lấy bản đồ khu vực', err);
+  }
+};
+
+const addZoneAssignment = async () => {
+  if (!newZone.value.username || !newZone.value.floor) {
+    return alert('Vui lòng chọn nhân viên và tầng!');
+  }
+  try {
+    const daysToAdd = zoneRepeatWeek.value ? 7 : 1;
+    const baseDate = new Date(zoneDate.value);
+    const requests = [];
+    for (let i = 0; i < daysToAdd; i++) {
+      const d = new Date(baseDate);
+      d.setDate(d.getDate() + i);
+      const dateStr = d.toISOString().split('T')[0];
+      requests.push(
+        axios.post('http://localhost:8080/api/service-zones', {
+          username: newZone.value.username,
+          floor: newZone.value.floor,
+          shift: newZone.value.shift,
+          workDate: dateStr
+        }, configHeader())
+      );
+    }
+    await Promise.all(requests);
+    if (zoneRepeatWeek.value) {
+      alert('Đã phân công khu vực cho 7 ngày liên tiếp!');
+    } else {
+      alert('Phân công khu vực thành công!');
+    }
+    fetchZones();
+  } catch (err) {
+    alert(err.response?.data || 'Lỗi phân công, có thể đã bị trùng lặp.');
+    fetchZones();
+  }
+};
+
+const deleteZoneAssignment = async (id) => {
+  if (!confirm('Xóa phân công khu vực này?')) return;
+  try {
+    await axios.delete(`http://localhost:8080/api/service-zones/${id}`, configHeader());
+    fetchZones();
+  } catch (err) {
+    alert('Lỗi xóa phân công');
+  }
+};
+
 onMounted(() => {
   fetchStaff();
   fetchCustomers();
   fetchSchedules();
   fetchTimekeeping();
   fetchSalary();
+  fetchFloors();
 });
 </script>
 
@@ -883,4 +1100,102 @@ onMounted(() => {
 
 .form-group { margin-bottom: 15px; }
 .form-group label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9rem; color: var(--text-secondary); }
+
+/* Zone Assignment Styles */
+.zone-form {
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  margin-bottom: 20px; background: rgba(0, 0, 0, 0.2);
+  padding: 15px; border-radius: 8px; border: 1px solid var(--border);
+}
+
+.zone-map-section {
+  margin: 20px 0;
+  padding: 20px;
+  background: rgba(0, 212, 170, 0.03);
+  border: 1px solid rgba(0, 212, 170, 0.15);
+  border-radius: 12px;
+}
+
+.zone-map-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.zone-map-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: 0.3s;
+}
+.zone-map-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 212, 170, 0.15);
+  border-color: rgba(0, 212, 170, 0.3);
+}
+
+.zone-map-floor {
+  padding: 12px 16px;
+  background: rgba(0, 212, 170, 0.1);
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: var(--primary);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.zone-map-staff {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.zone-staff-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: rgba(52, 152, 219, 0.08);
+  border: 1px solid rgba(52, 152, 219, 0.15);
+  border-radius: 8px;
+  transition: 0.2s;
+}
+.zone-staff-chip:hover {
+  background: rgba(52, 152, 219, 0.15);
+}
+
+.zone-chip-avatar {
+  font-size: 1.2rem;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(52, 152, 219, 0.15);
+  border-radius: 50%;
+}
+
+.zone-chip-name {
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: var(--text-heading);
+}
+
+.zone-chip-shift {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.shift-badge {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: white;
+}
+.shift-badge.shift-Sáng { background: #f39c12; }
+.shift-badge.shift-Chiều { background: #e67e22; }
+.shift-badge.shift-Tối { background: #8e44ad; }
 </style>

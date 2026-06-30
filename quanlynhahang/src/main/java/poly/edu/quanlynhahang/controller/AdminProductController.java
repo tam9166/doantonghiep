@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import poly.edu.quanlynhahang.entity.Product;
 import poly.edu.quanlynhahang.repository.ProductRepository;
+import poly.edu.quanlynhahang.service.ActivityLogService;
 
 @CrossOrigin("*")
 @RestController
@@ -24,10 +25,15 @@ public class AdminProductController {
     @Autowired
     private ProductRepository productRepository;
 
+    @Autowired
+    private ActivityLogService activityLogService;
+
     // API Thêm món ăn mới
     @PostMapping
     public ResponseEntity<?> addProduct(@RequestBody Product product) {
         Product savedProduct = productRepository.save(product);
+        activityLogService.log("CREATE", "Product", String.valueOf(savedProduct.getId()),
+                "Thêm món ăn mới: " + savedProduct.getName() + " - Giá: " + savedProduct.getPrice() + "đ");
         return ResponseEntity.ok(savedProduct);
     }
 
@@ -37,7 +43,10 @@ public class AdminProductController {
         if (!productRepository.existsById(id)) {
             return ResponseEntity.badRequest().body("Không tìm thấy món ăn này!");
         }
+        String productName = productRepository.findById(id).map(Product::getName).orElse("#" + id);
         productRepository.deleteById(id);
+        activityLogService.log("DELETE", "Product", String.valueOf(id),
+                "Xóa món ăn: " + productName);
         return ResponseEntity.ok("Đã xóa món ăn thành công!");
     }
     @PutMapping("/{id}")
@@ -45,6 +54,7 @@ public class AdminProductController {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy món ăn"));
         
+        String oldInfo = product.getName() + " | Giá: " + product.getPrice();
         product.setName(productDetails.getName());
         product.setPrice(productDetails.getPrice());
         product.setDescription(productDetails.getDescription());
@@ -56,7 +66,11 @@ public class AdminProductController {
             product.setCategory(productDetails.getCategory());
         }
         
-        return ResponseEntity.ok(productRepository.save(product));
+        Product saved = productRepository.save(product);
+        String newInfo = saved.getName() + " | Giá: " + saved.getPrice();
+        activityLogService.log("UPDATE", "Product", String.valueOf(id),
+                "Cập nhật món ăn: " + saved.getName(), oldInfo, newInfo);
+        return ResponseEntity.ok(saved);
     }
 
     // 🌟 API MỚI: Bếp báo hết/còn món (Kitchen toggle available)

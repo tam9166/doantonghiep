@@ -44,7 +44,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOriginPatterns(List.of("*"));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
@@ -66,9 +66,13 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.PUT, "/api/posts/*/like").permitAll()
             .requestMatchers("/api/chatbot/**", "/ws/**").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/orders/guest-booking").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/orders/checkout").permitAll()
 
-            // ✅ Cho phép Waiter gọi PUT /api/tables/{id}/status (nút Khách Về)
-            .requestMatchers(HttpMethod.PUT, "/api/tables/**").hasAnyAuthority("ROLE_WAITER", "ROLE_ADMIN", "ROLE_MANAGER")
+            // ✅ Cho phép user đã đăng nhập gọi các API đặt hàng khác
+            .requestMatchers("/api/orders/**").authenticated()
+
+            // ✅ Cho phép Waiter và Cashier gọi PUT /api/tables/{id}/status (nút Khách Về / Dọn bàn)
+            .requestMatchers(HttpMethod.PUT, "/api/tables/**").hasAnyAuthority("ROLE_WAITER", "ROLE_ADMIN", "ROLE_MANAGER", "ROLE_CASHIER")
 
             // ✅ FIX: Dùng hasAnyAuthority với đúng tên = "ROLE_KITCHEN", "ROLE_WAITER", v.v.
             // Vì CustomUserDetails.getAuthorities() tạo SimpleGrantedAuthority("ROLE_KITCHEN")
@@ -82,14 +86,21 @@ public class SecurityConfig {
             // ✅ Cho phép Thu ngân
             .requestMatchers("/api/cashier/**").hasAnyAuthority("ROLE_CASHIER", "ROLE_ADMIN", "ROLE_MANAGER")
 
-            // ✅ Các API chung cho nhân sự (Chấm công, Xem lịch làm)
+            // ✅ Các API chung cho nhân sự (Chấm công, Xem lịch làm, Phân khu vực phục vụ)
             .requestMatchers("/api/timekeeping/**", "/api/schedules/**", "/api/staff/me").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_KITCHEN", "ROLE_WAITER", "ROLE_CASHIER")
+            .requestMatchers("/api/service-zones/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_KITCHEN", "ROLE_WAITER", "ROLE_CASHIER")
 
             // ✅ Cho phép Bếp quản lý nguyên liệu + công thức và báo hết món
             .requestMatchers("/api/admin/ingredients", "/api/admin/ingredients/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_KITCHEN")
             .requestMatchers("/api/admin/recipes", "/api/admin/recipes/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_KITCHEN")
             .requestMatchers("/api/admin/import-invoices", "/api/admin/import-invoices/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_KITCHEN")
             .requestMatchers(HttpMethod.PUT, "/api/admin/products/*/toggle-available").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_KITCHEN")
+
+            // ✅ Các API mới: Nhật ký, Thông báo, Món hay dùng, Đề xuất mua hàng
+            .requestMatchers("/api/admin/activity-logs", "/api/admin/activity-logs/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER")
+            .requestMatchers("/api/admin/notifications", "/api/admin/notifications/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_KITCHEN", "ROLE_WAITER", "ROLE_CASHIER")
+            .requestMatchers("/api/admin/popular-items", "/api/admin/popular-items/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_KITCHEN")
+            .requestMatchers("/api/admin/purchase-suggestions", "/api/admin/purchase-suggestions/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER")
 
             // Các API admin khác chỉ cho Admin/Manager
             .requestMatchers("/api/admin/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER")

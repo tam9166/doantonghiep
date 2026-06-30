@@ -35,19 +35,26 @@
             :class="['table-box', getTableClass(table.isOccupied), { 'selected-table': selectedOrder && getTableName(selectedOrder.address) === table.name }]"
             @click="selectOrderForTable(table)"
           >
-            <div class="table-chairs"></div>
-            <div class="table-content">
-              <h4>{{ table.name }}</h4>
-              <span class="table-status-text">
-                {{ table.isOccupied === 0 ? 'Trống' : table.isOccupied === 1 ? 'Đã Cọc' : table.isOccupied === 3 ? 'Cần Dọn' : 'Có Khách' }}
-              </span>
+            <div class="tc-top">
+              <span class="tc-capacity">👥 {{ table.capacity || 4 }}</span>
+              <span class="tc-icon">🧮</span>
             </div>
-            
-            <!-- Hiển thị nhanh số tiền nếu bàn có khách -->
-            <div class="table-actions" v-if="table.isOccupied >= 2">
-              <button class="btn-action" style="color:#f1c40f; font-size: 1.1rem; border:none;">
-                 {{ getPendingTotalForTable(table.name).toLocaleString() }}đ
-              </button>
+            <div class="tc-center">
+              <div class="tc-dot"></div>
+              <h4>{{ table.name }}</h4>
+              <p class="tc-subtitle">
+                <span v-if="table.isOccupied >= 2" style="color:#f1c40f; font-weight: bold;">
+                  {{ getPendingTotalForTable(table.name).toLocaleString() }}đ
+                </span>
+                <span v-else>
+                  {{ table.isOccupied === 0 ? 'Sẵn sàng phục vụ' : table.isOccupied === 1 ? 'Đã được đặt cọc' : table.isOccupied === 3 ? 'Đang dọn dẹp' : 'Khách đang ăn' }}
+                </span>
+              </p>
+            </div>
+            <div class="tc-bottom">
+              <span class="tc-status">
+                {{ table.isOccupied === 0 ? '🟢 Trống ⌄' : table.isOccupied === 1 ? '🟡 Đã Cọc ⌄' : table.isOccupied === 3 ? '🟣 Cần Dọn ⌄' : '🔴 Có Khách ⌄' }}
+              </span>
             </div>
           </div>
         </div>
@@ -91,8 +98,20 @@
           </table>
           <hr />
           <div class="invoice-total">
-            <span>TỔNG CỘNG:</span>
+            <span>TỔNG ĐỒ ĂN:</span>
             <span class="total-amount">{{ calculateTotal(selectedOrder).toLocaleString() }} VNĐ</span>
+          </div>
+          <div class="invoice-total" v-if="selectedOrder.deposit > 0">
+            <span>ĐÃ ĐẶT CỌC:</span>
+            <span class="total-amount">- {{ selectedOrder.deposit.toLocaleString() }} VNĐ</span>
+          </div>
+          <hr v-if="selectedOrder.deposit > 0" />
+          <div class="invoice-total" style="font-size: 1.3rem; margin-top: 10px;">
+            <span>CẦN THANH TOÁN:</span>
+            <span class="total-amount">{{ Math.max(0, calculateTotal(selectedOrder) - (selectedOrder.deposit || 0)).toLocaleString() }} VNĐ</span>
+          </div>
+          <div v-if="(calculateTotal(selectedOrder) - (selectedOrder.deposit || 0)) < 0" style="text-align: right; color: var(--primary); font-style: italic;">
+            (Thu ngân thối lại: {{ Math.abs(calculateTotal(selectedOrder) - (selectedOrder.deposit || 0)).toLocaleString() }} VNĐ)
           </div>
 
           <!-- Khu vực QR Code Thanh Toán -->
@@ -114,6 +133,7 @@
         
         <div class="action-buttons">
           <button class="btn-print" @click="printInvoice">🖨️ In Hóa Đơn</button>
+          <button v-if="!selectedOrder.isPaid && (selectedOrder.status === 0 || selectedOrder.status === 1 || selectedOrder.status === 5)" class="btn-print" style="background: var(--danger); border-color: var(--danger);" @click="cancelOrderAndRefund(selectedOrder)">❌ Hủy & Hoàn Cọc</button>
           <button class="btn-pay" @click="payOrder" :disabled="selectedOrder.isPaid">
             {{ selectedOrder.isPaid ? '✅ Đã Thanh Toán' : '💰 Xác Nhận Thanh Toán' }}
           </button>
@@ -366,7 +386,7 @@ const configHeader = () => {
 
 const logout = () => {
   localStorage.clear();
-  router.push('/login');
+  router.push('/staff-login');
 };
 
 const getTableName = (address) => {
@@ -477,11 +497,30 @@ const vietQrUrl = computed(() => {
   const bank = 'vietcombank';
   const accountNo = '1047187126';
   const accountName = 'NGUYEN QUANG NHAT';
-  const amount = calculateTotal(selectedOrder.value);
+  const amount = Math.max(0, calculateTotal(selectedOrder.value) - (selectedOrder.value.deposit || 0));
   const tableName = getTableName(selectedOrder.value.address).replace(/\s/g, '');
   const addInfo = encodeURIComponent(`Thanh toan ${tableName}`);
   return `https://img.vietqr.io/image/${bank}-${accountNo}-compact2.png?amount=${amount}&addInfo=${addInfo}&accountName=${encodeURIComponent(accountName)}`;
 });
+
+const cancelOrderAndRefund = async (order) => {
+  if (!confirm('Bạn có chắc muốn HỦY BÀN này? Nếu hủy, khách sẽ được hoàn lại 50% tiền cọc (Thu ngân tự chuyển khoản ngoài).')) return;
+  const token = localStorage.getItem('token');
+  try {
+    const res = await axios.put(`http://localhost:8080/api/admin/orders/${order.id}/cancel-with-refund`, {}, configHeader());
+    
+    // Gửi thông báo cho Waiter update lại màu bàn
+    if (stompClient) {
+      stompClient.send("/app/order/cancel", {}, JSON.stringify({ message: "ORDER_CANCELLED" }));
+    }
+
+    alert(res.data.message || 'Hủy bàn thành công!');
+    selectedOrder.value = null;
+    fetchOrders();
+  } catch (e) {
+    alert('Lỗi hủy bàn: ' + (e.response?.data?.message || e.message));
+  }
+};
 
 // Kết nối socket để nghe đơn hàng mới / update
 const connectSocket = () => {
@@ -514,9 +553,10 @@ onUnmounted(() => {
 <style scoped>
 .cashier-wrapper {
   background: var(--bg-root);
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 .cashier-header {
   background: var(--bg-nav);
@@ -541,6 +581,7 @@ onUnmounted(() => {
   gap: 20px;
   padding: 20px;
   flex: 1;
+  overflow: hidden;
 }
 
 .orders-list-panel {
@@ -557,99 +598,97 @@ onUnmounted(() => {
 /* Table Grid Redesign (Copied from Waiter) */
 .table-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 30px;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 20px;
   margin-top: 20px;
   padding: 20px 0;
 }
 .table-box {
   background: var(--bg-card);
-  border-radius: 50%;
-  aspect-ratio: 1;
+  border-radius: 12px;
+  padding: 15px;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  align-items: center;
   position: relative;
-  border: 4px solid var(--border);
-  box-shadow: 0 5px 15px rgba(0,0,0,0.2), inset 0 0 10px rgba(0,0,0,0.5);
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  border: 1px solid var(--border-light);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  transition: all 0.3s ease;
   cursor: pointer;
+}
+.table-box:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.3);
 }
 .table-box.selected-table {
   border-color: #3498db !important;
-  box-shadow: 0 0 30px rgba(52,152,219,0.8), inset 0 0 20px rgba(52,152,219,0.5) !important;
-  transform: scale(1.05);
+  box-shadow: 0 0 15px rgba(52,152,219,0.5) !important;
+  transform: scale(1.02);
 }
-.table-box::before, .table-box::after, .table-chairs::before, .table-chairs::after {
-  content: '';
-  position: absolute;
-  width: 35px; height: 10px;
-  background: var(--border);
-  border-radius: 10px;
-  transition: 0.3s;
-  box-shadow: 0 5px 10px rgba(0,0,0,0.3);
-}
-.table-box::before { top: -14px; left: 50%; transform: translateX(-50%); } 
-.table-box::after { bottom: -14px; left: 50%; transform: translateX(-50%); } 
-.table-chairs { position: absolute; inset: 0; pointer-events: none; }
-.table-chairs::before { left: -14px; top: 50%; transform: translateY(-50%) rotate(90deg); } 
-.table-chairs::after { right: -14px; top: 50%; transform: translateY(-50%) rotate(90deg); } 
+.table-box.table-empty { border-color: #2ecc71; box-shadow: 0 0 10px rgba(46, 204, 113, 0.1); opacity: 0.7; }
+.table-box.table-booked { border-color: #f1c40f; box-shadow: 0 0 10px rgba(241, 196, 15, 0.1); }
+.table-box.table-occupied { border-color: #e74c3c; box-shadow: 0 0 10px rgba(231, 76, 60, 0.1); }
+.table-box.table-cleaning { border-color: #9b59b6; box-shadow: 0 0 10px rgba(155, 89, 182, 0.1); }
 
-.table-content {
-  z-index: 2;
+.tc-top {
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
   align-items: center;
+  margin-bottom: 10px;
 }
-.table-box h4 { margin: 0; font-size: 1.3rem; font-weight: 900; color: var(--text-heading); text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
-.table-status-text { font-size: 0.75rem; font-weight: bold; padding: 4px 8px; border-radius: 20px; background: rgba(0,0,0,0.7); color: #fff; margin-top: 8px; border: 1px solid rgba(255,255,255,0.1); }
-
-/* Table Status Colors */
-.table-empty { border-color: #2ecc71; opacity: 0.5; }
-.table-empty::before, .table-empty::after, .table-empty .table-chairs::before, .table-empty .table-chairs::after { background: #2ecc71; }
-
-.table-booked { border-color: #f1c40f; }
-.table-booked::before, .table-booked::after, .table-booked .table-chairs::before, .table-booked .table-chairs::after { background: #f1c40f; }
-
-.table-occupied { 
-  border-color: #e74c3c; 
-  animation: pulse-red 2s infinite;
+.tc-capacity {
+  background: rgba(255,255,255,0.05);
+  color: #3498db;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: bold;
 }
-.table-occupied::before, .table-occupied::after, .table-occupied .table-chairs::before, .table-occupied .table-chairs::after { background: #e74c3c; }
-
-@keyframes pulse-red {
-  0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7), inset 0 0 10px rgba(0,0,0,0.5); }
-  70% { box-shadow: 0 0 0 10px rgba(231, 76, 60, 0), inset 0 0 10px rgba(0,0,0,0.5); }
-  100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0), inset 0 0 10px rgba(0,0,0,0.5); }
+.tc-icon {
+  font-size: 0.9rem;
+  background: rgba(255,255,255,0.05);
+  padding: 4px;
+  border-radius: 6px;
 }
-
-.table-cleaning { border-color: #9b59b6; }
-.table-cleaning::before, .table-cleaning::after, .table-cleaning .table-chairs::before, .table-cleaning .table-chairs::after { background: #9b59b6; }
-
-.table-actions {
-  position: absolute;
-  top: 90%;
-  left: 50%;
-  transform: translateX(-50%) translateY(20px);
-  opacity: 0;
-  visibility: hidden;
-  transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  z-index: 10;
-  background: var(--bg-card);
-  padding: 6px;
-  border-radius: 8px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.8);
-  border: 1px solid rgba(255,255,255,0.1);
-  width: max-content;
+.tc-center {
+  text-align: center;
+  margin-bottom: 15px;
+  flex: 1;
 }
-.table-box:hover { z-index: 5; }
-.table-box:hover .table-actions {
-  opacity: 1;
-  visibility: visible;
-  transform: translateX(-50%) translateY(10px);
+.tc-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin: 0 auto 8px auto;
 }
-.btn-action { background: transparent; }
+.table-empty .tc-dot { background: #2ecc71; box-shadow: 0 0 8px #2ecc71; }
+.table-booked .tc-dot { background: #f1c40f; box-shadow: 0 0 8px #f1c40f; }
+.table-occupied .tc-dot { background: #e74c3c; box-shadow: 0 0 8px #e74c3c; }
+.table-cleaning .tc-dot { background: #9b59b6; box-shadow: 0 0 8px #9b59b6; }
+
+.tc-center h4 {
+  margin: 0 0 5px 0;
+  font-size: 1.2rem;
+  font-weight: 900;
+  color: #fff;
+}
+.tc-subtitle {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+.tc-bottom {
+  text-align: center;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+.tc-status {
+  font-size: 0.8rem;
+  font-weight: bold;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
 
 .invoice-panel {
   background: var(--bg-card);
@@ -659,6 +698,7 @@ onUnmounted(() => {
   box-shadow: var(--shadow-md);
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
 }
 .empty-invoice { justify-content: center; align-items: center; color: var(--text-muted); font-style: italic; }
 

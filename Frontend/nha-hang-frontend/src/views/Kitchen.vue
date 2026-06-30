@@ -16,7 +16,7 @@
         </button>
         <button @click="activeTab = 'menu'" :class="['tab-btn', { active: activeTab === 'menu' }]">🍽️ Thực Đơn</button>
         <button @click="activeTab = 'ai-kitchen'" :class="['tab-btn', { active: activeTab === 'ai-kitchen' }]">🤖 Gom Món (AI)</button>
-        <button @click="$router.push('/staff')" class="btn-profile" style="background:#8e44ad; color:white; padding:8px 15px; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">👤 Cá Nhân</button>
+        <button @click="$router.push('/profile')" class="btn-profile">👤 Cá Nhân</button>
         <button @click="fetchOrders" class="btn-refresh">🔄</button>
         <button @click="handleLogout" class="btn-logout">🚪 Đăng Xuất</button>
       </div>
@@ -438,7 +438,7 @@ const getStockBarClass = (ing) => {
 const markReady = async (id) => {
   try {
     const token = localStorage.getItem('token');
-    await axios.put(`http://localhost:8080/api/orders/${id}/status?status=2`, {}, {
+    await axios.put(`http://localhost:8080/api/admin/orders/${id}/status?status=2`, {}, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     fetchOrders();
@@ -594,7 +594,7 @@ const getAiKitchenAdvice = async () => {
   }
 };
 
-const handleLogout = () => { localStorage.removeItem('token'); localStorage.removeItem('user'); router.push('/login'); };
+const handleLogout = () => { localStorage.removeItem('token'); localStorage.removeItem('user'); router.push('/staff-login'); };
 
 // === WEBSOCKET ===
 const connectWebSocket = () => {

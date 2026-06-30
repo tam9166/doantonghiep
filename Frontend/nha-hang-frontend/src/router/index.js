@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import Home from '@/views/Home.vue'
 import Login from '@/views/Login.vue'
 import Register from '@/views/Register.vue'
+import StaffLogin from '@/views/StaffLogin.vue'
 import ProductMenu from '@/views/ProductMenu.vue'
 import OrderHistory from '@/views/OrderHistory.vue'
 import AdminProduct from '@/views/AdminProduct.vue'
@@ -21,6 +22,7 @@ const router = createRouter({
     { path: '/', name: 'home', component: Home },
     { path: '/login', name: 'login', component: Login },
     { path: '/register', name: 'register', component: Register },
+    { path: '/staff-login', name: 'staff-login', component: StaffLogin },
     { path: '/menu', name: 'menu', component: ProductMenu },
     { path: '/history', name: 'history', component: OrderHistory },
     { path: '/profile', name: 'profile', component: CustomerProfile },
@@ -37,12 +39,15 @@ const router = createRouter({
     { path: '/waiter', name: 'Waiter', component: Waiter },
     { path: '/staff', name: 'Staff', component: () => import('../views/Staff.vue') },
     { path: '/admin/ingredients', name: 'AdminIngredient', component: () => import('../views/AdminIngredient.vue') },
+    { path: '/admin/activity-log', name: 'AdminActivityLog', component: () => import('../views/AdminActivityLog.vue') },
+    { path: '/admin/popular-items', name: 'AdminPopularItems', component: () => import('../views/AdminPopularItems.vue') },
+    { path: '/admin/purchase-suggestions', name: 'AdminPurchaseSuggestion', component: () => import('../views/AdminPurchaseSuggestion.vue') },
     { path: '/admin/vouchers', name: 'AdminVoucher', component: () => import('../views/AdminVoucher.vue') },
     { path: '/cashier', name: 'Cashier', component: () => import('../views/CashierView.vue') }
   ]
 })
 
-// NGƯỜI GÁC CỔNG (Chuẩn cú pháp Vue Router 4 + Logic Doanh nghiệp)
+// NGƯỜI GÁC CỔNG (Tách biệt Khách hàng và Nhân sự)
 router.beforeEach((to, from) => {
   const token = localStorage.getItem('token')
   const storedUser = localStorage.getItem('user')
@@ -55,6 +60,10 @@ router.beforeEach((to, from) => {
       userRoles = []
     }
   }
+
+  // Danh sách role nhân sự
+  const staffRoles = ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_KITCHEN', 'ROLE_WAITER', 'ROLE_CASHIER']
+  const isStaff = userRoles.some(r => staffRoles.includes(r))
 
   // 1. NGĂN NHÂN VIÊN LÀM VIỆC RIÊNG (Chỉ Admin/Manager mới được xem trang khách)
   const customerRoutes = ['/', '/reservation', '/history', '/profile']
@@ -72,6 +81,10 @@ router.beforeEach((to, from) => {
   // 2. BẢO VỆ KHU VỰC QUẢN TRỊ CAO CẤP (Chỉ Admin / Manager)
   if (to.path.startsWith('/admin') && to.path !== '/admin/ingredients') {
     if (!token || (!userRoles.includes('ROLE_ADMIN') && !userRoles.includes('ROLE_MANAGER'))) {
+      if (!token) {
+        // Chưa đăng nhập → chuyển về trang đăng nhập nhân sự
+        return '/staff-login'
+      }
       alert('Cảnh báo: Bạn không có quyền truy cập khu vực Quản trị!')
       return '/'
     }
@@ -80,6 +93,9 @@ router.beforeEach((to, from) => {
   // 2.5 KHU VỰC NGUYÊN LIỆU (Cho phép Admin / Manager / Kitchen)
   if (to.path === '/admin/ingredients') {
     if (!token || (!userRoles.includes('ROLE_ADMIN') && !userRoles.includes('ROLE_MANAGER') && !userRoles.includes('ROLE_KITCHEN'))) {
+      if (!token) {
+        return '/staff-login'
+      }
       alert('Cảnh báo: Bạn không có quyền truy cập trang Quản lý nguyên liệu!')
       return '/'
     }
@@ -88,6 +104,9 @@ router.beforeEach((to, from) => {
   // 3. KHU VỰC BẾP (Chỉ cho phép Bếp)
   if (to.path.startsWith('/kitchen')) {
     if (!token || !userRoles.includes('ROLE_KITCHEN')) {
+      if (!token) {
+        return '/staff-login'
+      }
       alert('Khu vực hạn chế: Chỉ dành cho bộ phận Bếp!')
       return '/'
     }
@@ -96,6 +115,9 @@ router.beforeEach((to, from) => {
   // 4. KHU VỰC PHỤC VỤ (Chỉ cho phép Phục vụ)
   if (to.path.startsWith('/waiter')) {
     if (!token || !userRoles.includes('ROLE_WAITER')) {
+      if (!token) {
+        return '/staff-login'
+      }
       alert('Khu vực hạn chế: Chỉ dành cho bộ phận Phục vụ!')
       return '/'
     }
@@ -104,7 +126,21 @@ router.beforeEach((to, from) => {
   // 5. KHU VỰC THU NGÂN (Chỉ cho phép Thu ngân)
   if (to.path.startsWith('/cashier')) {
     if (!token || !userRoles.includes('ROLE_CASHIER')) {
+      if (!token) {
+        return '/staff-login'
+      }
       alert('Khu vực hạn chế: Chỉ dành cho bộ phận Thu ngân!')
+      return '/'
+    }
+  }
+
+  // 6. KHU VỰC NHÂN VIÊN CHUNG
+  if (to.path === '/staff') {
+    if (!token || !isStaff) {
+      if (!token) {
+        return '/staff-login'
+      }
+      alert('Khu vực hạn chế: Chỉ dành cho nhân viên!')
       return '/'
     }
   }
@@ -114,3 +150,4 @@ router.beforeEach((to, from) => {
 })
 
 export default router
+
