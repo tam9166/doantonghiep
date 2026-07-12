@@ -1355,4 +1355,83 @@ const handleLogout = () => {
 .spin-result.win { background: rgba(46,204,113,0.1); color: #2ecc71; font-weight: bold; border: 1px solid rgba(46,204,113,0.3); }
 
 /* Animation Utils */
+@media (max-width: 1024px) {
+  .hero-banner { min-height: 560px; }
+  .hero-content h1 { font-size: 3.2rem; }
+  .main-content,
+  .posts-section { padding: 64px 24px; }
+  .content-container { grid-template-columns: 1fr; gap: 40px; }
+  .right-col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .news-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .chatbots-container { right: 20px; bottom: 20px; }
+}
+
+@media (max-width: 640px) {
+  .home-wrapper { overflow-x: hidden; }
+  .home-wrapper,
+  .home-wrapper * { box-sizing: border-box; }
+  .hero-content,
+  .content-container,
+  .left-col,
+  .right-col,
+  .section-container { min-width: 0; }
+  .hero-banner { min-height: 600px; padding: 104px 16px 40px; }
+  .hero-content { width: 100%; padding: 0; }
+  .hero-tag { max-width: 100%; margin-bottom: 18px; padding: 6px 14px; white-space: normal; }
+  .hero-content h1 { font-size: 2.45rem; line-height: 1.12; }
+  .hero-content p { font-size: 1rem; margin-bottom: 26px; }
+  .hero-actions { flex-direction: column; margin-bottom: 28px; }
+  .hero-actions button,
+  .article-actions button,
+  .btn-apply,
+  .btn-submit-app,
+  .btn-close,
+  .btn-interview,
+  .btn-spin { min-height: 44px; }
+  .hero-actions button { width: 100%; padding: 12px 18px; }
+  .hero-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+    padding: 14px 6px;
+    overflow: hidden;
+  }
+  .stat-item { padding: 0 6px; }
+  .stat-num { font-size: 1.3rem; }
+  .stat-lbl { display: block; font-size: 0.68rem; }
+  .stat-divider { display: none; }
+  .main-content,
+  .posts-section { padding: 48px 16px; }
+  .content-container { gap: 32px; }
+  .meta-info { flex-wrap: wrap; }
+  .article-title,
+  .section-header-block h2 { font-size: 1.65rem; }
+  .article-title { overflow-wrap: anywhere; }
+  .article-excerpt { font-size: 0.98rem; line-height: 1.7; }
+  .article-actions { flex-direction: column; margin-bottom: 32px; }
+  .article-actions button { width: 100%; }
+  .feature-grid,
+  .right-col,
+  .news-grid { grid-template-columns: 1fr; }
+  .sidebar-card { padding: 20px; }
+  .section-header-block { margin-bottom: 32px; }
+  .recruit-card { align-items: flex-start; flex-wrap: wrap; padding: 20px; }
+  .recruit-icon { width: 48px; height: 48px; }
+  .recruit-info { min-width: calc(100% - 68px); }
+  .recruit-meta,
+  .modal-footer { align-items: flex-start; flex-direction: column; gap: 12px; }
+  .btn-apply { width: 100%; }
+  .modal-top,
+  .modal-content { padding: 18px; }
+  .modal-actions { flex-direction: column; width: 100%; }
+  .modal-actions button { width: 100%; }
+  .app-modal { padding: 22px 18px; }
+  .chatbots-container { right: 12px; bottom: 12px; left: 12px; max-width: calc(100vw - 24px); }
+  .chat-widget { width: 100%; height: min(500px, 72vh); }
+  .fab-group { align-self: stretch; justify-content: flex-end; flex-wrap: wrap; max-width: 100%; }
+  .fab-chat,
+  .fab-phone { width: 52px; height: 52px; }
+  .wheel-modal { padding: 22px 14px; }
+  .wheel-container { width: 260px; height: 260px; }
+}
 </style>
