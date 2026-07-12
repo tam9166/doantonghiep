@@ -1,0 +1,15 @@
+node_modules/
+target/
+dist/
+.vite/
+.idea/
+.vscode/
+*.log
+hs_err_pid*.log
+replay_pid*.log
+uploads/
+private-uploads/
+.env
+*.local
+*.class
+
