@@ -629,6 +629,89 @@ onUnmounted(() => {
   .topbar-right { gap: 8px; }
   .topbar-user { padding-right: 6px; }
   .user-info { display: none; }
+  .admin-content :deep(.content-grid),
+  .admin-content :deep(.stats-grid),
+  .admin-content :deep(.stats-container) {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  .admin-content :deep(.content-grid > *),
+  .admin-content :deep(.stats-grid > *),
+  .admin-content :deep(.stats-container > *),
+  .admin-content :deep(.form-card),
+  .admin-content :deep(.table-card),
+  .admin-content :deep(.floor-card) {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .admin-content :deep(.table-responsive),
+  .admin-content :deep(.g-table-container),
+  .admin-content :deep(.table-card),
+  .admin-content :deep(.data-table) {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  .admin-content :deep(table) {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  .admin-content :deep(table th),
+  .admin-content :deep(table td) {
+    white-space: nowrap;
+  }
+  .admin-content :deep(.filter-tabs) {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  .admin-content :deep(.tabs) {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  .admin-content :deep(.tabs > *) { flex: 0 0 auto; }
+  .admin-content :deep(.panel-header) {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .admin-content :deep(.panel-header > div) {
+    flex-wrap: wrap;
+  }
+  .admin-content :deep(.g-form-control) { max-width: 100%; }
+  .admin-content :deep(.stats-row) {
+    flex-wrap: wrap;
+  }
+  .admin-content :deep(.stats-row > *) {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  .admin-content :deep(.tabs-header),
+  .admin-content :deep(.legend-box),
+  .admin-content :deep(.legend-box > div) {
+    flex-wrap: wrap;
+  }
+  .admin-content :deep(.tabs-header > div) {
+    width: 100%;
+    margin-left: 0 !important;
+    flex-wrap: wrap;
+  }
+  .admin-content :deep(.legend-box) {
+    align-items: stretch !important;
+    flex-direction: column;
+  }
+  .admin-content :deep(.g-card) {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  .admin-content :deep(.data-table) {
+    display: block !important;
+    width: 100% !important;
+    overflow-x: auto !important;
+  }
+  .admin-content :deep(.recipe-layout) {
+    grid-template-columns: minmax(0, 1fr) !important;
+    height: auto !important;
+  }
 }
 /* === NOTIFICATION BELL === */
 .notif-wrapper {
