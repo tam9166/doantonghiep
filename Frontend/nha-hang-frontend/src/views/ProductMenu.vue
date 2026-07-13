@@ -7,12 +7,12 @@
       <p class="page-subtitle">Chọn món ngon - Giao nóng hổi tận nhà</p>
 
       <!-- Món ăn gợi ý -->
-      <div v-if="suggestedProducts.length > 0" class="suggested-section">
-        <h2 class="section-title"><span style="color: #f1c40f">🌟</span> Gợi Ý Cho Bạn</h2>
+      <div v-if="!isLoading && !loadError && suggestedProducts.length > 0" class="suggested-section">
+        <h2 class="section-title"><span style="color: #B98229">🌟</span> Gợi Ý Cho Bạn</h2>
         <div class="suggested-grid">
           <div v-for="product in suggestedProducts" :key="'sugg-'+product.id" class="suggested-card">
             <div class="sugg-badge">HOT</div>
-            <img :src="product.image || 'https://via.placeholder.com/150'" alt="food" />
+            <img :src="foodImage(product.image)" :alt="product.name" loading="lazy" @error="replaceFoodImage" />
             <div class="sugg-info">
               <h3>{{ product.name }}</h3>
               <p class="price">{{ product.price.toLocaleString() }}đ</p>
@@ -22,22 +22,37 @@
         </div>
       </div>
 
-      <div class="category-filter">
+      <div v-if="!isLoading && !loadError" class="category-filter">
         <button :class="{'active': selectedCategory === null}" @click="selectedCategory = null">Tất cả món</button>
         <button v-for="c in categories" :key="c.id" :class="{'active': selectedCategory === c.id}" @click="selectedCategory = c.id">
           {{ c.name }}
         </button>
       </div>
 
-      <div class="product-grid">
+      <div v-if="isLoading" class="menu-loading-grid" aria-label="Đang tải thực đơn">
+        <SkeletonLoader v-for="item in 6" :key="item" variant="card" />
+      </div>
+
+      <div v-else-if="loadError" class="menu-state menu-error" role="alert">
+        <strong>Không thể tải thực đơn.</strong>
+        <span>{{ loadError }}</span>
+        <button class="g-btn-outline" type="button" @click="loadMenu">Thử lại</button>
+      </div>
+
+      <div v-else-if="filteredProducts.length === 0" class="menu-state">
+        <strong>Chưa có món ăn phù hợp.</strong>
+        <span>Hãy chọn danh mục khác để tiếp tục.</span>
+      </div>
+
+      <div v-else class="product-grid">
         <div v-for="product in filteredProducts" :key="product.id" class="product-card">
-          <img :src="product.image || 'https://via.placeholder.com/150'" alt="food" />
+          <img :src="foodImage(product.image)" :alt="product.name" loading="lazy" @error="replaceFoodImage" />
           <h3>{{ product.name }}</h3>
           <div class="product-rating" v-if="product.averageRating > 0">
             ⭐ {{ product.averageRating }}
           </div>
           <div class="product-rating" v-else>
-            <span style="color: #666; font-size: 0.8rem">Chưa có đánh giá</span>
+            <span style="color: #55503E; font-size: 0.8rem">Chưa có đánh giá</span>
           </div>
           <p class="price">{{ product.price.toLocaleString() }} VNĐ</p>
           <button v-if="!isAdminOrManager" class="btn-add" @click="addToCart(product)">+ Thêm vào giỏ</button>
@@ -78,22 +93,22 @@
               <div style="flex: 1;">
                 <p style="margin-bottom: 5px;">Tạm tính: <strong>{{ cartSubtotal.toLocaleString() }}đ</strong></p>
                 <p style="margin-bottom: 5px;">Thuế GTGT: <strong>{{ cartTax.toLocaleString() }}đ</strong></p>
-                <p>Tổng thanh toán: <strong style="color: #ff4757; font-size: 1.2rem;">{{ cartTotal.toLocaleString() }}đ</strong></p>
+                <p>Tổng thanh toán: <strong style="color: #B23B2E; font-size: 1.2rem;">{{ cartTotal.toLocaleString() }}đ</strong></p>
                 <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; margin-top: 10px;">
-                  <p>Ngân hàng: <strong>Vietcombank</strong></p>
-                  <p>STK: <strong>1047187126</strong></p>
-                  <p>Tên TK: <strong>NGUYEN QUANG NHAT</strong></p>
+                  <p>Ngân hàng: <strong>{{ paymentAccount.bankLabel }}</strong></p>
+                  <p>STK: <strong>{{ paymentAccount.accountNumber }}</strong></p>
+                  <p>Tên TK: <strong>{{ paymentAccount.accountName }}</strong></p>
                   <p>Nội dung: <strong>{{ orderInfo.phone || 'SDT' }} SHIP</strong></p>
                 </div>
               </div>
               <div>
-                <img :src="`https://img.vietqr.io/image/vietcombank-1047187126-compact2.jpg?amount=${cartTotal}&addInfo=${orderInfo.phone || 'SHIP'}&accountName=NGUYEN QUANG NHAT`" alt="QR" style="width: 140px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.5);" />
+                <img :src="deliveryQrUrl" alt="Mã QR thanh toán đơn giao hàng" style="width: 140px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.5);" />
               </div>
             </div>
             
             <div class="form-group mt-3">
-              <label style="color: #ff4757;">Dán Mã giao dịch sau khi CK (*):</label>
-              <input v-model="orderInfo.txCode" type="text" placeholder="Ví dụ: FT24..." class="g-form-control" style="border-color: #ff4757;" />
+              <label style="color: #B23B2E;">Dán Mã giao dịch sau khi CK (*):</label>
+              <input v-model="orderInfo.txCode" type="text" placeholder="Ví dụ: FT24..." class="g-form-control" style="border-color: #B23B2E;" />
             </div>
           </div>
         </div>
@@ -113,6 +128,9 @@ import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 import { useRouter } from 'vue-router';
 import CustomerLayout from '@/components/CustomerLayout.vue';
+import SkeletonLoader from '@/components/SkeletonLoader.vue';
+import { buildVietQrUrl, paymentAccount } from '@/services/paymentQr';
+import { foodImage, replaceFoodImage } from '@/utils/imageFallback';
 
 const products = ref([]);
 const suggestedProducts = ref([]);
@@ -121,6 +139,8 @@ const cart = ref([]);
 const router = useRouter();
 const isLoggedIn = ref(false);
 const userRoles = ref([]);
+const isLoading = ref(true);
+const loadError = ref('');
 
 const isAdminOrManager = computed(() => {
   return userRoles.value.includes('ROLE_ADMIN') || userRoles.value.includes('ROLE_MANAGER');
@@ -144,24 +164,26 @@ const cartTotal = computed(() => {
   return cartSubtotal.value + cartTax.value;
 });
 
+const deliveryQrUrl = computed(() => buildVietQrUrl({
+  amount: cartTotal.value,
+  addInfo: `${orderInfo.value.phone || 'SHIP'} SHIP`,
+  extension: 'jpg',
+}));
+
 const fetchProducts = async () => {
-  try {
-    const response = await axios.get('http://localhost:8080/api/products');
-    products.value = response.data;
-  } catch (error) { console.error(error); }
+  const response = await axios.get('/api/products');
+  products.value = response.data;
 };
 
 const fetchCategories = async () => {
-  try {
-    const response = await axios.get('http://localhost:8080/api/categories');
-    categories.value = response.data;
-  } catch (error) { console.error(error); }
+  const response = await axios.get('/api/categories');
+  categories.value = response.data;
 };
 
 const fetchSuggested = async () => {
   try {
     const token = localStorage.getItem('token');
-    const response = await axios.get('http://localhost:8080/api/admin/popular-items/products?limit=4', {
+    const response = await axios.get('/api/admin/popular-items/products?limit=4', {
       headers: token ? { 'Authorization': `Bearer ${token}` } : {}
     });
     // Lọc ra các món có isPopular = true hoặc lấy thẳng top 4
@@ -207,7 +229,7 @@ const submitShipOrder = async () => {
   }));
 
   try {
-    await axios.post('http://localhost:8080/api/orders/checkout', {
+    await axios.post('/api/orders/checkout', {
       address: infoFull,
       items: formattedItems
     }, { headers: { 'Authorization': `Bearer ${token}` } });
@@ -221,10 +243,30 @@ const submitShipOrder = async () => {
   }
 };
 
+const loadMenu = async () => {
+  isLoading.value = true;
+  loadError.value = '';
+
+  const [productsResult, categoriesResult] = await Promise.allSettled([
+    fetchProducts(),
+    fetchCategories()
+  ]);
+
+  if (productsResult.status === 'rejected') {
+    loadError.value = productsResult.reason?.response?.data?.message || 'Vui lòng kiểm tra kết nối rồi thử lại.';
+  } else {
+    await fetchSuggested();
+  }
+
+  if (categoriesResult.status === 'rejected') {
+    console.error('Lỗi lấy danh mục:', categoriesResult.reason);
+  }
+
+  isLoading.value = false;
+};
+
 onMounted(async () => {
-  await fetchProducts();
-  await fetchCategories();
-  await fetchSuggested();
+  await loadMenu();
   const token = localStorage.getItem('token');
   if (token) isLoggedIn.value = true;
   
@@ -244,7 +286,7 @@ onMounted(async () => {
 .menu-wrapper { background-color: var(--bg-root); min-height: 100vh; color: var(--text-primary); }
 
 .navbar {
-  background: rgba(13, 27, 42, 0.4);
+  background: rgba(255, 255, 255, 0.72);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
@@ -264,7 +306,7 @@ onMounted(async () => {
   font-weight: 600; font-size: 0.95rem; padding: 10px 20px;
   border-radius: 100px; transition: var(--transition);
 }
-.nav-links a:hover, .nav-links a.active { color: var(--primary); background: rgba(0,212,170,0.1); }
+.nav-links a:hover, .nav-links a.active { color: var(--primary); background: rgba(90, 110, 69, 0.1); }
 
 .nav-right { display: flex; gap: 10px; }
 .btn-nav-outline {
@@ -272,48 +314,70 @@ onMounted(async () => {
   color: var(--text-secondary); padding: 10px 24px;
   border-radius: 100px; font-weight: 700; cursor: pointer; transition: var(--transition);
 }
-.btn-nav-outline:hover { border-color: var(--primary); color: var(--primary); background: rgba(0,212,170,0.1); }
+.btn-nav-outline:hover { border-color: var(--primary); color: var(--primary); background: rgba(90, 110, 69, 0.1); }
 .btn-cart {
   background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-  color: #040914; border: none; padding: 10px 24px; border-radius: 100px;
+  color: #1A170F; border: none; padding: 10px 24px; border-radius: 100px;
   font-weight: 800; cursor: pointer; transition: var(--transition);
 }
-.btn-cart:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,212,170,0.4); }
+.btn-cart:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(90, 110, 69, 0.4); }
 
 .menu-content { max-width: 1400px; margin: 60px auto; padding: 0 20px; text-align: center;}
 .page-title { font-size: 3rem; color: var(--text-heading); font-weight: 900; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; }
 .page-subtitle { color: var(--primary); font-size: 1.2rem; margin-bottom: 30px; font-weight: 600; }
 
-.suggested-section { margin-bottom: 50px; text-align: left; background: rgba(241, 196, 15, 0.05); padding: 25px; border-radius: 20px; border: 1px solid rgba(241, 196, 15, 0.2); }
-.suggested-section .section-title { font-size: 1.8rem; margin-bottom: 20px; color: #f1c40f; font-weight: 900; }
+.suggested-section { margin-bottom: 50px; text-align: left; background: rgba(185, 130, 41, 0.05); padding: 25px; border-radius: 20px; border: 1px solid rgba(185, 130, 41, 0.2); }
+.suggested-section .section-title { font-size: 1.8rem; margin-bottom: 20px; color: #B98229; font-weight: 900; }
 .suggested-grid { display: flex; gap: 20px; overflow-x: auto; padding-bottom: 15px; }
 .suggested-grid::-webkit-scrollbar { height: 8px; }
-.suggested-grid::-webkit-scrollbar-thumb { background: #f1c40f; border-radius: 10px; }
-.suggested-card { min-width: 250px; background: rgba(0,0,0,0.5); border-radius: 15px; padding: 15px; display: flex; flex-direction: column; position: relative; border: 1px solid rgba(241, 196, 15, 0.3); transition: 0.3s; }
-.suggested-card:hover { transform: translateY(-5px); box-shadow: 0 5px 15px rgba(241, 196, 15, 0.2); }
-.sugg-badge { position: absolute; top: -10px; right: -10px; background: #e74c3c; color: white; padding: 5px 10px; border-radius: 10px; font-weight: 900; font-size: 0.8rem; transform: rotate(10deg); box-shadow: 0 2px 10px rgba(231,76,60,0.5); }
+.suggested-grid::-webkit-scrollbar-thumb { background: #B98229; border-radius: 10px; }
+.suggested-card { min-width: 250px; background: rgba(0,0,0,0.5); border-radius: 15px; padding: 15px; display: flex; flex-direction: column; position: relative; border: 1px solid rgba(185, 130, 41, 0.3); transition: 0.3s; }
+.suggested-card:hover { transform: translateY(-5px); box-shadow: 0 5px 15px rgba(185, 130, 41, 0.2); }
+.sugg-badge { position: absolute; top: -10px; right: -10px; background: #B23B2E; color: #FFFFFF; padding: 5px 10px; border-radius: 10px; font-weight: 900; font-size: 0.8rem; transform: rotate(10deg); box-shadow: 0 2px 10px rgba(178,59,46,0.5); }
 .suggested-card img { width: 100%; height: 140px; object-fit: cover; border-radius: 10px; margin-bottom: 15px; }
 .sugg-info { flex: 1; }
-.sugg-info h3 { margin: 0 0 5px 0; font-size: 1.1rem; color: white; }
-.sugg-info .price { color: #f1c40f; font-weight: bold; font-size: 1.2rem; margin: 0; }
-.btn-sugg-add { background: #f1c40f; color: #000; border: none; padding: 10px; border-radius: 8px; font-weight: bold; margin-top: 15px; cursor: pointer; transition: 0.3s; }
-.btn-sugg-add:hover { background: #fff; }
+.sugg-info h3 { margin: 0 0 5px 0; font-size: 1.1rem; color: #FFFFFF; }
+.sugg-info .price { color: #B98229; font-weight: bold; font-size: 1.2rem; margin: 0; }
+.btn-sugg-add { background: #B98229; color: #201D14; border: none; padding: 10px; border-radius: 8px; font-weight: bold; margin-top: 15px; cursor: pointer; transition: 0.3s; }
+.btn-sugg-add:hover { background: #FFFFFF; }
 
 .category-filter { display: flex; gap: 12px; justify-content: center; margin-bottom: 50px; flex-wrap: wrap; }
 .category-filter button {
-  background: rgba(13,27,42,0.6); border: 1px solid rgba(255,255,255,0.05);
+  background: rgba(255, 255, 255, 0.78); border: 1px solid rgba(255,255,255,0.05);
   color: var(--text-secondary); padding: 10px 24px; border-radius: 100px;
   cursor: pointer; font-weight: 600; transition: var(--transition);
 }
 .category-filter button:hover { border-color: var(--primary); color: var(--primary); }
 .category-filter button.active {
-  background: var(--primary); color: #040914; border-color: var(--primary); font-weight: 800;
-  box-shadow: 0 0 20px rgba(0,212,170,0.3);
+  background: var(--primary); color: #1A170F; border-color: var(--primary); font-weight: 800;
+  box-shadow: 0 0 20px rgba(90, 110, 69, 0.3);
 }
 
 .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 30px; }
+.menu-loading-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 30px;
+  text-align: left;
+}
+.menu-state {
+  min-height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+  padding: 28px;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--text-muted);
+}
+.menu-state strong { color: var(--text-heading); font-size: 1.15rem; }
+.menu-error { border-left: 4px solid var(--danger); }
+.menu-error .g-btn-outline { margin-top: 4px; }
 .product-card {
-  background: rgba(13,27,42,0.5); padding: 30px 20px; border-radius: 20px;
+  background: rgba(255, 255, 255, 0.70); padding: 30px 20px; border-radius: 20px;
   border: 1px solid rgba(255,255,255,0.05); transition: var(--transition);
   position: relative; overflow: hidden;
 }
@@ -326,19 +390,19 @@ onMounted(async () => {
 .product-card:hover::before { opacity: 1; }
 
 .product-card > * { position: relative; z-index: 1; }
-.product-card img { width: 150px; height: 150px; border-radius: 50%; object-fit: cover; margin-bottom: 20px; border: 4px solid rgba(13,27,42,0.8); box-shadow: var(--shadow-md); transition: var(--transition); }
+.product-card img { width: 150px; height: 150px; border-radius: 50%; object-fit: cover; margin-bottom: 20px; border: 4px solid rgba(255, 255, 255, 0.88); box-shadow: var(--shadow-md); transition: var(--transition); }
 .product-card:hover img { transform: scale(1.05) rotate(5deg); border-color: var(--primary); }
 .product-card h3 { color: var(--text-heading); font-size: 1.2rem; margin-bottom: 8px; font-weight: 800; }
-.product-rating { margin-bottom: 12px; color: #f1c40f; font-weight: 700; font-size: 0.95rem; }
+.product-rating { margin-bottom: 12px; color: #B98229; font-weight: 700; font-size: 0.95rem; }
 .price { color: var(--primary); font-weight: 900; margin-bottom: 20px; font-size: 1.3rem; }
 .btn-add {
-  background: rgba(0,212,170,0.1); color: var(--primary); border: 1px solid var(--primary);
+  background: rgba(90, 110, 69, 0.1); color: var(--primary); border: 1px solid var(--primary);
   width: 100%; padding: 12px; border-radius: 100px; cursor: pointer;
   font-weight: 800; transition: var(--transition);
 }
-.btn-add:hover { background: var(--primary); color: #040914; box-shadow: 0 5px 15px rgba(0,212,170,0.4); }
+.btn-add:hover { background: var(--primary); color: #1A170F; box-shadow: 0 5px 15px rgba(90, 110, 69, 0.4); }
 .btn-disabled { opacity: 0.5; cursor: not-allowed !important; }
-.btn-disabled:hover { background: rgba(0,212,170,0.1); color: var(--primary); box-shadow: none; }
+.btn-disabled:hover { background: rgba(90, 110, 69, 0.1); color: var(--primary); box-shadow: none; }
 
 /* Floating Cart */
 .floating-cart {
@@ -346,18 +410,20 @@ onMounted(async () => {
   background: linear-gradient(135deg, var(--primary), var(--primary-dark));
   padding: 15px 25px; border-radius: 50px;
   display: flex; align-items: center; gap: 15px;
-  cursor: pointer; box-shadow: 0 10px 30px rgba(0,212,170,0.4);
-  color: #040914; font-weight: 800; transition: var(--transition);
+  cursor: pointer; box-shadow: 0 10px 30px rgba(90, 110, 69, 0.4);
+  color: #1A170F; font-weight: 800; transition: var(--transition);
 }
-.floating-cart:hover { transform: translateY(-5px); box-shadow: 0 15px 40px rgba(0,212,170,0.6); }
+.floating-cart:hover { transform: translateY(-5px); box-shadow: 0 15px 40px rgba(90, 110, 69, 0.6); }
 .cart-icon { font-size: 1.5rem; }
-.cart-count { background: #040914; color: var(--primary); padding: 4px 10px; border-radius: 20px; font-size: 0.85rem; }
+.cart-count { background: #1A170F; color: var(--primary); padding: 4px 10px; border-radius: 20px; font-size: 0.85rem; }
 .cart-total { font-size: 1.1rem; }
-.cart-checkout { margin-left: 10px; background: rgba(4,9,20,0.1); padding: 5px 15px; border-radius: 20px; }
+.cart-checkout { margin-left: 10px; background: rgba(26, 23, 15, 0.1); padding: 5px 15px; border-radius: 20px; }
+
 @media (max-width: 1024px) {
   .menu-content { margin: 44px auto; }
   .page-title { font-size: 2.4rem; }
-  .product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+  .product-grid,
+  .menu-loading-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
   .floating-cart { right: 20px; bottom: 20px; }
 }
 
@@ -377,7 +443,10 @@ onMounted(async () => {
   .btn-add,
   .modal-actions button { min-height: 44px; }
   .category-filter button { flex: 1 1 calc(50% - 8px); padding: 10px 12px; }
-  .product-grid { grid-template-columns: 1fr; gap: 18px; }
+  .product-grid,
+  .menu-loading-grid { grid-template-columns: 1fr; gap: 18px; }
+  .menu-state { min-height: 180px; padding: 22px 16px; }
+  .menu-error .g-btn-outline { min-height: 44px; width: 100%; }
   .product-card { padding: 24px 16px; }
   .product-card img { width: 140px; height: 140px; object-fit: cover; }
   .floating-cart {
