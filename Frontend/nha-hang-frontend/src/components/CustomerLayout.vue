@@ -5,16 +5,12 @@
       <slot />
     </main>
     <AppFooter />
-
-    <!-- Global Toast -->
-    <ToastGlobal />
   </div>
 </template>
 
 <script setup>
 import AppNavbar from '@/components/AppNavbar.vue'
 import AppFooter from '@/components/AppFooter.vue'
-import ToastGlobal from '@/components/ToastGlobal.vue'
 
 defineProps({
   transparentNav: { type: Boolean, default: false }

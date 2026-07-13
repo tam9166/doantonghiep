@@ -18,7 +18,7 @@
           <p class="toast-title" v-if="toast.title">{{ toast.title }}</p>
           <p class="toast-message">{{ toast.message }}</p>
         </div>
-        <button class="toast-close" @click.stop="removeToast(toast.id)">✕</button>
+        <button class="toast-close" aria-label="Đóng thông báo" @click.stop="removeToast(toast.id)">✕</button>
         <div class="toast-progress" :style="{ animationDuration: toast.duration + 'ms' }"></div>
       </div>
     </TransitionGroup>
@@ -43,7 +43,7 @@ function removeToast(id) {
   toasts.value = toasts.value.filter(t => t.id !== id)
 }
 
-// Expose để parent / provide-inject sử dụng
+// Expose the toast controls for parent components using a template ref.
 defineExpose({ addToast, removeToast })
 </script>
 
@@ -81,20 +81,20 @@ defineExpose({ addToast, removeToast })
 }
 
 .toast-success {
-  background: rgba(0, 212, 170, 0.12);
-  border-color: rgba(0, 212, 170, 0.25);
+  background: rgba(90, 110, 69, 0.12);
+  border-color: rgba(90, 110, 69, 0.25);
 }
 .toast-error {
-  background: rgba(231, 76, 60, 0.12);
-  border-color: rgba(231, 76, 60, 0.25);
+  background: rgba(178, 59, 46, 0.12);
+  border-color: rgba(178, 59, 46, 0.25);
 }
 .toast-warning {
-  background: rgba(241, 196, 15, 0.12);
-  border-color: rgba(241, 196, 15, 0.25);
+  background: rgba(185, 130, 41, 0.12);
+  border-color: rgba(185, 130, 41, 0.25);
 }
 .toast-info {
-  background: rgba(52, 152, 219, 0.12);
-  border-color: rgba(52, 152, 219, 0.25);
+  background: rgba(90, 110, 69, 0.12);
+  border-color: rgba(90, 110, 69, 0.25);
 }
 
 .toast-icon {
@@ -112,7 +112,7 @@ defineExpose({ addToast, removeToast })
   margin: 0 0 4px 0;
   font-weight: 800;
   font-size: 0.92rem;
-  color: #fff;
+  color: #FFFFFF;
 }
 
 .toast-message {
@@ -133,7 +133,7 @@ defineExpose({ addToast, removeToast })
   transition: color 0.2s;
 }
 .toast-close:hover {
-  color: #fff;
+  color: #FFFFFF;
 }
 
 /* Progress bar */
@@ -146,10 +146,10 @@ defineExpose({ addToast, removeToast })
   animation: toastProgress linear forwards;
 }
 
-.toast-success .toast-progress { background: rgba(0, 212, 170, 0.6); }
-.toast-error .toast-progress { background: rgba(231, 76, 60, 0.6); }
-.toast-warning .toast-progress { background: rgba(241, 196, 15, 0.6); }
-.toast-info .toast-progress { background: rgba(52, 152, 219, 0.6); }
+.toast-success .toast-progress { background: rgba(90, 110, 69, 0.6); }
+.toast-error .toast-progress { background: rgba(178, 59, 46, 0.6); }
+.toast-warning .toast-progress { background: rgba(185, 130, 41, 0.6); }
+.toast-info .toast-progress { background: rgba(90, 110, 69, 0.6); }
 
 @keyframes toastProgress {
   from { width: 100%; }
@@ -179,12 +179,20 @@ defineExpose({ addToast, removeToast })
   opacity: 0;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 640px) {
   .toast-container {
     top: 12px;
     right: 12px;
     left: 12px;
-    max-width: 100%;
+    width: auto;
+    max-width: calc(100vw - 24px);
+    box-sizing: border-box;
+  }
+
+  .toast-close {
+    min-width: 44px;
+    min-height: 44px;
+    margin: -10px -12px -10px 0;
   }
 }
 </style>
