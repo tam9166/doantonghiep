@@ -1,7 +1,11 @@
 <template>
   <div class="admin-layout">
     <!-- Sidebar -->
-    <aside class="admin-sidebar" :class="{ collapsed: sidebarCollapsed }">
+    <aside
+      id="admin-mobile-sidebar"
+      class="admin-sidebar"
+      :class="{ collapsed: sidebarCollapsed, 'mobile-open': mobileSidebarOpen }"
+    >
       <div class="sidebar-header">
         <router-link to="/admin" class="sidebar-brand">
           <span class="sidebar-brand-icon">🍽️</span>
@@ -17,7 +21,7 @@
         </button>
       </div>
 
-      <nav class="sidebar-nav">
+      <nav class="sidebar-nav" @click="handleSidebarNavigation">
         <div class="nav-section">
           <p class="nav-section-title" v-if="!sidebarCollapsed">TỔNG QUAN</p>
           <router-link to="/admin/analytics" class="nav-item" active-class="active">
@@ -109,7 +113,7 @@
       </nav>
 
       <!-- Sidebar Footer -->
-      <div class="sidebar-footer">
+      <div class="sidebar-footer" @click="handleSidebarNavigation">
         <router-link to="/" class="nav-item">
           <span class="nav-icon">🏠</span>
           <span class="nav-label" v-if="!sidebarCollapsed">Về Trang Chủ</span>
@@ -121,11 +125,29 @@
       </div>
     </aside>
 
+    <button
+      v-if="mobileSidebarOpen"
+      type="button"
+      class="mobile-sidebar-overlay"
+      aria-label="Đóng menu quản trị"
+      @click="closeMobileSidebar"
+    ></button>
+
     <!-- Main Content -->
     <div class="admin-main" :class="{ 'main-expanded': sidebarCollapsed }">
       <!-- Top Bar -->
       <header class="admin-topbar">
         <div class="topbar-left">
+          <button
+            type="button"
+            class="mobile-menu-button"
+            aria-label="Mở menu quản trị"
+            aria-controls="admin-mobile-sidebar"
+            :aria-expanded="mobileSidebarOpen"
+            @click="openMobileSidebar"
+          >
+            ☰
+          </button>
           <h2 class="page-heading">
             <slot name="title">Quản Trị</slot>
           </h2>
@@ -178,8 +200,6 @@
       </div>
     </div>
 
-    <!-- Global Toast -->
-    <ToastGlobal />
   </div>
 </template>
 
@@ -187,11 +207,11 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getCurrentUser } from '@/services/api'
-import ToastGlobal from '@/components/ToastGlobal.vue'
 import axios from 'axios'
 
 const router = useRouter()
 const sidebarCollapsed = ref(false)
+const mobileSidebarOpen = ref(false)
 const user = ref(null)
 
 // === NOTIFICATIONS ===
@@ -274,6 +294,23 @@ const handleClickOutside = (e) => {
   }
 }
 
+const openMobileSidebar = () => {
+  sidebarCollapsed.value = false
+  mobileSidebarOpen.value = true
+}
+
+const closeMobileSidebar = () => {
+  mobileSidebarOpen.value = false
+}
+
+const handleSidebarNavigation = (event) => {
+  if (event.target.closest('a')) closeMobileSidebar()
+}
+
+const handleEscape = (event) => {
+  if (event.key === 'Escape') closeMobileSidebar()
+}
+
 function handleLogout() {
   if (confirm('Bạn có chắc muốn đăng xuất?')) {
     localStorage.removeItem('token')
@@ -294,11 +331,13 @@ onMounted(() => {
     notifInterval = setInterval(checkAlerts, 30000) // Polling mỗi 30 giây
   }
   document.addEventListener('click', handleClickOutside)
+  document.addEventListener('keydown', handleEscape)
 })
 
 onUnmounted(() => {
   if (notifInterval) clearInterval(notifInterval)
   document.removeEventListener('click', handleClickOutside)
+  document.removeEventListener('keydown', handleEscape)
 })
 </script>
 
@@ -462,6 +501,7 @@ onUnmounted(() => {
 /* ===== MAIN ===== */
 .admin-main {
   flex: 1;
+  min-width: 0;
   margin-left: 260px;
   min-height: 100vh;
   display: flex;
@@ -470,6 +510,11 @@ onUnmounted(() => {
 }
 .admin-main.main-expanded {
   margin-left: 72px;
+}
+
+.mobile-sidebar-overlay,
+.mobile-menu-button {
+  display: none;
 }
 
 /* Topbar */
@@ -492,6 +537,7 @@ onUnmounted(() => {
   font-weight: 800;
   color: var(--text-heading);
 }
+.topbar-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .topbar-right { display: flex; align-items: center; gap: 16px; }
 .topbar-user {
   display: flex;
@@ -535,10 +581,54 @@ onUnmounted(() => {
   .nav-section-title, .nav-label, .sidebar-brand-text { display: none !important; }
 }
 @media (max-width: 640px) {
-  .admin-sidebar { display: none; }
+  .admin-sidebar,
+  .admin-sidebar.collapsed {
+    display: flex;
+    width: min(300px, 86vw);
+    transform: translateX(-100%);
+    box-shadow: 18px 0 40px rgba(26, 23, 15, 0.28);
+    transition: transform 0.25s ease;
+  }
+  .admin-sidebar.mobile-open { transform: translateX(0); }
+  .admin-sidebar .nav-section-title,
+  .admin-sidebar .nav-label,
+  .admin-sidebar .sidebar-brand-text { display: block !important; }
+  .admin-sidebar .sidebar-toggle { display: none; }
+  .mobile-sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: rgba(26, 23, 15, 0.52);
+    cursor: pointer;
+  }
+  .mobile-menu-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-card);
+    color: var(--text-heading);
+    font-size: 1.35rem;
+    cursor: pointer;
+  }
   .admin-main { margin-left: 0; }
   .admin-content { padding: 16px; }
   .admin-topbar { padding: 12px 16px; }
+  .page-heading { overflow: hidden; font-size: 1.1rem; text-overflow: ellipsis; white-space: nowrap; }
+  .topbar-right { gap: 8px; }
+  .topbar-user { padding-right: 6px; }
+  .user-info { display: none; }
 }
 /* === NOTIFICATION BELL === */
 .notif-wrapper {
