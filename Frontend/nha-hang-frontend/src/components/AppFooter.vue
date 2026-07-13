@@ -98,8 +98,8 @@ const currentYear = new Date().getFullYear()
 <style scoped>
 .app-footer {
   position: relative;
-  background: linear-gradient(180deg, var(--bg-root) 0%, #1A170F 100%);
-  color: var(--text-secondary);
+  background: linear-gradient(180deg, var(--bg-root) 0%, var(--bg-card) 100%);
+  color: #000;
   overflow: hidden;
 }
 
@@ -278,6 +278,28 @@ const currentYear = new Date().getFullYear()
 .newsletter-btn:hover {
   background: var(--primary);
   box-shadow: 0 0 20px rgba(90, 110, 69, 0.4);
+}
+
+/* Keep every footer label readable on the light footer background. */
+.footer-content,
+.footer-content h3,
+.footer-content h3 span,
+.footer-content h4,
+.footer-content p,
+.footer-content li,
+.footer-content a,
+.footer-content a:hover,
+.footer-content span,
+.footer-content input,
+.footer-content input::placeholder,
+.footer-content button,
+.footer-content button:hover {
+  color: #000;
+}
+
+.newsletter-btn,
+.newsletter-btn:hover {
+  background: var(--secondary);
 }
 
 /* Bottom */
