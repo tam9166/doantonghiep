@@ -41,7 +41,7 @@
           
           <div v-if="aiCombo.length === 0 && !isFetchingAI">
             <p class="ai-desc">Để đưa ra gợi ý hợp lý nhất, bạn đi mấy người?</p>
-            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+            <div class="party-size-row" style="display: flex; gap: 10px; margin-bottom: 10px;">
               <input type="number" v-model="partySize" min="1" placeholder="Nhập số người" class="form-control" style="width: 150px; background: rgba(0,0,0,0.2); color: white;" />
               <button class="btn-add-item" @click="fetchComboForParty">Nhận gợi ý</button>
             </div>
@@ -802,5 +802,61 @@ onMounted(loadData);
 @keyframes toastSlideUp {
   from { transform: translate(-50%, 20px); opacity: 0; }
   to { transform: translate(-50%, 0); opacity: 1; }
+}
+
+@media (max-width: 1024px) {
+  .dinein-navbar { padding: 12px 24px; }
+  .nav-links { display: none; }
+  .main-content { max-width: 720px; padding: 18px; }
+}
+
+@media (max-width: 640px) {
+  .dine-in-wrapper,
+  .dine-in-wrapper * { box-sizing: border-box; }
+  .dine-in-wrapper { overflow-x: hidden; padding-bottom: 88px; }
+  .dinein-navbar { padding: 10px 12px; }
+  .logo p { display: none; }
+  .logo h2 { font-size: 1.05rem; }
+  .btn-nav-dinein { min-height: 44px; padding: 8px 12px; }
+  .main-content { padding: 12px; }
+  .table-selection-box,
+  .ai-suggestion-box,
+  .suggested-section { padding: 12px; }
+  .table-select,
+  .form-control,
+  .btn-add-item,
+  .btn-sugg-add,
+  .btn-add-combo,
+  .btn-checkout,
+  .btn-cancel,
+  .btn-confirm,
+  .modal-actions button { min-height: 44px; }
+  .party-size-row,
+  .ai-action { flex-wrap: wrap; }
+  .party-size-row .form-control { flex: 1 1 140px; width: auto !important; min-width: 0; }
+  .party-size-row .btn-add-item { flex: 1 1 130px; }
+  .combo-item { align-items: flex-start; flex-wrap: wrap; }
+  .combo-item .product-info { min-width: calc(100% - 72px); }
+  .combo-item .btn-add-item { width: 100%; }
+  .suggested-card { min-width: min(160px, 70vw); }
+  .product-item { align-items: center; gap: 10px; padding: 12px; }
+  .product-item img { width: 72px; height: 72px; flex-shrink: 0; }
+  .product-info { min-width: 0; }
+  .product-info h4 { overflow-wrap: anywhere; font-size: 1rem; }
+  .product-item .btn-add-item { flex-shrink: 0; padding: 8px 12px; }
+  .sticky-bottom-cart { min-height: 72px; padding: 10px 12px; border-radius: 12px 12px 0 0; }
+  .cart-summary { gap: 10px; min-width: 0; }
+  .cart-price { font-size: 1rem; }
+  .btn-checkout { padding: 10px 16px; }
+  .fab-mic { right: 12px; bottom: 90px; width: 52px; height: 52px; }
+  .g-modal-box { width: calc(100vw - 24px); max-height: calc(100vh - 24px) !important; }
+  .cart-item-row { align-items: flex-start; flex-wrap: wrap; }
+  .cart-item-info { min-width: 120px; }
+  .cart-item-controls { gap: 2px; }
+  .qty-btn { width: 44px; height: 44px; }
+  .modal-actions { flex-direction: column; }
+  .modal-actions button { width: 100%; }
+  .voice-box { width: calc(100% - 24px); padding: 24px 16px; }
+  .toast-notification { width: calc(100% - 24px); padding: 12px 16px; }
 }
 </style>
