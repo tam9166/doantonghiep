@@ -98,7 +98,7 @@ const currentYear = new Date().getFullYear()
 <style scoped>
 .app-footer {
   position: relative;
-  background: linear-gradient(180deg, var(--bg-root) 0%, #050b18 100%);
+  background: linear-gradient(180deg, var(--bg-root) 0%, #1A170F 100%);
   color: var(--text-secondary);
   overflow: hidden;
 }
@@ -137,7 +137,7 @@ const currentYear = new Date().getFullYear()
 }
 .footer-brand-icon {
   font-size: 2rem;
-  filter: drop-shadow(0 0 12px rgba(0, 212, 170, 0.5));
+  filter: drop-shadow(0 0 12px rgba(90, 110, 69, 0.5));
 }
 .footer-brand h3 {
   margin: 0;
@@ -176,8 +176,8 @@ const currentYear = new Date().getFullYear()
   transition: var(--transition);
 }
 .social-link:hover {
-  background: rgba(0, 212, 170, 0.1);
-  border-color: rgba(0, 212, 170, 0.3);
+  background: rgba(90, 110, 69, 0.1);
+  border-color: rgba(90, 110, 69, 0.3);
   color: var(--primary);
   transform: translateY(-3px);
 }
@@ -277,7 +277,7 @@ const currentYear = new Date().getFullYear()
 }
 .newsletter-btn:hover {
   background: var(--primary);
-  box-shadow: 0 0 20px rgba(0, 212, 170, 0.4);
+  box-shadow: 0 0 20px rgba(90, 110, 69, 0.4);
 }
 
 /* Bottom */
@@ -310,10 +310,18 @@ const currentYear = new Date().getFullYear()
 /* Responsive */
 @media (max-width: 1024px) {
   .footer-grid { grid-template-columns: 1fr 1fr; gap: 40px; }
+  .footer-content { padding-right: 24px; padding-left: 24px; }
 }
 @media (max-width: 640px) {
   .footer-grid { grid-template-columns: 1fr; gap: 36px; }
-  .footer-content { padding: 40px 20px 24px; }
+  .footer-wave svg { height: 48px; }
+  .footer-content { padding: 36px 16px 24px; }
+  .social-link { width: 44px; height: 44px; }
+  .newsletter-form { width: 100%; }
+  .newsletter-input { min-width: 0; padding: 12px; }
+  .newsletter-btn { min-width: 48px; min-height: 48px; padding: 10px 14px; }
   .footer-bottom { flex-direction: column; text-align: center; }
+  .footer-bottom-links { justify-content: center; flex-wrap: wrap; gap: 12px 18px; }
+  .footer-bottom-links a { min-height: 44px; display: inline-flex; align-items: center; }
 }
 </style>
