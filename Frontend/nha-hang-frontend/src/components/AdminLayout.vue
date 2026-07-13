@@ -40,9 +40,29 @@
             <span class="nav-icon">📋</span>
             <span class="nav-label" v-if="!sidebarCollapsed">Đơn hàng</span>
           </router-link>
+          <router-link to="/admin/reservations" class="nav-item" active-class="active">
+            <span class="nav-icon">📅</span>
+            <span class="nav-label" v-if="!sidebarCollapsed">Đặt bàn</span>
+          </router-link>
+          <router-link to="/admin/reservation-reviews" class="nav-item" active-class="active">
+            <span class="nav-icon">⭐</span>
+            <span class="nav-label" v-if="!sidebarCollapsed">Đánh giá đặt bàn</span>
+          </router-link>
+          <router-link to="/admin/customer-history" class="nav-item" active-class="active">
+            <span class="nav-icon">📇</span>
+            <span class="nav-label" v-if="!sidebarCollapsed">Lịch sử khách</span>
+          </router-link>
+          <router-link to="/admin/deposit-policies" class="nav-item" active-class="active">
+            <span class="nav-icon">💳</span>
+            <span class="nav-label" v-if="!sidebarCollapsed">Chính sách cọc</span>
+          </router-link>
           <router-link to="/admin/tables" class="nav-item" active-class="active">
             <span class="nav-icon">🪑</span>
             <span class="nav-label" v-if="!sidebarCollapsed">Sơ đồ bàn</span>
+          </router-link>
+          <router-link to="/admin/table-areas" class="nav-item" active-class="active">
+            <span class="nav-icon">🏢</span>
+            <span class="nav-label" v-if="!sidebarCollapsed">Khu vực bàn</span>
           </router-link>
         </div>
 
@@ -187,8 +207,8 @@ const configHeader = () => ({ headers: { 'Authorization': `Bearer ${getToken()}`
 const fetchNotifications = async () => {
   try {
     const [notifRes, countRes] = await Promise.all([
-      axios.get('http://localhost:8080/api/admin/notifications', configHeader()),
-      axios.get('http://localhost:8080/api/admin/notifications/unread-count', configHeader())
+      axios.get('/api/admin/notifications', configHeader()),
+      axios.get('/api/admin/notifications/unread-count', configHeader())
     ])
     notifications.value = notifRes.data.slice(0, 20)
     const newCount = countRes.data.count || 0
@@ -202,7 +222,7 @@ const fetchNotifications = async () => {
 
 const checkAlerts = async () => {
   try {
-    await axios.post('http://localhost:8080/api/admin/notifications/check-alerts', {}, configHeader())
+    await axios.post('/api/admin/notifications/check-alerts', {}, configHeader())
     await fetchNotifications()
   } catch (err) { /* silent */ }
 }
@@ -214,7 +234,7 @@ const toggleNotifPanel = () => {
 const readNotification = async (n) => {
   if (!n.isRead) {
     try {
-      await axios.put(`http://localhost:8080/api/admin/notifications/${n.id}/read`, {}, configHeader())
+      await axios.put(`/api/admin/notifications/${n.id}/read`, {}, configHeader())
       n.isRead = true
       unreadCount.value = Math.max(0, unreadCount.value - 1)
     } catch (err) { /* silent */ }
@@ -230,7 +250,7 @@ const readNotification = async (n) => {
 
 const markAllRead = async () => {
   try {
-    await axios.put('http://localhost:8080/api/admin/notifications/read-all', {}, configHeader())
+    await axios.put('/api/admin/notifications/read-all', {}, configHeader())
     notifications.value.forEach(n => n.isRead = true)
     unreadCount.value = 0
   } catch (err) { /* silent */ }
@@ -292,7 +312,7 @@ onUnmounted(() => {
 /* ===== SIDEBAR ===== */
 .admin-sidebar {
   width: 260px;
-  background: rgba(8, 16, 31, 0.95);
+  background: rgba(90, 110, 69, 0.95);
   border-right: 1px solid rgba(255, 255, 255, 0.05);
   display: flex;
   flex-direction: column;
@@ -328,20 +348,20 @@ onUnmounted(() => {
 .sidebar-brand-icon {
   font-size: 1.6rem;
   flex-shrink: 0;
-  filter: drop-shadow(0 0 8px rgba(0, 212, 170, 0.4));
+  filter: drop-shadow(0 0 8px rgba(90, 110, 69, 0.4));
 }
 .sidebar-brand-text h3 {
   margin: 0;
   font-size: 1rem;
   font-weight: 900;
-  color: var(--primary);
+  color: #F2C46D;
   letter-spacing: 1px;
   white-space: nowrap;
 }
 .sidebar-brand-text p {
   margin: 0;
   font-size: 0.6rem;
-  color: var(--text-muted);
+  color: rgba(255, 255, 255, 0.72);
   letter-spacing: 2px;
   white-space: nowrap;
 }
@@ -349,7 +369,7 @@ onUnmounted(() => {
 .sidebar-toggle {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  color: var(--text-muted);
+  color: #FFFFFF;
   width: 28px;
   height: 28px;
   border-radius: 8px;
@@ -362,9 +382,9 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 .sidebar-toggle:hover {
-  background: rgba(0, 212, 170, 0.1);
-  border-color: rgba(0, 212, 170, 0.3);
-  color: var(--primary);
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.35);
+  color: #FFFFFF;
 }
 
 /* Nav */
@@ -382,7 +402,7 @@ onUnmounted(() => {
   margin: 0 0 6px 8px;
   font-size: 0.65rem;
   font-weight: 700;
-  color: var(--text-muted);
+  color: rgba(255, 255, 255, 0.64);
   letter-spacing: 2px;
   text-transform: uppercase;
   white-space: nowrap;
@@ -395,7 +415,7 @@ onUnmounted(() => {
   gap: 12px;
   padding: 10px 14px;
   border-radius: 12px;
-  color: var(--text-secondary);
+  color: rgba(255, 255, 255, 0.88);
   text-decoration: none;
   font-size: 0.88rem;
   font-weight: 600;
@@ -409,16 +429,16 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 .nav-item:hover {
-  background: rgba(0, 212, 170, 0.06);
-  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.12);
+  color: #FFFFFF;
 }
 .nav-item.active {
-  background: rgba(0, 212, 170, 0.12);
-  color: var(--primary);
+  background: rgba(34, 48, 27, 0.72);
+  color: #FFFFFF;
   font-weight: 700;
 }
 .nav-item.active .nav-icon {
-  filter: drop-shadow(0 0 6px rgba(0, 212, 170, 0.4));
+  filter: drop-shadow(0 0 6px rgba(242, 196, 109, 0.55));
 }
 .nav-icon {
   font-size: 1.1rem;
@@ -430,8 +450,8 @@ onUnmounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.nav-item-danger { color: #e74c3c; }
-.nav-item-danger:hover { background: rgba(231, 76, 60, 0.1); }
+.nav-item-danger { color: #FFD5D0; }
+.nav-item-danger:hover { background: rgba(178, 59, 46, 0.42); color: #FFFFFF; }
 
 /* Sidebar Footer */
 .sidebar-footer {
@@ -454,7 +474,7 @@ onUnmounted(() => {
 
 /* Topbar */
 .admin-topbar {
-  background: rgba(8, 16, 31, 0.7);
+  background: rgba(255, 255, 255, 0.82);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
@@ -540,8 +560,8 @@ onUnmounted(() => {
   position: absolute;
   top: -2px;
   right: -4px;
-  background: #e74c3c;
-  color: white;
+  background: #B23B2E;
+  color: #FFFFFF;
   font-size: 0.6rem;
   font-weight: 900;
   width: 18px;
@@ -550,7 +570,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid rgba(8, 16, 31, 0.95);
+  border: 2px solid rgba(90, 110, 69, 0.95);
 }
 
 /* Bell Animation */
@@ -567,9 +587,9 @@ onUnmounted(() => {
 
 /* Ring Pulse */
 @keyframes ringPulse {
-  0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.6); }
-  70% { box-shadow: 0 0 0 8px rgba(231, 76, 60, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(178, 59, 46, 0.6); }
+  70% { box-shadow: 0 0 0 8px rgba(178, 59, 46, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(178, 59, 46, 0); }
 }
 .ring-pulse { animation: ringPulse 2s ease-in-out infinite; }
 
@@ -581,9 +601,9 @@ onUnmounted(() => {
   margin-top: 8px;
   width: 380px;
   max-height: 480px;
-  background: rgba(12, 20, 38, 0.98);
+  background: rgba(247, 243, 230, 0.98);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid var(--border);
   border-radius: 14px;
   box-shadow: 0 16px 48px rgba(0,0,0,0.5);
   overflow: hidden;
@@ -600,7 +620,7 @@ onUnmounted(() => {
 .notif-mark-all {
   background: none;
   border: none;
-  color: var(--primary, #00d4aa);
+  color: var(--primary, #33422A);
   font-size: 0.8rem;
   font-weight: 700;
   cursor: pointer;
@@ -620,8 +640,8 @@ onUnmounted(() => {
   transition: background 0.2s;
   border-bottom: 1px solid rgba(255,255,255,0.03);
 }
-.notif-item:hover { background: rgba(0, 212, 170, 0.05); }
-.notif-item.unread { background: rgba(0, 212, 170, 0.03); border-left: 3px solid var(--primary, #00d4aa); }
+.notif-item:hover { background: rgba(90, 110, 69, 0.05); }
+.notif-item.unread { background: rgba(90, 110, 69, 0.03); border-left: 3px solid var(--primary, #33422A); }
 
 .notif-icon-dot {
   width: 10px;
@@ -630,9 +650,9 @@ onUnmounted(() => {
   margin-top: 6px;
   flex-shrink: 0;
 }
-.severity-critical { background: #e74c3c; box-shadow: 0 0 8px rgba(231, 76, 60, 0.5); }
-.severity-warning { background: #f1c40f; box-shadow: 0 0 8px rgba(241, 196, 15, 0.5); }
-.severity-info { background: #3498db; }
+.severity-critical { background: #B23B2E; box-shadow: 0 0 8px rgba(178, 59, 46, 0.5); }
+.severity-warning { background: #B98229; box-shadow: 0 0 8px rgba(185, 130, 41, 0.5); }
+.severity-info { background: #5A6E45; }
 
 .notif-content { flex: 1; min-width: 0; }
 .notif-title { margin: 0; font-size: 0.85rem; font-weight: 700; color: var(--text-heading); line-height: 1.3; }
