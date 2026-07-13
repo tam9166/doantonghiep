@@ -213,7 +213,7 @@ const currentYear = new Date().getFullYear()
   margin-bottom: 10px;
 }
 .footer-col ul a {
-  color: var(--text-muted);
+  color: #000;
   text-decoration: none;
   font-size: 0.88rem;
   transition: var(--transition);
@@ -222,7 +222,7 @@ const currentYear = new Date().getFullYear()
   gap: 6px;
 }
 .footer-col ul a:hover {
-  color: var(--primary);
+  color: #000;
   transform: translateX(4px);
 }
 
@@ -236,9 +236,9 @@ const currentYear = new Date().getFullYear()
 }
 .contact-icon { flex-shrink: 0; }
 .contact-list a {
-  color: var(--text-muted);
+  color: #000;
 }
-.contact-list a:hover { color: var(--primary); transform: none; }
+.contact-list a:hover { color: #000; transform: none; }
 
 /* Newsletter */
 .newsletter-desc {
@@ -315,19 +315,19 @@ const currentYear = new Date().getFullYear()
 .footer-bottom p {
   margin: 0;
   font-size: 0.82rem;
-  color: var(--text-muted);
+  color: #000;
 }
 .footer-bottom-links {
   display: flex;
   gap: 20px;
 }
 .footer-bottom-links a {
-  color: var(--text-muted);
+  color: #000;
   text-decoration: none;
   font-size: 0.82rem;
   transition: var(--transition);
 }
-.footer-bottom-links a:hover { color: var(--primary); }
+.footer-bottom-links a:hover { color: #000; }
 
 /* Responsive */
 @media (max-width: 1024px) {
