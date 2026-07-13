@@ -1349,10 +1349,25 @@ onMounted(async () => {
   .right-col,
   .section-container { min-width: 0; }
   .hero-banner { min-height: 600px; padding: 104px 16px 40px; }
-  .hero-content { width: 100%; padding: 0; }
-  .hero-tag { max-width: 100%; margin-bottom: 18px; padding: 6px 14px; white-space: normal; }
+  .hero-content {
+    flex: 0 1 calc(100vw - 32px);
+    width: calc(100vw - 32px);
+    max-width: calc(100vw - 32px);
+    padding: 0;
+  }
+  .hero-tag {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    margin-bottom: 18px;
+    padding: 6px 10px;
+    white-space: normal;
+    overflow-wrap: break-word;
+    font-size: 0.76rem;
+    line-height: 1.4;
+  }
   .hero-content h1 { font-size: 2.45rem; line-height: 1.12; }
-  .hero-content p { font-size: 1rem; margin-bottom: 26px; }
+  .hero-content p { max-width: 100%; font-size: 1rem; line-height: 1.5; margin-bottom: 26px; overflow-wrap: break-word; }
   .hero-actions { flex-direction: column; margin-bottom: 28px; }
   .hero-actions button,
   .article-actions button,
@@ -1366,8 +1381,8 @@ onMounted(async () => {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     width: 100%;
+    max-width: 100%;
     padding: 14px 6px;
-    overflow: hidden;
   }
   .stat-item { padding: 0 6px; }
   .stat-num { font-size: 1.3rem; }
@@ -1375,7 +1390,12 @@ onMounted(async () => {
   .stat-divider { display: none; }
   .main-content,
   .posts-section { padding: 48px 16px; }
-  .content-container { gap: 32px; }
+  .content-container {
+    width: calc(100vw - 32px);
+    max-width: calc(100vw - 32px);
+    gap: 32px;
+  }
+  .left-col { width: 100%; max-width: 100%; }
   .meta-info { flex-wrap: wrap; }
   .article-title,
   .section-header-block h2 { font-size: 1.65rem; }
