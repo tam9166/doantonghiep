@@ -527,7 +527,24 @@ const handleLogin = async () => {
   .form-wrapper { max-width: 420px; }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 640px) {
+  .login-page,
+  .login-page * { box-sizing: border-box; }
+  .login-page { overflow-x: hidden; }
+  .login-form-panel {
+    min-height: 100vh;
+    align-items: flex-start;
+    padding: 24px 16px;
+    overflow-y: auto;
+  }
+  .form-wrapper { max-width: 100%; }
+  .mobile-brand { margin-bottom: 24px; }
+  .form-header { margin-bottom: 28px; }
   .form-header h2 { font-size: 1.6rem; }
+  .input-field input { min-height: 48px; }
+  .toggle-pw { width: 44px; height: 44px; right: 4px; }
+  .form-options { flex-wrap: wrap; gap: 10px 16px; }
+  .remember-me { min-height: 44px; }
+  .btn-login { min-height: 48px; }
 }
 </style>
