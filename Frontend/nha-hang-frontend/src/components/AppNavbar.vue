@@ -15,6 +15,7 @@
         <router-link to="/" exact-active-class="active">{{ $t('nav.home') }}</router-link>
         <router-link to="/menu" active-class="active">{{ $t('nav.menu') }}</router-link>
         <router-link to="/reservation" active-class="active">{{ $t('nav.booking') }}</router-link>
+        <router-link to="/reservation-lookup" active-class="active">Tra cứu</router-link>
         <router-link to="/dine-in" active-class="active">{{ $t('nav.dine_in') }}</router-link>
       </nav>
 
@@ -76,6 +77,7 @@
           <router-link to="/" @click="mobileMenuOpen = false">🏠 Trang chủ</router-link>
           <router-link to="/menu" @click="mobileMenuOpen = false">📖 Thực đơn</router-link>
           <router-link to="/reservation" @click="mobileMenuOpen = false">📅 Đặt bàn</router-link>
+          <router-link to="/reservation-lookup" @click="mobileMenuOpen = false">Tra cứu đặt bàn</router-link>
           <router-link to="/dine-in" @click="mobileMenuOpen = false">🍽️ Tại quán</router-link>
           <div class="mobile-divider"></div>
           <template v-if="!isLoggedIn">
@@ -159,7 +161,7 @@ onUnmounted(() => {
 }
 
 .navbar-scrolled {
-  background: rgba(4, 9, 20, 0.92);
+  background: rgba(26, 23, 15, 0.92);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
@@ -168,11 +170,13 @@ onUnmounted(() => {
 }
 
 .navbar-transparent {
-  background: transparent;
+  background: rgba(26, 23, 15, 0.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .app-navbar:not(.navbar-transparent):not(.navbar-scrolled) {
-  background: rgba(4, 9, 20, 0.85);
+  background: rgba(26, 23, 15, 0.85);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
 }
@@ -196,7 +200,7 @@ onUnmounted(() => {
 }
 .brand-icon {
   font-size: 1.8rem;
-  filter: drop-shadow(0 0 12px rgba(0, 212, 170, 0.4));
+  filter: drop-shadow(0 0 12px rgba(90, 110, 69, 0.4));
   transition: var(--transition);
 }
 .navbar-brand:hover .brand-icon {
@@ -206,15 +210,15 @@ onUnmounted(() => {
   margin: 0;
   font-size: 1.15rem;
   font-weight: 900;
-  color: var(--text-heading);
+  color: #fffaf0;
   letter-spacing: 1px;
   line-height: 1.2;
 }
-.brand-text h2 span { color: var(--primary); }
+.brand-text h2 span { color: #f5d37a; }
 .brand-text p {
   margin: 0;
   font-size: 0.6rem;
-  color: var(--text-muted);
+  color: rgba(255, 250, 240, 0.78);
   letter-spacing: 4px;
   font-weight: 700;
   text-transform: uppercase;
@@ -227,7 +231,7 @@ onUnmounted(() => {
 }
 .navbar-nav a {
   text-decoration: none;
-  color: var(--text-secondary);
+  color: rgba(255, 255, 255, 0.9);
   font-weight: 600;
   font-size: 0.9rem;
   padding: 10px 18px;
@@ -236,12 +240,12 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 .navbar-nav a:hover {
-  color: var(--primary);
-  background: rgba(0, 212, 170, 0.08);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
 }
 .navbar-nav a.active {
-  color: var(--primary);
-  background: rgba(0, 212, 170, 0.12);
+  color: #fff;
+  background: rgba(90, 110, 69, 0.42);
 }
 
 /* Actions */
@@ -255,7 +259,7 @@ onUnmounted(() => {
 .lang-select {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  color: var(--text-primary);
+  color: #fff;
   padding: 6px 10px;
   border-radius: 20px;
   cursor: pointer;
@@ -270,7 +274,7 @@ onUnmounted(() => {
 
 .nav-btn {
   background: transparent;
-  color: var(--text-secondary);
+  color: rgba(255, 255, 255, 0.9);
   border: 1px solid rgba(255, 255, 255, 0.1);
   padding: 7px 14px;
   border-radius: 20px;
@@ -284,8 +288,8 @@ onUnmounted(() => {
 }
 .nav-btn:hover {
   border-color: var(--primary);
-  color: var(--primary);
-  background: rgba(0, 212, 170, 0.06);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
 }
 .nav-btn-primary {
   background: linear-gradient(135deg, var(--primary), var(--primary-dark));
@@ -295,18 +299,18 @@ onUnmounted(() => {
 }
 .nav-btn-primary:hover {
   color: var(--bg-dark);
-  box-shadow: 0 4px 15px rgba(0, 212, 170, 0.4);
+  box-shadow: 0 4px 15px rgba(90, 110, 69, 0.4);
   transform: translateY(-1px);
 }
-.nav-btn-admin { border-color: rgba(241, 196, 15, 0.3); color: #f1c40f; }
-.nav-btn-admin:hover { background: rgba(241, 196, 15, 0.1); color: #f1c40f; border-color: rgba(241, 196, 15, 0.5); }
-.nav-btn-kitchen { border-color: rgba(0, 212, 170, 0.3); color: var(--primary); }
-.nav-btn-waiter { border-color: rgba(52, 152, 219, 0.3); color: #3498db; }
-.nav-btn-waiter:hover { background: rgba(52, 152, 219, 0.1); color: #3498db; border-color: rgba(52, 152, 219, 0.5); }
-.nav-btn-cashier { border-color: rgba(155, 89, 182, 0.3); color: #9b59b6; }
-.nav-btn-cashier:hover { background: rgba(155, 89, 182, 0.1); color: #9b59b6; border-color: rgba(155, 89, 182, 0.5); }
-.nav-btn-logout { border-color: rgba(231, 76, 60, 0.3); color: #e74c3c; }
-.nav-btn-logout:hover { background: rgba(231, 76, 60, 0.1); color: #e74c3c; border-color: rgba(231, 76, 60, 0.5); }
+.nav-btn-admin { border-color: rgba(185, 130, 41, 0.3); color: #B98229; }
+.nav-btn-admin:hover { background: rgba(185, 130, 41, 0.1); color: #B98229; border-color: rgba(185, 130, 41, 0.5); }
+.nav-btn-kitchen { border-color: rgba(90, 110, 69, 0.3); color: var(--primary); }
+.nav-btn-waiter { border-color: rgba(90, 110, 69, 0.3); color: #5A6E45; }
+.nav-btn-waiter:hover { background: rgba(90, 110, 69, 0.1); color: #5A6E45; border-color: rgba(90, 110, 69, 0.5); }
+.nav-btn-cashier { border-color: rgba(192, 138, 46, 0.3); color: #C08A2E; }
+.nav-btn-cashier:hover { background: rgba(192, 138, 46, 0.1); color: #C08A2E; border-color: rgba(192, 138, 46, 0.5); }
+.nav-btn-logout { border-color: rgba(178, 59, 46, 0.45); color: #fff; }
+.nav-btn-logout:hover { background: rgba(178, 59, 46, 0.16); color: #fff; border-color: rgba(178, 59, 46, 0.75); }
 
 /* Hamburger */
 .hamburger {
@@ -322,7 +326,7 @@ onUnmounted(() => {
   display: block;
   width: 24px;
   height: 2px;
-  background: var(--text-primary);
+  background: #FFFFFF;
   border-radius: 2px;
   transition: all 0.3s ease;
 }
@@ -334,12 +338,14 @@ onUnmounted(() => {
 .mobile-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(4, 9, 20, 0.9);
+  background: rgba(26, 23, 15, 0.9);
   backdrop-filter: blur(20px);
   z-index: 999;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 76px 16px 20px;
+  overflow-y: auto;
 }
 .mobile-nav {
   display: flex;
@@ -350,7 +356,7 @@ onUnmounted(() => {
 }
 .mobile-nav a {
   display: block;
-  color: var(--text-primary);
+  color: #FFFFFF;
   text-decoration: none;
   font-size: 1.2rem;
   font-weight: 700;
@@ -361,8 +367,8 @@ onUnmounted(() => {
   transition: var(--transition);
 }
 .mobile-nav a:hover, .mobile-nav a.router-link-active {
-  background: rgba(0, 212, 170, 0.1);
-  border-color: rgba(0, 212, 170, 0.3);
+  background: rgba(90, 110, 69, 0.1);
+  border-color: rgba(90, 110, 69, 0.3);
   color: var(--primary);
 }
 .mobile-divider {
@@ -371,7 +377,7 @@ onUnmounted(() => {
   margin: 8px 0;
 }
 .mobile-logout {
-  color: #e74c3c !important;
+  color: #B23B2E !important;
 }
 
 /* Transition */
@@ -388,9 +394,13 @@ onUnmounted(() => {
   .hamburger { display: flex; }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 640px) {
   .app-navbar { padding: 10px 16px; }
   .brand-text h2 { font-size: 1rem; }
   .brand-text p { font-size: 0.55rem; letter-spacing: 2px; }
+  .hamburger { width: 44px; height: 44px; align-items: center; justify-content: center; }
+  .mobile-overlay { align-items: flex-start; }
+  .mobile-nav { width: 100%; }
+  .mobile-nav a { min-height: 48px; padding: 13px 18px; font-size: 1.05rem; }
 }
 </style>
