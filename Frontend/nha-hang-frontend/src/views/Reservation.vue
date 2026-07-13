@@ -1,526 +1,1772 @@
 <template>
   <CustomerLayout>
-  <div class="reservation-luxury">
-    
+    <main class="reservation-page">
+      <section class="reservation-shell">
+        <header class="reservation-header">
+          <div>
+            <p class="eyebrow">{{ text.eyebrow }}</p>
+            <h1>{{ text.title }}</h1>
+            <p>{{ text.subtitle }}</p>
+          </div>
+          <button class="lang-toggle" type="button" @click="toggleLang">{{ lang === 'vi' ? 'EN' : 'VI' }}</button>
+        </header>
 
-    <main class="content-wrap">
-      <div style="margin-bottom: 20px; width: 100%; max-width: 800px; display: flex;">
-        <button @click="$router.back()" class="lux-btn-outline" style="border-radius: 100px; padding: 8px 20px;">
-          ← Quay Lại
-        </button>
-      </div>
-      <div class="booking-card">
-        <h1 class="elegant-title text-gradient">RESERVATION</h1>
-        <p class="elegant-subtitle">Trải nghiệm không gian ẩm thực thượng lưu</p>
+        <nav class="stepper" aria-label="Reservation steps">
+          <button
+            v-for="(label, index) in text.steps"
+            :key="label"
+            :class="['step-chip', { active: step === index + 1, done: step > index + 1 }]"
+            type="button"
+            @click="goTo(index + 1)"
+          >
+            <span>{{ index + 1 }}</span>{{ label }}
+          </button>
+        </nav>
 
-        <div class="step-progress">
-          <div :class="['step', step >= 1 ? 'active' : '']">1. Thời gian</div>
-          <div :class="['step', step >= 2 ? 'active' : '']">2. Vị trí</div>
-          <div :class="['step', step >= 3 ? 'active' : '']">3. Tùy chọn</div>
-          <div :class="['step', step >= 4 ? 'active' : '']">4. Hoàn tất</div>
-        </div>
+        <section v-if="submitResult" class="success-panel">
+          <div>
+            <p class="eyebrow">{{ text.doneEyebrow }}</p>
+            <h2>{{ text.doneTitle }}</h2>
+            <p>{{ text.doneMessage }}</p>
+          </div>
+          <div class="reservation-code">{{ submitResult.reservationCode }}</div>
+          <div class="summary-grid">
+            <span>{{ text.total }}</span><strong>{{ money(submitResult.totalAmount) }}</strong>
+            <span>{{ text.payableNow }}</span><strong>{{ money(submitResult.depositAmount) }}</strong>
+            <span>{{ text.status }}</span><strong>{{ statusLabel(submitResult.reservationStatus) }}</strong>
+          </div>
+          <article v-if="paymentQr" class="qr-card">
+            <div>
+              <h3>{{ text.qrTitle }}</h3>
+              <p>{{ text.qrHint }}</p>
+              <dl>
+                <div><dt>{{ text.bank }}</dt><dd>{{ paymentQr.bankCode }}</dd></div>
+                <div><dt>{{ text.accountNumber }}</dt><dd>{{ paymentQr.accountNumber }}</dd></div>
+                <div><dt>{{ text.accountHolder }}</dt><dd>{{ paymentQr.accountHolder }}</dd></div>
+                <div><dt>{{ text.transferContent }}</dt><dd>{{ paymentQr.transferContent }}</dd></div>
+                <div><dt>{{ text.expiresAt }}</dt><dd>{{ formatDateTime(paymentQr.expiresAt) }}</dd></div>
+              </dl>
+            </div>
+            <img :src="paymentQr.qrUrl" :alt="text.qrTitle" />
+          </article>
+          <button class="primary-btn" type="button" @click="resetForm">{{ text.newBooking }}</button>
+        </section>
 
-        <transition name="fade" mode="out-in">
-          <div v-if="step === 1" class="step-panel">
-            <h3 class="panel-title">Quý khách dự định đến vào lúc?</h3>
-            <div class="input-grid">
-              <div class="input-box">
-                <label>Ngày phục vụ</label>
-                <input v-model="form.date" type="date" class="lux-input" />
+        <section v-else-if="waitlistResult" class="success-panel">
+          <div>
+            <p class="eyebrow">{{ text.waitlistEyebrow }}</p>
+            <h2>{{ text.waitlistDoneTitle }}</h2>
+            <p>{{ text.waitlistDoneMessage }}</p>
+          </div>
+          <div class="reservation-code">{{ waitlistResult.waitlistCode }}</div>
+          <div class="summary-grid">
+            <span>{{ text.date }}</span><strong>{{ waitlistResult.reservationDate }}</strong>
+            <span>{{ text.time }}</span><strong>{{ waitlistResult.preferredStartTime }} - {{ waitlistResult.preferredEndTime }}</strong>
+            <span>{{ text.status }}</span><strong>{{ waitlistResult.status }}</strong>
+          </div>
+          <button class="primary-btn" type="button" @click="resetForm">{{ text.newBooking }}</button>
+        </section>
+
+        <form v-else class="reservation-card" @submit.prevent="submitReservation">
+          <section v-show="step === 1" class="panel">
+            <h2>{{ text.customerInfo }}</h2>
+            <div class="form-grid">
+              <label>
+                {{ text.fullName }}
+                <input v-model.trim="form.customerName" type="text" autocomplete="name" />
+                <small v-if="errors.customerName">{{ errors.customerName }}</small>
+              </label>
+              <label>
+                {{ text.phone }}
+                <input v-model.trim="form.customerPhone" type="tel" autocomplete="tel" />
+                <small v-if="errors.customerPhone">{{ errors.customerPhone }}</small>
+              </label>
+              <label>
+                Email
+                <input v-model.trim="form.customerEmail" type="email" autocomplete="email" />
+                <small v-if="errors.customerEmail">{{ errors.customerEmail }}</small>
+              </label>
+              <label>
+                {{ text.contactNote }}
+                <input v-model.trim="form.contactNote" type="text" />
+              </label>
+            </div>
+          </section>
+
+          <section v-show="step === 2" class="panel">
+            <h2>{{ text.timeInfo }}</h2>
+            <div class="form-grid">
+              <label>
+                {{ text.date }}
+                <input v-model="form.reservationDate" type="date" :min="today" />
+                <small v-if="errors.reservationDate">{{ errors.reservationDate }}</small>
+              </label>
+              <label>
+                {{ text.time }}
+                <input v-model="form.arrivalTime" type="time" min="09:00" max="22:00" />
+                <small v-if="errors.arrivalTime">{{ errors.arrivalTime }}</small>
+              </label>
+              <label>
+                {{ text.duration }}
+                <select v-model.number="form.expectedDurationMinutes">
+                  <option :value="90">90 {{ text.minutes }}</option>
+                  <option :value="120">120 {{ text.minutes }}</option>
+                  <option :value="180">180 {{ text.minutes }}</option>
+                </select>
+              </label>
+              <label>
+                {{ text.occasion }}
+                <select v-model="form.occasion">
+                  <option value="">{{ text.selectOptional }}</option>
+                  <option v-for="occasion in text.occasions" :key="occasion" :value="occasion">{{ occasion }}</option>
+                </select>
+              </label>
+            </div>
+          </section>
+
+          <section v-show="step === 3" class="panel">
+            <h2>{{ text.guestInfo }}</h2>
+            <div class="form-grid compact">
+              <label>
+                {{ text.guests }}
+                <input v-model.number="form.guestCount" type="number" min="1" max="30" />
+                <small v-if="errors.guestCount">{{ errors.guestCount }}</small>
+              </label>
+            </div>
+            <p class="review-note">{{ text.guestHint }}</p>
+          </section>
+
+          <section v-show="step === 4" class="panel">
+            <div class="panel-row">
+              <h2>{{ text.areaInfo }}</h2>
+              <button class="ghost-btn" type="button" @click="loadAreas" :disabled="loadingAreas">
+                {{ loadingAreas ? text.loading : text.reloadAreas }}
+              </button>
+            </div>
+            <div v-if="areaError" class="error-banner">
+              {{ areaError }}
+              <button type="button" @click="loadAreas">{{ text.retry }}</button>
+            </div>
+            <div v-if="loadingAreas" class="skeleton-grid">
+              <div v-for="n in 3" :key="n" class="skeleton-card"></div>
+            </div>
+            <div v-else-if="!activeAreas.length" class="empty-state">{{ text.noAreas }}</div>
+            <div v-else class="area-grid">
+              <article
+                v-for="area in activeAreas"
+                :key="area.id"
+                :class="['area-card', { selected: form.areaId === area.id }]"
+              >
+                <img :src="area.imageUrl || fallbackAreaImage" :alt="areaName(area)" @error="replaceImage" />
+                <div class="card-body">
+                  <div class="card-title-row">
+                    <strong>{{ areaName(area) }}</strong>
+                    <span class="status-pill">{{ text.active }}</span>
+                  </div>
+                  <p>{{ areaDescription(area) }}</p>
+                  <div class="meta-grid">
+                    <span>{{ text.capacity }}: {{ area.capacity || '-' }}</span>
+                    <span>{{ text.areaType }}: {{ area.code || area.nameEn || '-' }}</span>
+                    <span>{{ text.price }}: {{ money(area.basePrice) }}</span>
+                    <span>{{ text.availableTables }}: {{ areaAvailableCount(area.id) }}</span>
+                  </div>
+                  <div class="amenities">
+                    <span>{{ text.family }}</span>
+                    <span>{{ text.quiet }}</span>
+                    <span>{{ text.photoReady }}</span>
+                  </div>
+                  <div class="card-actions">
+                    <button class="primary-btn" type="button" @click="selectArea(area)">
+                      {{ form.areaId === area.id ? text.selected : text.chooseArea }}
+                    </button>
+                    <a class="ghost-link" :href="area.imageUrl || fallbackAreaImage" target="_blank" rel="noreferrer">
+                      {{ text.viewImage }}
+                    </a>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <section v-show="step === 5" class="panel">
+            <div class="panel-row">
+              <h2>{{ text.tableInfo }}</h2>
+              <button class="ghost-btn" type="button" @click="loadAvailableTables" :disabled="loadingTables">
+                {{ loadingTables ? text.loading : text.reload }}
+              </button>
+            </div>
+            <div v-if="tableError" class="error-banner">
+              {{ tableError }}
+              <button type="button" @click="loadAvailableTables">{{ text.retry }}</button>
+            </div>
+            <div v-if="loadingTables" class="skeleton-grid">
+              <div v-for="n in 4" :key="n" class="skeleton-card table"></div>
+            </div>
+            <div v-if="!loadingTables && tables.length" class="table-map">
+              <div class="table-map-header">
+                <div>
+                  <h3>{{ text.tableMap }}</h3>
+                  <p>{{ text.tableMapHint }}</p>
+                </div>
+                <div class="map-legend">
+                  <span class="legend available">{{ text.statusMap.AVAILABLE }}</span>
+                  <span class="legend blocked">{{ text.unavailable }}</span>
+                </div>
               </div>
-              <div class="input-box">
-                <label>Giờ phục vụ</label>
-                <input v-model="form.time" type="time" class="lux-input" />
+              <div class="map-groups">
+                <section v-for="group in tableMapGroups" :key="group.name" class="map-group">
+                  <strong>{{ group.name }}</strong>
+                  <div class="map-grid">
+                    <button
+                      v-for="table in group.tables"
+                      :key="table.id"
+                      type="button"
+                      :class="['map-seat', tableMapStatusClass(table), { selected: form.tableId === table.id }]"
+                      :disabled="table.availabilityStatus !== 'AVAILABLE'"
+                      @click="selectTable(table)"
+                    >
+                      <span>{{ table.name }}</span>
+                      <small>{{ table.capacity || table.maxCapacity || '-' }} {{ text.seats }}</small>
+                    </button>
+                  </div>
+                </section>
               </div>
             </div>
-            <button @click="nextToTable" class="lux-btn block-btn mt-20">TÌM VỊ TRÍ ĐẸP</button>
-          </div>
+            <div v-if="!loadingTables && !availableTables.length" class="empty-state waitlist-offer">
+              <strong>{{ text.noTables }}</strong>
+              <span>{{ text.waitlistOffer }}</span>
+              <button class="primary-btn" type="button" @click="submitWaitlist" :disabled="submitting">
+                {{ submitting ? text.submitting : text.joinWaitlist }}
+              </button>
+            </div>
+            <div v-if="!loadingTables && availableTables.length" class="table-grid">
+              <article
+                v-for="table in availableTables"
+                :key="table.id"
+                :class="['table-card', { selected: form.tableId === table.id }]"
+              >
+                <img :src="table.imageUrl || fallbackTableImage" :alt="table.name" @error="replaceTableImage" />
+                <div class="card-body">
+                  <div class="card-title-row">
+                    <strong>{{ table.name }}</strong>
+                    <span class="status-pill available">{{ tableStatusLabel(table.availabilityStatus) }}</span>
+                    <span v-if="suggestionById[table.id]?.best" class="status-pill suggested">{{ text.bestSuggestion }}</span>
+                  </div>
+                  <p>{{ table.positionDescription || table.areaName || table.floor }}</p>
+                  <div class="meta-grid">
+                    <span>{{ text.minGuests }}: {{ table.minCapacity || 1 }}</span>
+                    <span>{{ text.maxGuests }}: {{ table.maxCapacity || table.capacity }}</span>
+                    <span>{{ text.seats }}: {{ table.capacity || table.maxCapacity }}</span>
+                    <span>{{ text.price }}: {{ money(table.reservationPrice) }}</span>
+                    <span>{{ text.fit }}: {{ fitLabel(table.fitScore) }}</span>
+                    <span v-if="suggestionById[table.id]">{{ text.score }}: {{ suggestionById[table.id].score }}</span>
+                  </div>
+                  <ul v-if="suggestionById[table.id]?.reasons?.length" class="reason-list">
+                    <li v-for="reason in suggestionById[table.id].reasons" :key="reason">{{ reason }}</li>
+                  </ul>
+                  <div class="amenities">
+                    <span v-if="table.windowSeat">{{ text.windowSeat }}</span>
+                    <span v-if="table.privateRoom">{{ text.privateRoom }}</span>
+                    <span v-if="table.childFriendly">{{ text.childFriendly }}</span>
+                    <span v-if="table.hasView">{{ text.hasView }}</span>
+                  </div>
+                  <small v-if="table.warning">{{ table.warning }}</small>
+                  <button class="primary-btn" type="button" @click="selectTable(table)">
+                    {{ form.tableId === table.id ? text.selected : text.chooseTable }}
+                  </button>
+                </div>
+              </article>
+            </div>
+          </section>
 
-          <div v-else-if="step === 2" class="step-panel">
-            <h3 class="panel-title">Sơ đồ bàn khả dụng</h3>
-            <div class="floor-tabs">
-              <button 
-                v-for="floor in uniqueFloors" 
-                :key="floor"
-                :class="{'active': selectedFloor === floor}" 
-                @click="selectedFloor = floor">
-                {{ floor }}
+          <section v-show="step === 6" class="panel">
+            <h2>{{ text.preorderTitle }}</h2>
+            <div class="choice-grid">
+              <button type="button" :class="{ selected: form.preorderEnabled }" @click="form.preorderEnabled = true">
+                <strong>{{ text.preorderYes }}</strong>
+                <span>{{ text.preorderYesHint }}</span>
+              </button>
+              <button type="button" :class="{ selected: !form.preorderEnabled }" @click="disablePreorder">
+                <strong>{{ text.preorderNo }}</strong>
+                <span>{{ text.preorderNoHint }}</span>
               </button>
             </div>
 
-            <div class="table-grid-lux">
-              <div v-for="t in filteredTables" :key="t.id" 
-                :class="['table-card-lux', t.isOccupied !== 0 ? 'disabled' : '', selectedTable?.id === t.id ? 'selected' : '']"
-                @click="selectTable(t)">
-                <div class="t-view" v-if="t.hasView">City View</div>
-                <h4>{{ t.name }}</h4>
-                <span class="status-dot" :class="t.isOccupied === 0 ? 'green' : 'red'"></span>
+            <div v-if="form.preorderEnabled" class="menu-picker">
+              <div class="filters">
+                <input v-model.trim="menuSearch" type="search" :placeholder="text.searchDish" />
+                <select v-model="menuCategory">
+                  <option value="">{{ text.allCategories }}</option>
+                  <option v-for="category in menuCategories" :key="category" :value="category">{{ category }}</option>
+                </select>
+                <button class="ghost-btn" type="button" @click="loadPreorderMenu">{{ text.reloadMenu }}</button>
               </div>
+              <div v-if="menuError" class="error-banner">{{ menuError }}</div>
+              <div class="dish-grid">
+                <article v-for="dish in filteredMenu" :key="dish.id" class="dish-card">
+                  <img :src="dish.image || fallbackDishImage" :alt="dishName(dish)" @error="replaceDishImage" />
+                  <div>
+                    <strong>{{ dishName(dish) }}</strong>
+                    <span>{{ dishCategory(dish) }}</span>
+                    <p>{{ dishDescription(dish) }}</p>
+                    <b>{{ money(dish.price) }}</b>
+                    <button class="primary-btn" type="button" @click="addDish(dish)">{{ text.addDish }}</button>
+                  </div>
+                </article>
+              </div>
+              <aside v-if="cartItems.length" class="cart-box">
+                <h3>{{ text.selectedDishes }}</h3>
+                <div v-for="item in cartItems" :key="item.productId" class="cart-row">
+                  <strong>{{ item.name }}</strong>
+                  <div class="qty">
+                    <button type="button" @click="changeQty(item.productId, -1)">-</button>
+                    <span>{{ item.quantity }}</span>
+                    <button type="button" @click="changeQty(item.productId, 1)">+</button>
+                  </div>
+                  <input v-model.trim="item.note" maxlength="300" :placeholder="text.dishNote" />
+                  <span>{{ money(item.price * item.quantity) }}</span>
+                  <button type="button" class="danger-btn" @click="removeDish(item.productId)">{{ text.remove }}</button>
+                </div>
+              </aside>
             </div>
-            
-            <div class="btn-group mt-20">
-              <button @click="step = 1" class="lux-btn-outline">QUAY LẠI</button>
-              <button v-if="selectedTable" @click="step = 3" class="lux-btn">TIẾP TỤC</button>
+          </section>
+
+          <section v-show="step === 7" class="panel">
+            <h2>{{ text.requestInfo }}</h2>
+            <div class="preference-grid">
+              <label v-for="item in text.preferences" :key="item">
+                <input v-model="selectedPreferences" type="checkbox" :value="item" />
+                {{ item }}
+              </label>
             </div>
+            <label class="wide-label">
+              {{ text.specialRequest }}
+              <textarea v-model.trim="form.specialRequest" maxlength="500" rows="5"></textarea>
+              <small>{{ form.specialRequest.length }}/500</small>
+            </label>
+          </section>
+
+          <section v-show="step === 8" class="panel">
+            <h2>{{ text.paymentTitle }}</h2>
+            <div class="choice-grid">
+              <button v-for="option in paymentOptions" :key="option.key" type="button" :class="{ selected: form.paymentOption === option.key }" @click="selectPayment(option.key)">
+                <strong>{{ option.label }}</strong>
+                <span>{{ option.hint }}</span>
+              </button>
+            </div>
+            <label class="voucher-field">
+              {{ text.voucherCode }}
+              <div>
+                <input v-model.trim="form.voucherCode" type="text" :placeholder="text.voucherPlaceholder" @input="quote = null" />
+                <button class="ghost-btn" type="button" @click="loadQuote">{{ text.applyVoucher }}</button>
+              </div>
+            </label>
+            <div v-if="quote" class="review-box">
+              <div><span>{{ text.tableAmount }}</span><strong>{{ money(quote.tableAmount) }}</strong></div>
+              <div><span>{{ text.foodAmount }}</span><strong>{{ money(quote.foodAmount) }}</strong></div>
+              <div v-if="quote.discountAmount > 0"><span>{{ text.originalTotal }}</span><strong>{{ money(quote.originalTotalAmount) }}</strong></div>
+              <div v-if="quote.discountAmount > 0"><span>{{ text.discountAmount }} {{ quote.voucherCode ? `(${quote.voucherCode})` : '' }}</span><strong>-{{ money(quote.discountAmount) }}</strong></div>
+              <div><span>{{ text.total }}</span><strong>{{ money(quote.totalAmount) }}</strong></div>
+              <div v-if="quote.depositPolicy"><span>{{ text.depositPolicy }}</span><strong>{{ quote.depositPolicy.nameVi || quote.depositPolicy.policyCode }}</strong></div>
+              <div><span>{{ text.payableNow }}</span><strong>{{ money(quote.payableNow) }}</strong></div>
+              <div><span>{{ text.remaining }}</span><strong>{{ money(quote.remainingAmount) }}</strong></div>
+            </div>
+            <p class="review-note">{{ form.paymentOption === 'PAY_AT_RESTAURANT' ? text.payLaterWarning : text.qrAfterSubmit }}</p>
+          </section>
+
+          <section v-show="step === 9" class="panel">
+            <h2>{{ text.review }}</h2>
+            <div class="review-box">
+              <div><span>{{ text.fullName }}</span><strong>{{ form.customerName }}</strong></div>
+              <div><span>{{ text.phone }}</span><strong>{{ form.customerPhone }}</strong></div>
+              <div><span>{{ text.date }}</span><strong>{{ form.reservationDate }} {{ form.arrivalTime }}</strong></div>
+              <div><span>{{ text.guests }}</span><strong>{{ form.guestCount }}</strong></div>
+              <div><span>{{ text.areaInfo }}</span><strong>{{ selectedAreaName }}</strong></div>
+              <div><span>{{ text.tableInfo }}</span><strong>{{ selectedTable?.name }}</strong></div>
+              <div><span>{{ text.selectedDishes }}</span><strong>{{ cartItems.length }}</strong></div>
+              <div><span>{{ text.paymentTitle }}</span><strong>{{ paymentOptionLabel(form.paymentOption) }}</strong></div>
+              <div><span>{{ text.total }}</span><strong>{{ money(quote?.totalAmount || selectedTable?.reservationPrice || 0) }}</strong></div>
+            </div>
+            <p class="review-note">{{ text.backendPriceNote }}</p>
+          </section>
+
+          <div v-if="serverError" class="error-banner">{{ serverError }}</div>
+          <div class="actions">
+            <button class="ghost-btn" type="button" @click="step--" :disabled="step === 1 || submitting">{{ text.back }}</button>
+            <button v-if="step < 9" class="primary-btn" type="button" @click="nextStep">{{ text.next }}</button>
+            <button v-else class="primary-btn" type="submit" :disabled="submitting">
+              {{ submitting ? text.submitting : text.submit }}
+            </button>
           </div>
-
-          <div v-else-if="step === 3" class="step-panel">
-            <h3 class="panel-title">Chuẩn bị cho bữa tiệc của bạn</h3>
-            <div class="service-options" v-if="!showMenu">
-              <div class="opt-card" @click="step = 4">
-                <div class="icon">🍷</div>
-                <h4>Chỉ Giữ Bàn</h4>
-                <p>Cọc 500k. Chọn món sau tại nhà hàng.</p>
-              </div>
-              <div class="opt-card highlight" @click="showMenu = true">
-                <div class="icon">🍱</div>
-                <h4>Đặt Món Trước</h4>
-                <p>Món ăn sẽ sẵn sàng ngay khi bạn đến.</p>
-              </div>
-            </div>
-
-            <div v-if="showMenu" class="menu-preorder">
-              <!-- AI Suggestion Section -->
-              <div class="ai-suggestion-box">
-                <div class="ai-header">
-                  <h3>🤖 Smart Suggestion</h3>
-                  <span class="ai-badge">AI Gợi Ý</span>
-                </div>
-                
-                <div v-if="aiCombo.length === 0 && !isFetchingAI">
-                  <p class="ai-desc">Để đưa ra gợi ý hợp lý nhất, bạn đi mấy người?</p>
-                  <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                    <input type="number" v-model="partySize" min="1" placeholder="Nhập số người" class="form-control lux-input" style="width: 150px; background: rgba(0,0,0,0.2); color: white;" />
-                    <button class="lux-btn" style="padding: 10px; border-radius: 6px;" @click="fetchComboForParty">Nhận gợi ý</button>
-                  </div>
-                </div>
-                <div v-else-if="isFetchingAI">
-                  <p class="ai-desc">Đang phân tích và thiết kế thực đơn cho {{ partySize }} người...</p>
-                </div>
-                <div v-else>
-                  <p class="ai-desc">{{ aiRecommendationReason }}</p>
-                  
-                  <div class="combo-grid">
-                    <div v-for="product in aiCombo" :key="'ai-'+product.id" class="combo-item" style="display: flex; gap:10px; align-items:center; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; margin-bottom: 5px;">
-                      <img :src="product.image || 'https://via.placeholder.com/100'" alt="food" style="width: 50px; height: 50px; border-radius: 6px; object-fit: cover;" />
-                      <div class="product-info" style="flex:1;">
-                        <h4 style="margin:0; font-size: 1rem;">{{ product.name }} <span v-if="product.suggestedQuantity > 1" style="color: var(--primary);">x{{product.suggestedQuantity}}</span></h4>
-                        <p class="price" style="margin:0; color: #bbb;">{{ product.price.toLocaleString() }}đ</p>
-                      </div>
-                      <button class="lux-btn" style="padding: 5px 15px; border-radius:6px; min-width: auto;" @click="addToPreOrder(product, product.suggestedQuantity || 1)">Thêm</button>
-                    </div>
-                  </div>
-                  <div class="ai-action" style="display: flex; gap: 10px; justify-content: center; margin-top: 15px;">
-                    <button class="lux-btn" @click="addComboToCart">🛒 Thêm Cả Combo</button>
-                    <button class="lux-btn-outline" @click="aiCombo = []">Thử lại</button>
-                  </div>
-                </div>
-              </div>
-
-              <h4 style="margin: 20px 0 10px; color: var(--primary);">Thực Đơn Đầy Đủ</h4>
-              <div class="menu-list">
-                <div v-for="p in products" :key="p.id" class="menu-item-lux" v-show="p.status !== false">
-                  <img :src="p.image" />
-                  <div class="info">
-                    <h5>{{ p.name }}</h5>
-                    <p>{{ p.price.toLocaleString() }}đ</p>
-                  </div>
-                  <button @click="addToPreOrder(p)" class="add-btn">+</button>
-                </div>
-              </div>
-              <div class="cart-lux" v-if="preOrderCart.length > 0">
-                <h4>Giỏ Hàng</h4>
-                <div v-for="(item, idx) in preOrderCart" :key="idx" class="c-item">
-                  <div style="flex: 1; min-width: 0;">
-                    <span style="font-weight: 600;">{{ item.name }}</span>
-                    <div style="font-size: 0.85rem; color: var(--primary); font-weight: 700;">{{ (item.price * item.quantity).toLocaleString() }}đ</div>
-                  </div>
-                  <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
-                    <button @click="decreasePreOrderQty(idx)" class="qty-btn-rsv qty-minus-rsv">−</button>
-                    <span style="min-width: 24px; text-align: center; font-weight: 800;">{{ item.quantity }}</span>
-                    <button @click="increasePreOrderQty(idx)" class="qty-btn-rsv qty-plus-rsv">+</button>
-                    <button @click="preOrderCart.splice(idx,1)" class="del">✖</button>
-                  </div>
-                </div>
-                <div style="font-size: 0.9rem; margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px; margin-bottom: 10px;">
-                  <p style="margin: 0 0 5px 0;">Tạm tính: {{ foodSubtotal.toLocaleString() }}đ</p>
-                  <p style="margin: 0;">Thuế GTGT: {{ foodTax.toLocaleString() }}đ</p>
-                </div>
-                <button @click="step = 4" class="lux-btn block-btn mt-10">THANH TOÁN: {{ foodTotal.toLocaleString() }}đ</button>
-              </div>
-            </div>
-            <button v-if="showMenu" @click="showMenu = false" class="lux-btn-outline mt-20">Hủy đặt món</button>
-          </div>
-
-          <div v-else-if="step === 4" class="step-panel">
-            <h3 class="panel-title">Thanh toán & Xác nhận</h3>
-            <div class="payment-box-lux">
-              <div class="p-info">
-                <label>SĐT Liên Hệ (*)</label>
-                <input v-model="form.phone" type="text" class="lux-input" placeholder="090..." />
-                
-                <div class="bill-summary">
-                  <p>Thanh toán: <span class="gold-text">{{ finalPayAmount.toLocaleString() }}đ</span></p>
-                  <p>Ngân hàng: Vietcombank (NGUYEN QUANG NHAT)</p>
-                  <p>STK: 1047187126</p>
-                </div>
-
-                <label class="mt-10">Mã Giao Dịch (Bắt buộc)</label>
-                <input v-model="form.txCode" type="text" class="lux-input" placeholder="Nhập mã sau khi CK" />
-              </div>
-              <div class="p-qr">
-                <img :src="`https://img.vietqr.io/image/vietcombank-1047187126-compact2.jpg?amount=${finalPayAmount}&addInfo=${form.phone || 'DAT BAN'}&accountName=NGUYEN QUANG NHAT`" />
-                <p>Quét mã để thanh toán</p>
-              </div>
-            </div>
-            <div class="btn-group mt-20">
-              <button @click="step = 3" class="lux-btn-outline">QUAY LẠI</button>
-              <button v-if="!isAdminOrManager" @click="submitReservation" class="lux-btn">HOÀN TẤT ĐẶT BÀN</button>
-              <button v-else class="lux-btn btn-disabled" disabled>Chỉ xem (Admin)</button>
-            </div>
-          </div>
-        </transition>
-      </div>
+        </form>
+      </section>
     </main>
-  </div>
   </CustomerLayout>
 </template>
 
 <script setup>
-import CustomerLayout from '@/components/CustomerLayout.vue';
+import { computed, onMounted, ref, watch } from 'vue'
+import CustomerLayout from '@/components/CustomerLayout.vue'
+import api from '@/services/api'
 
-import { ref, computed, onMounted } from 'vue';
-import axios from 'axios';
-import { useRouter } from 'vue-router';
+const lang = ref(localStorage.getItem('reservationLang') || localStorage.getItem('lang') || 'vi')
+const step = ref(1)
+const areas = ref([])
+const tables = ref([])
+const suggestedTables = ref([])
+const menuItems = ref([])
+const cartItems = ref([])
+const areaCounts = ref({})
+const selectedTable = ref(null)
+const selectedPreferences = ref([])
+const errors = ref({})
+const areaError = ref('')
+const tableError = ref('')
+const menuError = ref('')
+const serverError = ref('')
+const loadingAreas = ref(false)
+const loadingTables = ref(false)
+const submitting = ref(false)
+const submitResult = ref(null)
+const waitlistResult = ref(null)
+const paymentQr = ref(null)
+const quote = ref(null)
+const menuSearch = ref('')
+const menuCategory = ref('')
+const idempotencyKey = ref(crypto.randomUUID())
 
-const router = useRouter();
-const step = ref(1);
-const showMenu = ref(false);
-const form = ref({ date: '', time: '', phone: '', txCode: '' });
+const fallbackAreaImage = 'https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=900&q=80'
+const fallbackTableImage = 'https://images.unsplash.com/photo-1521017432531-fbd92d768814?auto=format&fit=crop&w=900&q=80'
+const fallbackDishImage = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=900&q=80'
+const today = new Date().toISOString().slice(0, 10)
 
-const tablesList = ref([]);
-const products = ref([]);
-const selectedFloor = ref('');
-const selectedTable = ref(null);
-const preOrderCart = ref([]);
-const userRoles = ref([]);
+const dictionary = {
+  vi: {
+    eyebrow: 'Mộc Vị Reservation',
+    title: 'Đặt bàn',
+    subtitle: 'Chọn khu vực, bàn, món đặt trước và hình thức thanh toán trong một luồng rõ ràng.',
+    steps: ['Khách hàng', 'Thời gian', 'Số khách', 'Khu vực', 'Bàn', 'Món trước', 'Yêu cầu', 'Thanh toán', 'Xác nhận'],
+    customerInfo: 'Thông tin khách hàng',
+    timeInfo: 'Ngày giờ đặt bàn',
+    guestInfo: 'Số lượng khách',
+    guestHint: 'Hệ thống ưu tiên bàn có sức chứa gần nhất với số khách.',
+    areaInfo: 'Khu vực',
+    tableInfo: 'Chọn bàn',
+    requestInfo: 'Yêu cầu đặc biệt',
+    review: 'Xác nhận thông tin',
+    fullName: 'Họ và tên',
+    phone: 'Số điện thoại',
+    contactNote: 'Ghi chú liên hệ',
+    date: 'Ngày đặt bàn',
+    time: 'Giờ đến',
+    duration: 'Thời lượng',
+    minutes: 'phút',
+    guests: 'Số khách',
+    occasion: 'Dịp sử dụng',
+    selectOptional: 'Không chọn',
+    capacity: 'Sức chứa',
+    price: 'Giá',
+    total: 'Tổng tiền',
+    deposit: 'Tiền cọc',
+    status: 'Trạng thái',
+    specialRequest: 'Ghi chú tự do',
+    backendPriceNote: 'Backend sẽ kiểm tra lại bàn, món và tổng tiền khi gửi yêu cầu.',
+    loading: 'Đang tải...',
+    reload: 'Tải bàn phù hợp',
+    reloadAreas: 'Tải lại khu vực',
+    retry: 'Thử lại',
+    back: 'Quay lại',
+    next: 'Tiếp tục',
+    submit: 'Gửi yêu cầu đặt bàn',
+    submitting: 'Đang gửi...',
+    doneEyebrow: 'Đặt bàn thành công',
+    doneTitle: 'Yêu cầu đặt bàn đã được gửi',
+    doneMessage: 'Nhà hàng sẽ kiểm tra và xác nhận. Vui lòng lưu mã đặt bàn để theo dõi.',
+    newBooking: 'Tạo yêu cầu mới',
+    noAreas: 'Chưa có khu vực phù hợp.',
+    noTables: 'Không có bàn trống phù hợp trong khu vực đã chọn.',
+    tableMap: 'Sơ đồ bàn',
+    tableMapHint: 'Chọn nhanh bàn trống trên sơ đồ, các bàn không phù hợp sẽ bị khóa.',
+    unavailable: 'Không khả dụng',
+    waitlistOffer: 'Bạn có thể vào danh sách chờ, quản lý sẽ liên hệ khi có bàn phù hợp.',
+    joinWaitlist: 'Vào danh sách chờ',
+    waitlistEyebrow: 'Danh sách chờ',
+    waitlistDoneTitle: 'Đã ghi nhận yêu cầu chờ bàn',
+    waitlistDoneMessage: 'Nhà hàng sẽ liên hệ khi có bàn phù hợp trong khung giờ bạn mong muốn.',
+    active: 'Hoạt động',
+    areaType: 'Loại khu vực',
+    availableTables: 'Bàn phù hợp',
+    family: 'Gia đình',
+    quiet: 'Yên tĩnh',
+    photoReady: 'Có ảnh',
+    selected: 'Đã chọn',
+    chooseArea: 'Chọn khu vực',
+    chooseTable: 'Chọn bàn',
+    bestSuggestion: 'Đề xuất tốt nhất',
+    score: 'Điểm',
+    viewImage: 'Xem ảnh',
+    minGuests: 'Tối thiểu',
+    maxGuests: 'Tối đa',
+    seats: 'Số ghế',
+    fit: 'Độ phù hợp',
+    windowSeat: 'Gần cửa sổ',
+    privateRoom: 'Phòng riêng',
+    childFriendly: 'Phù hợp trẻ em',
+    hasView: 'Có view',
+    preorderTitle: 'Quý khách có muốn đặt món trước không?',
+    preorderYes: 'Có, tôi muốn đặt món trước',
+    preorderYesHint: 'Chọn món, số lượng và ghi chú để bếp chuẩn bị.',
+    preorderNo: 'Không, tôi sẽ gọi món khi đến',
+    preorderNoHint: 'Chỉ giữ bàn và thanh toán theo lựa chọn bên dưới.',
+    searchDish: 'Tìm món...',
+    allCategories: 'Tất cả danh mục',
+    reloadMenu: 'Tải lại món',
+    addDish: 'Thêm món',
+    selectedDishes: 'Món đã chọn',
+    dishNote: 'Ghi chú món, tối đa 300 ký tự',
+    remove: 'Xóa',
+    paymentTitle: 'Quý khách muốn thanh toán theo hình thức nào?',
+    depositPolicy: 'Chính sách cọc',
+    tableAmount: 'Tiền bàn',
+    foodAmount: 'Tiền món',
+    payableNow: 'Cần thanh toán ngay',
+    remaining: 'Còn lại',
+    payLaterWarning: 'Bàn chưa được đảm bảo cho đến khi quản lý xác nhận.',
+    qrAfterSubmit: 'QR động sẽ được tạo sau khi gửi yêu cầu đặt bàn.',
+    qrTitle: 'QR chuyển khoản',
+    qrHint: 'Mỗi giao dịch có mã QR và nội dung chuyển khoản riêng.',
+    bank: 'Ngân hàng',
+    accountNumber: 'Số tài khoản',
+    accountHolder: 'Chủ tài khoản',
+    transferContent: 'Nội dung',
+    expiresAt: 'Hết hạn',
+    occasions: ['Ăn gia đình', 'Sinh nhật', 'Hẹn hò', 'Họp mặt', 'Tiếp khách', 'Liên hoan', 'Khác'],
+    preferences: ['Trang trí sinh nhật', 'Ghế trẻ em', 'Bánh sinh nhật', 'Không gian riêng tư', 'Không hút thuốc', 'Có người lớn tuổi', 'Có người khuyết tật', 'Dị ứng thực phẩm'],
+    voucherCode: 'Ma giam gia',
+    voucherPlaceholder: 'Nhập mã voucher nếu có',
+    applyVoucher: 'Ap dung',
+    originalTotal: 'Tong truoc giam',
+    discountAmount: 'Giam gia',
+    paymentOptions: {
+      DEPOSIT_50: ['Chỉ đặt cọc 50%', 'Thanh toán trước một phần để giữ bàn.'],
+      FULL: ['Thanh toán toàn bộ 100%', 'Không cần thanh toán lại phần đã trả khi đến.'],
+      PAY_AT_RESTAURANT: ['Thanh toán tại nhà hàng', 'Không tạo QR ở bước đặt bàn.']
+    },
+    statusMap: { AVAILABLE: 'Trống', RESERVED: 'Đã đặt', UNAVAILABLE: 'Không khả dụng', TOO_SMALL: 'Không đủ chỗ', PENDING: 'Chờ xác nhận' }
+  },
+  en: {
+    eyebrow: 'Moc Vi Reservation',
+    title: 'Reserve a table',
+    subtitle: 'Choose an area, table, pre-order dishes, and payment option in one clear flow.',
+    steps: ['Guest', 'Time', 'Guests', 'Area', 'Table', 'Pre-order', 'Requests', 'Payment', 'Review'],
+    customerInfo: 'Guest information',
+    timeInfo: 'Reservation date and time',
+    guestInfo: 'Party size',
+    guestHint: 'The system prioritizes tables whose capacity closely matches your party size.',
+    areaInfo: 'Area',
+    tableInfo: 'Select table',
+    requestInfo: 'Special requests',
+    review: 'Review',
+    fullName: 'Full name',
+    phone: 'Phone',
+    contactNote: 'Contact note',
+    date: 'Reservation date',
+    time: 'Arrival time',
+    duration: 'Duration',
+    minutes: 'minutes',
+    guests: 'Guests',
+    occasion: 'Occasion',
+    selectOptional: 'None',
+    capacity: 'Capacity',
+    price: 'Price',
+    total: 'Total',
+    deposit: 'Deposit',
+    status: 'Status',
+    specialRequest: 'Free note',
+    backendPriceNote: 'The backend will re-check the table, dishes, and amount before creating the request.',
+    loading: 'Loading...',
+    reload: 'Load matching tables',
+    reloadAreas: 'Reload areas',
+    retry: 'Retry',
+    back: 'Back',
+    next: 'Next',
+    submit: 'Send reservation request',
+    submitting: 'Submitting...',
+    doneEyebrow: 'Reservation submitted',
+    doneTitle: 'Reservation request sent',
+    doneMessage: 'The restaurant will review and confirm it. Keep your reservation code for tracking.',
+    newBooking: 'New request',
+    noAreas: 'No suitable areas found.',
+    noTables: 'No matching available tables in the selected area.',
+    tableMap: 'Table map',
+    tableMapHint: 'Pick an available table directly from the map; unsuitable tables are locked.',
+    unavailable: 'Unavailable',
+    waitlistOffer: 'You can join the waitlist and the manager will contact you when a suitable table opens.',
+    joinWaitlist: 'Join waitlist',
+    waitlistEyebrow: 'Waitlist',
+    waitlistDoneTitle: 'Waitlist request recorded',
+    waitlistDoneMessage: 'The restaurant will contact you when a suitable table opens in your preferred window.',
+    active: 'Active',
+    areaType: 'Area type',
+    availableTables: 'Matching tables',
+    family: 'Family',
+    quiet: 'Quiet',
+    photoReady: 'Photo',
+    selected: 'Selected',
+    chooseArea: 'Choose area',
+    chooseTable: 'Choose table',
+    bestSuggestion: 'Best suggestion',
+    score: 'Score',
+    viewImage: 'View image',
+    minGuests: 'Minimum',
+    maxGuests: 'Maximum',
+    seats: 'Seats',
+    fit: 'Fit',
+    windowSeat: 'Window seat',
+    privateRoom: 'Private room',
+    childFriendly: 'Child friendly',
+    hasView: 'View',
+    preorderTitle: 'Would you like to pre-order your dishes?',
+    preorderYes: 'Yes, I want to pre-order dishes',
+    preorderYesHint: 'Choose dishes, quantities, and notes for preparation.',
+    preorderNo: 'No, I will order at the restaurant',
+    preorderNoHint: 'Only reserve the table and choose a payment option below.',
+    searchDish: 'Search dishes...',
+    allCategories: 'All categories',
+    reloadMenu: 'Reload menu',
+    addDish: 'Add dish',
+    selectedDishes: 'Selected dishes',
+    dishNote: 'Dish note, max 300 characters',
+    remove: 'Remove',
+    paymentTitle: 'How would you like to pay?',
+    depositPolicy: 'Deposit policy',
+    tableAmount: 'Table amount',
+    foodAmount: 'Food amount',
+    payableNow: 'Pay now',
+    remaining: 'Remaining',
+    payLaterWarning: 'The table is not guaranteed until manager confirmation.',
+    qrAfterSubmit: 'A dynamic QR code will be generated after submitting the request.',
+    qrTitle: 'Bank transfer QR',
+    qrHint: 'Every transaction uses a unique QR code and transfer content.',
+    bank: 'Bank',
+    accountNumber: 'Account number',
+    accountHolder: 'Account holder',
+    transferContent: 'Transfer content',
+    expiresAt: 'Expires at',
+    occasions: ['Family meal', 'Birthday', 'Date', 'Gathering', 'Business meal', 'Party', 'Other'],
+    preferences: ['Birthday decoration', 'Child chair', 'Birthday cake', 'Private space', 'Non-smoking', 'Elderly guest', 'Disabled guest', 'Food allergy'],
+    voucherCode: 'Voucher code',
+    voucherPlaceholder: 'Enter voucher code if any',
+    applyVoucher: 'Apply',
+    originalTotal: 'Original total',
+    discountAmount: 'Discount',
+    paymentOptions: {
+      DEPOSIT_50: ['50% deposit only', 'Pay a partial amount now to hold the table.'],
+      FULL: ['Pay 100% in full', 'No need to pay again for the prepaid amount.'],
+      PAY_AT_RESTAURANT: ['Pay at restaurant', 'No QR is generated during booking.']
+    },
+    statusMap: { AVAILABLE: 'Available', RESERVED: 'Reserved', UNAVAILABLE: 'Unavailable', TOO_SMALL: 'Too small', PENDING: 'Pending' }
+  }
+}
 
-const aiCombo = ref([]);
-const aiRecommendationReason = ref('');
-const partySize = ref('');
-const isFetchingAI = ref(false);
+const form = ref({
+  customerName: '',
+  customerPhone: '',
+  customerEmail: '',
+  contactNote: '',
+  reservationDate: today,
+  arrivalTime: '',
+  expectedDurationMinutes: 120,
+  guestCount: 2,
+  occasion: '',
+  seatingPreference: '',
+  specialRequest: '',
+  areaId: null,
+  tableId: null,
+  preorderEnabled: false,
+  paymentOption: 'DEPOSIT_50',
+  voucherCode: ''
+})
 
-const isAdminOrManager = computed(() => {
-  return userRoles.value.includes('ROLE_ADMIN') || userRoles.value.includes('ROLE_MANAGER');
-});
+const text = computed(() => dictionary[lang.value])
+const activeAreas = computed(() => areas.value.filter(area => (area.status || 'ACTIVE') === 'ACTIVE'))
+const suggestionById = computed(() => Object.fromEntries(suggestedTables.value.map(item => [item.tableId, item])))
+const availableTables = computed(() => tables.value
+  .filter(table => table.availabilityStatus === 'AVAILABLE')
+  .sort((a, b) => (suggestionById.value[b.id]?.score || 0) - (suggestionById.value[a.id]?.score || 0)))
+const tableMapGroups = computed(() => {
+  const groups = new Map()
+  tables.value.forEach(table => {
+    const groupName = table.floor || table.areaName || selectedAreaName.value || text.value.areaInfo
+    if (!groups.has(groupName)) groups.set(groupName, [])
+    groups.get(groupName).push(table)
+  })
+  return [...groups.entries()].map(([name, rows]) => ({
+    name,
+    tables: rows.slice().sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'vi', { numeric: true }))
+  }))
+})
+const selectedAreaName = computed(() => {
+  const area = areas.value.find(item => item.id === form.value.areaId)
+  return area ? areaName(area) : ''
+})
+const menuCategories = computed(() => [...new Set(menuItems.value.map(dishCategory).filter(Boolean))])
+const filteredMenu = computed(() => {
+  const keyword = menuSearch.value.toLowerCase()
+  return menuItems.value.filter(item => {
+    const matchesKeyword = !keyword || `${dishName(item)} ${dishDescription(item)} ${dishCategory(item)}`.toLowerCase().includes(keyword)
+    const matchesCategory = !menuCategory.value || dishCategory(item) === menuCategory.value
+    return matchesKeyword && matchesCategory
+  })
+})
+const paymentOptions = computed(() => Object.entries(text.value.paymentOptions).map(([key, value]) => ({ key, label: value[0], hint: value[1] })))
 
-const foodSubtotal = computed(() => preOrderCart.value.reduce((total, item) => total + (item.price * item.quantity), 0));
-const foodTax = computed(() => preOrderCart.value.reduce((total, item) => total + ((item.price * item.quantity) * (item.taxRate || 8) / 100), 0));
-const foodTotal = computed(() => foodSubtotal.value + foodTax.value);
-const finalPayAmount = computed(() => preOrderCart.value.length > 0 ? foodTotal.value : 500000);
+watch(lang, value => {
+  localStorage.setItem('reservationLang', value)
+  localStorage.setItem('lang', value)
+})
 
-const uniqueFloors = computed(() => {
-  const floors = new Set();
-  tablesList.value.forEach(t => {
-    if (t.floor) floors.add(t.floor.trim());
-  });
-  return Array.from(floors).sort();
-});
+function toggleLang() {
+  lang.value = lang.value === 'vi' ? 'en' : 'vi'
+}
 
-const filteredTables = computed(() => tablesList.value.filter(t => String(t.floor).trim() === String(selectedFloor.value).trim()));
+const money = value => new Intl.NumberFormat(lang.value === 'vi' ? 'vi-VN' : 'en-US', {
+  style: 'currency',
+  currency: 'VND',
+  maximumFractionDigits: 0
+}).format(Number(value || 0))
+
+function formatDateTime(value) {
+  return value ? new Date(value).toLocaleString(lang.value === 'vi' ? 'vi-VN' : 'en-US') : '-'
+}
+
+function statusLabel(status) {
+  return text.value.statusMap[status] || status
+}
+
+function tableStatusLabel(status) {
+  return text.value.statusMap[status] || status
+}
+
+function tableMapStatusClass(table) {
+  if (table.availabilityStatus === 'AVAILABLE') return 'available'
+  if (table.availabilityStatus === 'TOO_SMALL') return 'too-small'
+  if (table.availabilityStatus === 'RESERVED' || table.availabilityStatus === 'PENDING') return 'reserved'
+  return 'blocked'
+}
+
+function fitLabel(score) {
+  if (score === 0) return lang.value === 'vi' ? 'Vừa đủ' : 'Exact'
+  if (score <= 2) return lang.value === 'vi' ? `Dư ${score} chỗ` : `${score} extra seats`
+  return lang.value === 'vi' ? 'Bàn lớn' : 'Large table'
+}
+
+function paymentOptionLabel(key) {
+  return text.value.paymentOptions[key]?.[0] || key
+}
+
+function areaName(area) {
+  return lang.value === 'vi' ? area.nameVi : (area.nameEn || area.nameVi)
+}
+
+function areaDescription(area) {
+  return lang.value === 'vi' ? area.descriptionVi : (area.descriptionEn || area.descriptionVi)
+}
+
+function areaAvailableCount(areaId) {
+  const value = areaCounts.value[areaId]
+  return value === undefined ? '-' : value
+}
+
+function dishName(dish) {
+  return lang.value === 'vi' ? dish.nameVi : (dish.nameEn || dish.nameVi)
+}
+
+function dishCategory(dish) {
+  return lang.value === 'vi' ? dish.categoryNameVi : (dish.categoryNameEn || dish.categoryNameVi)
+}
+
+function dishDescription(dish) {
+  return lang.value === 'vi' ? dish.descriptionVi : (dish.descriptionEn || dish.descriptionVi)
+}
+
+function replaceImage(event) {
+  event.target.src = fallbackAreaImage
+}
+
+function replaceTableImage(event) {
+  event.target.src = fallbackTableImage
+}
+
+function replaceDishImage(event) {
+  event.target.src = fallbackDishImage
+}
+
+function validateCurrentStep() {
+  errors.value = {}
+  serverError.value = ''
+  if (step.value === 1) {
+    if (!form.value.customerName.trim()) errors.value.customerName = lang.value === 'vi' ? 'Vui lòng nhập họ tên' : 'Full name is required'
+    if (!/^(0|\+84)(3|5|7|8|9)[0-9]{8}$/.test(form.value.customerPhone.replace(/\s/g, ''))) errors.value.customerPhone = lang.value === 'vi' ? 'Số điện thoại Việt Nam không hợp lệ' : 'Invalid Vietnamese phone'
+    if (form.value.customerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.value.customerEmail)) errors.value.customerEmail = 'Invalid email'
+  }
+  if (step.value === 2) {
+    if (!form.value.reservationDate) errors.value.reservationDate = lang.value === 'vi' ? 'Vui lòng chọn ngày' : 'Date is required'
+    if (!form.value.arrivalTime) errors.value.arrivalTime = lang.value === 'vi' ? 'Vui lòng chọn giờ' : 'Time is required'
+  }
+  if (step.value === 3 && (!form.value.guestCount || form.value.guestCount < 1)) errors.value.guestCount = lang.value === 'vi' ? 'Số khách không hợp lệ' : 'Invalid party size'
+  if (step.value === 4 && !form.value.areaId) serverError.value = lang.value === 'vi' ? 'Vui lòng chọn khu vực' : 'Please select an area'
+  if (step.value === 5 && !form.value.tableId) serverError.value = lang.value === 'vi' ? 'Vui lòng chọn bàn còn trống' : 'Please select an available table'
+  return Object.keys(errors.value).length === 0 && !serverError.value
+}
+
+async function nextStep() {
+  if (!validateCurrentStep()) return
+  if (step.value === 3) await refreshAreaCounts()
+  if (step.value === 4) await loadAvailableTables()
+  if (step.value === 5 && !menuItems.value.length) await loadPreorderMenu()
+  if (step.value === 7 || step.value === 8) await loadQuote()
+  step.value = Math.min(9, step.value + 1)
+}
+
+function goTo(target) {
+  if (target < step.value) step.value = target
+}
+
+function selectArea(area) {
+  form.value.areaId = area.id
+  form.value.tableId = null
+  selectedTable.value = null
+  tables.value = []
+  suggestedTables.value = []
+  quote.value = null
+}
+
+function selectTable(table) {
+  selectedTable.value = table
+  form.value.tableId = table.id
+  quote.value = null
+}
+
+async function loadAreas() {
+  loadingAreas.value = true
+  areaError.value = ''
+  try {
+    const res = await api.get('/api/areas')
+    areas.value = Array.isArray(res.data) ? res.data : []
+    if (areas.value.length && !form.value.areaId) form.value.areaId = areas.value[0].id
+    await refreshAreaCounts()
+  } catch (err) {
+    areaError.value = err.response?.data?.message || (lang.value === 'vi' ? 'Không tải được danh sách khu vực' : 'Could not load areas')
+  } finally {
+    loadingAreas.value = false
+  }
+}
+
+async function refreshAreaCounts() {
+  if (!form.value.reservationDate || !form.value.arrivalTime || !form.value.guestCount) return
+  const entries = await Promise.allSettled(activeAreas.value.map(async area => {
+    const res = await api.get('/api/tables/available', {
+      params: {
+        date: form.value.reservationDate,
+        time: form.value.arrivalTime,
+        durationMinutes: form.value.expectedDurationMinutes,
+        guestCount: form.value.guestCount,
+        areaId: area.id
+      }
+    })
+    return [area.id, res.data.filter(table => table.availabilityStatus === 'AVAILABLE').length]
+  }))
+  areaCounts.value = Object.fromEntries(entries.filter(item => item.status === 'fulfilled').map(item => item.value))
+}
+
+async function loadAvailableTables() {
+  if (!form.value.reservationDate || !form.value.arrivalTime || !form.value.areaId) return
+  loadingTables.value = true
+  tableError.value = ''
+  try {
+    const res = await api.get('/api/tables/available', {
+      params: {
+        date: form.value.reservationDate,
+        time: form.value.arrivalTime,
+        durationMinutes: form.value.expectedDurationMinutes,
+        guestCount: form.value.guestCount,
+        areaId: form.value.areaId
+      }
+    })
+    tables.value = Array.isArray(res.data) ? res.data : []
+    await loadTableSuggestions()
+    if (selectedTable.value && !tables.value.some(table => table.id === selectedTable.value.id && table.availabilityStatus === 'AVAILABLE')) {
+      selectedTable.value = null
+      form.value.tableId = null
+    }
+  } catch (err) {
+    tableError.value = err.response?.data?.message || (lang.value === 'vi' ? 'Không tải được bàn phù hợp' : 'Could not load matching tables')
+  } finally {
+    loadingTables.value = false
+  }
+}
+
+async function loadTableSuggestions() {
+  try {
+    const res = await api.post('/api/reservations/table-suggestions', {
+      reservationDate: form.value.reservationDate,
+      arrivalTime: form.value.arrivalTime,
+      durationMinutes: form.value.expectedDurationMinutes,
+      guestCount: form.value.guestCount,
+      areaId: form.value.areaId,
+      seatingPreference: selectedPreferences.value.join(', '),
+      customerPhone: form.value.customerPhone
+    })
+    suggestedTables.value = Array.isArray(res.data) ? res.data : []
+  } catch {
+    suggestedTables.value = []
+  }
+}
+
+async function loadPreorderMenu() {
+  menuError.value = ''
+  try {
+    const res = await api.get('/api/menu-items/preorder')
+    menuItems.value = Array.isArray(res.data) ? res.data : []
+  } catch (err) {
+    menuError.value = err.response?.data?.message || (lang.value === 'vi' ? 'Không tải được danh sách món' : 'Could not load menu')
+  }
+}
+
+function addDish(dish) {
+  const existing = cartItems.value.find(item => item.productId === dish.id)
+  if (existing) {
+    existing.quantity += 1
+    return
+  }
+  cartItems.value.push({ productId: dish.id, name: dishName(dish), price: Number(dish.price || 0), quantity: 1, note: '' })
+  quote.value = null
+}
+
+function changeQty(productId, delta) {
+  const item = cartItems.value.find(row => row.productId === productId)
+  if (!item) return
+  item.quantity += delta
+  if (item.quantity <= 0) removeDish(productId)
+  quote.value = null
+}
+
+function removeDish(productId) {
+  cartItems.value = cartItems.value.filter(item => item.productId !== productId)
+  quote.value = null
+}
+
+function disablePreorder() {
+  form.value.preorderEnabled = false
+  cartItems.value = []
+  quote.value = null
+}
+
+function selectPayment(option) {
+  form.value.paymentOption = option
+  quote.value = null
+}
+
+function preorderPayload() {
+  return form.value.preorderEnabled ? cartItems.value.map(item => ({
+    productId: item.productId,
+    quantity: item.quantity,
+    note: item.note
+  })) : []
+}
+
+async function loadQuote() {
+  if (!form.value.tableId) return
+  const res = await api.post('/api/reservations/quote', {
+    areaId: form.value.areaId,
+    tableId: form.value.tableId,
+    reservationDate: form.value.reservationDate,
+    arrivalTime: form.value.arrivalTime,
+    durationMinutes: form.value.expectedDurationMinutes,
+    guestCount: form.value.guestCount,
+    preorderItems: preorderPayload(),
+    paymentOption: form.value.paymentOption,
+    voucherCode: form.value.voucherCode
+  })
+  quote.value = res.data
+}
+
+async function submitReservation() {
+  if (!validateCurrentStep()) return
+  submitting.value = true
+  serverError.value = ''
+  paymentQr.value = null
+  try {
+    await loadQuote()
+    const payload = {
+      ...form.value,
+      customerPhone: form.value.customerPhone.replace(/\s/g, ''),
+      seatingPreference: selectedPreferences.value.join(', '),
+      preorderItems: preorderPayload()
+    }
+    const res = await api.post('/api/reservations', payload, {
+      headers: { 'X-Idempotency-Key': idempotencyKey.value }
+    })
+    submitResult.value = res.data
+    idempotencyKey.value = crypto.randomUUID()
+    if (form.value.paymentOption !== 'PAY_AT_RESTAURANT' && Number(res.data.depositAmount || 0) > 0) {
+      const qrRes = await api.post('/api/payments/qr', {
+        reservationCode: res.data.reservationCode,
+        paymentOption: form.value.paymentOption
+      })
+      paymentQr.value = qrRes.data
+    }
+  } catch (err) {
+    serverError.value = err.response?.data?.message || err.response?.data || (lang.value === 'vi' ? 'Không gửi được yêu cầu đặt bàn' : 'Could not submit reservation')
+  } finally {
+    submitting.value = false
+  }
+}
+
+async function submitWaitlist() {
+  const originalStep = step.value
+  for (const targetStep of [1, 2, 3, 4]) {
+    step.value = targetStep
+    if (!validateCurrentStep()) {
+      return
+    }
+  }
+  step.value = originalStep
+  submitting.value = true
+  serverError.value = ''
+  try {
+    const [hour, minute] = form.value.arrivalTime.split(':').map(Number)
+    const endDate = new Date()
+    endDate.setHours(hour, minute + Number(form.value.expectedDurationMinutes || 120), 0, 0)
+    const preferredEndTime = `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}`
+    const res = await api.post('/api/reservation-waitlist', {
+      customerName: form.value.customerName,
+      customerPhone: form.value.customerPhone.replace(/\s/g, ''),
+      customerEmail: form.value.customerEmail,
+      reservationDate: form.value.reservationDate,
+      preferredStartTime: form.value.arrivalTime,
+      preferredEndTime,
+      guestCount: form.value.guestCount,
+      areaId: form.value.areaId,
+      seatingPreference: selectedPreferences.value.join(', '),
+      specialRequest: form.value.specialRequest
+    })
+    waitlistResult.value = res.data
+  } catch (err) {
+    serverError.value = err.response?.data?.message || err.response?.data || (lang.value === 'vi' ? 'Không tạo được danh sách chờ' : 'Could not join waitlist')
+  } finally {
+    submitting.value = false
+  }
+}
+
+function resetForm() {
+  submitResult.value = null
+  waitlistResult.value = null
+  paymentQr.value = null
+  quote.value = null
+  step.value = 1
+  form.value.tableId = null
+  selectedTable.value = null
+  selectedPreferences.value = []
+  cartItems.value = []
+  form.value.voucherCode = ''
+  idempotencyKey.value = crypto.randomUUID()
+}
 
 onMounted(async () => {
-  try {
-    const resProd = await axios.get('http://localhost:8080/api/products');
-    products.value = resProd.data;
-  } catch (err) {}
-  
-  const storedUser = localStorage.getItem('user');
-  if (storedUser) {
-    try {
-      const parsed = JSON.parse(storedUser);
-      if (parsed && parsed.roles) {
-        userRoles.value = parsed.roles;
-      }
-    } catch (e) {}
-  }
-});
-
-const nextToTable = async () => {
-  if(!form.value.date || !form.value.time) return alert("Vui lòng chọn thời gian!");
-  try {
-    const res = await axios.get(`http://localhost:8080/api/tables/check-availability?date=${form.value.date}&time=${form.value.time}`);
-    tablesList.value = res.data;
-    if (tablesList.value.length > 0 && uniqueFloors.value.length > 0) {
-      selectedFloor.value = uniqueFloors.value[0];
-    }
-    step.value = 2;
-  } catch (err) { alert("Lỗi tải sơ đồ bàn!"); }
-};
-
-const selectTable = (table) => { if (table.isOccupied === 0) selectedTable.value = table; };
-
-const fetchComboForParty = async () => {
-  if (!partySize.value || partySize.value < 1) {
-    alert("Vui lòng nhập số người hợp lệ!");
-    return;
-  }
-  isFetchingAI.value = true;
-  try {
-    const wRes = await axios.get('https://api.open-meteo.com/v1/forecast?latitude=16.0678&longitude=108.2208&current_weather=true');
-    const weather = wRes.data.current_weather;
-    const weatherCode = weather.weathercode;
-    let weatherStr = `Trời quang, nhiệt độ ${weather.temperature}°C`;
-    if (weatherCode >= 50 && weatherCode <= 69) weatherStr = `Trời đang mưa lất phất, nhiệt độ ${weather.temperature}°C`;
-    else if (weatherCode >= 70) weatherStr = `Trời mưa to/tuyết, nhiệt độ ${weather.temperature}°C`;
-    else if (weather.temperature > 30) weatherStr = `Trời nắng nóng, nhiệt độ ${weather.temperature}°C`;
-
-    const activeProds = products.value.filter(p => p.status !== false);
-    const menuStr = activeProds.map(p => `${p.id}-${p.name}`).join(', ');
-    const message = `Khách đi ${partySize.value} người. Thời tiết hiện tại: ${weatherStr}`;
-    
-    const aiRes = await axios.post('http://localhost:8080/api/chatbot/chat', {
-      type: 'COMBO_RECOMMEND',
-      message: message,
-      menu: menuStr
-    });
-
-    let reply = aiRes.data.reply;
-    reply = reply.replace(/```json/g, '').replace(/```/g, '').trim();
-    
-    if (!reply.startsWith('[') && !reply.startsWith('{')) {
-      throw new Error("AI trả về định dạng không hợp lệ: " + reply);
-    }
-    
-    const suggestions = JSON.parse(reply);
-
-    aiCombo.value = suggestions.map(s => {
-      const p = activeProds.find(prod => prod.id == s.id);
-      if (p) return { ...p, suggestedQuantity: s.quantity || 1 };
-      return null;
-    }).filter(p => p != null);
-    
-    if(suggestions.length > 0) aiRecommendationReason.value = suggestions[0].reason;
-
-  } catch(e) {
-    console.error("Lỗi AI Recommend:", e);
-    const activeProds = products.value.filter(p => p.status !== false);
-    if (activeProds.length >= 2) {
-      let pSize = parseInt(partySize.value) || 2;
-      
-      // Phân loại món ăn và nước uống
-      let drinks = activeProds.filter(p => p.category && (p.category.name.toLowerCase().includes('nước') || p.category.name.toLowerCase().includes('uống') || p.category.name.toLowerCase().includes('trà') || p.category.name.toLowerCase().includes('cafe')));
-      let foods = activeProds.filter(p => !p.category || (!p.category.name.toLowerCase().includes('nước') && !p.category.name.toLowerCase().includes('uống') && !p.category.name.toLowerCase().includes('trà') && !p.category.name.toLowerCase().includes('cafe')));
-      
-      // Số món ăn khác nhau: ceil(số người * 0.7), tối thiểu 2, tối đa số món có sẵn
-      let numFoodTypes = Math.max(2, Math.ceil(pSize * 0.7));
-      numFoodTypes = Math.min(numFoodTypes, foods.length);
-      
-      // Chọn ngẫu nhiên các món ăn khác nhau
-      let shuffledFoods = [...foods].sort(() => Math.random() - 0.5);
-      let selectedFoods = shuffledFoods.slice(0, numFoodTypes);
-      
-      // Chọn 1-2 loại nước uống khác nhau
-      let numDrinkTypes = Math.min(Math.max(1, Math.ceil(pSize / 3)), drinks.length || 1);
-      let shuffledDrinks = [...drinks].sort(() => Math.random() - 0.5);
-      let selectedDrinks = shuffledDrinks.slice(0, numDrinkTypes);
-      
-      // Tính số lượng mỗi món
-      let combo = [];
-      selectedFoods.forEach((food, idx) => {
-        // Chia đều số lượng cho các món, mỗi món ít nhất 1 phần
-        let qty = idx === 0 ? Math.ceil(pSize / numFoodTypes) + 1 : Math.ceil(pSize / numFoodTypes);
-        combo.push({ ...food, suggestedQuantity: Math.max(1, qty) });
-      });
-      
-      // Mỗi người 1 nước, chia đều cho các loại nước
-      let drinksPerType = Math.ceil(pSize / numDrinkTypes);
-      selectedDrinks.forEach(drink => {
-        combo.push({ ...drink, suggestedQuantity: drinksPerType });
-      });
-      
-      // Nếu không có nước riêng, chọn bất kỳ sản phẩm nào chưa được chọn
-      if (selectedDrinks.length === 0 && activeProds.length > numFoodTypes) {
-        let remaining = activeProds.filter(p => !selectedFoods.find(f => f.id === p.id));
-        if (remaining.length > 0) {
-          combo.push({ ...remaining[0], suggestedQuantity: pSize });
-        }
-      }
-
-      aiCombo.value = combo;
-      aiRecommendationReason.value = `(Hệ thống AI đang bảo trì) Gợi ý Combo dự phòng ${combo.length} món đa dạng cho ${pSize} người (Gồm ${selectedFoods.length} món ăn + ${selectedDrinks.length || 1} loại nước uống).`;
-    }
-  } finally {
-    isFetchingAI.value = false;
-  }
-};
-
-const addComboToCart = () => {
-  aiCombo.value.forEach(p => addToPreOrder(p, p.suggestedQuantity || 1));
-  alert('Đã thêm combo vào giỏ hàng!');
-};
-
-const addToPreOrder = (p, qty = 1) => {
-  const ex = preOrderCart.value.find(i => i.productId === p.id);
-  if (ex) ex.quantity += qty; else preOrderCart.value.push({ productId: p.id, name: p.name, price: p.price, quantity: qty, taxRate: p.taxRate || 8 });
-};
-
-const increasePreOrderQty = (idx) => {
-  preOrderCart.value[idx].quantity++;
-};
-
-const decreasePreOrderQty = (idx) => {
-  if (preOrderCart.value[idx].quantity > 1) {
-    preOrderCart.value[idx].quantity--;
-  } else {
-    preOrderCart.value.splice(idx, 1);
-  }
-};
-
-const submitReservation = async () => {
-  const token = localStorage.getItem('token');
-  if(!token || !selectedTable.value || !form.value.phone || !form.value.txCode) return alert("Vui lòng điền đủ thông tin!");
-
-  // GỬI CHUẨN ĐỊNH DẠNG "Bàn: " ĐỂ BACKEND NHẬN DIỆN KHÓA BÀN
-  const type = preOrderCart.value.length > 0 ? 'Có món' : 'Giữ chỗ';
-  const infoFull = `Bàn: ${selectedTable.value.name} | SĐT: ${form.value.phone} | Lúc: ${form.value.time} ngày ${form.value.date} | ${type} | MãGD: ${form.value.txCode}`;
-  
-  const formattedItems = preOrderCart.value.map(i => ({ productId: i.productId, quantity: i.quantity }));
-
-  try {
-    await axios.post('http://localhost:8080/api/orders/checkout', { 
-      address: infoFull, 
-      items: formattedItems,
-      deposit: finalPayAmount.value 
-    }, { headers: { 'Authorization': `Bearer ${token}` } });
-    alert("🎉 Cảm ơn quý khách! Bàn đã được đặt thành công.");
-    router.push('/history'); 
-  } catch (error) { alert("Lỗi đặt bàn!"); }
-};
+  await loadAreas()
+  await loadPreorderMenu()
+})
 </script>
 
 <style scoped>
-.reservation-luxury { background: var(--bg-root); min-height: 100vh; font-family: 'Outfit', -apple-system, sans-serif; color: var(--text-primary); }
-
-.luxury-navbar {
-  background: rgba(13, 27, 42, 0.4);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  position: sticky; top: 0; z-index: 100;
-  padding: 12px 40px;
+.reservation-page {
+  min-height: 100vh;
+  background: #DED8C2;
+  color: #201D14;
+  padding: 32px 16px 56px;
 }
-.nav-container { max-width: 1400px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
-.logo { display: flex; align-items: center; gap: 12px; cursor: pointer; text-decoration: none; }
-.logo-icon { font-size: 2rem; filter: drop-shadow(0 0 10px var(--primary-glow)); }
-.logo h2 { margin: 0; font-size: 1.3rem; font-weight: 900; color: var(--text-heading); letter-spacing: 1px; }
-.gold-text { color: var(--secondary); }
 
-.nav-links { display: flex; gap: 6px; }
-.nav-links a {
-  text-decoration: none; color: var(--text-secondary);
-  font-weight: 600; font-size: 0.95rem; padding: 10px 20px;
-  border-radius: 100px; transition: var(--transition);
+.reservation-shell {
+  max-width: 1180px;
+  margin: 0 auto;
 }
-.nav-links a:hover, .nav-links a.active { color: var(--primary); background: rgba(0,212,170,0.1); }
 
-.nav-right-rsv { display: flex; gap: 10px; }
-.btn-rsv-nav {
-  background: transparent; border: 1px solid rgba(255,255,255,0.1);
-  color: var(--text-secondary); padding: 10px 24px;
-  border-radius: 100px; font-weight: 700; cursor: pointer; transition: var(--transition);
+.reservation-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
 }
-.btn-rsv-nav:hover { border-color: var(--primary); color: var(--primary); background: rgba(0,212,170,0.1); }
 
-.content-wrap { display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 80vh; padding: 40px 20px; }
-.booking-card { background: var(--bg-card); max-width: 800px; width: 100%; border-radius: 15px; padding: 40px; box-shadow: var(--shadow-lg); border: 1px solid var(--border-light); }
-.elegant-title { text-align: center; color: var(--primary); font-size: 2.5rem; margin-bottom: 5px; font-weight: 900; letter-spacing: 2px;}
-.elegant-subtitle { text-align: center; color: var(--text-secondary); margin-bottom: 30px;}
-
-.step-progress { display: flex; justify-content: space-between; border-bottom: 2px solid var(--border); padding-bottom: 15px; margin-bottom: 30px;}
-.step { color: var(--text-muted); font-weight: 600; font-size: 0.9rem;}
-.step.active { color: var(--primary); border-bottom: 2px solid var(--primary); padding-bottom: 15px; margin-bottom: -17px; text-shadow: 0 0 10px var(--primary-glow); }
-
-.panel-title { color: var(--text-heading); margin-bottom: 20px; font-size: 1.3rem;}
-.input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px;}
-.lux-input { width: 100%; padding: 12px 15px; border: 1px solid var(--border); border-radius: 5px; font-size: 1rem; background: var(--bg-input); color: var(--text-primary); box-sizing: border-box; transition: 0.3s;}
-.lux-input:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 5px var(--primary-glow);}
-
-.lux-btn { background: linear-gradient(135deg, var(--primary), #3498db); color: var(--bg-dark); border: none; padding: 12px 25px; border-radius: 5px; font-weight: bold; letter-spacing: 1px; cursor: pointer; transition: 0.3s;}
-.lux-btn:hover { box-shadow: 0 5px 15px var(--primary-glow); transform: translateY(-2px); }
-.lux-btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-secondary); padding: 12px 25px; border-radius: 5px; font-weight: bold; cursor: pointer; transition: 0.3s;}
-.lux-btn-outline:hover { border-color: var(--primary); color: var(--primary); }
-.block-btn { width: 100%; }
-.mt-20 { margin-top: 20px;} .mt-10 { margin-top: 10px;}
-.btn-group { display: flex; justify-content: space-between;}
-.btn-disabled { opacity: 0.5; cursor: not-allowed !important; background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border); }
-
-.floor-tabs { display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;}
-.floor-tabs button { background: var(--bg-input); border: 1px solid var(--border); padding: 10px 20px; border-radius: 20px; cursor: pointer; font-weight: 600; color: var(--text-secondary); transition: 0.3s;}
-.floor-tabs button.active { background: var(--primary); color: var(--bg-dark); border-color: var(--primary); box-shadow: 0 0 10px var(--primary-glow);}
-
-.table-grid-lux { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px;}
-.table-card-lux { background: var(--bg-card2); border: 1px solid var(--border); border-radius: 10px; padding: 20px 10px; text-align: center; cursor: pointer; position: relative; transition: 0.2s;}
-.table-card-lux:hover:not(.disabled) { border-color: var(--primary); transform: translateY(-3px); box-shadow: 0 5px 15px var(--primary-glow);}
-.table-card-lux.selected { border: 2px solid var(--primary); background: rgba(0, 212, 170, 0.1);}
-.table-card-lux.disabled { opacity: 0.5; cursor: not-allowed; background: var(--bg-root);}
-.status-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-top: 10px;}
-.green { background: #2ecc71; box-shadow: 0 0 5px #2ecc71;}
-.red { background: #e74c3c; box-shadow: 0 0 5px #e74c3c;}
-.t-view { position: absolute; top: 5px; right: 5px; background: var(--primary); color: var(--bg-dark); font-size: 0.65rem; padding: 2px 5px; border-radius: 5px; font-weight: bold;}
-
-.service-options { display: flex; gap: 20px;}
-.opt-card { flex: 1; border: 1px solid var(--border); border-radius: 10px; padding: 30px 20px; text-align: center; cursor: pointer; transition: 0.3s; background: var(--bg-card2);}
-.opt-card:hover { border-color: var(--primary); box-shadow: 0 5px 15px var(--primary-glow);}
-.opt-card.highlight { background: rgba(0, 212, 170, 0.05); border-color: var(--primary);}
-.opt-card .icon { font-size: 2.5rem; margin-bottom: 10px;}
-
-.menu-preorder { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-top: 20px;}
-.menu-list { max-height: 350px; overflow-y: auto; padding-right: 10px;}
-.btn-group { display: flex; gap: 15px; margin-top: 30px; }
-
-/* AI Suggestion Styles */
-.ai-suggestion-box {
-  background: rgba(13, 27, 42, 0.6);
-  border: 1px solid rgba(0, 255, 170, 0.2);
-  border-radius: 12px;
-  padding: 15px;
-  margin-bottom: 20px;
-  box-shadow: 0 4px 15px rgba(0, 255, 170, 0.05);
+.eyebrow {
+  margin: 0 0 6px;
+  color: #5A6E45;
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: 0.78rem;
 }
-.ai-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.ai-header h3 { margin: 0; font-size: 1.1rem; color: var(--primary); display: flex; align-items: center; gap: 8px; }
-.ai-badge { background: var(--primary); color: var(--bg-dark); font-size: 0.75rem; font-weight: bold; padding: 3px 8px; border-radius: 12px; }
-.ai-desc { font-size: 0.9rem; color: #ccc; margin-bottom: 10px; font-style: italic; }
-.menu-item-lux { display: flex; gap: 15px; margin-bottom: 15px; border-bottom: 1px dashed var(--border); padding-bottom: 10px; align-items: center;}
-.menu-item-lux img { width: 60px; height: 60px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border);}
-.menu-item-lux .info h5 { margin: 0 0 5px 0; font-size: 1rem; color: var(--text-heading);}
-.menu-item-lux .info p { margin: 0; color: var(--primary); font-weight: bold;}
-.add-btn { margin-left: auto; background: var(--primary-glow); color: var(--primary); border: 1px solid var(--primary); width: 30px; height: 30px; border-radius: 50%; cursor: pointer; transition: 0.3s;}
-.add-btn:hover { background: var(--primary); color: var(--bg-dark); }
-.cart-lux { background: var(--bg-card2); padding: 15px; border-radius: 10px; border: 1px solid var(--border);}
-.cart-lux h4 { margin-top: 0; border-bottom: 1px dashed var(--border); padding-bottom: 10px; color: var(--text-heading);}
-.c-item { display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; margin-bottom: 8px; color: var(--text-primary); padding: 6px 0; border-bottom: 1px dashed rgba(255,255,255,0.06);}
-.del { color: #e74c3c; cursor: pointer; font-size: 0.8rem; background: none; border: none; margin-left: 4px; transition: 0.2s; }
-.del:hover { color: #ff6b6b; }
-.qty-btn-rsv {
-  width: 28px; height: 28px; border-radius: 6px;
-  border: 1px solid var(--border); background: var(--bg-input);
-  color: var(--text-primary); font-size: 1rem; font-weight: 700;
-  cursor: pointer; display: flex; align-items: center; justify-content: center;
-  transition: all 0.2s ease;
+
+.reservation-header h1 {
+  margin: 0;
+  font-size: 2.35rem;
+  color: #22301B;
 }
-.qty-btn-rsv:hover { border-color: var(--primary); color: var(--primary); background: rgba(0,212,170,0.1); }
-.qty-minus-rsv:hover { border-color: #e74c3c; color: #e74c3c; background: rgba(231,76,60,0.1); }
 
-.payment-box-lux { display: flex; gap: 30px; background: var(--bg-card2); padding: 20px; border-radius: 10px; border: 1px solid var(--border);}
-.p-info { flex: 1;}
-.p-qr { text-align: center;}
-.p-qr img { width: 160px; border-radius: 10px; border: 2px solid var(--primary); box-shadow: 0 5px 15px var(--primary-glow);}
-.bill-summary { background: var(--bg-root); padding: 15px; border-radius: 5px; margin-top: 15px; border-left: 3px solid var(--primary);}
-.bill-summary p { margin: 5px 0; font-size: 0.9rem; color: var(--text-secondary);}
-.gold-text { font-size: 1.2rem; font-weight: bold; color: var(--primary);}
+.reservation-header p {
+  max-width: 720px;
+  color: #7A7460;
+}
 
-.fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
+.stepper {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.step-chip {
+  border: 1px solid #CFC7A8;
+  background: #FFFFFF;
+  border-radius: 8px;
+  min-height: 48px;
+  padding: 6px;
+  color: #7A7460;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.step-chip span {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #E7E3D2;
+  color: #5A6E45;
+  margin-right: 6px;
+}
+
+.step-chip.active,
+.step-chip.done {
+  border-color: #5A6E45;
+  color: #201D14;
+}
+
+.reservation-card,
+.success-panel {
+  background: #FFFFFF;
+  border: 1px solid #CFC7A8;
+  border-radius: 8px;
+  box-shadow: 0 18px 40px rgba(35, 48, 43, 0.08);
+  padding: 24px;
+}
+
+.panel h2,
+.success-panel h2 {
+  margin: 0 0 18px;
+  color: #22301B;
+}
+
+.panel-row,
+.card-title-row,
+.actions,
+.card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.form-grid.compact {
+  max-width: 360px;
+}
+
+label {
+  display: grid;
+  gap: 7px;
+  font-weight: 700;
+  color: #55503E;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  border: 1px solid #CFC7A8;
+  border-radius: 8px;
+  padding: 11px 12px;
+  background: #FFFFFF;
+  color: #201D14;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 3px solid #E7E3D2;
+  border-color: #5A6E45;
+}
+
+small {
+  color: #B23B2E;
+}
+
+.lang-toggle,
+.ghost-btn,
+.primary-btn,
+.danger-btn {
+  min-height: 40px;
+  border-radius: 8px;
+  border: 1px solid #CFC7A8;
+  padding: 0 16px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.lang-toggle,
+.ghost-btn {
+  background: #FFFFFF;
+  color: #201D14;
+}
+
+.primary-btn {
+  background: #5A6E45;
+  color: #FFFFFF;
+  border-color: #5A6E45;
+}
+
+.danger-btn {
+  background: #FFFFFF;
+  color: #B23B2E;
+  border-color: #E8C9C4;
+}
+
+.primary-btn:disabled,
+.ghost-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.area-grid,
+.table-grid,
+.dish-grid,
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.area-card,
+.table-card,
+.dish-card {
+  border: 1px solid #CFC7A8;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #FFFFFF;
+}
+
+.area-card.selected,
+.table-card.selected {
+  border-color: #5A6E45;
+  box-shadow: 0 0 0 3px #E7E3D2;
+}
+
+.area-card img,
+.table-card img,
+.dish-card img {
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+  display: block;
+}
+
+.table-map {
+  border: 1px solid #E7E3D2;
+  border-radius: 8px;
+  background: #DED8C2;
+  padding: 16px;
+  margin-bottom: 18px;
+}
+
+.table-map-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.table-map-header h3 {
+  margin: 0 0 4px;
+  color: #22301B;
+}
+
+.table-map-header p {
+  margin: 0;
+  color: #7A7460;
+}
+
+.map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.legend {
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.legend.available {
+  background: #E7E3D2;
+  color: #22301B;
+}
+
+.legend.blocked {
+  background: #DED8C2;
+  color: #55503E;
+}
+
+.map-groups {
+  display: grid;
+  gap: 14px;
+}
+
+.map-group {
+  display: grid;
+  gap: 8px;
+}
+
+.map-group > strong {
+  color: #55503E;
+}
+
+.map-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 10px;
+}
+
+.map-seat {
+  min-height: 72px;
+  border: 1px solid #CFC7A8;
+  border-radius: 8px;
+  background: #FFFFFF;
+  color: #55503E;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 3px;
+  cursor: pointer;
+  font: inherit;
+  overflow: hidden;
+}
+
+.map-seat span,
+.map-seat small {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.map-seat span {
+  font-weight: 900;
+}
+
+.map-seat small {
+  color: #7A7460;
+  font-size: 0.76rem;
+}
+
+.map-seat.available {
+  border-color: #B9D8C2;
+  background: #F3F7F0;
+  color: #22301B;
+}
+
+.map-seat.reserved {
+  border-color: #E7D5B8;
+  background: #F5F0E4;
+  color: #8A641F;
+}
+
+.map-seat.too-small {
+  border-color: #D7E3ED;
+  background: #EEF3F6;
+  color: #5A6E45;
+}
+
+.map-seat.blocked,
+.map-seat:disabled {
+  background: #DED8C2;
+  color: #7A7460;
+  cursor: not-allowed;
+  opacity: 0.75;
+}
+
+.map-seat.selected {
+  outline: 3px solid #5A6E45;
+  outline-offset: 2px;
+}
+
+.card-body,
+.dish-card > div {
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.card-body p,
+.dish-card p,
+.review-note {
+  color: #7A7460;
+  margin: 0;
+}
+
+.meta-grid,
+.summary-grid,
+.review-box {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.voucher-field {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.voucher-field > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.meta-grid span,
+.review-box > div,
+.summary-grid > span,
+.summary-grid > strong {
+  background: #DED8C2;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.amenities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.amenities span,
+.status-pill {
+  background: #E7E3D2;
+  color: #5A6E45;
+  padding: 5px 8px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.status-pill.available {
+  background: #E7E3D2;
+  color: #2F8F5B;
+}
+
+.status-pill.suggested {
+  background: #EEF3F6;
+  color: #5A6E45;
+}
+
+.reason-list {
+  margin: 0;
+  padding-left: 18px;
+  color: #55503E;
+  font-size: 0.86rem;
+}
+
+.reason-list li + li {
+  margin-top: 3px;
+}
+
+.ghost-link {
+  color: #5A6E45;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.choice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.choice-grid button {
+  text-align: left;
+  display: grid;
+  gap: 8px;
+  min-height: 110px;
+  border: 1px solid #CFC7A8;
+  border-radius: 8px;
+  background: #FFFFFF;
+  padding: 16px;
+  cursor: pointer;
+}
+
+.choice-grid button.selected {
+  border-color: #5A6E45;
+  background: #E7E3D2;
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: 1fr minmax(180px, 240px) auto;
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.cart-box {
+  margin-top: 18px;
+  border: 1px solid #CFC7A8;
+  border-radius: 8px;
+  padding: 14px;
+  background: #DED8C2;
+}
+
+.cart-row {
+  display: grid;
+  grid-template-columns: 1.3fr 110px 1.4fr 120px auto;
+  gap: 10px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.qty {
+  display: grid;
+  grid-template-columns: 32px 1fr 32px;
+  align-items: center;
+  border: 1px solid #CFC7A8;
+  border-radius: 8px;
+  overflow: hidden;
+  text-align: center;
+}
+
+.qty button {
+  border: 0;
+  background: #E7E3D2;
+  height: 34px;
+  cursor: pointer;
+}
+
+.wide-label {
+  margin-top: 16px;
+}
+
+.preference-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.preference-grid label {
+  display: flex;
+  align-items: center;
+  border: 1px solid #CFC7A8;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.preference-grid input {
+  width: auto;
+}
+
+.error-banner,
+.empty-state {
+  background: #F5F0E4;
+  color: #8A641F;
+  border: 1px solid #E7D5B8;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 14px;
+}
+
+.empty-state {
+  background: #DED8C2;
+  color: #7A7460;
+  border-color: #CFC7A8;
+}
+
+.waitlist-offer {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+
+.skeleton-card {
+  height: 260px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #DED8C2, #CFC7A8, #DED8C2);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s infinite;
+}
+
+.skeleton-card.table {
+  height: 300px;
+}
+
+.reservation-code {
+  display: inline-flex;
+  margin: 16px 0;
+  background: #22301B;
+  color: #FFFFFF;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+
+.qr-card {
+  display: grid;
+  grid-template-columns: 1fr 240px;
+  gap: 18px;
+  margin: 18px 0;
+  padding: 18px;
+  border: 1px solid #CFC7A8;
+  border-radius: 8px;
+}
+
+.qr-card img {
+  width: 240px;
+  height: 240px;
+  object-fit: contain;
+}
+
+.qr-card dl {
+  display: grid;
+  gap: 8px;
+}
+
+.qr-card dl div {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 10px;
+}
+
+.qr-card dt {
+  color: #7A7460;
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (max-width: 1024px) {
+  .reservation-page { padding: 28px 12px 48px; }
+  .stepper {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .table-map-header {
+    display: grid;
+  }
+
+  .map-legend {
+    justify-content: flex-start;
+  }
+
+  .map-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .cart-row {
+    grid-template-columns: minmax(0, 1fr) 120px;
+  }
+
+  .cart-row .danger-btn {
+    grid-column: 1 / -1;
+  }
+
+  .qr-card {
+    grid-template-columns: minmax(0, 1fr) 220px;
+  }
+
+  .qr-card img {
+    width: 100%;
+    height: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .reservation-page,
+  .reservation-page * { box-sizing: border-box; }
+  .reservation-page { overflow-x: hidden; padding: 20px 8px 40px; }
+  .reservation-header { align-items: stretch; flex-direction: column; }
+  .reservation-header h1 { font-size: 1.85rem; }
+  .reservation-header p { margin-bottom: 0; }
+  .lang-toggle { align-self: flex-end; }
+  .stepper { gap: 6px; }
+  .step-chip { min-width: 0; min-height: 52px; padding: 5px 3px; font-size: 0.78rem; }
+  .step-chip span { width: 22px; height: 22px; margin-right: 3px; }
+  .reservation-card,
+  .success-panel { padding: 18px 12px; }
+  .panel h2,
+  .success-panel h2 { font-size: 1.35rem; }
+  .panel-row,
+  .card-title-row,
+  .card-actions { align-items: flex-start; flex-wrap: wrap; }
+  .form-grid,
+  .meta-grid,
+  .review-box,
+  .voucher-field > div,
+  .summary-grid,
+  .filters,
+  .cart-row,
+  .qr-card,
+  .qr-card dl div { grid-template-columns: 1fr; }
+  .form-grid.compact { max-width: none; }
+  input,
+  select,
+  textarea,
+  .lang-toggle,
+  .ghost-btn,
+  .primary-btn,
+  .danger-btn { min-height: 44px; }
+  .area-grid,
+  .table-grid,
+  .dish-grid,
+  .skeleton-grid,
+  .choice-grid,
+  .preference-grid { grid-template-columns: 1fr; }
+  .area-card img,
+  .table-card img,
+  .dish-card img { height: 180px; }
+  .table-map { padding: 12px; }
+  .map-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .card-actions .primary-btn,
+  .actions .primary-btn,
+  .actions .ghost-btn { flex: 1 1 100%; }
+  .actions { align-items: stretch; flex-direction: column; }
+  .cart-row .danger-btn { grid-column: auto; width: 100%; }
+  .qty { min-height: 44px; }
+  .qty button { min-height: 44px; }
+  .qr-card { padding: 14px; }
+  .qr-card img { max-width: 260px; margin: 0 auto; }
+  .qr-card dl div { gap: 4px; }
+}
 </style>
