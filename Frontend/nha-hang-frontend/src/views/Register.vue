@@ -474,8 +474,30 @@ async function handleRegister() {
   .register-form-panel::before { display: none; }
   .mobile-brand { display: flex; }
 }
-@media (max-width: 480px) {
+@media (max-width: 640px) {
+  .register-page,
+  .register-page * { box-sizing: border-box; }
+  .register-page { overflow-x: hidden; }
   .form-grid { grid-template-columns: 1fr; }
-  .register-form-panel { padding: 20px; }
+  .register-form-panel {
+    min-height: 100vh;
+    align-items: flex-start;
+    padding: 20px 16px;
+    overflow-y: auto;
+  }
+  .form-wrapper { max-width: 100%; }
+  .mobile-brand { margin-bottom: 20px; }
+  .steps-bar { margin-bottom: 28px; }
+  .step-line { width: 32px; margin-right: 6px; margin-left: 6px; }
+  .input-field input { min-height: 48px; }
+  .toggle-pw { width: 44px; height: 44px; right: 4px; }
+  .confirm-row { align-items: flex-start; flex-wrap: wrap; gap: 6px 12px; }
+  .confirm-value { max-width: 100%; overflow-wrap: anywhere; }
+  .terms-check { min-height: 44px; }
+  .btn-next,
+  .btn-register,
+  .btn-back { min-height: 48px; }
+  .btn-row { flex-direction: column; }
+  .btn-back { width: 100%; }
 }
 </style>
