@@ -59,6 +59,7 @@ public class SecurityConfig {
         http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
         http.authorizeHttpRequests(auth -> auth
+            .requestMatchers(HttpMethod.GET, "/admin/**").permitAll()
             // Mở hoàn toàn cho auth, error, và đơn hàng (không cần prefix ROLE_)
             .requestMatchers("/api/auth/**", "/error").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/products/**", "/api/categories/**", "/api/tables/**", "/api/posts/**", "/api/reviews/**").permitAll()
