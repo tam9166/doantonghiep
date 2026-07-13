@@ -157,7 +157,7 @@
                 :key="area.id"
                 :class="['area-card', { selected: form.areaId === area.id }]"
               >
-                <img :src="area.imageUrl || fallbackAreaImage" :alt="areaName(area)" @error="replaceImage" />
+                <img :src="area.imageUrl || fallbackAreaImage" :alt="areaName(area)" loading="lazy" @error="replaceImage" />
                 <div class="card-body">
                   <div class="card-title-row">
                     <strong>{{ areaName(area) }}</strong>
@@ -245,7 +245,7 @@
                 :key="table.id"
                 :class="['table-card', { selected: form.tableId === table.id }]"
               >
-                <img :src="table.imageUrl || fallbackTableImage" :alt="table.name" @error="replaceTableImage" />
+                <img :src="table.imageUrl || fallbackTableImage" :alt="table.name" loading="lazy" @error="replaceTableImage" />
                 <div class="card-body">
                   <div class="card-title-row">
                     <strong>{{ table.name }}</strong>
@@ -304,7 +304,7 @@
               <div v-if="menuError" class="error-banner">{{ menuError }}</div>
               <div class="dish-grid">
                 <article v-for="dish in filteredMenu" :key="dish.id" class="dish-card">
-                  <img :src="dish.image || fallbackDishImage" :alt="dishName(dish)" @error="replaceDishImage" />
+                  <img :src="dish.image || fallbackDishImage" :alt="dishName(dish)" loading="lazy" @error="replaceDishImage" />
                   <div>
                     <strong>{{ dishName(dish) }}</strong>
                     <span>{{ dishCategory(dish) }}</span>

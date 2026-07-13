@@ -42,7 +42,7 @@
           <div v-if="aiCombo.length === 0 && !isFetchingAI">
             <p class="ai-desc">Để đưa ra gợi ý hợp lý nhất, bạn đi mấy người?</p>
             <div class="party-size-row" style="display: flex; gap: 10px; margin-bottom: 10px;">
-              <input type="number" v-model="partySize" min="1" placeholder="Nhập số người" class="form-control" style="width: 150px; background: rgba(0,0,0,0.2); color: white;" />
+              <input type="number" v-model="partySize" min="1" placeholder="Nhập số người" class="form-control" style="width: 150px; background: rgba(0,0,0,0.2); color: #FFFFFF;" />
               <button class="btn-add-item" @click="fetchComboForParty">Nhận gợi ý</button>
             </div>
           </div>
@@ -54,9 +54,9 @@
             
             <div class="combo-grid">
               <div v-for="product in aiCombo" :key="'ai-'+product.id" class="combo-item">
-                <img :src="product.image || 'https://via.placeholder.com/100'" alt="food" />
+                <img :src="foodImage(product.image)" :alt="product.name" loading="lazy" @error="replaceFoodImage" />
                 <div class="product-info">
-                  <h4>{{ product.name }} <span v-if="product.suggestedQuantity > 1" style="color: var(--primary);">x{{product.suggestedQuantity}}</span></h4>
+                  <h4>{{ product.name }} <span v-if="product.suggestedQuantity > 1" style="color: var(--primary);">x{{ product.suggestedQuantity }}</span></h4>
                   <p class="price">{{ product.price.toLocaleString() }}đ</p>
                 </div>
                 <button v-if="!isAdminOrManager" class="btn-add-item" @click="addToCart(product, product.suggestedQuantity || 1)">Thêm</button>
@@ -73,11 +73,11 @@
 
         <!-- Món ăn bán chạy / Gợi ý -->
         <div v-if="suggestedProducts.length > 0" class="suggested-section">
-          <h3 class="section-title"><span style="color: #f1c40f">🌟</span> Gợi Ý Cho Bạn (Bán Chạy)</h3>
+          <h3 class="section-title"><span style="color: #B98229">🌟</span> Gợi Ý Cho Bạn (Bán Chạy)</h3>
           <div class="suggested-grid">
             <div v-for="product in suggestedProducts" :key="'sugg-'+product.id" class="suggested-card">
               <div class="sugg-badge">HOT</div>
-              <img :src="product.image || 'https://via.placeholder.com/150'" alt="food" />
+              <img :src="foodImage(product.image)" :alt="product.name" loading="lazy" @error="replaceFoodImage" />
               <div class="sugg-info">
                 <h4>{{ product.name }}</h4>
                 <p class="price">{{ product.price.toLocaleString() }}đ</p>
@@ -89,7 +89,7 @@
 
         <h3 class="section-title">Thực Đơn Đầy Đủ</h3>
         <div v-for="product in activeProducts" :key="product.id" class="product-item">
-          <img :src="product.image || 'https://via.placeholder.com/100'" alt="food" />
+          <img :src="foodImage(product.image)" :alt="product.name" loading="lazy" @error="replaceFoodImage" />
           <div class="product-info">
             <h4>{{ product.name }}</h4>
             <p class="price">{{ product.price.toLocaleString() }}đ</p>
@@ -149,9 +149,9 @@
         </div>
 
         <div class="cart-total" style="margin-top: 20px; text-align: center;">
-          <h4 style="color: var(--primary); font-size: 1.1rem; border-top: 1px dashed rgba(0,212,170,0.3); padding-top: 10px;">Tạm tính: {{ cartSubtotal.toLocaleString() }}đ</h4>
+          <h4 style="color: var(--primary); font-size: 1.1rem; border-top: 1px dashed rgba(90, 110, 69, 0.3); padding-top: 10px;">Tạm tính: {{ cartSubtotal.toLocaleString() }}đ</h4>
           <h4 style="color: var(--primary); font-size: 1.1rem;">Thuế GTGT: {{ cartTax.toLocaleString() }}đ</h4>
-          <h4 style="color: #ff4757; font-size: 1.4rem; margin-top: 5px;">Tổng cộng: {{ finalTotal.toLocaleString() }}đ</h4>
+          <h4 style="color: #B23B2E; font-size: 1.4rem; margin-top: 5px;">Tổng cộng: {{ finalTotal.toLocaleString() }}đ</h4>
           <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 5px;">💡 Thanh toán sau khi dùng bữa xong</p>
         </div>
 
@@ -173,9 +173,9 @@ import CustomerLayout from '@/components/CustomerLayout.vue';
 
 import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
-import { useRouter, useRoute } from 'vue-router';
+import { useRoute } from 'vue-router';
+import { foodImage, replaceFoodImage } from '@/utils/imageFallback';
 
-const router = useRouter();
 const route = useRoute();
 const products = ref([]);
 const suggestedProducts = ref([]);
@@ -200,7 +200,6 @@ let recognition = null;
 // Membership Tier Logic
 const userProfile = ref(null);
 const tierDiscount = ref(0);
-const voucherCode = ref('');
 const voucherDiscountPercent = ref(0);
 
 const activeProducts = computed(() => products.value.filter(p => p.status !== false));
@@ -236,17 +235,6 @@ const finalTotal = computed(() => {
   return cartSubtotal.value - discountAmount.value + cartTax.value;
 });
 
-const cartTotal = computed(() => finalTotal.value);
-
-const vietQrUrl = computed(() => {
-  const bank = 'vietcombank';
-  const accountNo = '1047187126';
-  const accountName = 'NGUYEN QUANG NHAT';
-  const amount = finalTotal.value;
-  const addInfo = encodeURIComponent(`Thanh toan ban ${selectedTable.value || 'KH'}`);
-  return `https://img.vietqr.io/image/${bank}-${accountNo}-compact2.png?amount=${amount}&addInfo=${addInfo}&accountName=${encodeURIComponent(accountName)}`;
-});
-
 // AI Suggestion Logic
 const aiCombo = ref([]);
 const aiRecommendationReason = ref('');
@@ -273,7 +261,7 @@ const fetchComboForParty = async () => {
     const menuStr = activeProducts.value.map(p => `${p.id}-${p.name}`).join(', ');
     const message = `Khách đi ${partySize.value} người. Thời tiết hiện tại: ${weatherStr}`;
     
-    const aiRes = await axios.post('http://localhost:8080/api/chatbot/chat', {
+    const aiRes = await axios.post('/api/chatbot/chat', {
       type: 'COMBO_RECOMMEND',
       message: message,
       menu: menuStr
@@ -357,8 +345,8 @@ const addComboToCart = () => {
 const loadData = async () => {
   try {
     const [resProd, resTable] = await Promise.all([
-      axios.get('http://localhost:8080/api/products'),
-      axios.get('http://localhost:8080/api/tables') // Lấy danh sách bàn
+      axios.get('/api/products'),
+      axios.get('/api/tables') // Lấy danh sách bàn
     ]);
     products.value = resProd.data;
     allTables.value = resTable.data;
@@ -372,7 +360,7 @@ const loadData = async () => {
     // Lấy thông tin User để áp dụng hạng thẻ
     const token = localStorage.getItem('token');
     if (token) {
-      const resProfile = await axios.get('http://localhost:8080/api/auth/profile', {
+      const resProfile = await axios.get('/api/auth/profile', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       userProfile.value = resProfile.data;
@@ -393,7 +381,7 @@ const loadData = async () => {
     
     // Tải Món Gợi Ý (Bán Chạy)
     try {
-      const response = await axios.get('http://localhost:8080/api/admin/popular-items/products?limit=4', {
+      const response = await axios.get('/api/admin/popular-items/products?limit=4', {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {}
       });
       if (response.data && response.data.length > 0) {
@@ -401,7 +389,7 @@ const loadData = async () => {
            .map(item => products.value.find(p => p.id === item.productId))
            .filter(p => p != null).slice(0, 4);
       }
-    } catch (err) { console.log('Lỗi lấy gợi ý: ', err); }
+    } catch (err) { console.warn('Lỗi lấy gợi ý: ', err); }
 
   } catch (error) { console.error(error); }
 };
@@ -457,7 +445,7 @@ const startVoiceOrder = () => {
       try {
         // Gửi danh sách tên món cho AI
         const menuStr = activeProducts.value.map(p => `${p.id}: ${p.name}`).join(', ');
-        const res = await axios.post('http://localhost:8080/api/chatbot/chat', {
+        const res = await axios.post('/api/chatbot/chat', {
           message: transcript,
           type: 'VOICE_ORDER',
           menu: menuStr
@@ -513,22 +501,6 @@ const startVoiceOrder = () => {
   recognition.start();
 };
 
-// 🌟 LOGIC CHECK VOUCHER
-const applyVoucher = async () => {
-  if (!voucherCode.value) return alert("Vui lòng nhập mã!");
-  try {
-    const token = localStorage.getItem('token');
-    const res = await axios.post('http://localhost:8080/api/vouchers/check', { code: voucherCode.value }, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    voucherDiscountPercent.value = res.data.discountPercent;
-    alert(`Áp dụng thành công! Giảm ${voucherDiscountPercent.value}%`);
-  } catch (error) {
-    alert(error.response?.data || "Mã không hợp lệ!");
-    voucherDiscountPercent.value = 0;
-  }
-};
-
 const submitOrder = async () => {
   if (cart.value.length === 0) return alert("Giỏ hàng trống!");
   
@@ -539,7 +511,7 @@ const submitOrder = async () => {
   const formattedItems = cart.value.map(item => ({ productId: item.productId, quantity: item.quantity }));
 
   try {
-    await axios.post('http://localhost:8080/api/orders/checkout', {
+    await axios.post('/api/orders/checkout', {
       address: infoFull,
       items: formattedItems
     }, { headers: { 'Authorization': `Bearer ${token}` } });
@@ -608,23 +580,23 @@ onMounted(loadData);
 .qty-btn:hover {
   border-color: var(--primary);
   color: var(--primary);
-  background: rgba(0,212,170,0.1);
+  background: rgba(90, 110, 69, 0.1);
 }
 .qty-minus:hover {
-  border-color: #e74c3c;
-  color: #e74c3c;
-  background: rgba(231,76,60,0.1);
+  border-color: #B23B2E;
+  color: #B23B2E;
+  background: rgba(178,59,46,0.1);
 }
 .qty-remove {
   background: none;
   border: none;
-  color: #e74c3c;
+  color: #B23B2E;
   font-size: 0.9rem;
   margin-left: 4px;
 }
 .qty-remove:hover {
-  color: #ff6b6b;
-  background: rgba(231,76,60,0.15);
+  color: #B23B2E;
+  background: rgba(178,59,46,0.15);
 }
 .qty-display {
   min-width: 28px;
@@ -633,11 +605,11 @@ onMounted(loadData);
   font-size: 1rem;
   color: var(--text-heading);
 }
-.dine-in-wrapper { font-family: 'Outfit', -apple-system, sans-serif; background-color: var(--bg-root); min-height: 100vh; padding-bottom: 80px; color: var(--text-primary); }
+.dine-in-wrapper { font-family: var(--font-primary); background-color: var(--bg-root); min-height: 100vh; padding-bottom: 80px; color: var(--text-primary); }
 
 /* Navbar */
 .dinein-navbar {
-  background: rgba(13, 27, 42, 0.4);
+  background: rgba(255, 255, 255, 0.72);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
@@ -659,7 +631,7 @@ onMounted(loadData);
   font-weight: 600; font-size: 0.95rem; padding: 10px 20px;
   border-radius: 100px; transition: var(--transition);
 }
-.nav-links a:hover, .nav-links a.active { color: var(--primary); background: rgba(0,212,170,0.1); }
+.nav-links a:hover, .nav-links a.active { color: var(--primary); background: rgba(90, 110, 69, 0.1); }
 
 .nav-right { display: flex; align-items: center; gap: 10px; }
 .btn-nav-dinein {
@@ -667,7 +639,7 @@ onMounted(loadData);
   color: var(--text-secondary); padding: 10px 24px;
   border-radius: 100px; font-weight: 700; cursor: pointer; transition: var(--transition);
 }
-.btn-nav-dinein:hover { border-color: var(--primary); color: var(--primary); background: rgba(0,212,170,0.1); }
+.btn-nav-dinein:hover { border-color: var(--primary); color: var(--primary); background: rgba(90, 110, 69, 0.1); }
 
 .main-content { padding: 15px; max-width: 600px; margin: 0 auto; }
 .table-selection-box { background: var(--bg-card); padding: 15px; border-radius: 10px; box-shadow: var(--shadow-md); margin-bottom: 20px; border-left: 4px solid var(--primary); border: 1px solid var(--border-light); }
@@ -688,20 +660,20 @@ onMounted(loadData);
 .empty-state { text-align: center; padding: 40px 20px; color: var(--text-muted); background: var(--bg-card); border-radius: 10px; border: 1px dashed var(--border); }
 
 /* Suggested Section */
-.suggested-section { margin-bottom: 25px; text-align: left; background: rgba(241, 196, 15, 0.05); padding: 15px; border-radius: 12px; border: 1px solid rgba(241, 196, 15, 0.2); }
-.suggested-section .section-title { font-size: 1.2rem; margin-bottom: 15px; color: #f1c40f; border-bottom: none; }
+.suggested-section { margin-bottom: 25px; text-align: left; background: rgba(185, 130, 41, 0.05); padding: 15px; border-radius: 12px; border: 1px solid rgba(185, 130, 41, 0.2); }
+.suggested-section .section-title { font-size: 1.2rem; margin-bottom: 15px; color: #B98229; border-bottom: none; }
 .suggested-grid { display: flex; gap: 15px; overflow-x: auto; padding-bottom: 10px; }
 .suggested-grid::-webkit-scrollbar { height: 6px; }
-.suggested-grid::-webkit-scrollbar-thumb { background: #f1c40f; border-radius: 10px; }
-.suggested-card { min-width: 160px; background: rgba(0,0,0,0.5); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; position: relative; border: 1px solid rgba(241, 196, 15, 0.3); transition: 0.3s; }
-.suggested-card:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(241, 196, 15, 0.2); }
-.sugg-badge { position: absolute; top: -5px; right: -5px; background: #e74c3c; color: white; padding: 3px 6px; border-radius: 6px; font-weight: 900; font-size: 0.7rem; transform: rotate(10deg); box-shadow: 0 2px 5px rgba(231,76,60,0.5); }
+.suggested-grid::-webkit-scrollbar-thumb { background: #B98229; border-radius: 10px; }
+.suggested-card { min-width: 160px; background: rgba(0,0,0,0.5); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; position: relative; border: 1px solid rgba(185, 130, 41, 0.3); transition: 0.3s; }
+.suggested-card:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(185, 130, 41, 0.2); }
+.sugg-badge { position: absolute; top: -5px; right: -5px; background: #B23B2E; color: #FFFFFF; padding: 3px 6px; border-radius: 6px; font-weight: 900; font-size: 0.7rem; transform: rotate(10deg); box-shadow: 0 2px 5px rgba(178,59,46,0.5); }
 .suggested-card img { width: 100%; height: 100px; object-fit: cover; border-radius: 8px; margin-bottom: 10px; }
 .sugg-info { flex: 1; }
-.sugg-info h4 { margin: 0 0 5px 0; font-size: 0.95rem; color: white; }
-.sugg-info .price { color: #f1c40f; font-weight: bold; font-size: 1rem; margin: 0; }
-.btn-sugg-add { background: #f1c40f; color: #000; border: none; padding: 6px; border-radius: 6px; font-weight: bold; margin-top: 10px; cursor: pointer; transition: 0.3s; font-size: 0.85rem;}
-.btn-sugg-add:hover { background: #fff; }
+.sugg-info h4 { margin: 0 0 5px 0; font-size: 0.95rem; color: #FFFFFF; }
+.sugg-info .price { color: #B98229; font-weight: bold; font-size: 1rem; margin: 0; }
+.btn-sugg-add { background: #B98229; color: #201D14; border: none; padding: 6px; border-radius: 6px; font-weight: bold; margin-top: 10px; cursor: pointer; transition: 0.3s; font-size: 0.85rem;}
+.btn-sugg-add:hover { background: #FFFFFF; }
 
 /* AI Suggestion */
 .ai-suggestion-box {
@@ -714,7 +686,7 @@ onMounted(loadData);
 }
 .ai-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
 .ai-header h3 { margin: 0; color: var(--primary); font-size: 1.1rem; font-weight: 900; }
-.ai-badge { background: linear-gradient(135deg, var(--primary), #3498db); color: var(--bg-dark); padding: 3px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: bold; }
+.ai-badge { background: linear-gradient(135deg, var(--primary), #5A6E45); color: var(--bg-dark); padding: 3px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: bold; }
 .ai-desc { margin: 0 0 15px 0; font-size: 0.85rem; color: var(--text-secondary); font-style: italic; }
 .combo-grid { display: flex; flex-direction: column; gap: 10px; }
 .combo-item {
@@ -724,7 +696,7 @@ onMounted(loadData);
 .combo-item img { width: 60px; height: 60px; border-radius: 6px; object-fit: cover; border: 1px solid var(--border); }
 .ai-action { margin-top: 15px; text-align: center; }
 .btn-add-combo {
-  background: linear-gradient(135deg, var(--primary), #3498db); color: var(--bg-dark); border: none; padding: 10px 20px; border-radius: 20px;
+  background: linear-gradient(135deg, var(--primary), #5A6E45); color: var(--bg-dark); border: none; padding: 10px 20px; border-radius: 20px;
   font-weight: bold; width: 100%; cursor: pointer; box-shadow: 0 4px 10px var(--primary-glow);
 }
 
@@ -732,14 +704,14 @@ onMounted(loadData);
 .cart-summary { display: flex; align-items: center; gap: 15px; cursor: pointer; flex: 1;}
 .cart-icon { font-size: 1.8rem; position: relative; }
 .cart-icon .badge {
-  position: absolute; top: -5px; right: -10px; background: #e74c3c; color: #fff;
+  position: absolute; top: -5px; right: -10px; background: #B23B2E; color: #FFFFFF;
   font-size: 0.75rem; font-weight: bold; padding: 2px 6px; border-radius: 50%;
 }
 .cart-text { display: flex; flex-direction: column; }
-.cart-price { font-size: 1.2rem; font-weight: 800; color: #fff; }
-.cart-discount-badge { font-size: 0.75rem; background: rgba(46, 204, 113, 0.2); color: #2ecc71; padding: 2px 6px; border-radius: 4px; margin-top: 2px; border: 1px solid rgba(46, 204, 113, 0.4);}
+.cart-price { font-size: 1.2rem; font-weight: 800; color: #FFFFFF; }
+.cart-discount-badge { font-size: 0.75rem; background: rgba(47, 143, 91, 0.2); color: #2F8F5B; padding: 2px 6px; border-radius: 4px; margin-top: 2px; border: 1px solid rgba(47, 143, 91, 0.4);}
 .btn-checkout {
-  background: var(--primary); color: #fff; border: none; padding: 12px 24px;
+  background: var(--primary); color: #FFFFFF; border: none; padding: 12px 24px;
   border-radius: 25px; font-weight: 700; font-size: 1rem; cursor: pointer; transition: 0.3s;
 }
 .btn-checkout:hover { transform: translateY(-2px); box-shadow: 0 4px 15px var(--primary-glow); }
@@ -762,14 +734,14 @@ onMounted(loadData);
 .fab-mic {
   position: fixed; bottom: 100px; right: 20px;
   width: 60px; height: 60px; border-radius: 50%;
-  background: linear-gradient(135deg, var(--primary), #3498db);
+  background: linear-gradient(135deg, var(--primary), #5A6E45);
   display: flex; align-items: center; justify-content: center;
-  font-size: 1.8rem; box-shadow: 0 4px 20px rgba(0,212,170,0.5);
+  font-size: 1.8rem; box-shadow: 0 4px 20px rgba(90, 110, 69, 0.5);
   cursor: pointer; z-index: 99; transition: 0.3s;
 }
 .fab-mic:hover { transform: scale(1.1); }
-.fab-mic.recording { background: #e74c3c; box-shadow: 0 4px 20px rgba(231,76,60,0.5); animation: mic-pulse 1.5s infinite; }
-@keyframes mic-pulse { 0% {box-shadow: 0 0 0 0 rgba(231,76,60,0.7);} 70% {box-shadow: 0 0 0 20px rgba(231,76,60,0);} 100% {box-shadow: 0 0 0 0 rgba(231,76,60,0);} }
+.fab-mic.recording { background: #B23B2E; box-shadow: 0 4px 20px rgba(178,59,46,0.5); animation: mic-pulse 1.5s infinite; }
+@keyframes mic-pulse { 0% {box-shadow: 0 0 0 0 rgba(178,59,46,0.7);} 70% {box-shadow: 0 0 0 20px rgba(178,59,46,0);} 100% {box-shadow: 0 0 0 0 rgba(178,59,46,0);} }
 
 .voice-box {
   background: var(--bg-card); padding: 30px; border-radius: 20px;
@@ -778,7 +750,7 @@ onMounted(loadData);
   margin-bottom: 20vh;
 }
 .voice-box .mic-icon { font-size: 3.5rem; margin-bottom: 15px; display: inline-block; padding: 10px; }
-.voice-box .pulse { animation: mic-pulse 1.5s infinite; border-radius: 50%; background: rgba(231,76,60,0.2); }
+.voice-box .pulse { animation: mic-pulse 1.5s infinite; border-radius: 50%; background: rgba(178,59,46,0.2); }
 .voice-text { margin: 15px 0; font-size: 1rem; color: var(--text-secondary); white-space: pre-line; }
 
 /* Toast Notification */
@@ -792,7 +764,7 @@ onMounted(loadData);
   padding: 14px 28px;
   border-radius: 30px;
   border: 1px solid var(--primary);
-  box-shadow: 0 0 30px rgba(0,212,170,0.3);
+  box-shadow: 0 0 30px rgba(90, 110, 69, 0.3);
   font-weight: bold;
   z-index: 1000;
   animation: toastSlideUp 0.3s ease;
