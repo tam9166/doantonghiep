@@ -354,4 +354,46 @@ onMounted(async () => {
 .cart-count { background: #040914; color: var(--primary); padding: 4px 10px; border-radius: 20px; font-size: 0.85rem; }
 .cart-total { font-size: 1.1rem; }
 .cart-checkout { margin-left: 10px; background: rgba(4,9,20,0.1); padding: 5px 15px; border-radius: 20px; }
+@media (max-width: 1024px) {
+  .menu-content { margin: 44px auto; }
+  .page-title { font-size: 2.4rem; }
+  .product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+  .floating-cart { right: 20px; bottom: 20px; }
+}
+
+@media (max-width: 640px) {
+  .menu-wrapper,
+  .menu-wrapper * { box-sizing: border-box; }
+  .menu-wrapper { overflow-x: hidden; }
+  .menu-content { margin: 32px auto 96px; padding: 0 16px; }
+  .page-title { font-size: 1.85rem; line-height: 1.2; letter-spacing: 0; }
+  .page-subtitle { font-size: 1rem; }
+  .suggested-section { margin-bottom: 32px; padding: 18px 14px; border-radius: 14px; }
+  .suggested-section .section-title { font-size: 1.4rem; }
+  .suggested-card { min-width: min(250px, 78vw); }
+  .category-filter { justify-content: flex-start; gap: 8px; margin-bottom: 30px; }
+  .category-filter button,
+  .btn-sugg-add,
+  .btn-add,
+  .modal-actions button { min-height: 44px; }
+  .category-filter button { flex: 1 1 calc(50% - 8px); padding: 10px 12px; }
+  .product-grid { grid-template-columns: 1fr; gap: 18px; }
+  .product-card { padding: 24px 16px; }
+  .product-card img { width: 140px; height: 140px; object-fit: cover; }
+  .floating-cart {
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
+    justify-content: space-between;
+    min-height: 56px;
+    padding: 10px 14px;
+    border-radius: 16px;
+  }
+  .cart-total { font-size: 0.95rem; }
+  .cart-checkout { margin-left: 0; padding: 5px 8px; }
+  .payment-banking-box > div { flex-direction: column; align-items: stretch !important; }
+  .payment-banking-box img { display: block; width: min(180px, 100%) !important; margin: 0 auto; }
+  .modal-actions { flex-direction: column; }
+  .g-modal-box { width: calc(100vw - 24px); max-height: calc(100vh - 24px); overflow-y: auto; }
+}
 </style>
