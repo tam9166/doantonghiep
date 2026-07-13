@@ -6,12 +6,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import poly.edu.quanlynhahang.entity.Category;
 import poly.edu.quanlynhahang.entity.Account;
+import poly.edu.quanlynhahang.entity.DepositPolicy;
 import poly.edu.quanlynhahang.entity.Post;
 import poly.edu.quanlynhahang.entity.Product;
 import poly.edu.quanlynhahang.entity.RestaurantTable;
 import poly.edu.quanlynhahang.entity.TableArea;
 import poly.edu.quanlynhahang.repository.CategoryRepository;
 import poly.edu.quanlynhahang.repository.AccountRepository;
+import poly.edu.quanlynhahang.repository.DepositPolicyRepository;
 import poly.edu.quanlynhahang.repository.PostRepository;
 import poly.edu.quanlynhahang.repository.ProductRepository;
 import poly.edu.quanlynhahang.repository.RestaurantTableRepository;
@@ -35,19 +37,22 @@ public class TextEncodingRepairSeeder implements CommandLineRunner {
     private final CategoryRepository categoryRepository;
     private final PostRepository postRepository;
     private final AccountRepository accountRepository;
+    private final DepositPolicyRepository depositPolicyRepository;
 
     public TextEncodingRepairSeeder(TableAreaRepository tableAreaRepository,
                                     RestaurantTableRepository tableRepository,
                                     ProductRepository productRepository,
                                     CategoryRepository categoryRepository,
                                     PostRepository postRepository,
-                                    AccountRepository accountRepository) {
+                                    AccountRepository accountRepository,
+                                    DepositPolicyRepository depositPolicyRepository) {
         this.tableAreaRepository = tableAreaRepository;
         this.tableRepository = tableRepository;
         this.productRepository = productRepository;
         this.categoryRepository = categoryRepository;
         this.postRepository = postRepository;
         this.accountRepository = accountRepository;
+        this.depositPolicyRepository = depositPolicyRepository;
     }
 
     @Override
@@ -60,6 +65,7 @@ public class TextEncodingRepairSeeder implements CommandLineRunner {
         fixed += repairProducts();
         fixed += repairPosts();
         fixed += repairDemoAccounts();
+        fixed += repairDepositPolicies();
 
         if (fixed > 0) {
             System.out.println("TextEncodingRepairSeeder repaired " + fixed + " records with mojibake text.");
@@ -241,6 +247,32 @@ public class TextEncodingRepairSeeder implements CommandLineRunner {
             accountRepository.saveAll(changedAccounts);
         }
         return changedAccounts.size();
+    }
+
+    private int repairDepositPolicies() {
+        List<DepositPolicy> policies = depositPolicyRepository.findAll();
+        int fixed = 0;
+        for (DepositPolicy policy : policies) {
+            boolean changed = false;
+            String nameVi = fixMojibake(policy.getNameVi());
+            if (!Objects.equals(nameVi, policy.getNameVi())) {
+                policy.setNameVi(nameVi);
+                changed = true;
+            }
+            String nameEn = fixMojibake(policy.getNameEn());
+            if (!Objects.equals(nameEn, policy.getNameEn())) {
+                policy.setNameEn(nameEn);
+                changed = true;
+            }
+            if (changed) {
+                policy.setUpdatedAt(new Date());
+                fixed++;
+            }
+        }
+        if (fixed > 0) {
+            depositPolicyRepository.saveAll(policies);
+        }
+        return fixed;
     }
 
     private boolean isDamagedDemoText(String value) {
