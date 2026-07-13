@@ -17,6 +17,18 @@
         </div>
       </div>
 
+      <div v-if="isLoading" class="analytics-loading" aria-label="Đang tải dữ liệu thống kê">
+        <SkeletonLoader v-for="card in 4" :key="`summary-${card}`" height="112px" />
+        <SkeletonLoader v-for="chart in 2" :key="`chart-${chart}`" height="320px" />
+      </div>
+
+      <div v-else-if="fetchError" class="data-error g-card" role="alert">
+        <strong>Không thể tải dữ liệu thống kê.</strong>
+        <span>{{ fetchError }}</span>
+        <button class="g-btn-outline" type="button" @click="fetchData">Thử lại</button>
+      </div>
+
+      <template v-else>
       <!-- ====== FINANCIAL SUMMARY CARDS ====== -->
       <div class="finance-cards">
         <div class="finance-card card-revenue">
@@ -63,8 +75,9 @@
         <div class="chart-card g-card">
           <h3 class="chart-title">💰 Biểu Đồ Doanh Thu (VNĐ)</h3>
           <div class="chart-container">
-            <Line v-if="chartDataReady" :data="revenueChartData" :options="chartOptions" />
-            <div v-else class="loading-state">Đang tải dữ liệu...</div>
+            <Line v-if="chartDataReady && hasChartData" :data="revenueChartData" :options="chartOptions" />
+            <div v-else-if="chartDataReady" class="empty-chart">Chưa có doanh thu trong kỳ này.</div>
+            <SkeletonLoader v-else height="100%" />
           </div>
         </div>
 
@@ -72,8 +85,9 @@
         <div class="chart-card g-card">
           <h3 class="chart-title">📊 Thu Chi Theo Thời Gian</h3>
           <div class="chart-container">
-            <Bar v-if="chartDataReady" :data="revenueCostChartData" :options="chartOptions" />
-            <div v-else class="loading-state">Đang tải dữ liệu...</div>
+            <Bar v-if="chartDataReady && hasChartData" :data="revenueCostChartData" :options="chartOptions" />
+            <div v-else-if="chartDataReady" class="empty-chart">Chưa có dữ liệu thu chi trong kỳ này.</div>
+            <SkeletonLoader v-else height="100%" />
           </div>
         </div>
 
@@ -81,8 +95,9 @@
         <div class="chart-card g-card">
           <h3 class="chart-title">🧾 Số Lượng Hóa Đơn Hoàn Thành</h3>
           <div class="chart-container">
-            <Bar v-if="chartDataReady" :data="ordersChartData" :options="chartOptions" />
-            <div v-else class="loading-state">Đang tải dữ liệu...</div>
+            <Bar v-if="chartDataReady && hasChartData" :data="ordersChartData" :options="chartOptions" />
+            <div v-else-if="chartDataReady" class="empty-chart">Chưa có hóa đơn hoàn thành trong kỳ này.</div>
+            <SkeletonLoader v-else height="100%" />
           </div>
         </div>
 
@@ -90,8 +105,9 @@
         <div class="chart-card g-card">
           <h3 class="chart-title">📈 Lợi Nhuận Theo Thời Gian</h3>
           <div class="chart-container">
-            <Bar v-if="chartDataReady" :data="profitChartData" :options="profitChartOptions" />
-            <div v-else class="loading-state">Đang tải dữ liệu...</div>
+            <Bar v-if="chartDataReady && hasChartData" :data="profitChartData" :options="profitChartOptions" />
+            <div v-else-if="chartDataReady" class="empty-chart">Chưa có dữ liệu lợi nhuận trong kỳ này.</div>
+            <SkeletonLoader v-else height="100%" />
           </div>
         </div>
       </div>
@@ -131,18 +147,18 @@
                 <td style="text-align: center; font-weight: bold; color: var(--primary);">
                   {{ item.quantity }}
                 </td>
-                <td style="text-align: right; color: #f1c40f; font-weight: bold;">
+                <td style="text-align: right; color: #B98229; font-weight: bold;">
                   {{ item.revenue.toLocaleString() }}đ
                 </td>
-                <td style="text-align: right; color: #e74c3c; font-weight: bold;">
+                <td style="text-align: right; color: #B23B2E; font-weight: bold;">
                   {{ item.cost.toLocaleString() }}đ
                 </td>
-                <td :style="{ textAlign: 'right', fontWeight: 'bold', color: (item.revenue - item.cost) >= 0 ? '#2ecc71' : '#e74c3c' }">
+                <td :style="{ textAlign: 'right', fontWeight: 'bold', color: (item.revenue - item.cost) >= 0 ? '#2F8F5B' : '#B23B2E' }">
                   {{ (item.revenue - item.cost).toLocaleString() }}đ
                 </td>
                 <td style="text-align: center;">
                   <div class="hot-bar">
-                    <div class="hot-fill" :style="{ width: (item.quantity / topProducts[0].quantity * 100) + '%' }"></div>
+                    <div class="hot-fill" :style="{ width: (item.quantity / Math.max(topProducts[0]?.quantity || 1, 1) * 100) + '%' }"></div>
                   </div>
                 </td>
               </tr>
@@ -153,6 +169,7 @@
           </table>
         </div>
       </div>
+      </template>
     </main>
 
     <!-- AI Modal -->
@@ -160,7 +177,7 @@
       <div class="ai-modal">
         <div class="modal-header">
           <h2>🤖 Giám Đốc Kinh Doanh AI</h2>
-          <button @click="showAiModal = false" class="btn-close">✖</button>
+          <button @click="showAiModal = false" class="btn-close" aria-label="Đóng cửa sổ phân tích">✖</button>
         </div>
         <div class="modal-body">
           <div v-if="aiLoading" class="ai-loading">
@@ -179,6 +196,7 @@
 
 <script setup>
 import AdminLayout from '@/components/AdminLayout.vue';
+import SkeletonLoader from '@/components/SkeletonLoader.vue';
 
 import { ref, onMounted, computed, watch } from 'vue';
 import axios from 'axios';
@@ -203,6 +221,8 @@ const recipes = ref([]);
 const ingredients = ref([]);
 const timeFilter = ref('week');
 const chartDataReady = ref(false);
+const isLoading = ref(true);
+const fetchError = ref('');
 const topProducts = ref([]);
 const showAiModal = ref(false);
 const aiLoading = ref(false);
@@ -218,23 +238,20 @@ const totalStaffCost = ref(0);
 const totalOpCost = ref(0);
 const profit = computed(() => totalRevenue.value - totalCost.value - totalStaffCost.value - totalOpCost.value);
 
-const getToken = () => localStorage.getItem('token');
-const configHeader = () => ({ headers: { 'Authorization': `Bearer ${getToken()}` } });
-
 const chartOptions = {
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
-    legend: { labels: { color: '#e0f7f4', font: { family: 'Inter', size: 13 } } }
+    legend: { labels: { color: '#201D14', font: { family: 'Times New Roman', size: 13 } } }
   },
   scales: {
     x: { 
-      ticks: { color: '#a0aabf' }, 
-      grid: { color: 'rgba(255,255,255,0.05)' } 
+      ticks: { color: '#55503E' }, 
+      grid: { color: 'rgba(90, 110, 69, 0.08)' } 
     },
     y: { 
-      ticks: { color: '#a0aabf' }, 
-      grid: { color: 'rgba(255,255,255,0.05)' },
+      ticks: { color: '#55503E' }, 
+      grid: { color: 'rgba(90, 110, 69, 0.08)' },
       beginAtZero: true
     }
   }
@@ -244,16 +261,16 @@ const profitChartOptions = {
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
-    legend: { labels: { color: '#e0f7f4', font: { family: 'Inter', size: 13 } } }
+    legend: { labels: { color: '#201D14', font: { family: 'Times New Roman', size: 13 } } }
   },
   scales: {
     x: {
-      ticks: { color: '#a0aabf' },
-      grid: { color: 'rgba(255,255,255,0.05)' }
+      ticks: { color: '#55503E' },
+      grid: { color: 'rgba(90, 110, 69, 0.08)' }
     },
     y: {
-      ticks: { color: '#a0aabf' },
-      grid: { color: 'rgba(255,255,255,0.05)' }
+      ticks: { color: '#55503E' },
+      grid: { color: 'rgba(90, 110, 69, 0.08)' }
     }
   }
 };
@@ -262,6 +279,7 @@ const revenueChartData = ref({ labels: [], datasets: [] });
 const ordersChartData = ref({ labels: [], datasets: [] });
 const revenueCostChartData = ref({ labels: [], datasets: [] });
 const profitChartData = ref({ labels: [], datasets: [] });
+const hasChartData = computed(() => revenueChartData.value.labels.length > 0);
 
 // Build a map: productId -> cost per dish (sum of amountRequired * unitPrice for each ingredient)
 const buildCostMap = () => {
@@ -289,8 +307,10 @@ const buildCostMap = () => {
 };
 
 const fetchData = async () => {
+  isLoading.value = true;
+  fetchError.value = '';
   try {
-    const token = getToken();
+    const token = localStorage.getItem('token');
     const headers = { 'Authorization': `Bearer ${token}` };
 
     const today = new Date();
@@ -299,11 +319,11 @@ const fetchData = async () => {
     const startStr = lastYear.toISOString().split('T')[0];
 
     const [resOrders, resRecipes, resIngredients, resSchedules, resStaff] = await Promise.all([
-      axios.get('http://localhost:8080/api/admin/orders', { headers }),
-      axios.get('http://localhost:8080/api/admin/recipes', { headers }),
-      axios.get('http://localhost:8080/api/admin/ingredients', { headers }),
-      axios.get(`http://localhost:8080/api/schedules?startDate=${startStr}&endDate=${endStr}`, { headers }),
-      axios.get('http://localhost:8080/api/admin/staff', { headers })
+      axios.get('/api/admin/orders', { headers }),
+      axios.get('/api/admin/recipes', { headers }),
+      axios.get('/api/admin/ingredients', { headers }),
+      axios.get(`/api/schedules?startDate=${startStr}&endDate=${endStr}`, { headers }),
+      axios.get('/api/admin/staff', { headers })
     ]);
 
     orders.value = resOrders.data.filter(o => o.status === 4);
@@ -315,6 +335,9 @@ const fetchData = async () => {
     processData();
   } catch (error) {
     console.error('Lỗi lấy dữ liệu thống kê:', error);
+    fetchError.value = error.response?.data?.message || 'Vui lòng kiểm tra kết nối và quyền truy cập rồi thử lại.';
+  } finally {
+    isLoading.value = false;
   }
 };
 
@@ -414,12 +437,12 @@ const processData = () => {
     datasets: [{
       label: 'Doanh Thu (VNĐ)',
       data: revData,
-      borderColor: '#00d4aa',
-      backgroundColor: 'rgba(0, 212, 170, 0.2)',
+      borderColor: '#33422A',
+      backgroundColor: 'rgba(90, 110, 69, 0.2)',
       borderWidth: 3,
       fill: true,
       tension: 0.3,
-      pointBackgroundColor: '#00d4aa'
+      pointBackgroundColor: '#33422A'
     }]
   };
 
@@ -428,7 +451,7 @@ const processData = () => {
     datasets: [{
       label: 'Số lượng đơn hàng',
       data: countData,
-      backgroundColor: '#3498db',
+      backgroundColor: '#5A6E45',
       borderRadius: 6,
       barThickness: 30
     }]
@@ -440,14 +463,14 @@ const processData = () => {
       {
         label: 'Doanh Thu (Đầu ra)',
         data: revData,
-        backgroundColor: 'rgba(46, 204, 113, 0.7)',
+        backgroundColor: 'rgba(47, 143, 91, 0.7)',
         borderRadius: 6,
         barThickness: 24
       },
       {
         label: 'Giá Vốn (Đầu vào)',
         data: costData,
-        backgroundColor: 'rgba(231, 76, 60, 0.7)',
+        backgroundColor: 'rgba(178, 59, 46, 0.7)',
         borderRadius: 6,
         barThickness: 24
       }
@@ -459,7 +482,7 @@ const processData = () => {
     datasets: [{
       label: 'Lợi Nhuận (VNĐ)',
       data: profitData,
-      backgroundColor: profitData.map(v => v >= 0 ? 'rgba(46, 204, 113, 0.7)' : 'rgba(231, 76, 60, 0.7)'),
+      backgroundColor: profitData.map(v => v >= 0 ? 'rgba(47, 143, 91, 0.7)' : 'rgba(178, 59, 46, 0.7)'),
       borderRadius: 6,
       barThickness: 30
     }]
@@ -468,9 +491,14 @@ const processData = () => {
   // Top products with cost
   const productMap = {};
   orders.value.forEach(order => {
+    if (!order.createDate) return;
+    const d = new Date(order.createDate);
     if (timeFilter.value === 'week') {
-      const d = new Date(order.createDate);
       if (Math.ceil(Math.abs(now - d) / (1000 * 60 * 60 * 24)) > 7) return;
+    } else if (timeFilter.value === 'month') {
+      if (d.getMonth() !== now.getMonth() || d.getFullYear() !== now.getFullYear()) return;
+    } else if (timeFilter.value === 'year') {
+      if (d.getFullYear() !== now.getFullYear()) return;
     }
 
     if (order.orderDetails) {
@@ -517,7 +545,7 @@ const analyzeWithAI = async () => {
   };
 
   try {
-    const res = await axios.post('http://localhost:8080/api/chatbot/chat', {
+    const res = await axios.post('/api/chatbot/chat', {
       type: 'ADMIN_ANALYTICS',
       message: JSON.stringify(dataForAI)
     });
@@ -544,14 +572,30 @@ onMounted(fetchData);
 }
 .page-title {
   margin: 0; font-size: 1.8rem; font-weight: 900;
-  background: linear-gradient(135deg, #00d4aa, #3498db);
+  background: linear-gradient(135deg, #33422A, #5A6E45);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .filter-group { display: flex; align-items: center; gap: 12px; }
 .filter-label { font-weight: 600; color: var(--text-muted); }
-.filter-select { width: 220px; border-color: var(--primary); color: var(--primary); font-weight: 700; background: rgba(0,212,170,0.05); }
+.filter-select { width: 220px; border-color: var(--primary); color: var(--primary); font-weight: 700; background: rgba(90, 110, 69, 0.05); }
+
+.analytics-loading {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
+}
+.analytics-loading > :nth-child(n + 5) { grid-column: span 2; }
+.data-error {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px;
+  border-left: 4px solid var(--danger);
+  color: var(--text-primary);
+}
+.data-error span { flex: 1; color: var(--text-muted); }
 
 /* ====== FINANCIAL SUMMARY CARDS ====== */
 .finance-cards {
@@ -621,42 +665,42 @@ onMounted(fetchData);
 }
 
 /* Card Revenue */
-.card-revenue { border-color: rgba(46, 204, 113, 0.3); }
-.card-revenue .fc-icon { background: rgba(46, 204, 113, 0.15); color: #2ecc71; }
-.card-revenue .fc-value { color: #2ecc71; }
-.card-revenue .fc-glow { background: #2ecc71; }
-.card-revenue:hover { box-shadow: 0 8px 30px rgba(46, 204, 113, 0.2); }
+.card-revenue { border-color: rgba(47, 143, 91, 0.3); }
+.card-revenue .fc-icon { background: rgba(47, 143, 91, 0.15); color: #2F8F5B; }
+.card-revenue .fc-value { color: #2F8F5B; }
+.card-revenue .fc-glow { background: #2F8F5B; }
+.card-revenue:hover { box-shadow: 0 8px 30px rgba(47, 143, 91, 0.2); }
 
 /* Card Cost */
-.card-cost { border-color: rgba(231, 76, 60, 0.3); }
-.card-cost .fc-icon { background: rgba(231, 76, 60, 0.15); color: #e74c3c; }
-.card-cost .fc-value { color: #e74c3c; }
-.card-cost .fc-glow { background: #e74c3c; }
-.card-cost:hover { box-shadow: 0 8px 30px rgba(231, 76, 60, 0.2); }
+.card-cost { border-color: rgba(178, 59, 46, 0.3); }
+.card-cost .fc-icon { background: rgba(178, 59, 46, 0.15); color: #B23B2E; }
+.card-cost .fc-value { color: #B23B2E; }
+.card-cost .fc-glow { background: #B23B2E; }
+.card-cost:hover { box-shadow: 0 8px 30px rgba(178, 59, 46, 0.2); }
 
 /* Card Profit */
-.card-profit { border-color: rgba(241, 196, 15, 0.3); }
-.card-profit .fc-icon { background: rgba(241, 196, 15, 0.15); color: #f1c40f; }
-.card-profit .fc-value { color: #f1c40f; }
-.card-profit .fc-ratio { color: #2ecc71; }
-.card-profit .fc-glow { background: #f1c40f; }
-.card-profit:hover { box-shadow: 0 8px 30px rgba(241, 196, 15, 0.2); }
+.card-profit { border-color: rgba(185, 130, 41, 0.3); }
+.card-profit .fc-icon { background: rgba(185, 130, 41, 0.15); color: #B98229; }
+.card-profit .fc-value { color: #B98229; }
+.card-profit .fc-ratio { color: #2F8F5B; }
+.card-profit .fc-glow { background: #B98229; }
+.card-profit:hover { box-shadow: 0 8px 30px rgba(185, 130, 41, 0.2); }
 
 /* Card OP */
-.card-op { border-color: rgba(52, 152, 219, 0.3); }
-.card-op .fc-icon { background: rgba(52, 152, 219, 0.15); color: #3498db; }
-.card-op .fc-value { color: #3498db; }
-.card-op .fc-ratio { color: #2980b9; }
-.card-op .fc-glow { background: #3498db; }
-.card-op:hover { box-shadow: 0 8px 30px rgba(52, 152, 219, 0.2); }
+.card-op { border-color: rgba(90, 110, 69, 0.3); }
+.card-op .fc-icon { background: rgba(90, 110, 69, 0.15); color: #5A6E45; }
+.card-op .fc-value { color: #5A6E45; }
+.card-op .fc-ratio { color: #33422A; }
+.card-op .fc-glow { background: #5A6E45; }
+.card-op:hover { box-shadow: 0 8px 30px rgba(90, 110, 69, 0.2); }
 
 /* Card Loss */
-.card-loss { border-color: rgba(231, 76, 60, 0.5); }
-.card-loss .fc-icon { background: rgba(231, 76, 60, 0.2); color: #e74c3c; }
-.card-loss .fc-value { color: #e74c3c; }
-.card-loss .fc-ratio { color: #e74c3c; }
-.card-loss .fc-glow { background: #e74c3c; }
-.card-loss:hover { box-shadow: 0 8px 30px rgba(231, 76, 60, 0.3); }
+.card-loss { border-color: rgba(178, 59, 46, 0.5); }
+.card-loss .fc-icon { background: rgba(178, 59, 46, 0.2); color: #B23B2E; }
+.card-loss .fc-value { color: #B23B2E; }
+.card-loss .fc-ratio { color: #B23B2E; }
+.card-loss .fc-glow { background: #B23B2E; }
+.card-loss:hover { box-shadow: 0 8px 30px rgba(178, 59, 46, 0.3); }
 
 /* Charts */
 .charts-grid {
@@ -668,25 +712,26 @@ onMounted(fetchData);
 .chart-card { padding: 24px; border-top: 4px solid var(--primary); }
 .chart-title { margin: 0 0 20px 0; font-size: 1.1rem; color: var(--text-heading); }
 .chart-container { height: 320px; position: relative; }
-.loading-state {
+.empty-chart {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
-  color: var(--primary); font-weight: bold; font-style: italic;
+  padding: 24px;
+  color: var(--text-muted); font-weight: bold; text-align: center;
 }
 
 /* Leaderboard */
-.leaderboard-section { padding: 24px; border-left: 4px solid #f1c40f; }
+.leaderboard-section { padding: 24px; border-left: 4px solid #B98229; }
 .leaderboard-header { margin-bottom: 20px; }
 .subtitle { margin: 4px 0 0 0; font-size: 0.9rem; color: var(--text-muted); font-style: italic; }
 
 .rank-badge {
   display: inline-flex; align-items: center; justify-content: center;
   width: 30px; height: 30px; border-radius: 50%;
-  background: var(--bg-nav); font-weight: 900; color: #fff;
+  background: var(--bg-nav); font-weight: 900; color: #FFFFFF;
 }
-.rank-1 { background: #f1c40f; color: #111; box-shadow: 0 0 10px rgba(241,196,15,0.6); transform: scale(1.2); }
-.rank-2 { background: #bdc3c7; color: #111; }
-.rank-3 { background: #cd7f32; color: #fff; }
+.rank-1 { background: #B98229; color: #1A170F; box-shadow: 0 0 10px rgba(185,130,41,0.6); transform: scale(1.2); }
+.rank-2 { background: #A6B0AA; color: #1A170F; }
+.rank-3 { background: #C08A2E; color: #FFFFFF; }
 
 .leader-row:hover { background: rgba(255,255,255,0.03); }
 .product-name { font-size: 1.05rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
@@ -697,34 +742,56 @@ onMounted(fetchData);
   background: var(--bg-nav); border-radius: 4px; overflow: hidden;
 }
 .hot-fill {
-  height: 100%; background: linear-gradient(90deg, #e74c3c, #f1c40f);
+  height: 100%; background: linear-gradient(90deg, #B23B2E, #B98229);
   border-radius: 4px; transition: width 1s ease-out;
 }
 .empty-row { text-align: center; color: var(--text-muted); padding: 40px; font-style: italic; }
 
 .btn-ai-analyze {
-  background: linear-gradient(135deg, #9b59b6, #8e44ad);
-  color: white; border: none; padding: 10px 20px; border-radius: 8px;
+  background: linear-gradient(135deg, #C08A2E, #8A641F);
+  color: #FFFFFF; border: none; padding: 10px 20px; border-radius: 8px;
   font-weight: bold; cursor: pointer; transition: 0.3s;
-  box-shadow: 0 4px 15px rgba(155, 89, 182, 0.4);
+  box-shadow: 0 4px 15px rgba(192, 138, 46, 0.4);
 }
-.btn-ai-analyze:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(155, 89, 182, 0.6); }
+.btn-ai-analyze:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(192, 138, 46, 0.6); }
 
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; }
 .ai-modal { background: var(--bg-card); width: 550px; max-width: 90%; border-radius: 12px; padding: 20px; border: 1px solid var(--border-light); }
 .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.btn-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-muted); }
-.ai-loading { text-align: center; padding: 30px; color: var(--primary); font-weight: bold; }
-.spinner { width: 40px; height: 40px; border: 4px solid rgba(0, 212, 170, 0.2); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px auto; }
-@keyframes spin { to { transform: rotate(360deg); } }
-.ai-result { padding: 20px; font-size: 1.05rem; line-height: 1.6; color: var(--text-primary); border-left: 4px solid var(--primary); background: rgba(0,212,170,0.05); border-radius: 0 8px 8px 0; white-space: pre-line; }
-
-@media (max-width: 992px) {
-  .charts-grid { grid-template-columns: 1fr; }
-  .finance-cards { grid-template-columns: 1fr; }
+.btn-close {
+  min-width: 44px; min-height: 44px; padding: 0;
+  background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-muted);
 }
-@media (max-width: 768px) {
-  .header-actions { flex-direction: column; align-items: flex-start; }
+.ai-loading { text-align: center; padding: 30px; color: var(--primary); font-weight: bold; }
+.spinner { width: 40px; height: 40px; border: 4px solid rgba(90, 110, 69, 0.2); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px auto; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.ai-result { padding: 20px; font-size: 1.05rem; line-height: 1.6; color: var(--text-primary); border-left: 4px solid var(--primary); background: rgba(90, 110, 69, 0.05); border-radius: 0 8px 8px 0; white-space: pre-line; }
+
+@media (max-width: 1024px) {
+  .charts-grid { grid-template-columns: 1fr; }
+  .finance-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .analytics-loading { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .analytics-loading > :nth-child(n + 5) { grid-column: span 1; }
+  .header-actions { align-items: flex-start; flex-direction: column; gap: 18px; }
+}
+
+@media (max-width: 640px) {
+  .admin-content { padding: 24px 14px; }
+  .page-title { font-size: 1.5rem; }
+  .filter-group { width: 100%; align-items: stretch; flex-direction: column; }
+  .filter-select { width: 100%; min-height: 44px; }
+  .btn-ai-analyze { width: 100%; min-height: 44px; }
+  .finance-cards,
+  .analytics-loading { grid-template-columns: 1fr; }
+  .finance-card,
+  .chart-card,
+  .leaderboard-section { padding: 18px 16px; }
+  .chart-container { height: 280px; }
+  .chart-title { font-size: 1rem; }
+  .data-error { align-items: stretch; flex-direction: column; }
+  .data-error .g-btn-outline { min-height: 44px; }
+  .table-responsive { overflow-x: auto; }
+  .ai-modal { width: calc(100% - 24px); max-width: none; }
 }
 </style>
 
