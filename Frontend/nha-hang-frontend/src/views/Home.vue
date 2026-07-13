@@ -9,10 +9,10 @@
         <h1>Nhà Hàng<br><span>Mộc Vị</span></h1>
         <p>{{ $t('home.subtitle') }}</p>
         <div class="hero-actions">
-          <button @click="$router.push('/dine-in')" class="btn-hero-primary">
+          <button @click="$router.push('/dine-in')" class="g-btn-primary home-hero-btn">
             🍽️ Gọi Món Tại Quán
           </button>
-          <button @click="$router.push('/reservation')" class="btn-hero-secondary">
+          <button @click="$router.push('/reservation')" class="g-btn-outline home-hero-btn home-hero-outline">
             📅 Đặt Bàn Trước
           </button>
         </div>
@@ -53,10 +53,10 @@
             trải nghiệm trọn vẹn nhất...
           </p>
           <div class="article-actions">
-            <button @click="$router.push('/menu')" class="btn-action-primary">
+            <button @click="$router.push('/menu')" class="g-btn-primary home-action-btn">
               📖 Xem Thực Đơn
             </button>
-            <button @click="$router.push('/reservation')" class="btn-action-outline">
+            <button @click="$router.push('/reservation')" class="g-btn-outline home-action-btn">
               📅 Đặt Bàn Ngay
             </button>
           </div>
@@ -147,7 +147,7 @@
         <div class="news-grid">
           <div v-for="post in newsPosts" :key="post.id" class="news-card">
             <div class="news-img-wrap">
-              <img v-if="post.image" :src="post.image" :alt="post.title" />
+              <img v-if="post.image" :src="post.image" :alt="post.title" loading="lazy" />
               <div v-else class="news-img-placeholder">📰</div>
               <span class="news-date-badge">{{ formatPostDate(post.createDate) }}</span>
             </div>
@@ -205,9 +205,9 @@
       <div class="recruit-modal">
         <div class="modal-top">
           <h2>{{ selectedRecruit.title }}</h2>
-          <button @click="selectedRecruit = null" class="btn-close-modal">✖</button>
+          <button @click="selectedRecruit = null" class="btn-close-modal" aria-label="Đóng chi tiết tuyển dụng">✖</button>
         </div>
-        <img v-if="selectedRecruit.image" :src="selectedRecruit.image" class="modal-img" />
+        <img v-if="selectedRecruit.image" :src="selectedRecruit.image" :alt="selectedRecruit.title" class="modal-img" loading="lazy" />
         <div class="modal-content">
           <pre class="modal-text">{{ selectedRecruit.content }}</pre>
           <div class="modal-footer">
@@ -261,7 +261,7 @@
       <div v-if="showInterviewChat" class="chat-widget interview-chat">
         <div class="chat-header interview-header">
           <span>🎤 Bot Phỏng Vấn</span>
-          <button @click="showInterviewChat = false">✖</button>
+          <button @click="showInterviewChat = false" aria-label="Đóng bot phỏng vấn">✖</button>
         </div>
         <div class="chat-body" ref="interviewChatBody">
           <div v-for="(msg, i) in interviewMessages" :key="i" :class="['chat-msg', msg.type]">
@@ -281,7 +281,7 @@
       <div v-if="showSupportChat" class="chat-widget support-chat">
         <div class="chat-header support-header">
           <span>💬 Bot Hỗ Trợ Khách Hàng</span>
-          <button @click="showSupportChat = false">✖</button>
+          <button @click="showSupportChat = false" aria-label="Đóng bot hỗ trợ">✖</button>
         </div>
         <div class="chat-body" ref="supportChatBody">
           <div v-for="(msg, i) in supportMessages" :key="i" :class="['chat-msg', msg.type, { 'msg-booking': msg.isTableBooking, 'msg-menu': msg.isMenuLink }]">
@@ -304,7 +304,7 @@
                       <span>{{ t.description }}</span>
                       <button @click="selectBookingTable(msg, t)" class="b-btn-small">Chọn bàn này</button>
                     </div>
-                    <div v-if="msg.bookingState.tables.length === 0" style="color:red; font-size:0.8rem">Không tìm thấy bàn trống phù hợp!</div>
+                    <div v-if="msg.bookingState.tables.length === 0" style="color: var(--danger); font-size:0.8rem">Không tìm thấy bàn trống phù hợp!</div>
                   </div>
                 </div>
                 
@@ -320,7 +320,7 @@
                   <input v-model="msg.bookingState.guestName" placeholder="Tên của bạn" class="b-input" />
                   <input v-model="msg.bookingState.guestPhone" placeholder="SĐT liên hệ" class="b-input" />
                   <div v-if="msg.bookingState.guestName && msg.bookingState.guestPhone" class="b-qr-box">
-                    <img :src="`https://img.vietqr.io/image/vcb-0347944028-compact2.png?amount=100000&addInfo=Coc%20Ban%20${msg.bookingState.selectedTable.name}%20${msg.bookingState.guestPhone}&accountName=Nha%20Hang`" />
+                    <img :src="bookingDepositQrUrl(msg.bookingState)" alt="Mã QR đặt cọc giữ bàn" />
                     <p>Cọc giữ bàn: 100,000 VND</p>
                     <button @click="confirmBooking(msg)" class="b-btn">Xác nhận đã thanh toán</button>
                   </div>
@@ -359,14 +359,14 @@
       <div class="wheel-modal">
         <div class="wheel-header">
           <h2>🎡 Vòng Quay May Mắn</h2>
-          <button class="btn-close-modal" @click="showLuckyWheel = false">✖</button>
+          <button class="btn-close-modal" aria-label="Đóng vòng quay may mắn" @click="showLuckyWheel = false">✖</button>
         </div>
         <p class="wheel-desc">Quay mỗi ngày để nhận điểm thưởng VIP nhé!</p>
         <div class="wheel-container">
           <div class="wheel-pointer">▼</div>
-          <div class="wheel-board" :style="{ transform: `rotate(${wheelRotation}deg)`, background: 'conic-gradient(#f1c40f 0 60deg, #e74c3c 60deg 120deg, #3498db 120deg 180deg, #95a5a6 180deg 240deg, #2ecc71 240deg 300deg, #9b59b6 300deg 360deg)' }">
+          <div class="wheel-board" :style="{ transform: `rotate(${wheelRotation}deg)`, background: 'conic-gradient(#C08A2E 0 60deg, #33422A 60deg 120deg, #B98229 120deg 180deg, #7A7460 180deg 240deg, #5A6E45 240deg 300deg, #22301B 300deg 360deg)' }">
             <div v-for="(p, i) in prizes" :key="i" class="wheel-text" :style="{ transform: `rotate(${p.deg + 30}deg)` }">
-              <span class="slice-label" :style="{ color: i === 0 ? '#000' : '#fff' }">{{ p.label }}</span>
+              <span class="slice-label" :style="{ color: i === 0 ? '#201D14' : '#FFFFFF' }">{{ p.label }}</span>
             </div>
           </div>
         </div>
@@ -387,18 +387,11 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { useI18n } from 'vue-i18n';
 import axios from 'axios';
 import CustomerLayout from '@/components/CustomerLayout.vue';
+import { buildVietQrUrl } from '@/services/paymentQr';
 
 const router = useRouter();
-const { locale } = useI18n();
-const currentLang = ref(localStorage.getItem('lang') || 'vi');
-
-const changeLanguage = () => {
-  locale.value = currentLang.value;
-  localStorage.setItem('lang', currentLang.value);
-};
 
 const isLoggedIn = ref(false);
 const user = ref(null);
@@ -420,12 +413,12 @@ const wheelRotation = ref(0);
 const spinResult = ref(null);
 
 const prizes = [
-  { label: '5 ĐIỂM', value: 5, type: 'points', deg: 0, color: '#f1c40f' },
-  { label: '10 ĐIỂM', value: 10, type: 'points', deg: 60, color: '#e74c3c' },
-  { label: 'GIẢM 5%', value: 5, type: 'discount', deg: 120, color: '#3498db' },
-  { label: 'TRƯỢT', value: 0, type: 'miss', deg: 180, color: '#95a5a6' },
-  { label: 'TẶNG MÓN', value: 0, type: 'gift', deg: 240, color: '#2ecc71' },
-  { label: '50 ĐIỂM', value: 50, type: 'points', deg: 300, color: '#9b59b6' }
+  { label: '5 ĐIỂM', value: 5, type: 'points', deg: 0, color: '#C08A2E' },
+  { label: '10 ĐIỂM', value: 10, type: 'points', deg: 60, color: '#33422A' },
+  { label: 'GIẢM 5%', value: 5, type: 'discount', deg: 120, color: '#B98229' },
+  { label: 'TRƯỢT', value: 0, type: 'miss', deg: 180, color: '#7A7460' },
+  { label: 'TẶNG MÓN', value: 0, type: 'gift', deg: 240, color: '#5A6E45' },
+  { label: '50 ĐIỂM', value: 50, type: 'points', deg: 300, color: '#22301B' }
 ];
 
 const openLuckyWheel = async () => {
@@ -437,7 +430,7 @@ const openLuckyWheel = async () => {
   
   const token = localStorage.getItem('token');
   try {
-    const res = await axios.get('http://localhost:8080/api/orders/history', {
+    const res = await axios.get('/api/orders/history', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     
@@ -495,7 +488,7 @@ const spinWheel = () => {
     if (won.type === 'points') {
       const token = localStorage.getItem('token');
       try {
-        const res = await axios.post('http://localhost:8080/api/auth/add-points', { points: won.value }, {
+        const res = await axios.post('/api/auth/add-points', { points: won.value }, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         alert(`🎉 Chúc mừng bạn đã trúng ${won.label}! Điểm hiện tại: ${res.data.newPoints} PT (Hạng: ${res.data.newTier})`);
@@ -505,7 +498,7 @@ const spinWheel = () => {
     } else if (won.type === 'discount') {
       const token = localStorage.getItem('token');
       try {
-        const res = await axios.post('http://localhost:8080/api/vouchers/generate', { discount: won.value }, {
+        const res = await axios.post('/api/vouchers/generate', { discount: won.value }, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         alert(`🎉 Chúc mừng bạn đã trúng Giảm ${won.value}%!\nMã Voucher của bạn: ${res.data.code}\nHãy lưu lại để dùng cho lần ăn tiếp theo nhé!`);
@@ -524,7 +517,7 @@ const isLiked = (id) => likedPosts.value.includes(id);
 const likePost = async (post) => {
   if (isLiked(post.id)) return;
   try {
-    await axios.put(`http://localhost:8080/api/posts/${post.id}/like`);
+    await axios.put(`/api/posts/${post.id}/like`);
     post.likes = (post.likes || 0) + 1;
     likedPosts.value.push(post.id);
     localStorage.setItem('likedPosts', JSON.stringify(likedPosts.value));
@@ -559,7 +552,7 @@ const submitApplication = async () => {
     if (appForm.value.postId) formData.append('postId', appForm.value.postId);
     if (appForm.value.cvFile) formData.append('file', appForm.value.cvFile);
 
-    await axios.post('http://localhost:8080/api/applications/upload', formData, {
+    await axios.post('/api/applications/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
     alert('Đã gửi đơn ứng tuyển thành công! Nhà hàng sẽ liên hệ sớm nhất.');
@@ -606,7 +599,7 @@ const sendSupportMessage = async () => {
       }
     }
 
-    const res = await axios.post('http://localhost:8080/api/chatbot/chat', { 
+    const res = await axios.post('/api/chatbot/chat', { 
       message: text,
       type: 'SUPPORT',
       history: historyStr
@@ -628,7 +621,7 @@ const sendSupportMessage = async () => {
       const view = match[3];
 
       // Fetch tables
-      const tRes = await axios.get('http://localhost:8080/api/tables');
+      const tRes = await axios.get('/api/tables');
       
       const available = tRes.data.filter(t => {
         if (t.isOccupied !== 0) return false;
@@ -698,6 +691,11 @@ const choosePaymentMethod = (msg, method) => {
   scrollToBottomSupport();
 };
 
+const bookingDepositQrUrl = (bookingState) => buildVietQrUrl({
+  amount: 100000,
+  addInfo: `Coc Ban ${bookingState?.selectedTable?.name || ''} ${bookingState?.guestPhone || ''}`,
+});
+
 const confirmBooking = async (msg) => {
   try {
     const payload = {
@@ -706,7 +704,7 @@ const confirmBooking = async (msg) => {
       tableName: msg.bookingState.selectedTable.name,
       scheduledTime: msg.bookingState.time
     };
-    const res = await axios.post('http://localhost:8080/api/orders/guest-booking', payload);
+    const res = await axios.post('/api/orders/guest-booking', payload);
     msg.bookingState.paid = true;
     msg.bookingState.orderCode = res.data.orderCode;
     scrollToBottomSupport();
@@ -762,7 +760,7 @@ const sendInterviewMessage = async () => {
       historyStr += `${msg.type === 'bot' ? 'HR' : 'Ứng viên'}: ${msg.text}\n`;
     }
 
-    const res = await axios.post('http://localhost:8080/api/chatbot/chat', {
+    const res = await axios.post('/api/chatbot/chat', {
       message: text,
       type: 'INTERVIEW',
       history: historyStr
@@ -789,31 +787,21 @@ onMounted(async () => {
   // Fetch posts
   try {
     const [newsRes, recruitRes] = await Promise.all([
-      axios.get('http://localhost:8080/api/posts/news'),
-      axios.get('http://localhost:8080/api/posts/recruitment')
+      axios.get('/api/posts/news'),
+      axios.get('/api/posts/recruitment')
     ]);
     newsPosts.value = newsRes.data.slice(0, 6); // Max 6 tin
     recruitPosts.value = recruitRes.data.slice(0, 5); // Max 5 tuyển dụng
   } catch (err) { /* silent - posts are optional */ }
 });
 
-const handleLogout = () => {
-  if (confirm('Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?')) {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    isLoggedIn.value = false;
-    user.value = null;
-    alert('Đã đăng xuất thành công!');
-    router.push('/');
-  }
-};
 </script>
 
 <style scoped>
 .home-wrapper {
   background: var(--bg-root);
   min-height: 100vh;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-primary);
 }
 
 /* ===== NAVBAR ===== */
@@ -827,13 +815,13 @@ const handleLogout = () => {
 .nav-container {
   max-width: 1400px; margin: 0 auto;
   display: flex; justify-content: space-between; align-items: center;
-  background: rgba(13, 27, 42, 0.4);
+  background: rgba(245, 243, 234, 0.88);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(226, 220, 198, 0.75);
   border-radius: 100px;
   padding: 12px 30px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-md);
 }
 
 .logo { display: flex; align-items: center; gap: 12px; cursor: pointer; text-decoration: none; }
@@ -849,14 +837,14 @@ const handleLogout = () => {
   border-radius: 100px; transition: var(--transition);
 }
 .nav-links a:hover, .nav-links a.router-link-active, .nav-links a.active {
-  color: var(--primary); background: rgba(0,212,170,0.1);
+  color: var(--primary); background: rgba(90, 110, 69, 0.1);
 }
 
 .nav-right { display: flex; align-items: center; gap: 12px; }
 
 .lang-switch {
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(231, 239, 233, 0.55);
+  border: 1px solid var(--border-light);
   color: var(--text-primary);
   padding: 6px 12px;
   border-radius: 20px;
@@ -877,35 +865,31 @@ const handleLogout = () => {
   transition: var(--transition);
 }
 .btn-nav:hover { border-color: var(--primary); color: var(--primary); }
-.btn-nav-filled { background: var(--primary); color: var(--bg-dark); border-color: var(--primary); font-weight: 700; }
-.btn-nav-filled:hover { background: var(--primary-dark); border-color: var(--primary-dark); color: var(--bg-dark); }
-.btn-admin { border-color: rgba(241,196,15,0.4); color: #f1c40f; }
-.btn-admin:hover { background: rgba(241,196,15,0.15); }
-.btn-kitchen { border-color: rgba(0,212,170,0.4); color: var(--primary); }
-.btn-waiter { border-color: rgba(52,152,219,0.4); color: #3498db; }
-.btn-logout-nav { border-color: rgba(231,76,60,0.4); color: #e74c3c; }
-.btn-logout-nav:hover { background: rgba(231,76,60,0.15); }
+.btn-nav-filled { background: var(--primary); color: #FFFFFF; border-color: var(--primary); font-weight: 700; }
+.btn-nav-filled:hover { background: var(--primary-dark); border-color: var(--primary-dark); color: #FFFFFF; }
+.btn-admin { border-color: rgba(192, 138, 46, 0.45); color: var(--secondary); }
+.btn-admin:hover { background: rgba(192, 138, 46, 0.14); }
+.btn-kitchen { border-color: rgba(90, 110, 69, 0.4); color: var(--primary); }
+.btn-waiter { border-color: rgba(90, 110, 69, 0.45); color: #5A6E45; }
+.btn-logout-nav { border-color: rgba(178,59,46,0.4); color: #B23B2E; }
+.btn-logout-nav:hover { background: rgba(178,59,46,0.15); }
 
 /* ===== HERO ===== */
 .hero-banner {
   position: relative;
-  background-image: url('https://images.unsplash.com/photo-1555396273-367ea4eb4db5?q=80&w=1974&auto=format&fit=crop');
-  background-size: cover;
-  background-position: center;
-  background-attachment: fixed;
+  background: linear-gradient(135deg, #33422A 0%, #22301B 100%);
   min-height: 600px;
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
+  overflow: hidden;
 }
 .hero-overlay {
   position: absolute; inset: 0;
-  background: linear-gradient(180deg,
-    rgba(6,13,26,0.6) 0%,
-    rgba(6,13,26,0.5) 50%,
-    rgba(6,13,26,0.85) 100%
-  );
+  background:
+    radial-gradient(circle at 30% 20%, rgba(242,196,109,0.18) 0%, transparent 55%),
+    linear-gradient(180deg, rgba(20,28,15,0.10), rgba(20,28,15,0.34));
 }
 .hero-content {
   position: relative; z-index: 1;
@@ -913,54 +897,56 @@ const handleLogout = () => {
 }
 .hero-tag {
   display: inline-block;
-  background: var(--primary-glow);
-  border: 1px solid var(--border);
-  color: var(--primary);
+  background: rgba(242, 196, 109, 0.14);
+  border: 1px solid rgba(242, 196, 109, 0.42);
+  color: #F7D98B;
   padding: 6px 20px; border-radius: 20px;
   font-size: 0.83rem; font-weight: 600; letter-spacing: 1px;
   margin-bottom: 24px;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.35);
 }
 .hero-content h1 {
   font-size: 4rem; font-weight: 900;
-  color: white; line-height: 1.1;
+  color: #FFFFFF; line-height: 1.1;
   margin: 0 0 16px 0;
   text-shadow: 0 4px 20px rgba(0,0,0,0.5);
 }
-.hero-content h1 span { color: var(--primary); }
+.hero-content h1 span {
+  color: #F2C46D;
+  text-shadow: 0 4px 22px rgba(0,0,0,0.55);
+}
 .hero-content p {
-  color: rgba(255,255,255,0.75); font-size: 1.1rem;
+  color: rgba(255,255,255,0.90); font-size: 1.1rem;
   margin: 0 0 32px 0; letter-spacing: 0.5px;
+  text-shadow: 0 3px 14px rgba(0,0,0,0.45);
 }
 
 .hero-actions { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-bottom: 48px; }
-.btn-hero-primary {
-  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-  color: var(--bg-dark); border: none; padding: 15px 30px;
-  border-radius: 30px; font-size: 1rem; font-weight: 800;
-  font-family: inherit; cursor: pointer; transition: var(--transition);
+.home-hero-btn {
+  min-height: 48px;
+  padding: 14px 30px;
+  border-radius: 30px;
+  font-size: 1rem;
 }
-.btn-hero-primary:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(0,212,170,0.5); }
-.btn-hero-secondary {
-  background: rgba(255,255,255,0.08); color: white;
-  border: 2px solid rgba(255,255,255,0.4); padding: 15px 30px;
-  border-radius: 30px; font-size: 1rem; font-weight: 700;
-  font-family: inherit; cursor: pointer; transition: var(--transition);
+.home-hero-outline {
+  background: rgba(255,255,255,0.08); color: #FFFFFF;
+  border: 2px solid rgba(255,255,255,0.55);
   backdrop-filter: blur(10px);
 }
-.btn-hero-secondary:hover { background: rgba(255,255,255,0.18); border-color: white; }
+.home-hero-outline:hover { background: rgba(255,255,255,0.18); border-color: #FFFFFF; color: #FFFFFF; }
 
 /* Stats */
 .hero-stats {
   display: inline-flex; align-items: center; gap: 0;
-  background: rgba(13, 27, 42, 0.7);
-  border: 1px solid var(--border);
+  background: rgba(20, 28, 15, 0.66);
+  border: 1px solid rgba(242, 196, 109, 0.28);
   border-radius: 16px; padding: 16px 32px;
   backdrop-filter: blur(15px);
 }
 .stat-item { text-align: center; padding: 0 20px; }
-.stat-num { display: block; font-size: 1.6rem; font-weight: 900; color: var(--primary); }
-.stat-lbl { font-size: 0.78rem; color: rgba(255,255,255,0.6); letter-spacing: 0.5px; }
-.stat-divider { width: 1px; height: 40px; background: var(--border); }
+.stat-num { display: block; font-size: 1.6rem; font-weight: 900; color: #F2C46D; }
+.stat-lbl { font-size: 0.78rem; color: rgba(255,255,255,0.88); letter-spacing: 0.5px; }
+.stat-divider { width: 1px; height: 40px; background: rgba(255,255,255,0.22); }
 
 /* ===== MAIN CONTENT ===== */
 .main-content { padding: 80px 24px; }
@@ -989,20 +975,7 @@ const handleLogout = () => {
 }
 
 .article-actions { display: flex; gap: 14px; margin-bottom: 48px; flex-wrap: wrap; }
-.btn-action-primary {
-  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-  color: var(--bg-dark); border: none; padding: 13px 26px;
-  border-radius: var(--radius-md); font-size: 0.95rem; font-weight: 800;
-  font-family: inherit; cursor: pointer; transition: var(--transition);
-}
-.btn-action-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,212,170,0.4); }
-.btn-action-outline {
-  background: transparent; border: 1px solid var(--border);
-  color: var(--text-secondary); padding: 13px 26px;
-  border-radius: var(--radius-md); font-size: 0.95rem; font-weight: 600;
-  font-family: inherit; cursor: pointer; transition: var(--transition);
-}
-.btn-action-outline:hover { border-color: var(--primary); color: var(--primary); }
+.home-action-btn { min-height: 44px; padding: 12px 26px; }
 
 /* Feature Grid */
 .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
@@ -1046,8 +1019,8 @@ const handleLogout = () => {
 .svc-badge {
   font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 10px;
 }
-.svc-badge.new { background: rgba(0,212,170,0.15); color: var(--primary); }
-.svc-badge.hot { background: rgba(231,76,60,0.15); color: #e74c3c; }
+.svc-badge.new { background: rgba(90, 110, 69, 0.15); color: var(--primary); }
+.svc-badge.hot { background: rgba(178,59,46,0.15); color: #B23B2E; }
 
 /* Hours */
 .hours-card {}
@@ -1071,7 +1044,7 @@ const handleLogout = () => {
 /* FAB */
 .fab-phone {
   background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-  color: var(--bg-dark);
+  color: #FFFFFF;
 }
 .msg-booking {
   background: transparent !important;
@@ -1082,28 +1055,28 @@ const handleLogout = () => {
 .b-table-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
 .b-table-card { background: var(--bg-card); border: 1px solid var(--border); padding: 8px 12px; border-radius: 6px; }
 .b-table-card strong { color: var(--primary); }
-.b-btn-small { background: var(--primary); border: none; color: #000; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; margin-top: 6px; font-weight: bold; }
+.b-btn-small { background: var(--primary); border: none; color: #FFFFFF; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; margin-top: 6px; font-weight: bold; }
 .b-actions { display: flex; gap: 6px; margin-top: 8px; }
-.b-btn { background: var(--primary); border: none; color: #000; padding: 8px; border-radius: 6px; cursor: pointer; font-weight: bold; flex: 1; text-align: center; font-size: 0.8rem; }
+.b-btn { background: var(--primary); border: none; color: #FFFFFF; padding: 8px; border-radius: 6px; cursor: pointer; font-weight: bold; flex: 1; text-align: center; font-size: 0.8rem; }
 .b-btn-outline { background: transparent; border: 1px solid var(--primary); color: var(--primary); padding: 8px; border-radius: 6px; cursor: pointer; font-weight: bold; flex: 1; text-align: center; font-size: 0.8rem; }
-.b-input { background: var(--bg-input); border: 1px solid var(--border); color: white; padding: 8px; border-radius: 4px; width: 100%; box-sizing: border-box; }
-.b-qr-box { background: white; padding: 10px; border-radius: 8px; text-align: center; margin-top: 8px; }
+.b-input { background: var(--bg-input); border: 1px solid var(--border); color: var(--text-heading); padding: 8px; border-radius: 4px; width: 100%; box-sizing: border-box; }
+.b-qr-box { background: #FFFFFF; padding: 10px; border-radius: 8px; text-align: center; margin-top: 8px; }
 .b-qr-box img { width: 100%; max-width: 150px; border-radius: 6px; }
-.b-qr-box p { color: #000; font-weight: bold; margin: 5px 0 10px 0; }
-.b-success { background: rgba(0, 212, 170, 0.1); border: 1px solid var(--primary); padding: 12px; border-radius: 6px; color: var(--primary); font-weight: bold; text-align: center; }
+.b-qr-box p { color: var(--text-heading); font-weight: bold; margin: 5px 0 10px 0; }
+.b-success { background: rgba(90, 110, 69, 0.1); border: 1px solid var(--primary); padding: 12px; border-radius: 6px; color: var(--primary); font-weight: bold; text-align: center; }
 
 .fab-phone {
   width: 60px; height: 60px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   font-size: 1.6rem; cursor: pointer;
-  box-shadow: 0 6px 25px rgba(0, 212, 170, 0.4);
+  box-shadow: 0 6px 25px rgba(90, 110, 69, 0.4);
   animation: fab-pulse 2.5s ease-in-out infinite;
   transition: var(--transition);
 }
-.fab-phone:hover { transform: scale(1.1); box-shadow: 0 8px 30px rgba(0,212,170,0.6); }
+.fab-phone:hover { transform: scale(1.1); box-shadow: 0 8px 30px rgba(90, 110, 69, 0.6); }
 @keyframes fab-pulse {
-  0%, 100% { box-shadow: 0 6px 25px rgba(0, 212, 170, 0.4); }
-  50% { box-shadow: 0 6px 25px rgba(0, 212, 170, 0.4), 0 0 0 15px rgba(0,212,170,0); }
+  0%, 100% { box-shadow: 0 6px 25px rgba(90, 110, 69, 0.4); }
+  50% { box-shadow: 0 6px 25px rgba(90, 110, 69, 0.4), 0 0 0 15px rgba(90, 110, 69, 0); }
 }
 
 /* ===== POSTS SECTIONS ===== */
@@ -1120,7 +1093,7 @@ const handleLogout = () => {
   font-size: 0.83rem; font-weight: 600; letter-spacing: 1px;
   margin-bottom: 16px;
 }
-.recruit-tag { background: rgba(155,89,182,0.1); color: #9b59b6; border-color: rgba(155,89,182,0.3); }
+.recruit-tag { background: rgba(192, 138, 46, 0.1); color: #C08A2E; border-color: rgba(192, 138, 46, 0.3); }
 .section-header-block h2 {
   font-size: 2.2rem; font-weight: 900; color: var(--text-heading);
   margin: 0 0 12px 0;
@@ -1147,7 +1120,7 @@ const handleLogout = () => {
 }
 .news-date-badge {
   position: absolute; top: 12px; right: 12px;
-  background: rgba(0,0,0,0.7); color: white;
+  background: var(--overlay-darker); color: #FFFFFF;
   padding: 4px 12px; border-radius: 20px;
   font-size: 0.75rem; font-weight: 600; backdrop-filter: blur(10px);
 }
@@ -1167,10 +1140,10 @@ const handleLogout = () => {
   border: 1px solid var(--border-light); border-radius: var(--radius-lg);
   transition: var(--transition);
 }
-.recruit-card:hover { border-color: rgba(155,89,182,0.4); transform: translateX(6px); box-shadow: var(--shadow-md); }
+.recruit-card:hover { border-color: rgba(192, 138, 46, 0.4); transform: translateX(6px); box-shadow: var(--shadow-md); }
 .recruit-icon {
   font-size: 2rem; width: 60px; height: 60px; flex-shrink: 0;
-  background: rgba(155,89,182,0.1); border-radius: var(--radius-md);
+  background: rgba(192, 138, 46, 0.1); border-radius: var(--radius-md);
   display: flex; align-items: center; justify-content: center;
 }
 .recruit-info { flex: 1; min-width: 0; }
@@ -1178,16 +1151,16 @@ const handleLogout = () => {
 .recruit-info p { margin: 0 0 8px 0; font-size: 0.88rem; color: var(--text-muted); line-height: 1.5; }
 .recruit-date { font-size: 0.78rem; color: var(--text-muted); }
 .btn-apply {
-  background: rgba(155,89,182,0.15); border: 1px solid rgba(155,89,182,0.3);
-  color: #9b59b6; padding: 10px 20px; border-radius: var(--radius-md);
+  background: rgba(192, 138, 46, 0.15); border: 1px solid rgba(192, 138, 46, 0.3);
+  color: #C08A2E; padding: 10px 20px; border-radius: var(--radius-md);
   cursor: pointer; font-weight: 700; font-size: 0.88rem; font-family: inherit;
   white-space: nowrap; transition: var(--transition); flex-shrink: 0;
 }
-.btn-apply:hover { background: #9b59b6; color: white; }
+.btn-apply:hover { background: #C08A2E; color: #FFFFFF; }
 
 /* Recruit Modal */
 .modal-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+  position: fixed; inset: 0; background: var(--overlay-darker);
   display: flex; align-items: center; justify-content: center;
   z-index: 1000; backdrop-filter: blur(6px); padding: 20px;
 }
@@ -1205,11 +1178,11 @@ const handleLogout = () => {
   background: transparent; border: none; color: var(--text-muted);
   font-size: 1.3rem; cursor: pointer; transition: var(--transition);
 }
-.btn-close-modal:hover { color: #e74c3c; }
+.btn-close-modal:hover { color: var(--secondary); }
 .modal-img { width: 100%; max-height: 300px; object-fit: cover; }
 .modal-content { padding: 24px; }
 .modal-text {
-  white-space: pre-wrap; word-wrap: break-word; font-family: 'Inter', sans-serif;
+  white-space: pre-wrap; word-wrap: break-word; font-family: var(--font-primary);
   color: var(--text-secondary); font-size: 0.95rem; line-height: 1.8; margin: 0 0 16px 0;
 }
 .modal-date { color: var(--text-muted); font-size: 0.85rem; margin: 0; }
@@ -1230,33 +1203,33 @@ const handleLogout = () => {
   color: var(--text-heading); font-family: inherit; font-size: 0.95rem;
   transition: var(--transition);
 }
-.g-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0,212,170,0.1); }
+.g-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(90, 110, 69, 0.1); }
 .app-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 24px; }
 .btn-submit-app {
   background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-  color: var(--bg-dark); border: none; padding: 14px; border-radius: var(--radius-md);
+  color: #FFFFFF; border: none; padding: 14px; border-radius: var(--radius-md);
   font-weight: 800; font-size: 1rem; cursor: pointer; transition: var(--transition);
 }
-.btn-submit-app:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,212,170,0.4); }
+.btn-submit-app:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(90, 110, 69, 0.4); }
 .btn-close {
   background: transparent; border: 1px solid var(--border);
   color: var(--text-muted); padding: 12px; border-radius: var(--radius-md);
   font-weight: 600; cursor: pointer; transition: var(--transition);
 }
-.btn-close:hover { border-color: #e74c3c; color: #e74c3c; }
+.btn-close:hover { border-color: var(--secondary); color: var(--secondary); }
 .w-100 { width: 100%; }
 
 /* LIKES & INTERVIEW BTN */
 .news-footer { margin-top: 16px; display: flex; justify-content: flex-end; }
 .recruit-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
 .btn-like {
-  background: rgba(231,76,60,0.1); border: 1px solid rgba(231,76,60,0.2);
-  color: #e74c3c; padding: 6px 14px; border-radius: 20px;
+  background: rgba(192, 138, 46, 0.1); border: 1px solid rgba(192, 138, 46, 0.24);
+  color: var(--secondary); padding: 6px 14px; border-radius: 20px;
   cursor: pointer; font-weight: 700; font-size: 0.85rem;
   transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
-.btn-like:hover { background: rgba(231,76,60,0.2); transform: scale(1.05); }
-.btn-like.liked { background: #e74c3c; color: white; border-color: #e74c3c; animation: heartBeat 0.5s; }
+.btn-like:hover { background: rgba(192, 138, 46, 0.2); transform: scale(1.05); }
+.btn-like.liked { background: var(--secondary); color: #FFFFFF; border-color: var(--secondary); animation: heartBeat 0.5s; }
 .btn-like-small { padding: 4px 10px; font-size: 0.8rem; }
 @keyframes heartBeat {
   0% { transform: scale(1); }
@@ -1266,20 +1239,20 @@ const handleLogout = () => {
 .modal-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border-light); }
 .modal-actions { display: flex; gap: 12px; }
 .btn-interview {
-  background: rgba(52,152,219,0.15); border: 1px solid rgba(52,152,219,0.3);
-  color: #3498db; padding: 10px 20px; border-radius: var(--radius-md);
+  background: rgba(192, 138, 46, 0.12); border: 1px solid rgba(192, 138, 46, 0.3);
+  color: var(--secondary); padding: 10px 20px; border-radius: var(--radius-md);
   cursor: pointer; font-weight: 700; font-size: 0.9rem; transition: var(--transition);
 }
-.btn-interview:hover { background: #3498db; color: white; }
+.btn-interview:hover { background: var(--secondary); color: #FFFFFF; }
 
 /* ===== CHATBOTS ===== */
 .chatbots-container { position: fixed; bottom: 30px; right: 30px; z-index: 999; display: flex; flex-direction: column; align-items: flex-end; gap: 16px; }
 .fab-group { display: flex; gap: 12px; }
 .fab-chat {
   width: 60px; height: 60px; border-radius: 50%;
-  background: linear-gradient(135deg, #3498db, #2980b9);
-  color: white; font-size: 1.8rem; display: flex; align-items: center; justify-content: center;
-  cursor: pointer; box-shadow: 0 6px 20px rgba(52,152,219,0.4);
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: #FFFFFF; font-size: 1.8rem; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; box-shadow: 0 6px 20px rgba(90, 110, 69, 0.4);
   transition: transform 0.3s;
 }
 .fab-chat:hover { transform: scale(1.1); }
@@ -1287,7 +1260,7 @@ const handleLogout = () => {
 .chat-widget {
   width: 350px; height: 500px; background: var(--bg-card);
   border-radius: 20px; border: 1px solid var(--border);
-  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  box-shadow: var(--shadow-lg);
   display: flex; flex-direction: column; overflow: hidden;
   animation: slideUp 0.3s ease-out;
 }
@@ -1295,11 +1268,11 @@ const handleLogout = () => {
 
 .chat-header {
   padding: 16px; display: flex; justify-content: space-between; align-items: center;
-  color: white; font-weight: 700;
+  color: #FFFFFF; font-weight: 700;
 }
-.support-header { background: linear-gradient(135deg, #3498db, #2980b9); }
-.interview-header { background: linear-gradient(135deg, #9b59b6, #8e44ad); }
-.chat-header button { background: transparent; border: none; color: white; font-size: 1.2rem; cursor: pointer; }
+.support-header { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); }
+.interview-header { background: linear-gradient(135deg, #C08A2E, #8A641F); }
+.chat-header button { background: transparent; border: none; color: #FFFFFF; font-size: 1.2rem; cursor: pointer; }
 
 .chat-body {
   flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;
@@ -1307,7 +1280,7 @@ const handleLogout = () => {
 }
 .chat-msg { max-width: 80%; padding: 12px 16px; border-radius: 18px; font-size: 0.9rem; line-height: 1.4; word-wrap: break-word; }
 .chat-msg.bot { background: var(--bg-input); border: 1px solid var(--border-light); color: var(--text-heading); border-bottom-left-radius: 4px; align-self: flex-start; }
-.chat-msg.user { background: var(--primary); color: var(--bg-dark); border-bottom-right-radius: 4px; align-self: flex-end; font-weight: 600; }
+.chat-msg.user { background: var(--primary); color: #FFFFFF; border-bottom-right-radius: 4px; align-self: flex-end; font-weight: 600; }
 
 .chat-input-area {
   padding: 12px; border-top: 1px solid var(--border-light); display: flex; gap: 8px; background: var(--bg-card);
@@ -1318,7 +1291,7 @@ const handleLogout = () => {
 }
 .chat-input-area input:focus { outline: none; border-color: var(--primary); }
 .chat-input-area button {
-  background: var(--primary); color: var(--bg-dark); border: none;
+  background: var(--primary); color: #FFFFFF; border: none;
   padding: 0 16px; border-radius: 20px; font-weight: 700; cursor: pointer; transition: 0.3s;
 }
 .chat-input-area button:hover { background: var(--primary-dark); }
@@ -1334,25 +1307,25 @@ const handleLogout = () => {
   100% { opacity: 0.5; }
 }
 
-.fab-wheel { background: linear-gradient(45deg, #f1c40f, #e67e22); font-size: 1.5rem; display:flex; align-items:center; justify-content:center; box-shadow: 0 5px 20px rgba(241,196,15,0.5); }
+.fab-wheel { background: linear-gradient(45deg, #B98229, #C08A2E); font-size: 1.5rem; display:flex; align-items:center; justify-content:center; box-shadow: 0 5px 20px rgba(185,130,41,0.5); }
 .fab-wheel:hover { transform: scale(1.15) rotate(10deg); }
 
 /* Lucky Wheel */
-.wheel-modal { background: var(--bg-card); padding: 30px; border-radius: 20px; width: 400px; max-width: 90%; text-align: center; border: 1px solid var(--border); box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+.wheel-modal { background: var(--bg-card); padding: 30px; border-radius: 20px; width: 400px; max-width: 90%; text-align: center; border: 1px solid var(--border); box-shadow: var(--shadow-lg); }
 .wheel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.wheel-header h2 { color: #f1c40f; margin: 0; font-size: 1.5rem; text-transform: uppercase; font-weight: 900; }
+.wheel-header h2 { color: #B98229; margin: 0; font-size: 1.5rem; text-transform: uppercase; font-weight: 900; }
 .wheel-desc { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px; }
-.wheel-container { position: relative; width: 300px; height: 300px; margin: 0 auto 30px; border-radius: 50%; box-shadow: 0 0 20px rgba(241,196,15,0.2); border: 8px solid var(--bg-root); overflow: hidden; }
-.wheel-pointer { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); font-size: 2rem; color: #e74c3c; z-index: 10; text-shadow: 0 2px 5px rgba(0,0,0,0.5); }
+.wheel-container { position: relative; width: 300px; height: 300px; margin: 0 auto 30px; border-radius: 50%; box-shadow: 0 0 20px rgba(185,130,41,0.2); border: 8px solid var(--bg-root); overflow: hidden; }
+.wheel-pointer { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); font-size: 2rem; color: var(--secondary); z-index: 10; text-shadow: 0 2px 5px rgba(0,0,0,0.35); }
 .wheel-board { width: 100%; height: 100%; border-radius: 50%; position: relative; transition: transform 7s cubic-bezier(0.1, 0.8, 0.1, 1); }
 .wheel-text { position: absolute; width: 100%; height: 100%; top: 0; left: 0; display: flex; justify-content: center; align-items: flex-start; padding-top: 15px; transform-origin: 50% 50%; }
 .slice-label { font-weight: 900; font-size: 1.1rem; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); }
 
-.btn-spin { background: linear-gradient(45deg, #f1c40f, #e67e22); color: #fff; font-size: 1.2rem; font-weight: 900; border: none; padding: 15px 40px; border-radius: 30px; cursor: pointer; transition: 0.3s; box-shadow: 0 5px 15px rgba(230,126,34,0.4); }
-.btn-spin:hover:not(:disabled) { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(230,126,34,0.6); }
-.btn-spin:disabled { opacity: 0.7; cursor: not-allowed; background: #95a5a6; box-shadow: none; }
-.spin-result { margin-top: 20px; font-size: 1.1rem; padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.05); }
-.spin-result.win { background: rgba(46,204,113,0.1); color: #2ecc71; font-weight: bold; border: 1px solid rgba(46,204,113,0.3); }
+.btn-spin { background: linear-gradient(45deg, #B98229, #C08A2E); color: #FFFFFF; font-size: 1.2rem; font-weight: 900; border: none; padding: 15px 40px; border-radius: 30px; cursor: pointer; transition: 0.3s; box-shadow: 0 5px 15px rgba(192, 138, 46, 0.4); }
+.btn-spin:hover:not(:disabled) { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(192, 138, 46, 0.6); }
+.btn-spin:disabled { opacity: 0.7; cursor: not-allowed; background: #7A7460; box-shadow: none; }
+.spin-result { margin-top: 20px; font-size: 1.1rem; padding: 10px; border-radius: 8px; background: var(--primary-glow2); }
+.spin-result.win { background: var(--primary-glow2); color: var(--primary); font-weight: bold; border: 1px solid var(--primary-glow); }
 
 /* Animation Utils */
 @media (max-width: 1024px) {
