@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,8 +27,6 @@ import poly.edu.quanlynhahang.entity.RestaurantTable;
 import poly.edu.quanlynhahang.repository.OrderRepository;
 import poly.edu.quanlynhahang.repository.RestaurantTableRepository;
 import poly.edu.quanlynhahang.service.ActivityLogService;
-
-@CrossOrigin(origins = "*", maxAge = 3600)
 @RestController
 @RequestMapping("/api/admin/orders")
 // ✅ FIX: Dùng hasAnyAuthority với ROLE_ prefix đầy đủ
@@ -47,8 +46,9 @@ public class AdminOrderController {
     private ActivityLogService activityLogService;
 
     @GetMapping
+    @Transactional(readOnly = true)
     public ResponseEntity<?> getAllOrders() {
-        List<Order> orders = orderRepository.findAll().stream()
+        List<Order> orders = orderRepository.findAllWithDetails().stream()
                 .sorted((o1, o2) -> o2.getId().compareTo(o1.getId()))
                 .collect(Collectors.toList());
         return ResponseEntity.ok(orders);
@@ -57,8 +57,9 @@ public class AdminOrderController {
     // THỐNG KÊ (Khóa lại chỉ cho Quản lý xem)
     @GetMapping("/revenue")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    @Transactional(readOnly = true)
     public ResponseEntity<?> getRevenueAnalytics() {
-        List<Order> allOrders = orderRepository.findAll();
+        List<Order> allOrders = orderRepository.findAllWithDetails();
         List<Order> completedOrders = allOrders.stream()
                 .filter(o -> o.getStatus() != null && o.getStatus() == 4)
                 .collect(Collectors.toList());
@@ -80,8 +81,9 @@ public class AdminOrderController {
 
     @GetMapping("/dashboard-stats")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    @Transactional(readOnly = true)
     public ResponseEntity<?> getDashboardStats() {
-        List<Order> completedOrders = orderRepository.findAll().stream()
+        List<Order> completedOrders = orderRepository.findAllWithDetails().stream()
                 .filter(o -> o.getStatus() != null && o.getStatus() == 4)
                 .collect(Collectors.toList());
 
