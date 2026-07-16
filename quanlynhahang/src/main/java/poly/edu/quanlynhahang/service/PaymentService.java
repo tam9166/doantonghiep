@@ -1,12 +1,12 @@
 package poly.edu.quanlynhahang.service;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import poly.edu.quanlynhahang.config.PaymentProperties;
 import poly.edu.quanlynhahang.dto.PaymentQrRequest;
 import poly.edu.quanlynhahang.dto.PaymentQrResponse;
 import poly.edu.quanlynhahang.entity.PaymentIntent;
@@ -20,40 +20,32 @@ import poly.edu.quanlynhahang.repository.ReservationRepository;
 import java.math.BigDecimal;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.Date;
 import java.util.Locale;
 
 @Service
 public class PaymentService {
-    private static final String DEMO_ACCOUNT_NUMBER = "0000000000";
-    private static final String DEMO_ACCOUNT_HOLDER = "Demo Restaurant";
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final ReservationRepository reservationRepository;
     private final PaymentIntentRepository paymentIntentRepository;
     private final ReservationRealtimeService realtimeService;
     private final ReservationStateMachine stateMachine;
-    private final String bankCode;
-    private final String accountNumber;
-    private final String accountHolder;
-    private final int qrTtlMinutes;
+    private final PaymentProperties paymentProperties;
 
     public PaymentService(ReservationRepository reservationRepository,
                           PaymentIntentRepository paymentIntentRepository,
                           ReservationRealtimeService realtimeService,
                           ReservationStateMachine stateMachine,
-                          @Value("${restaurant.payment.bank-code:MB}") String bankCode,
-                          @Value("${restaurant.payment.account-number:}") String accountNumber,
-                          @Value("${restaurant.payment.account-holder:}") String accountHolder,
-                          @Value("${restaurant.payment.qr-ttl-minutes:15}") int qrTtlMinutes) {
+                          PaymentProperties paymentProperties) {
         this.reservationRepository = reservationRepository;
         this.paymentIntentRepository = paymentIntentRepository;
         this.realtimeService = realtimeService;
         this.stateMachine = stateMachine;
-        this.bankCode = hasText(bankCode) ? bankCode.trim() : "MB";
-        this.accountNumber = isValidAccountNumber(accountNumber) ? accountNumber.trim() : DEMO_ACCOUNT_NUMBER;
-        this.accountHolder = hasText(accountHolder) ? accountHolder.trim() : DEMO_ACCOUNT_HOLDER;
-        this.qrTtlMinutes = qrTtlMinutes;
+        this.paymentProperties = paymentProperties;
     }
 
     @Transactional
@@ -75,14 +67,15 @@ public class PaymentService {
 
         PaymentIntent intent = new PaymentIntent();
         intent.setReservation(reservation);
-        intent.setPaymentCode(nextPaymentCode(reservation.getReservationCode()));
+        intent.setPaymentCode(nextPaymentCode());
         intent.setPaymentOption(option);
         intent.setAmount(amount);
-        intent.setBankCode(bankCode);
-        intent.setAccountNumber(accountNumber);
-        intent.setAccountHolder(accountHolder);
-        intent.setTransferContent(("MV " + reservation.getReservationCode() + " " + intent.getPaymentCode()).toUpperCase(Locale.ROOT));
-        intent.setExpiresAt(Date.from(Instant.now().plusSeconds(qrTtlMinutes * 60L)));
+        intent.setBankCode(paymentProperties.getBankCode().trim().toUpperCase(Locale.ROOT));
+        intent.setAccountNumber(paymentProperties.getAccountNumber().trim());
+        intent.setAccountHolder(paymentProperties.getAccountHolder().trim().toUpperCase(Locale.ROOT));
+        intent.setTransferContent(buildTransferContent(reservation.getReservationCode(), intent.getPaymentCode()));
+        intent.setExpiresAt(Date.from(Instant.now().plusSeconds(
+                paymentProperties.getQrExpirationMinutes() * 60L)));
         intent.setQrUrl(buildVietQrUrl(intent));
         return toResponse(paymentIntentRepository.save(intent));
     }
@@ -216,22 +209,25 @@ public class PaymentService {
                 || ReservationStatus.NO_SHOW.equals(status);
     }
 
-    private String nextPaymentCode(String reservationCode) {
-        String timePart = String.valueOf(System.currentTimeMillis()).substring(6);
-        return ("PAY-" + reservationCode + "-" + timePart).replaceAll("[^A-Z0-9-]", "");
+    private String nextPaymentCode() {
+        byte[] randomBytes = new byte[18];
+        SECURE_RANDOM.nextBytes(randomBytes);
+        return "PAY-" + Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes).toUpperCase(Locale.ROOT);
+    }
+
+    private String buildTransferContent(String reservationCode, String paymentCode) {
+        String billCode = reservationCode == null
+                ? "DB"
+                : reservationCode.toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]", "");
+        String paymentSuffix = paymentCode.replace("PAY-", "");
+        paymentSuffix = paymentSuffix.substring(0, Math.min(8, paymentSuffix.length()));
+        return "TT " + billCode + " " + paymentSuffix;
     }
 
     private String buildVietQrUrl(PaymentIntent intent) {
-        String resolvedBankCode = hasText(intent.getBankCode()) ? intent.getBankCode() : bankCode;
-        String resolvedAccountNumber = isValidAccountNumber(intent.getAccountNumber())
-                ? intent.getAccountNumber()
-                : accountNumber;
-        String resolvedAccountHolder = hasText(intent.getAccountHolder())
-                ? intent.getAccountHolder()
-                : accountHolder;
         String addInfo = URLEncoder.encode(intent.getTransferContent(), StandardCharsets.UTF_8);
-        String accountName = URLEncoder.encode(resolvedAccountHolder, StandardCharsets.UTF_8);
-        return "https://img.vietqr.io/image/" + resolvedBankCode + "-" + resolvedAccountNumber
+        String accountName = URLEncoder.encode(intent.getAccountHolder(), StandardCharsets.UTF_8);
+        return "https://img.vietqr.io/image/" + intent.getBankCode() + "-" + intent.getAccountNumber()
                 + "-compact2.png?amount=" + intent.getAmount().toPlainString()
                 + "&addInfo=" + addInfo
                 + "&accountName=" + accountName;
@@ -243,11 +239,9 @@ public class PaymentService {
         response.setAmount(intent.getAmount());
         response.setPaymentOption(intent.getPaymentOption());
         response.setStatus(intent.getStatus());
-        response.setBankCode(hasText(intent.getBankCode()) ? intent.getBankCode() : bankCode);
-        response.setAccountNumber(isValidAccountNumber(intent.getAccountNumber())
-                ? intent.getAccountNumber()
-                : accountNumber);
-        response.setAccountHolder(hasText(intent.getAccountHolder()) ? intent.getAccountHolder() : accountHolder);
+        response.setBankCode(intent.getBankCode());
+        response.setAccountNumber(intent.getAccountNumber());
+        response.setAccountHolder(intent.getAccountHolder());
         response.setTransferContent(intent.getTransferContent());
         response.setQrUrl(buildVietQrUrl(intent));
         response.setExpiresAt(intent.getExpiresAt());
@@ -262,11 +256,4 @@ public class PaymentService {
         return "SYSTEM";
     }
 
-    private boolean hasText(String value) {
-        return value != null && !value.isBlank();
-    }
-
-    private boolean isValidAccountNumber(String value) {
-        return hasText(value) && value.trim().matches("\\d{6,19}");
-    }
 }

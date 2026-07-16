@@ -1,7 +1,7 @@
 package poly.edu.quanlynhahang.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.web.server.ResponseStatusException;
+import poly.edu.quanlynhahang.config.PaymentProperties;
 import poly.edu.quanlynhahang.dto.PaymentQrResponse;
 import poly.edu.quanlynhahang.dto.PaymentQrRequest;
 import poly.edu.quanlynhahang.entity.PaymentIntent;
@@ -33,15 +34,13 @@ class PaymentServiceTest {
     private final PaymentIntentRepository paymentIntentRepository = mock(PaymentIntentRepository.class);
     private final ReservationRealtimeService realtimeService = mock(ReservationRealtimeService.class);
     private final ReservationStateMachine stateMachine = mock(ReservationStateMachine.class);
+    private final PaymentProperties paymentProperties = paymentProperties();
     private final PaymentService service = new PaymentService(
             reservationRepository,
             paymentIntentRepository,
             realtimeService,
             stateMachine,
-            "MB",
-            "919112006789",
-            "Hoang Nguyen Minh Tam",
-            15);
+            paymentProperties);
 
     @Test
     void confirmFromWebhookMarksDepositPaidAndPublishesRealtimeEvent() {
@@ -98,16 +97,7 @@ class PaymentServiceTest {
     }
 
     @Test
-    void createQrUsesDemoAccountWhenLocalBankConfigurationIsBlank() {
-        PaymentService localService = new PaymentService(
-                reservationRepository,
-                paymentIntentRepository,
-                realtimeService,
-                stateMachine,
-                "MB",
-                "",
-                "",
-                15);
+    void createQrUsesConfiguredMbAccountWithoutDemoFallback() {
         Reservation reservation = pendingIntent().getReservation();
         when(reservationRepository.findByReservationCode("MV-001")).thenReturn(Optional.of(reservation));
         when(paymentIntentRepository.findByReservationIdAndStatusOrderByCreatedAtDesc(
@@ -117,23 +107,42 @@ class PaymentServiceTest {
         PaymentQrRequest request = new PaymentQrRequest();
         request.setReservationCode("MV-001");
         request.setPaymentOption(PaymentOption.DEPOSIT_50);
-        PaymentQrResponse response = localService.createQr(request);
+        PaymentQrResponse response = service.createQr(request);
 
-        assertEquals("0000000000", response.getAccountNumber());
-        assertEquals("Demo Restaurant", response.getAccountHolder());
-        assertTrue(response.getQrUrl().contains("/MB-0000000000-compact2.png"));
-        assertFalse(response.getQrUrl().contains("/MB--compact2.png"));
+        assertEquals("MB", response.getBankCode());
+        assertEquals("919112006789", response.getAccountNumber());
+        assertEquals("HOANG NGUYEN MINH TAM", response.getAccountHolder());
+        assertTrue(response.getQrUrl().contains("/MB-919112006789-compact2.png"));
+    }
+
+    @Test
+    void twoReservationsWithSameAmountReceiveDifferentPaymentCodesAndTransferContent() {
+        Reservation first = reservation(1L, "MV-001");
+        Reservation second = reservation(2L, "MV-002");
+        when(reservationRepository.findByReservationCode("MV-001")).thenReturn(Optional.of(first));
+        when(reservationRepository.findByReservationCode("MV-002")).thenReturn(Optional.of(second));
+        when(paymentIntentRepository.findByReservationIdAndStatusOrderByCreatedAtDesc(
+                any(), any())).thenReturn(List.of());
+        when(paymentIntentRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PaymentQrRequest firstRequest = new PaymentQrRequest();
+        firstRequest.setReservationCode("MV-001");
+        firstRequest.setPaymentOption(PaymentOption.DEPOSIT_50);
+        PaymentQrRequest secondRequest = new PaymentQrRequest();
+        secondRequest.setReservationCode("MV-002");
+        secondRequest.setPaymentOption(PaymentOption.DEPOSIT_50);
+
+        PaymentQrResponse firstResponse = service.createQr(firstRequest);
+        PaymentQrResponse secondResponse = service.createQr(secondRequest);
+
+        assertEquals(firstResponse.getAmount(), secondResponse.getAmount());
+        assertNotEquals(firstResponse.getPaymentCode(), secondResponse.getPaymentCode());
+        assertNotEquals(firstResponse.getTransferContent(), secondResponse.getTransferContent());
+        assertNotEquals(firstResponse.getQrUrl(), secondResponse.getQrUrl());
     }
 
     private PaymentIntent pendingIntent() {
-        Reservation reservation = new Reservation();
-        reservation.setId(1L);
-        reservation.setReservationCode("MV-001");
-        reservation.setReservationStatus(ReservationStatus.PENDING);
-        reservation.setPaymentStatus(PaymentStatus.PENDING);
-        reservation.setTotalAmount(new BigDecimal("200000"));
-        reservation.setDepositAmount(new BigDecimal("100000"));
-        reservation.setRemainingAmount(new BigDecimal("200000"));
+        Reservation reservation = reservation(1L, "MV-001");
 
         PaymentIntent intent = new PaymentIntent();
         intent.setId(10L);
@@ -149,5 +158,29 @@ class PaymentServiceTest {
         intent.setQrUrl("https://example.test/qr.png");
         intent.setExpiresAt(Date.from(Instant.now().plusSeconds(300)));
         return intent;
+    }
+
+    private Reservation reservation(Long id, String code) {
+        Reservation reservation = new Reservation();
+        reservation.setId(id);
+        reservation.setReservationCode(code);
+        reservation.setReservationStatus(ReservationStatus.PENDING);
+        reservation.setPaymentStatus(PaymentStatus.PENDING);
+        reservation.setTotalAmount(new BigDecimal("200000"));
+        reservation.setDepositAmount(new BigDecimal("100000"));
+        reservation.setRemainingAmount(new BigDecimal("200000"));
+        return reservation;
+    }
+
+    private PaymentProperties paymentProperties() {
+        PaymentProperties properties = new PaymentProperties();
+        properties.setBankCode("MB");
+        properties.setBankBin("970422");
+        properties.setAccountNumber("919112006789");
+        properties.setAccountHolder("HOANG NGUYEN MINH TAM");
+        properties.setQrProvider("VIETQR");
+        properties.setQrExpirationMinutes(15);
+        properties.setDemoMode(false);
+        return properties;
     }
 }
