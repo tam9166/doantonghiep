@@ -11,6 +11,10 @@ public class Voucher {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Version
+    @Column(nullable = false)
+    private Long version = 0L;
+
     @Column(unique = true, nullable = false)
     private String code;
 
@@ -27,6 +31,9 @@ public class Voucher {
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+
+    public Long getVersion() { return version; }
+    public void setVersion(Long version) { this.version = version; }
 
     public String getCode() { return code; }
     public void setCode(String code) { this.code = code; }
