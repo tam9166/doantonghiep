@@ -20,7 +20,7 @@
           <span class="live-dot"></span>
           <span>LIVE</span>
         </div>
-        <button @click="$router.push('/staff')" class="btn-profile" style="background:#8e44ad; color:white; padding:8px 15px; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">👤 Cá Nhân</button>
+        <button @click="$router.push('/staff')" class="btn-profile" style="background:#8A641F; color:#FFFFFF; padding:8px 15px; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">👤 Cá Nhân</button>
         <button @click="handleLogout" class="btn-logout">🚪 Tan Ca</button>
       </div>
     </header>
@@ -96,7 +96,7 @@
               <div class="serve-dishes">
                 <template v-for="(detail, idx) in order.orderDetails" :key="idx">
                   <div class="serve-dish-item" v-if="Number(order.status) === 2 || detail.status === 1">
-                    <img v-if="detail.product?.image" :src="detail.product.image" class="serve-dish-thumb" />
+                    <img v-if="detail.product?.image" :src="foodImage(detail.product.image)" class="serve-dish-thumb" @error="replaceFoodImage" />
                     <span v-else class="serve-dish-icon">🍽️</span>
                     <span class="serve-dish-name">{{ detail.product?.name || 'Món ăn' }}</span>
                     <span class="serve-dish-qty">x{{ detail.quantity }}</span>
@@ -122,13 +122,13 @@
       <section class="section">
         <div class="section-header">
           <h3 class="section-title">🔥 Món Đang Làm</h3>
-          <span class="count-badge" style="background: rgba(243,156,18,0.2); color: #f39c12; border-color: rgba(243,156,18,0.4);">
+          <span class="count-badge" style="background: rgba(185,130,41,0.2); color: #B98229; border-color: rgba(185,130,41,0.4);">
             {{ filteredCookingOrders.length }}
           </span>
         </div>
 
         <div v-if="filteredCookingOrders.length > 0" class="serve-grid">
-          <div v-for="order in filteredCookingOrders" :key="'cook-'+order.id" class="serve-card" style="border-left-color: #f39c12;">
+          <div v-for="order in filteredCookingOrders" :key="'cook-'+order.id" class="serve-card" style="border-left-color: #B98229;">
             <div class="serve-main">
               <div class="serve-top">
                 <div class="serve-info">
@@ -144,11 +144,11 @@
               <div class="serve-dishes">
                 <template v-for="(detail, idx) in order.orderDetails" :key="'cd-'+idx">
                   <div class="serve-dish-item" v-if="!detail.status || detail.status === 0">
-                    <img v-if="detail.product?.image" :src="detail.product.image" class="serve-dish-thumb" />
+                    <img v-if="detail.product?.image" :src="foodImage(detail.product.image)" class="serve-dish-thumb" @error="replaceFoodImage" />
                     <span v-else class="serve-dish-icon">🍽️</span>
                     <span class="serve-dish-name">{{ detail.product?.name || 'Món ăn' }}</span>
                     <span class="serve-dish-qty">x{{ detail.quantity }}</span>
-                    <span class="serve-dish-price" style="color: #f39c12; font-size: 0.8rem; font-weight: bold; background: rgba(243,156,18,0.1); padding: 4px 8px; border-radius: 10px; margin-left: auto;">⏳ Đang nấu</span>
+                    <span class="serve-dish-price" style="color: #B98229; font-size: 0.8rem; font-weight: bold; background: rgba(185,130,41,0.1); padding: 4px 8px; border-radius: 10px; margin-left: auto;">⏳ Đang nấu</span>
                   </div>
                 </template>
               </div>
@@ -227,14 +227,14 @@
         <div class="modal-body">
           <div v-if="detailTable.isOccupied === 3" style="padding: 30px; text-align: center;">
             <p style="font-size: 1.2rem; margin-bottom: 20px;">Bàn này đang chờ dọn dẹp</p>
-            <button @click="checkoutTable(detailTable)" class="btn-action-large" style="width: 100%; background: rgba(46, 204, 113, 0.2); color: #2ecc71; border: 1px solid #2ecc71;">✅ Đã Dọn Xong</button>
+            <button @click="checkoutTable(detailTable)" class="btn-action-large" style="width: 100%; background: rgba(47, 143, 91, 0.2); color: #2F8F5B; border: 1px solid #2F8F5B;">✅ Đã Dọn Xong</button>
           </div>
           
           <div v-else-if="detailTable.isOccupied === 0" class="empty-state" style="padding: 30px;">
             <p>Bàn này đang trống</p>
             <div style="display: flex; gap: 10px; margin-top: 15px;">
-              <button @click="goAddItem(detailTable)" class="btn-action-large" style="flex: 1; background: rgba(46, 204, 113, 0.2); color: #2ecc71; border: 1px solid #2ecc71;">👨‍👩‍👧 Đón Khách Mới</button>
-              <button @click="openMergeTable(detailTable, 'PHYSICAL')" class="btn-action-large" style="flex: 1; background: rgba(52, 152, 219, 0.2); color: #3498db; border: 1px solid #3498db;">🔗 Ghép Bàn Này</button>
+              <button @click="goAddItem(detailTable)" class="btn-action-large" style="flex: 1; background: rgba(47, 143, 91, 0.2); color: #2F8F5B; border: 1px solid #2F8F5B;">👨‍👩‍👧 Đón Khách Mới</button>
+              <button @click="openMergeTable(detailTable, 'PHYSICAL')" class="btn-action-large" style="flex: 1; background: rgba(90, 110, 69, 0.2); color: #5A6E45; border: 1px solid #5A6E45;">🔗 Ghép Bàn Này</button>
             </div>
           </div>
           
@@ -249,7 +249,7 @@
             <div class="detail-dishes">
               <div v-for="(detail, idx) in detailOrder.orderDetails" :key="idx" class="detail-dish-row">
                 <div class="detail-dish-left">
-                  <img v-if="detail.product?.image" :src="detail.product.image" class="detail-dish-img" />
+                  <img v-if="detail.product?.image" :src="foodImage(detail.product.image)" class="detail-dish-img" @error="replaceFoodImage" />
                   <span v-else class="detail-dish-placeholder">🍽️</span>
                   <div>
                     <strong>{{ detail.product?.name }}</strong>
@@ -260,11 +260,11 @@
               </div>
             </div>
             <div class="detail-total" style="flex-direction: column; align-items: flex-start;">
-              <div style="width: 100%; display: flex; justify-content: space-between; font-size: 0.9rem; color: #ccc; margin-bottom: 5px;">
+              <div style="width: 100%; display: flex; justify-content: space-between; font-size: 0.9rem; color: #A6B0AA; margin-bottom: 5px;">
                 <span>Tạm tính:</span>
                 <span>{{ calculateSubTotal(detailOrder).toLocaleString() }} đ</span>
               </div>
-              <div style="width: 100%; display: flex; justify-content: space-between; font-size: 0.9rem; color: #ccc; border-bottom: 1px dashed rgba(255,255,255,0.2); padding-bottom: 10px; margin-bottom: 10px;">
+              <div style="width: 100%; display: flex; justify-content: space-between; font-size: 0.9rem; color: #A6B0AA; border-bottom: 1px dashed rgba(255,255,255,0.2); padding-bottom: 10px; margin-bottom: 10px;">
                 <span>Thuế GTGT:</span>
                 <span>{{ calculateTax(detailOrder).toLocaleString() }} đ</span>
               </div>
@@ -280,32 +280,33 @@
 
             <!-- Hành động tùy theo trạng thái bàn -->
             <div v-if="detailTable.isOccupied === 1" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-              <button @click="upgradeToOccupied(detailTable)" class="btn-action-large" style="background: rgba(46, 204, 113, 0.2); color: #2ecc71; border: 1px solid #2ecc71;">✅ Khách Đã Đến</button>
-              <button @click="cancelBooking(detailTable)" class="btn-action-large" style="background: rgba(231, 76, 60, 0.2); color: #e74c3c; border: 1px solid #e74c3c;">❌ Khách Hủy</button>
-              <button @click="goAddItem(detailTable)" class="btn-action-large" style="grid-column: span 2; background: rgba(52, 152, 219, 0.2); color: #3498db; border: 1px solid #3498db;">➕ Gọi Thêm</button>
+              <button @click="upgradeToOccupied(detailTable)" class="btn-action-large" style="background: rgba(47, 143, 91, 0.2); color: #2F8F5B; border: 1px solid #2F8F5B;">✅ Khách Đã Đến</button>
+              <button @click="cancelBooking(detailTable)" class="btn-action-large" style="background: rgba(178, 59, 46, 0.2); color: #B23B2E; border: 1px solid #B23B2E;">❌ Khách Hủy</button>
+              <button @click="goAddItem(detailTable)" class="btn-action-large" style="grid-column: span 2; background: rgba(90, 110, 69, 0.2); color: #5A6E45; border: 1px solid #5A6E45;">➕ Gọi Thêm</button>
             </div>
             
             <div v-else class="modal-table-actions" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-               <button @click="openMoveTable(detailTable)" class="btn-action-large" style="background: rgba(243, 156, 18, 0.2); color: #f39c12; border: 1px solid #f39c12;">🔄 Chuyển Bàn</button>
-               <button @click="goAddItem(detailTable)" class="btn-action-large" style="background: rgba(46, 204, 113, 0.2); color: #2ecc71; border: 1px solid #2ecc71;">➕ Gọi Thêm</button>
-               <button @click="openMergeTable(detailTable)" class="btn-action-large" style="background: rgba(52, 152, 219, 0.2); color: #3498db; border: 1px solid #3498db;">🔗 Gộp Bàn</button>
-               <button @click="openSplitTable(detailTable)" class="btn-action-large" style="background: rgba(230, 126, 34, 0.2); color: #e67e22; border: 1px solid #e67e22;">✂️ Tách Bàn</button>
-               <button @click="openCheckoutModal(detailTable)" class="btn-action-large" style="grid-column: span 2; background: rgba(46, 204, 113, 0.8); color: white; border: none; font-weight: bold; font-size: 1.1rem; padding: 12px;">💰 THANH TOÁN</button>
+               <button @click="openMoveTable(detailTable)" class="btn-action-large" style="background: rgba(185, 130, 41, 0.2); color: #B98229; border: 1px solid #B98229;">🔄 Chuyển Bàn</button>
+               <button @click="goAddItem(detailTable)" class="btn-action-large" style="background: rgba(47, 143, 91, 0.2); color: #2F8F5B; border: 1px solid #2F8F5B;">➕ Gọi Thêm</button>
+               <button @click="openMergeTable(detailTable)" class="btn-action-large" style="background: rgba(90, 110, 69, 0.2); color: #5A6E45; border: 1px solid #5A6E45;">🔗 Gộp Bàn</button>
+               <button @click="openSplitTable(detailTable)" class="btn-action-large" style="background: rgba(192, 138, 46, 0.2); color: #C08A2E; border: 1px solid #C08A2E;">✂️ Tách Bàn</button>
+               <button @click="openInvoice(detailTable)" class="btn-action-large" style="background: rgba(192, 138, 46, 0.2); color: #C08A2E; border: 1px solid #C08A2E;">🧾 In Tạm Tính</button>
+               <button @click="openCheckoutModal(detailTable)" class="btn-action-large" style="grid-column: span 2; background: rgba(47, 143, 91, 0.8); color: #FFFFFF; border: none; font-weight: bold; font-size: 1.1rem; padding: 12px;">💰 THANH TOÁN</button>
             </div>
           </div>
           
           <div v-else-if="detailTable.isOccupied === 5" style="padding: 30px; text-align: center;">
             <p style="font-size: 1.2rem; margin-bottom: 20px;">Bàn này đã được ghép với bàn khác.</p>
-            <p style="color: #f39c12; font-weight: bold;">{{ detailTable.reservedTime }}</p>
-            <button @click="unlinkTable(detailTable)" class="btn-action-large" style="width: 100%; margin-top: 15px; background: rgba(230, 126, 34, 0.2); color: #e67e22; border: 1px solid #e67e22;">✂️ Tách Bàn Này Ra</button>
+            <p style="color: #B98229; font-weight: bold;">{{ detailTable.reservedTime }}</p>
+            <button @click="unlinkTable(detailTable)" class="btn-action-large" style="width: 100%; margin-top: 15px; background: rgba(192, 138, 46, 0.2); color: #C08A2E; border: 1px solid #C08A2E;">✂️ Tách Bàn Này Ra</button>
           </div>
 
           <div v-else-if="detailTable.isOccupied === 1" style="padding: 30px; text-align: center;">
             <!-- CÓ CỌC NHƯNG CHƯA ĐẶT MÓN -->
             <p style="font-size: 1.2rem; margin-bottom: 20px;">Bàn đang được khách đặt cọc trước (Chưa gọi món)</p>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-              <button @click="upgradeToOccupied(detailTable)" class="btn-action-large" style="background: rgba(46, 204, 113, 0.2); color: #2ecc71; border: 1px solid #2ecc71;">✅ Khách Đã Đến</button>
-              <button @click="cancelBooking(detailTable)" class="btn-action-large" style="background: rgba(231, 76, 60, 0.2); color: #e74c3c; border: 1px solid #e74c3c;">❌ Khách Hủy</button>
+              <button @click="upgradeToOccupied(detailTable)" class="btn-action-large" style="background: rgba(47, 143, 91, 0.2); color: #2F8F5B; border: 1px solid #2F8F5B;">✅ Khách Đã Đến</button>
+              <button @click="cancelBooking(detailTable)" class="btn-action-large" style="background: rgba(178, 59, 46, 0.2); color: #B23B2E; border: 1px solid #B23B2E;">❌ Khách Hủy</button>
             </div>
           </div>
           
@@ -313,8 +314,8 @@
             <!-- CÓ KHÁCH NHƯNG CHƯA GỌI MÓN (Hoặc đã thanh toán đơn trước đó nhưng chưa dọn bàn) -->
             <p style="font-size: 1.2rem; margin-bottom: 20px;">Bàn có khách nhưng hiện tại chưa có món nào</p>
             <div style="display: grid; grid-template-columns: 1fr; gap: 10px;">
-              <button @click="goAddItem(detailTable)" class="btn-action-large" style="background: rgba(52, 152, 219, 0.2); color: #3498db; border: 1px solid #3498db;">➕ Khách Gọi Món</button>
-              <button @click="markAsCleaning(detailTable)" class="btn-action-large" style="background: rgba(155, 89, 182, 0.2); color: #9b59b6; border: 1px solid #9b59b6;">🏠 Khách Đã Về (Cần Dọn)</button>
+              <button @click="goAddItem(detailTable)" class="btn-action-large" style="background: rgba(90, 110, 69, 0.2); color: #5A6E45; border: 1px solid #5A6E45;">➕ Khách Gọi Món</button>
+              <button @click="markAsCleaning(detailTable)" class="btn-action-large" style="background: rgba(192, 138, 46, 0.2); color: #C08A2E; border: 1px solid #C08A2E;">🏠 Khách Đã Về (Cần Dọn)</button>
             </div>
           </div>
         </div>
@@ -370,7 +371,7 @@
               <tr v-for="(detail, index) in selectedOrder.orderDetails" :key="index">
                 <td style="text-align:center">{{ index + 1 }}</td>
                 <td>
-                  <img v-if="detail.product?.image" :src="detail.product.image" class="bill-thumb" />
+                  <img v-if="detail.product?.image" :src="foodImage(detail.product.image)" class="bill-thumb" @error="replaceFoodImage" />
                   <span v-else class="no-img-icon">🍽️</span>
                 </td>
                 <td><strong>{{ detail.product?.name }}</strong></td>
@@ -382,11 +383,11 @@
           </table>
 
           <div class="invoice-total">
-            <div class="total-row" style="font-size: 0.9rem; color: #666; margin-bottom: 5px;">
+            <div class="total-row" style="font-size: 0.9rem; color: #55503E; margin-bottom: 5px;">
               <span>Tạm tính:</span>
               <span>{{ calculateSubTotal(selectedOrder).toLocaleString() }} đ</span>
             </div>
-            <div class="total-row" style="font-size: 0.9rem; color: #666; border-bottom: 1px dashed #ccc; padding-bottom: 10px; margin-bottom: 10px;">
+            <div class="total-row" style="font-size: 0.9rem; color: #55503E; border-bottom: 1px dashed #A6B0AA; padding-bottom: 10px; margin-bottom: 10px;">
               <span>Thuế GTGT:</span>
               <span>{{ calculateTax(selectedOrder).toLocaleString() }} đ</span>
             </div>
@@ -397,8 +398,7 @@
           </div>
 
           <div class="qr-payment">
-            <img :src="`https://img.vietqr.io/image/vietcombank-1047187126-compact2.png?amount=${calculateTotal(selectedOrder)}&addInfo=Thanh toan ban ${selectedTableName}&accountName=NGUYEN QUANG NHAT`" alt="QR Code" />
-            <p>Quét QR để thanh toán</p>
+            <p>QR chuyển khoản được phát hành và đối soát tại màn hình Thu ngân.</p>
           </div>
 
           <div class="invoice-footer">
@@ -461,7 +461,7 @@
             </template>
           </select>
           <div class="move-actions">
-            <button @click="confirmMergeTable" class="btn-confirm-move" :disabled="!targetMergeTableId" style="background:#3498db">
+            <button @click="confirmMergeTable" class="btn-confirm-move" :disabled="!targetMergeTableId" style="background:#5A6E45">
               {{ mergeMode === 'PHYSICAL' ? 'Ghép Bàn Ngay' : 'Gộp Bàn Ngay' }}
             </button>
           </div>
@@ -501,11 +501,11 @@
               </div>
               <span>{{ detail.price.toLocaleString() }}đ</span>
             </div>
-            <p v-if="splitSourceOrder?.orderDetails?.length === 0" style="text-align: center; color: #999;">Không có món nào.</p>
+            <p v-if="splitSourceOrder?.orderDetails?.length === 0" style="text-align: center; color: #7A7460;">Không có món nào.</p>
           </div>
 
           <div class="move-actions" style="margin-top: 20px;">
-            <button @click="confirmSplitTable" class="btn-confirm-move" :disabled="!splitTargetTableId || selectedDetailIds.length === 0" style="background:#e67e22; width: 100%;">Xác Nhận Tách ({{ selectedDetailIds.length }} món)</button>
+            <button @click="confirmSplitTable" class="btn-confirm-move" :disabled="!splitTargetTableId || selectedDetailIds.length === 0" style="background:#C08A2E; width: 100%;">Xác Nhận Tách ({{ selectedDetailIds.length }} món)</button>
           </div>
         </div>
       </div>
@@ -546,7 +546,7 @@
               <tr v-for="(detail, index) in checkoutOrder.orderDetails" :key="index">
                 <td style="text-align:center">{{ index + 1 }}</td>
                 <td>
-                  <img v-if="detail.product?.image" :src="detail.product.image" class="bill-thumb" />
+                  <img v-if="detail.product?.image" :src="foodImage(detail.product.image)" class="bill-thumb" @error="replaceFoodImage" />
                   <span v-else class="no-img-icon">🍽️</span>
                 </td>
                 <td><strong>{{ detail.product?.name }}</strong></td>
@@ -558,11 +558,11 @@
           </table>
 
           <div class="invoice-total">
-            <div class="total-row" style="font-size: 0.9rem; color: #666; margin-bottom: 5px;">
+            <div class="total-row" style="font-size: 0.9rem; color: #55503E; margin-bottom: 5px;">
               <span>Tạm tính:</span>
               <span>{{ calculateSubTotal(checkoutOrder).toLocaleString() }} đ</span>
             </div>
-            <div class="total-row" style="font-size: 0.9rem; color: #666; border-bottom: 1px dashed #ccc; padding-bottom: 10px; margin-bottom: 10px;">
+            <div class="total-row" style="font-size: 0.9rem; color: #55503E; border-bottom: 1px dashed #A6B0AA; padding-bottom: 10px; margin-bottom: 10px;">
               <span>Thuế GTGT:</span>
               <span>{{ calculateTax(checkoutOrder).toLocaleString() }} đ</span>
             </div>
@@ -573,8 +573,7 @@
           </div>
 
           <div class="qr-payment">
-            <img :src="`https://img.vietqr.io/image/vietcombank-1047187126-compact2.png?amount=${calculateTotal(checkoutOrder)}&addInfo=Thanh toan ban ${checkoutTableName}&accountName=NGUYEN QUANG NHAT`" alt="QR Code" />
-            <p>Quét QR để thanh toán</p>
+            <p>Vui lòng chuyển hóa đơn tới Thu ngân để tạo QR hoặc thu tiền.</p>
           </div>
 
           <div class="invoice-footer">
@@ -583,12 +582,8 @@
         </div>
 
         <div class="modal-actions hide-on-print" style="display: flex; flex-direction: column; gap: 10px; padding: 15px;">
-          <div style="display: flex; gap: 10px; align-items: center;">
-            <input v-model="checkoutTxCode" type="text" placeholder="Nhập mã giao dịch..." style="flex:1; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem;" />
-          </div>
           <div style="display: flex; gap: 10px;">
-            <button @click="printCheckoutInvoice" class="btn-export" style="flex:1; background: #3498db;">🖨️ In Hóa Đơn</button>
-            <button @click="confirmCheckout" class="btn-export" style="flex:1;">✅ Xác Nhận Đã Thu Tiền</button>
+            <button @click="printCheckoutInvoice" class="btn-export" style="flex:1; background: #5A6E45;">🖨️ In Hóa Đơn</button>
           </div>
         </div>
       </div>
@@ -603,6 +598,7 @@ import { useRouter } from 'vue-router';
 import SockJS from 'sockjs-client';
 import { Stomp } from '@stomp/stompjs';
 import TimekeepingWidget from '../components/TimekeepingWidget.vue';
+import { foodImage, replaceFoodImage } from '@/utils/imageFallback';
 
 const router = useRouter();
 const toastMsg = ref('');
@@ -629,7 +625,7 @@ const fetchMyZones = async () => {
     if (!u || !u.username) return;
     const token = localStorage.getItem('token');
     const today = new Date().toISOString().split('T')[0];
-    const res = await axios.get(`http://localhost:8080/api/service-zones/my?username=${u.username}&date=${today}`, {
+    const res = await axios.get(`/api/service-zones/my?username=${u.username}&date=${today}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     // Xác định ca hiện tại
@@ -647,7 +643,7 @@ const fetchMyZones = async () => {
       myAssignedFloors.value = [...new Set(res.data.map(z => z.floor))];
     }
   } catch (e) {
-    console.log('Chưa có phân công khu vực hoặc lỗi API:', e);
+    console.warn('Chưa có phân công khu vực hoặc lỗi API:', e);
   }
 };
 
@@ -787,7 +783,7 @@ const fetchData = async () => {
   try {
     const token = localStorage.getItem('token');
 
-    const resOrders = await axios.get('http://localhost:8080/api/admin/orders', {
+    const resOrders = await axios.get('/api/admin/orders', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     orders.value = resOrders.data;
@@ -804,7 +800,7 @@ const fetchData = async () => {
     }
     previousReadyIds = newReadyIds;
 
-    const resTables = await axios.get('http://localhost:8080/api/tables');
+    const resTables = await axios.get('/api/tables');
     tables.value = resTables.data;
 
   } catch (error) {
@@ -817,7 +813,7 @@ const fetchData = async () => {
 
 const markAsServed = async (id) => {
   try {
-    await axios.put(`http://localhost:8080/api/admin/orders/${id}/status?status=7`, {}, {
+    await axios.put(`/api/admin/orders/${id}/status?status=7`, {}, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     });
     toastMsg.value = '✅ Đã bưng ra bàn thành công!';
@@ -828,7 +824,7 @@ const markAsServed = async (id) => {
 
 const markDishServed = async (order, detailId) => {
   try {
-    await axios.put(`http://localhost:8080/api/orders/details/${detailId}/status?status=2`, {}, {
+    await axios.put(`/api/orders/details/${detailId}/status?status=2`, {}, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     });
     toastMsg.value = '✅ Đã bưng món!';
@@ -858,7 +854,7 @@ const markAsCleaning = async (table) => {
   if (!confirmed) return;
 
   try {
-    await axios.put(`http://localhost:8080/api/tables/${table.id}/status?status=3`, {}, {
+    await axios.put(`/api/tables/${table.id}/status?status=3`, {}, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     });
     toastMsg.value = `🧹 Bàn "${table.name}" đang chờ dọn!`;
@@ -872,7 +868,7 @@ const markAsCleaning = async (table) => {
 // Nút ĐÃ DỌN XONG: chuyển bàn về Trống (0)
 const checkoutTable = async (table) => {
   try {
-    await axios.put(`http://localhost:8080/api/tables/${table.id}/status?status=0`, {}, {
+    await axios.put(`/api/tables/${table.id}/status?status=0`, {}, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     });
     showCheckoutToast(table.name);
@@ -930,44 +926,14 @@ const printInvoice = () => { window.print(); };
 // === THANH TOÁN ===
 const checkoutOrder = ref(null);
 const checkoutTableName = ref('');
-const checkoutTxCode = ref('');
 
 const openCheckoutModal = (table) => {
   const activeOrder = getActiveOrderForTable(table.name);
   if (activeOrder) {
     checkoutOrder.value = activeOrder;
     checkoutTableName.value = table.name;
-    checkoutTxCode.value = '';
   } else {
     alert('Không tìm thấy đơn hàng nào đang mở cho bàn này!');
-  }
-};
-
-const confirmCheckout = async () => {
-  if (!checkoutTxCode.value) return alert('Vui lòng nhập mã giao dịch để xác nhận thanh toán!');
-  if (!checkoutOrder.value) return;
-  
-  const token = localStorage.getItem('token');
-  try {
-    // 1. Cập nhật đơn hàng → status 4 (Hoàn thành)
-    await axios.put(`http://localhost:8080/api/admin/orders/${checkoutOrder.value.id}/status?status=4`, {}, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    
-    // 2. Cập nhật bàn → status 3 (Cần dọn)
-    const table = tables.value.find(t => t.name === checkoutTableName.value);
-    if (table) {
-      await axios.put(`http://localhost:8080/api/tables/${table.id}/status?status=3`, {}, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-    }
-    
-    checkoutOrder.value = null;
-    toastMsg.value = `✅ Thanh toán bàn ${checkoutTableName.value} thành công! MãGD: ${checkoutTxCode.value}`;
-    setTimeout(() => { toastMsg.value = ''; }, 4000);
-    fetchData();
-  } catch (error) {
-    alert('Lỗi khi xác nhận thanh toán!');
   }
 };
 
@@ -1031,17 +997,17 @@ const confirmMoveTable = async () => {
     const oldAddress = activeOrder.address;
     const newAddress = oldAddress.replace(`Bàn: ${movingTable.value.name}`, `Bàn: ${newTable.name}`);
     
-    await axios.put(`http://localhost:8080/api/admin/orders/${activeOrder.id}/address?newAddress=${encodeURIComponent(newAddress)}`, {}, {
+    await axios.put(`/api/admin/orders/${activeOrder.id}/address?newAddress=${encodeURIComponent(newAddress)}`, {}, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
 
     // 2. Set bàn mới thành Có Khách (2)
-    await axios.put(`http://localhost:8080/api/tables/${newTable.id}/status?status=2`, {}, {
+    await axios.put(`/api/tables/${newTable.id}/status?status=2`, {}, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
 
     // 3. Set bàn cũ thành Trống (0)
-    await axios.put(`http://localhost:8080/api/tables/${movingTable.value.id}/status?status=0`, {}, {
+    await axios.put(`/api/tables/${movingTable.value.id}/status?status=0`, {}, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
 
@@ -1078,12 +1044,12 @@ const confirmMergeTable = async () => {
   const token = localStorage.getItem('token');
   try {
     if (mergeMode.value === 'PHYSICAL') {
-      await axios.put(`http://localhost:8080/api/tables/${movingTable.value.id}/link/${targetTable.id}`, {}, {
+      await axios.put(`/api/tables/${movingTable.value.id}/link/${targetTable.id}`, {}, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       toastMsg.value = `✅ Đã ghép bàn vật lý ${movingTable.value.name} vào ${targetTable.name}!`;
     } else {
-      await axios.post('http://localhost:8080/api/orders/merge-tables', {
+      await axios.post('/api/orders/merge-tables', {
         fromTable: movingTable.value.name,
         toTable: targetTable.name
       }, { headers: { 'Authorization': `Bearer ${token}` } });
@@ -1102,7 +1068,7 @@ const unlinkTable = async (table) => {
   if (!confirm('Bạn có chắc chắn muốn tách bàn này ra trở lại thành bàn trống không?')) return;
   try {
     const token = localStorage.getItem('token');
-    await axios.put(`http://localhost:8080/api/tables/${table.id}/unlink`, {}, {
+    await axios.put(`/api/tables/${table.id}/unlink`, {}, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     toastMsg.value = `✅ Đã tách ${table.name} thành công!`;
@@ -1148,7 +1114,7 @@ const confirmSplitTable = async () => {
   const targetTable = tables.value.find(t => t.id === splitTargetTableId.value);
   const token = localStorage.getItem('token');
   try {
-    await axios.post('http://localhost:8080/api/orders/split-table', {
+    await axios.post('/api/orders/split-table', {
       fromTable: movingTable.value.name,
       toTable: targetTable.name,
       detailIds: selectedDetailIds.value
@@ -1167,7 +1133,7 @@ const confirmSplitTable = async () => {
 const upgradeToOccupied = async (table) => {
   if (!confirm(`Khách đặt trước bàn ${table.name} đã đến?`)) return;
   try {
-    await axios.put(`http://localhost:8080/api/tables/${table.id}/status?status=2`, {}, {
+    await axios.put(`/api/tables/${table.id}/status?status=2`, {}, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     });
     toastMsg.value = `✅ Đã đánh dấu Bàn ${table.name} CÓ KHÁCH!`;
@@ -1181,7 +1147,7 @@ const upgradeToOccupied = async (table) => {
 const cancelBooking = async (table) => {
   if (!confirm(`Xác nhận HỦY CỌC bàn ${table.name}? Bàn sẽ trở về trạng thái TRỐNG.`)) return;
   try {
-    await axios.put(`http://localhost:8080/api/tables/${table.id}/status?status=0`, {}, {
+    await axios.put(`/api/tables/${table.id}/status?status=0`, {}, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     });
     toastMsg.value = `❌ Đã hủy cọc Bàn ${table.name}!`;
@@ -1225,7 +1191,7 @@ const getAiUpsellAdvice = async () => {
   }
 
   try {
-    const res = await axios.post('http://localhost:8080/api/chatbot/chat', {
+    const res = await axios.post('/api/chatbot/chat', {
       type: 'WAITER_UPSELL',
       message: JSON.stringify(dishList)
     });
@@ -1239,10 +1205,11 @@ const getAiUpsellAdvice = async () => {
 
 // === WEBSOCKET ===
 const connectWebSocket = () => {
-  const socket = new SockJS('http://localhost:8080/ws');
+  const socket = new SockJS('/ws');
   stompClient = Stomp.over(socket);
   stompClient.debug = () => {}; // Tắt log debug
-  stompClient.connect({}, (frame) => {
+  const token = localStorage.getItem('token');
+  stompClient.connect(token ? { Authorization: `Bearer ${token}` } : {}, () => {
     stompClient.subscribe('/topic/waiter', (message) => {
       if (message.body === 'ORDER_READY' || message.body === 'DISH_STATUS_CHANGED') {
         fetchData();
@@ -1283,7 +1250,7 @@ onUnmounted(() => {
 
 /* HEADER */
 .waiter-header {
-  background: rgba(13, 27, 42, 0.4);
+  background: rgba(255, 255, 255, 0.72);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
@@ -1299,7 +1266,7 @@ onUnmounted(() => {
 .header-right { display: flex; align-items: center; gap: 16px; }
 
 .brand { display: flex; align-items: center; gap: 14px; }
-.brand-icon { font-size: 2rem; filter: drop-shadow(0 0 10px rgba(0, 212, 170, 0.5)); }
+.brand-icon { font-size: 2rem; filter: drop-shadow(0 0 10px rgba(90, 110, 69, 0.5)); }
 .brand h2 { margin: 0; font-size: 1.3rem; font-weight: 900; color: var(--primary); letter-spacing: 1px; }
 .brand p { margin: 0; font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 2px; }
 
@@ -1307,9 +1274,9 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: rgba(231, 76, 60, 0.15);
-  border: 1px solid rgba(231, 76, 60, 0.3);
-  color: #e74c3c;
+  background: rgba(178, 59, 46, 0.15);
+  border: 1px solid rgba(178, 59, 46, 0.3);
+  color: #B23B2E;
   padding: 6px 14px;
   border-radius: 20px;
   font-size: 0.83rem;
@@ -1318,7 +1285,7 @@ onUnmounted(() => {
 }
 .alert-dot {
   width: 7px; height: 7px;
-  background: #e74c3c;
+  background: #B23B2E;
   border-radius: 50%;
   animation: pulse-red 1.2s ease-in-out infinite;
 }
@@ -1342,21 +1309,21 @@ onUnmounted(() => {
 }
 
 .btn-logout {
-  background: rgba(231, 76, 60, 0.15);
-  border: 1px solid rgba(231, 76, 60, 0.3);
-  color: #e74c3c;
+  background: rgba(178, 59, 46, 0.15);
+  border: 1px solid rgba(178, 59, 46, 0.3);
+  color: #B23B2E;
   padding: 8px 18px;
   border-radius: var(--radius-md);
   cursor: pointer; font-weight: 700; font-size: 0.88rem; font-family: inherit;
   transition: var(--transition);
 }
-.btn-logout:hover { background: rgba(231,76,60,0.3); }
+.btn-logout:hover { background: rgba(178,59,46,0.3); }
 
 /* STATS BAR */
 .stats-bar {
   display: flex; justify-content: center; gap: 8px;
   padding: 14px 24px;
-  background: rgba(6,13,26,0.8);
+  background: rgba(43, 36, 32, 0.18);
   border-bottom: 1px solid var(--border-light);
   flex-wrap: wrap;
 }
@@ -1365,12 +1332,12 @@ onUnmounted(() => {
   background: var(--bg-card); border: 1px solid var(--border-light);
   border-radius: 12px; padding: 10px 18px; min-width: 100px;
 }
-.stat-item.stat-urgent { border-color: rgba(231,76,60,0.3); }
-.stat-item.stat-active { border-color: rgba(243,156,18,0.3); }
-.stat-item.stat-done { border-color: rgba(0,212,170,0.3); }
+.stat-item.stat-urgent { border-color: rgba(178,59,46,0.3); }
+.stat-item.stat-active { border-color: rgba(185,130,41,0.3); }
+.stat-item.stat-done { border-color: rgba(90, 110, 69, 0.3); }
 .stat-value { font-size: 1.5rem; font-weight: 900; color: var(--text-heading); }
-.stat-item.stat-urgent .stat-value { color: #e74c3c; }
-.stat-item.stat-active .stat-value { color: #f39c12; }
+.stat-item.stat-urgent .stat-value { color: #B23B2E; }
+.stat-item.stat-active .stat-value { color: #B98229; }
 .stat-item.stat-done .stat-value { color: var(--primary); }
 .stat-label {
   font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase;
@@ -1415,10 +1382,10 @@ onUnmounted(() => {
 }
 .legend { display: flex; gap: 12px; }
 .legend-item { font-size: 0.8rem; font-weight: 600; padding: 4px 12px; border-radius: 20px; }
-.legend-item.empty { background: rgba(0,212,170,0.1); color: var(--primary); }
-.legend-item.booked { background: rgba(241,196,15,0.1); color: #f1c40f; }
-.legend-item.occupied { background: rgba(231,76,60,0.1); color: #e74c3c; }
-.legend-item.cleaning { background: rgba(155, 89, 182, 0.1); color: #9b59b6; }
+.legend-item.empty { background: rgba(90, 110, 69, 0.1); color: var(--primary); }
+.legend-item.booked { background: rgba(185,130,41,0.1); color: #B98229; }
+.legend-item.occupied { background: rgba(178,59,46,0.1); color: #B23B2E; }
+.legend-item.cleaning { background: rgba(192, 138, 46, 0.1); color: #C08A2E; }
 
 /* Serve Grid */
 .serve-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
@@ -1426,7 +1393,7 @@ onUnmounted(() => {
   position: relative;
   background: var(--bg-card);
   border: 1px solid var(--border-light);
-  border-left: 4px solid #e74c3c;
+  border-left: 4px solid #B23B2E;
   border-radius: var(--radius-lg);
   padding: 0;
   display: flex; flex-direction: column;
@@ -1435,11 +1402,11 @@ onUnmounted(() => {
   animation: slideIn 0.4s ease;
   transition: var(--transition);
 }
-.serve-card:hover { box-shadow: 0 0 30px rgba(231,76,60,0.15), var(--shadow-md); }
+.serve-card:hover { box-shadow: 0 0 30px rgba(178,59,46,0.15), var(--shadow-md); }
 .serve-card-glow {
   position: absolute;
   left: 0; top: 0; bottom: 0; width: 200px;
-  background: linear-gradient(90deg, rgba(231,76,60,0.05), transparent);
+  background: linear-gradient(90deg, rgba(178,59,46,0.05), transparent);
   pointer-events: none;
 }
 @keyframes slideIn {
@@ -1456,12 +1423,12 @@ onUnmounted(() => {
 /* Timer Badge */
 .timer-badge {
   font-size: 0.75rem; font-weight: 800; padding: 4px 10px;
-  border-radius: 20px; font-family: 'Courier New', monospace;
+  border-radius: 20px; font-family: var(--font-primary);
   white-space: nowrap;
 }
-.timer-normal { background: rgba(0,212,170,0.15); color: var(--primary); }
-.timer-warning { background: rgba(243,156,18,0.2); color: #f39c12; }
-.timer-critical { background: rgba(231,76,60,0.2); color: #e74c3c; animation: blink-timer 0.8s ease-in-out infinite; }
+.timer-normal { background: rgba(90, 110, 69, 0.15); color: var(--primary); }
+.timer-warning { background: rgba(185,130,41,0.2); color: #B98229; }
+.timer-critical { background: rgba(178,59,46,0.2); color: #B23B2E; animation: blink-timer 0.8s ease-in-out infinite; }
 @keyframes blink-timer {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
@@ -1484,11 +1451,11 @@ onUnmounted(() => {
 }
 .serve-dish-icon { font-size: 1rem; }
 .serve-dish-name { font-size: 0.8rem; font-weight: 600; color: var(--text-heading); flex: 1; }
-.serve-dish-price { color: #e74c3c; font-weight: bold; margin-left: auto; font-size: 0.8rem; }
+.serve-dish-price { color: #B23B2E; font-weight: bold; margin-left: auto; font-size: 0.8rem; }
 
 .btn-dish-served {
-  background: #27ae60;
-  color: white;
+  background: #2F8F5B;
+  color: #FFFFFF;
   border: none;
   padding: 3px 6px;
   border-radius: 4px;
@@ -1497,13 +1464,13 @@ onUnmounted(() => {
   transition: 0.2s;
 }
 .btn-dish-served:hover {
-  background: #2ecc71;
+  background: #2F8F5B;
   transform: scale(1.05);
 }
 
 .serve-dish-qty {
   font-size: 0.78rem; font-weight: 800;
-  background: rgba(0,212,170,0.15); color: var(--primary);
+  background: rgba(90, 110, 69, 0.15); color: var(--primary);
   padding: 2px 8px; border-radius: 10px;
 }
 
@@ -1518,7 +1485,7 @@ onUnmounted(() => {
   width: 100%;
   border-top: 1px solid var(--border-light);
 }
-.btn-served:hover { background: linear-gradient(135deg, var(--primary-dark), var(--primary)); box-shadow: 0 6px 20px rgba(0,212,170,0.4); }
+.btn-served:hover { background: linear-gradient(135deg, var(--primary-dark), var(--primary)); box-shadow: 0 6px 20px rgba(90, 110, 69, 0.4); }
 
 /* Empty */
 .empty-state { text-align: center; padding: 40px; color: var(--text-muted); }
@@ -1553,11 +1520,11 @@ onUnmounted(() => {
   transform: translateY(-5px);
   box-shadow: 0 8px 20px rgba(0,0,0,0.3);
 }
-.table-box.table-empty { border-color: #2ecc71; box-shadow: 0 0 10px rgba(46, 204, 113, 0.1); }
-.table-box.table-booked { border-color: #f1c40f; box-shadow: 0 0 10px rgba(241, 196, 15, 0.1); }
-.table-box.table-occupied { border-color: #e74c3c; box-shadow: 0 0 10px rgba(231, 76, 60, 0.1); }
-.table-box.table-cleaning { border-color: #9b59b6; box-shadow: 0 0 10px rgba(155, 89, 182, 0.1); }
-.table-box.table-linked { border-color: #3498db; box-shadow: 0 0 10px rgba(52, 152, 219, 0.1); background: rgba(52, 152, 219, 0.05); }
+.table-box.table-empty { border-color: #2F8F5B; box-shadow: 0 0 10px rgba(47, 143, 91, 0.1); }
+.table-box.table-booked { border-color: #B98229; box-shadow: 0 0 10px rgba(185, 130, 41, 0.1); }
+.table-box.table-occupied { border-color: #B23B2E; box-shadow: 0 0 10px rgba(178, 59, 46, 0.1); }
+.table-box.table-cleaning { border-color: #C08A2E; box-shadow: 0 0 10px rgba(192, 138, 46, 0.1); }
+.table-box.table-linked { border-color: #5A6E45; box-shadow: 0 0 10px rgba(90, 110, 69, 0.1); background: rgba(90, 110, 69, 0.05); }
 
 .tc-top {
   display: flex;
@@ -1567,7 +1534,7 @@ onUnmounted(() => {
 }
 .tc-capacity {
   background: rgba(255,255,255,0.05);
-  color: #3498db;
+  color: #5A6E45;
   padding: 2px 8px;
   border-radius: 12px;
   font-size: 0.75rem;
@@ -1590,17 +1557,17 @@ onUnmounted(() => {
   border-radius: 50%;
   margin: 0 auto 8px auto;
 }
-.table-empty .tc-dot { background: #2ecc71; box-shadow: 0 0 8px #2ecc71; }
-.table-booked .tc-dot { background: #f1c40f; box-shadow: 0 0 8px #f1c40f; }
-.table-occupied .tc-dot { background: #e74c3c; box-shadow: 0 0 8px #e74c3c; }
-.table-cleaning .tc-dot { background: #9b59b6; box-shadow: 0 0 8px #9b59b6; }
-.table-linked .tc-dot { background: #3498db; box-shadow: 0 0 8px #3498db; }
+.table-empty .tc-dot { background: #2F8F5B; box-shadow: 0 0 8px #2F8F5B; }
+.table-booked .tc-dot { background: #B98229; box-shadow: 0 0 8px #B98229; }
+.table-occupied .tc-dot { background: #B23B2E; box-shadow: 0 0 8px #B23B2E; }
+.table-cleaning .tc-dot { background: #C08A2E; box-shadow: 0 0 8px #C08A2E; }
+.table-linked .tc-dot { background: #5A6E45; box-shadow: 0 0 8px #5A6E45; }
 
 .tc-center h4 {
   margin: 0 0 5px 0;
   font-size: 1.2rem;
   font-weight: 900;
-  color: #fff;
+  color: #FFFFFF;
 }
 .tc-subtitle {
   margin: 0;
@@ -1654,9 +1621,9 @@ onUnmounted(() => {
 
 .btn-add-item {
   width: 100%;
-  background: rgba(46, 204, 113, 0.1);
-  color: #2ecc71;
-  border: 1px solid rgba(46, 204, 113, 0.3);
+  background: rgba(47, 143, 91, 0.1);
+  color: #2F8F5B;
+  border: 1px solid rgba(47, 143, 91, 0.3);
   padding: 6px;
   border-radius: 4px;
   font-size: 0.75rem;
@@ -1664,13 +1631,13 @@ onUnmounted(() => {
   cursor: pointer;
   transition: all 0.3s ease;
 }
-.btn-add-item:hover { background: #2ecc71; color: white; }
+.btn-add-item:hover { background: #2F8F5B; color: #FFFFFF; }
 
 .btn-upgrade {
   flex: 1;
-  background: rgba(46, 204, 113, 0.1);
-  color: #2ecc71;
-  border: 1px solid rgba(46, 204, 113, 0.3);
+  background: rgba(47, 143, 91, 0.1);
+  color: #2F8F5B;
+  border: 1px solid rgba(47, 143, 91, 0.3);
   padding: 6px;
   border-radius: 4px;
   font-size: 0.75rem;
@@ -1678,13 +1645,13 @@ onUnmounted(() => {
   cursor: pointer;
   transition: all 0.3s ease;
 }
-.btn-upgrade:hover { background: #2ecc71; color: white; }
+.btn-upgrade:hover { background: #2F8F5B; color: #FFFFFF; }
 
 .btn-cancel-book {
   flex: 1;
-  background: rgba(231, 76, 60, 0.1);
-  color: #e74c3c;
-  border: 1px solid rgba(231, 76, 60, 0.3);
+  background: rgba(178, 59, 46, 0.1);
+  color: #B23B2E;
+  border: 1px solid rgba(178, 59, 46, 0.3);
   padding: 6px;
   border-radius: 4px;
   font-size: 0.75rem;
@@ -1692,7 +1659,7 @@ onUnmounted(() => {
   cursor: pointer;
   transition: all 0.3s ease;
 }
-.btn-cancel-book:hover { background: #e74c3c; color: white; }
+.btn-cancel-book:hover { background: #B23B2E; color: #FFFFFF; }
 
 /* Toast */
 .toast-notification {
@@ -1705,7 +1672,7 @@ onUnmounted(() => {
   padding: 14px 28px;
   border-radius: 30px;
   border: 1px solid var(--primary);
-  box-shadow: 0 0 30px rgba(0,212,170,0.3);
+  box-shadow: 0 0 30px rgba(90, 110, 69, 0.3);
   font-weight: bold;
   z-index: 1000;
   animation: slideUp 0.3s ease;
@@ -1738,10 +1705,10 @@ onUnmounted(() => {
   padding: 4px 12px; border-radius: 20px;
   font-size: 0.78rem; font-weight: 700;
 }
-.badge-cooking { background: rgba(243,156,18,0.15); color: #f39c12; }
-.badge-ready { background: rgba(0,212,170,0.15); color: var(--primary); }
-.badge-serving { background: rgba(52,152,219,0.15); color: #3498db; }
-.badge-done { background: rgba(46,204,113,0.15); color: #2ecc71; }
+.badge-cooking { background: rgba(185,130,41,0.15); color: #B98229; }
+.badge-ready { background: rgba(90, 110, 69, 0.15); color: var(--primary); }
+.badge-serving { background: rgba(90, 110, 69, 0.15); color: #5A6E45; }
+.badge-done { background: rgba(47,143,91,0.15); color: #2F8F5B; }
 
 .detail-dishes {
   max-height: 350px; overflow-y: auto;
@@ -1760,7 +1727,7 @@ onUnmounted(() => {
 .detail-dish-left strong { color: var(--text-heading); font-size: 0.92rem; }
 .detail-dish-qty {
   margin-left: 6px; font-size: 0.78rem; font-weight: 700;
-  color: var(--primary); background: rgba(0,212,170,0.1);
+  color: var(--primary); background: rgba(90, 110, 69, 0.1);
   padding: 2px 8px; border-radius: 10px;
 }
 .detail-dish-price { font-weight: 700; color: var(--text-secondary); font-size: 0.9rem; white-space: nowrap; }
@@ -1778,15 +1745,15 @@ onUnmounted(() => {
   display: flex; align-items: center; justify-content: center; z-index: 2000;
 }
 .invoice-modal {
-  background: white; color: #000; width: 320px; border-radius: 8px; overflow: hidden;
+  background: #FFFFFF; color: #201D14; width: 320px; border-radius: 8px; overflow: hidden;
   max-height: 90vh; display: flex; flex-direction: column;
 }
 .modal-header {
-  background: var(--bg-nav); color: white; display: flex; justify-content: space-between; padding: 14px 18px; align-items: center;
+  background: var(--bg-nav); color: #FFFFFF; display: flex; justify-content: space-between; padding: 14px 18px; align-items: center;
 }
 .modal-header h2 { margin: 0; font-size: 1rem; color: var(--primary); }
-.btn-close { background: none; border: none; color: white; cursor: pointer; font-size: 1.2rem; transition: 0.3s; }
-.btn-close:hover { color: #e74c3c; transform: scale(1.1); }
+.btn-close { background: none; border: none; color: #FFFFFF; cursor: pointer; font-size: 1.2rem; transition: 0.3s; }
+.btn-close:hover { color: #B23B2E; transform: scale(1.1); }
 
 .modal-body {
   padding: 20px;
@@ -1795,22 +1762,22 @@ onUnmounted(() => {
   max-height: 60vh;
 }
 
-.invoice-content { padding: 20px; font-family: monospace; font-size: 0.9rem; overflow-y: auto; }
-.invoice-brand { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 10px; }
+.invoice-content { padding: 20px; font-family: var(--font-primary); font-size: 0.9rem; overflow-y: auto; }
+.invoice-brand { text-align: center; border-bottom: 1px dashed #201D14; padding-bottom: 10px; margin-bottom: 10px; }
 .invoice-brand h1 { margin: 0; font-size: 1.2rem; }
 .print-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
-.print-table th, .print-table td { padding: 4px 2px; border-bottom: 1px dashed #ccc; vertical-align: middle; font-size: 0.8rem; }
+.print-table th, .print-table td { padding: 4px 2px; border-bottom: 1px dashed #A6B0AA; vertical-align: middle; font-size: 0.8rem; }
 .bill-thumb {
   width: 32px; height: 32px; border-radius: 4px; object-fit: cover;
-  border: 1px solid #ddd;
+  border: 1px solid #CFC7A8;
 }
 .no-img-icon { font-size: 1.2rem; }
-.total-row { display: flex; justify-content: space-between; font-weight: bold; font-size: 1.1rem; border-top: 1px dashed #000; padding-top: 10px; }
-.qr-payment { text-align: center; margin-top: 20px; border-top: 1px dashed #000; padding-top: 10px; }
+.total-row { display: flex; justify-content: space-between; font-weight: bold; font-size: 1.1rem; border-top: 1px dashed #201D14; padding-top: 10px; }
+.qr-payment { text-align: center; margin-top: 20px; border-top: 1px dashed #201D14; padding-top: 10px; }
 .qr-payment img { width: 150px; }
 .invoice-footer { text-align: center; margin-top: 10px; font-size: 0.8rem; }
-.modal-actions { padding: 10px; text-align: center; background: #f1f1f1; }
-.btn-export { background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; width: 100%; }
+.modal-actions { padding: 10px; text-align: center; background: #E2DCC2; }
+.btn-export { background: #5A6E45; color: #FFFFFF; border: none; padding: 10px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; width: 100%; }
 
 @media print {
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
@@ -1825,8 +1792,8 @@ onUnmounted(() => {
     overflow: visible !important;
     box-shadow: none !important;
     border-radius: 0 !important;
-    background: white !important;
-    color: #000 !important;
+    background: #FFFFFF !important;
+    color: #201D14 !important;
     z-index: 99999 !important;
     margin: 0 auto !important;
   }
@@ -1864,8 +1831,8 @@ onUnmounted(() => {
 .btn-confirm-move {
   width: 100%;
   padding: 12px;
-  background: #f39c12;
-  color: white;
+  background: #B98229;
+  color: #FFFFFF;
   font-weight: bold;
   border: none;
   border-radius: 6px;
@@ -1873,11 +1840,11 @@ onUnmounted(() => {
   transition: all 0.3s ease;
 }
 .btn-confirm-move:disabled {
-  background: #7f8c8d;
+  background: #7A7460;
   cursor: not-allowed;
 }
 .btn-confirm-move:not(:disabled):hover {
-  background: #e67e22;
+  background: #C08A2E;
 }
 
 @keyframes slideDown {
@@ -1902,21 +1869,21 @@ onUnmounted(() => {
 /* AI Elements */
 .ai-upsell-action { margin-top: 15px; text-align: center; }
 .btn-ai-analyze {
-  background: linear-gradient(135deg, #1abc9c, #16a085);
-  color: white; border: none; padding: 10px 20px; border-radius: 8px; width: 100%;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: #FFFFFF; border: none; padding: 10px 20px; border-radius: 8px; width: 100%;
   font-weight: bold; cursor: pointer; transition: 0.3s;
-  box-shadow: 0 4px 15px rgba(26, 188, 156, 0.4); font-family: inherit; font-size: 0.95rem;
+  box-shadow: 0 4px 15px var(--primary-glow); font-family: inherit; font-size: 0.95rem;
 }
-.btn-ai-analyze:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(26, 188, 156, 0.6); }
+.btn-ai-analyze:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--primary-glow); }
 
 .ai-modal { background: var(--bg-card); width: 450px; max-width: 90%; border-radius: 12px; padding: 20px; border: 1px solid var(--primary); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
 .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.modal-header h2 { margin: 0; color: #1abc9c; font-size: 1.2rem; font-weight: 800; }
+.modal-header h2 { margin: 0; color: var(--primary); font-size: 1.2rem; font-weight: 800; }
 .btn-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-muted); }
-.ai-loading { text-align: center; padding: 30px; color: #1abc9c; font-weight: bold; }
-.spinner { width: 40px; height: 40px; border: 4px solid rgba(26, 188, 156, 0.2); border-top-color: #1abc9c; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px auto; }
+.ai-loading { text-align: center; padding: 30px; color: var(--primary); font-weight: bold; }
+.spinner { width: 40px; height: 40px; border: 4px solid var(--primary-glow); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px auto; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.ai-result { padding: 20px; font-size: 1.05rem; line-height: 1.6; color: var(--text-primary); border-left: 4px solid #1abc9c; background: rgba(26, 188, 156, 0.05); border-radius: 0 8px 8px 0; white-space: pre-line; font-weight: 600; }
+.ai-result { padding: 20px; font-size: 1.05rem; line-height: 1.6; color: var(--text-primary); border-left: 4px solid var(--primary); background: var(--primary-glow2); border-radius: 0 8px 8px 0; white-space: pre-line; font-weight: 600; }
 
 @media (max-width: 768px) {
   .waiter-header { padding: 0 14px; height: auto; flex-wrap: wrap; gap: 8px; padding-top: 10px; padding-bottom: 10px; }
@@ -1946,8 +1913,8 @@ onUnmounted(() => {
   justify-content: space-between;
   gap: 16px;
   padding: 12px 40px;
-  background: linear-gradient(135deg, rgba(0, 212, 170, 0.08), rgba(52, 152, 219, 0.06));
-  border-bottom: 1px solid rgba(0, 212, 170, 0.15);
+  background: linear-gradient(135deg, rgba(90, 110, 69, 0.08), rgba(90, 110, 69, 0.06));
+  border-bottom: 1px solid rgba(90, 110, 69, 0.15);
   animation: slideDownBanner 0.5s ease;
 }
 
@@ -1964,7 +1931,7 @@ onUnmounted(() => {
 
 .zone-info-icon {
   font-size: 1.5rem;
-  filter: drop-shadow(0 0 6px rgba(0, 212, 170, 0.5));
+  filter: drop-shadow(0 0 6px rgba(90, 110, 69, 0.5));
 }
 
 .zone-info-title {
@@ -1984,8 +1951,8 @@ onUnmounted(() => {
 
 .zone-floor-tag {
   padding: 4px 12px;
-  background: rgba(0, 212, 170, 0.15);
-  border: 1px solid rgba(0, 212, 170, 0.3);
+  background: rgba(90, 110, 69, 0.15);
+  border: 1px solid rgba(90, 110, 69, 0.3);
   color: var(--primary);
   border-radius: 16px;
   font-size: 0.82rem;
@@ -2008,8 +1975,8 @@ onUnmounted(() => {
   background: rgba(255, 255, 255, 0.1);
 }
 .btn-toggle-floors.active {
-  background: rgba(0, 212, 170, 0.15);
-  border-color: rgba(0, 212, 170, 0.4);
+  background: rgba(90, 110, 69, 0.15);
+  border-color: rgba(90, 110, 69, 0.4);
   color: var(--primary);
 }
 
@@ -2027,8 +1994,8 @@ onUnmounted(() => {
   display: inline-block;
   margin-left: 10px;
   padding: 3px 10px;
-  background: rgba(0, 212, 170, 0.15);
-  border: 1px solid rgba(0, 212, 170, 0.3);
+  background: rgba(90, 110, 69, 0.15);
+  border: 1px solid rgba(90, 110, 69, 0.3);
   color: var(--primary);
   border-radius: 12px;
   font-size: 0.72rem;
@@ -2038,8 +2005,8 @@ onUnmounted(() => {
 }
 
 @keyframes pulseZone {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 212, 170, 0.3); }
-  50% { box-shadow: 0 0 8px 2px rgba(0, 212, 170, 0.2); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(90, 110, 69, 0.3); }
+  50% { box-shadow: 0 0 8px 2px rgba(90, 110, 69, 0.2); }
 }
 
 .other-zone-hint {

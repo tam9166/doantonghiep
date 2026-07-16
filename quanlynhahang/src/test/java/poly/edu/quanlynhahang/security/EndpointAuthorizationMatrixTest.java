@@ -52,6 +52,11 @@ class EndpointAuthorizationMatrixTest {
                 "ADMIN", "MANAGER", "CASHIER");
         assertRoles(AdminOrderController.class.getMethod("confirmManualOrder", Integer.class),
                 "ADMIN", "MANAGER", "CASHIER");
+        assertRoles(AdminOrderController.class.getMethod("createPaymentQr", Integer.class),
+                "ADMIN", "MANAGER", "CASHIER");
+        assertRoles(AdminOrderController.class.getMethod(
+                        "regeneratePaymentQr", Integer.class, String.class, String.class),
+                "ADMIN", "MANAGER", "CASHIER");
     }
 
     private void assertRoles(Method method, String... expectedRoles) {

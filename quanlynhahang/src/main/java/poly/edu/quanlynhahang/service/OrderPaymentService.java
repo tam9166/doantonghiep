@@ -28,6 +28,8 @@ import java.util.Base64;
 import java.util.Date;
 import java.util.HexFormat;
 import java.util.Locale;
+import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class OrderPaymentService {
@@ -56,12 +58,102 @@ public class OrderPaymentService {
 
     @Transactional
     public PaymentQrResponse createForOrder(Order order) {
-        if (order == null || order.getId() == null || order.getTotalAmount() == null
-                || order.getTotalAmount() <= 0) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Đơn hàng chưa có tổng tiền hợp lệ");
-        }
+        validatePayableOrder(order);
         if (!OrderPaymentOption.PREPAID_TRANSFER.equals(order.getPaymentOption())) {
             return null;
+        }
+
+        return createOrReuse(order, "ORDER-CHECKOUT-" + order.getId(),
+                hash("CREATE|ORDER|" + order.getId() + "|FULL|" + payableAmount(order)));
+    }
+
+    @Transactional
+    public PaymentQrResponse createForExistingOrder(Integer orderId) {
+        Order order = orderRepository.findLockedById(orderId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Đơn hàng không tồn tại"));
+        validatePayableOrder(order);
+        if (Integer.valueOf(3).equals(order.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Không thể tạo QR cho đơn đã hủy");
+        }
+        if (Boolean.TRUE.equals(order.getIsPaid())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Đơn hàng đã thanh toán");
+        }
+
+        if (!OrderPaymentOption.PREPAID_TRANSFER.equals(order.getPaymentOption())) {
+            order.setPaymentOption(OrderPaymentOption.PREPAID_TRANSFER);
+            order.setPaymentStatus(PaymentStatus.UNPAID);
+            order.setPaidAmount(BigDecimal.ZERO);
+            order.setRemainingAmount(payableAmount(order));
+            orderRepository.save(order);
+        }
+
+        String requestHash = hash("CREATE|ORDER|" + order.getId() + "|FULL|" + payableAmount(order));
+        return createOrReuse(order, "ORDER-QR-" + order.getId() + "-" + UUID.randomUUID(), requestHash);
+    }
+
+    @Transactional
+    public PaymentQrResponse regenerate(Integer orderId, String paymentCode, String idempotencyKey) {
+        String normalizedKey = normalizeIdempotencyKey(idempotencyKey);
+        Order order = orderRepository.findLockedById(orderId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Đơn hàng không tồn tại"));
+        validatePayableOrder(order);
+        if (Integer.valueOf(3).equals(order.getStatus()) || Boolean.TRUE.equals(order.getIsPaid())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Không thể tạo lại QR cho đơn đã hủy hoặc đã thanh toán");
+        }
+
+        PaymentIntent existing = intentRepository.findLockedByPaymentCode(paymentCode)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Không tìm thấy giao dịch thanh toán"));
+        if (existing.getOrder() == null || !orderId.equals(existing.getOrder().getId())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Giao dịch không thuộc hóa đơn này");
+        }
+
+        String requestHash = hash("REGENERATE|ORDER|" + orderId + "|" + paymentCode);
+        Optional<PaymentIntent> idempotent = intentRepository.findByIdempotencyKey(normalizedKey);
+        if (idempotent.isPresent()) {
+            PaymentIntent replacement = idempotent.get();
+            if (replacement.getOrder() == null
+                    || !orderId.equals(replacement.getOrder().getId())
+                    || replacement.getRequestHash() == null
+                    || !MessageDigest.isEqual(replacement.getRequestHash().getBytes(StandardCharsets.US_ASCII),
+                            requestHash.getBytes(StandardCharsets.US_ASCII))) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "IDEMPOTENCY_CONFLICT");
+            }
+            return toResponse(replacement);
+        }
+        if (PaymentStatus.PAID.equals(existing.getStatus())
+                || PaymentStatus.OVERPAID.equals(existing.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Giao dịch đã thanh toán");
+        }
+        if (existing.getPaidAmount() != null && existing.getPaidAmount().signum() > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Giao dịch đã nhận một phần tiền, cần đối soát thủ công");
+        }
+        if (PaymentStatus.REPLACED.equals(existing.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "PAYMENT_INTENT_ALREADY_REPLACED");
+        }
+        if (PaymentStatus.CANCELLED.equals(existing.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Giao dịch đã bị hủy");
+        }
+
+        existing.setStatus(PaymentStatus.REPLACED);
+        intentRepository.saveAndFlush(existing);
+        PaymentIntent replacement = createIntent(order, normalizedKey, requestHash);
+        existing.setReplacedById(replacement.getId());
+        intentRepository.save(existing);
+        activityLogService.log("REGENERATE_QR", "PaymentIntent", String.valueOf(existing.getId()),
+                "Tạo lại QR cho đơn hàng #" + orderId);
+        return toResponse(replacement);
+    }
+
+    private PaymentQrResponse createOrReuse(Order order, String idempotencyKey, String requestHash) {
+        PaymentIntent partiallyPaid = intentRepository
+                .findFirstByOrderIdAndPaymentOptionAndStatusOrderByCreatedAtDesc(
+                        order.getId(), PaymentOption.FULL, PaymentStatus.PARTIALLY_PAID)
+                .orElse(null);
+        if (partiallyPaid != null) {
+            return toResponse(partiallyPaid);
         }
 
         PaymentIntent active = intentRepository
@@ -76,7 +168,11 @@ public class OrderPaymentService {
             intentRepository.saveAndFlush(active);
         }
 
-        BigDecimal amount = BigDecimal.valueOf(order.getTotalAmount()).setScale(0, RoundingMode.HALF_UP);
+        return toResponse(createIntent(order, idempotencyKey, requestHash));
+    }
+
+    private PaymentIntent createIntent(Order order, String idempotencyKey, String requestHash) {
+        BigDecimal amount = payableAmount(order);
         PaymentIntent intent = new PaymentIntent();
         intent.setOrder(order);
         intent.setReservation(null);
@@ -98,14 +194,14 @@ public class OrderPaymentService {
         intent.setQrProvider(properties.getQrProvider().trim().toUpperCase(Locale.ROOT));
         intent.setTransferContent(transferContent(order.getId(), intent.getPaymentCode()));
         intent.setExpiresAt(Date.from(Instant.now().plusSeconds(properties.getQrExpirationMinutes() * 60L)));
-        intent.setIdempotencyKey("ORDER-CHECKOUT-" + order.getId());
-        intent.setRequestHash(hash("CREATE|ORDER|" + order.getId() + "|FULL|" + amount));
+        intent.setIdempotencyKey(idempotencyKey);
+        intent.setRequestHash(requestHash);
         intent.setCreatedBy(order.getAccount() == null ? "GUEST" : order.getAccount().getUsername());
         intent.setQrUrl(vietQrUrl(intent));
         PaymentIntent saved = intentRepository.save(intent);
         activityLogService.log("CREATE_PAYMENT_INTENT", "Order", String.valueOf(order.getId()),
                 "Tạo QR thanh toán cho đơn hàng");
-        return toResponse(saved);
+        return saved;
     }
 
     @Transactional
@@ -150,14 +246,46 @@ public class OrderPaymentService {
                 .setScale(0, RoundingMode.HALF_UP);
         order.setPaidAmount(aggregatePaid.max(BigDecimal.ZERO));
         order.setRemainingAmount(total.subtract(aggregatePaid).max(BigDecimal.ZERO));
-        order.setPaymentStatus(status);
-        boolean fullyPaid = PaymentStatus.PAID.equals(status) || PaymentStatus.OVERPAID.equals(status);
+        PaymentStatus effectiveStatus = paymentStatus(aggregatePaid, total);
+        order.setPaymentStatus(effectiveStatus);
+        boolean fullyPaid = PaymentStatus.PAID.equals(effectiveStatus)
+                || PaymentStatus.OVERPAID.equals(effectiveStatus);
         order.setIsPaid(fullyPaid);
         if (fullyPaid && Integer.valueOf(0).equals(order.getStatus())) {
             order.setStatus(1);
             messagingTemplate.convertAndSend("/topic/kitchen", "NEW_ORDER");
         }
         return orderRepository.save(order);
+    }
+
+    private void validatePayableOrder(Order order) {
+        if (order == null || order.getId() == null || order.getTotalAmount() == null
+                || order.getTotalAmount() <= 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Đơn hàng chưa có tổng tiền hợp lệ");
+        }
+    }
+
+    private BigDecimal payableAmount(Order order) {
+        return BigDecimal.valueOf(order.getTotalAmount()).setScale(0, RoundingMode.HALF_UP);
+    }
+
+    private PaymentStatus paymentStatus(BigDecimal paidAmount, BigDecimal expectedAmount) {
+        int comparison = paidAmount.compareTo(expectedAmount);
+        if (paidAmount.signum() <= 0) return PaymentStatus.UNPAID;
+        if (comparison < 0) return PaymentStatus.PARTIALLY_PAID;
+        if (comparison == 0) return PaymentStatus.PAID;
+        return PaymentStatus.OVERPAID;
+    }
+
+    private String normalizeIdempotencyKey(String idempotencyKey) {
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "IDEMPOTENCY_KEY_REQUIRED");
+        }
+        String normalized = idempotencyKey.trim();
+        if (normalized.length() < 8 || normalized.length() > 100) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "IDEMPOTENCY_KEY_INVALID");
+        }
+        return normalized;
     }
 
     private String nextPaymentCode() {

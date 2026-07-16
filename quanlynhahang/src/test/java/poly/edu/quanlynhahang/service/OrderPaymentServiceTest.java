@@ -20,6 +20,7 @@ import java.math.BigDecimal;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -62,6 +63,69 @@ class OrderPaymentServiceTest {
         assertTrue(response.getTransferContent().startsWith("TT DH12 "));
         assertTrue(response.getQrUrl().contains("amount=216000"));
         verify(intentRepository).save(any(PaymentIntent.class));
+    }
+
+    @Test
+    void cashierCreatesServerQrAndSwitchesOrderToLedgerPayment() {
+        Order order = order(12, OrderPaymentOption.PAY_AT_RESTAURANT, PaymentStatus.UNPAID, 216_000.0);
+        when(orderRepository.findLockedById(12)).thenReturn(Optional.of(order));
+        when(intentRepository.findFirstByOrderIdAndPaymentOptionAndStatusOrderByCreatedAtDesc(
+                12, PaymentOption.FULL, PaymentStatus.PENDING)).thenReturn(Optional.empty());
+
+        PaymentQrResponse response = service.createForExistingOrder(12);
+
+        assertEquals(OrderPaymentOption.PREPAID_TRANSFER, order.getPaymentOption());
+        assertEquals(new BigDecimal("216000"), response.getAmount());
+        assertEquals("919112006789", response.getAccountNumber());
+        verify(orderRepository).save(order);
+        verify(intentRepository).save(any(PaymentIntent.class));
+    }
+
+    @Test
+    void reusesUnexpiredOrderQrInsteadOfCreatingDuplicateIntent() {
+        Order order = order(12, OrderPaymentOption.PAY_AT_RESTAURANT, PaymentStatus.UNPAID, 216_000.0);
+        PaymentIntent active = new PaymentIntent();
+        active.setOrder(order);
+        active.setPaymentCode("PAY-EXISTING");
+        active.setPaymentOption(PaymentOption.FULL);
+        active.setStatus(PaymentStatus.PENDING);
+        active.setAmount(new BigDecimal("216000"));
+        active.setBankCode("MB");
+        active.setAccountNumber("919112006789");
+        active.setAccountHolder("HOANG NGUYEN MINH TAM");
+        active.setTransferContent("TT DH12 EXISTING");
+        active.setExpiresAt(java.util.Date.from(java.time.Instant.now().plusSeconds(300)));
+        when(orderRepository.findLockedById(12)).thenReturn(Optional.of(order));
+        when(intentRepository.findFirstByOrderIdAndPaymentOptionAndStatusOrderByCreatedAtDesc(
+                12, PaymentOption.FULL, PaymentStatus.PENDING)).thenReturn(Optional.of(active));
+
+        PaymentQrResponse response = service.createForExistingOrder(12);
+
+        assertEquals("PAY-EXISTING", response.getPaymentCode());
+        verify(intentRepository, never()).save(any(PaymentIntent.class));
+    }
+
+    @Test
+    void regeneratesQrWithoutCreatingAnotherOrder() {
+        Order order = order(12, OrderPaymentOption.PREPAID_TRANSFER, PaymentStatus.UNPAID, 216_000.0);
+        PaymentIntent existing = new PaymentIntent();
+        existing.setId(3L);
+        existing.setOrder(order);
+        existing.setPaymentCode("PAY-OLD");
+        existing.setPaymentOption(PaymentOption.FULL);
+        existing.setStatus(PaymentStatus.PENDING);
+        existing.setPaidAmount(BigDecimal.ZERO);
+        when(orderRepository.findLockedById(12)).thenReturn(Optional.of(order));
+        when(intentRepository.findLockedByPaymentCode("PAY-OLD")).thenReturn(Optional.of(existing));
+        when(intentRepository.findByIdempotencyKey("regen-key-001")).thenReturn(Optional.empty());
+
+        PaymentQrResponse response = service.regenerate(12, "PAY-OLD", "regen-key-001");
+
+        assertEquals(PaymentStatus.REPLACED, existing.getStatus());
+        assertNotEquals("PAY-OLD", response.getPaymentCode());
+        assertEquals("919112006789", response.getAccountNumber());
+        verify(intentRepository).saveAndFlush(existing);
+        verify(orderRepository, never()).save(any());
     }
 
     @Test

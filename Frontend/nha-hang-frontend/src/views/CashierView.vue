@@ -17,7 +17,7 @@
           <button @click="activeTab = 'history'" :class="['tab-btn', { active: activeTab === 'history' }]">📜 Lịch Sử Hóa Đơn</button>
         </div>
         <button @click="openShiftModal" class="btn-primary" style="padding: 10px 20px; border-radius: 6px; font-weight: bold;">📋 Kết Ca</button>
-        <button @click="$router.push('/staff')" class="btn-profile" style="background:#8e44ad; color:white; padding:10px 20px; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">👤 Cá Nhân</button>
+        <button @click="$router.push('/staff')" class="btn-profile" style="background:#8A641F; color:#FFFFFF; padding:10px 20px; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">👤 Cá Nhân</button>
         <button @click="logout" class="btn-logout">Đăng Xuất</button>
       </div>
     </header>
@@ -43,7 +43,7 @@
               <div class="tc-dot"></div>
               <h4>{{ table.name }}</h4>
               <p class="tc-subtitle">
-                <span v-if="table.isOccupied >= 2" style="color:#f1c40f; font-weight: bold;">
+                <span v-if="table.isOccupied >= 2" style="color:#B98229; font-weight: bold;">
                   {{ getPendingTotalForTable(table.name).toLocaleString() }}đ
                 </span>
                 <span v-else>
@@ -86,7 +86,7 @@
             <tbody>
               <tr v-for="item in selectedOrder.orderDetails" :key="item.id">
                 <td style="text-align: center;">
-                  <img v-if="item.product.image" :src="item.product.image" style="width: 40px; height: 40px; border-radius: 4px; object-fit: cover; display: inline-block;" />
+                  <img v-if="item.product.image" :src="foodImage(item.product.image)" @error="replaceFoodImage" style="width: 40px; height: 40px; border-radius: 4px; object-fit: cover; display: inline-block;" />
                   <span v-else style="font-size: 1.5rem;">🍽️</span>
                 </td>
                 <td>{{ item.product.name }}</td>
@@ -115,14 +115,22 @@
           </div>
 
           <!-- Khu vực QR Code Thanh Toán -->
-          <div class="qr-payment-section hide-on-print" v-if="!selectedOrder.isPaid" style="margin-top: 20px; padding: 15px; background: rgba(0, 212, 170, 0.05); border: 1px dashed var(--primary); border-radius: 8px;">
-            <h4 style="text-align: center; margin-top: 0; margin-bottom: 10px; color: var(--primary); font-size: 1.1rem;">Quét Mã QR Để Thanh Toán</h4>
-            <div style="text-align: center;">
-              <img :src="vietQrUrl" alt="QR Thanh Toán" style="width: 180px; height: 180px; border-radius: 8px; padding: 5px; background: #fff;" />
-              <p style="margin-top: 10px; margin-bottom: 2px; font-weight: bold; color: #000;">Chủ TK: NGUYEN QUANG NHAT</p>
-              <p style="color: #555; font-size: 0.85rem; margin: 0;">Ngân hàng: Vietcombank</p>
+          <div class="qr-payment-section hide-on-print" v-if="!selectedOrder.isPaid" style="margin-top: 20px; padding: 15px; background: rgba(90, 110, 69, 0.05); border: 1px dashed var(--primary); border-radius: 8px;">
+            <h4 style="text-align: center; margin-top: 0; margin-bottom: 10px; color: var(--primary); font-size: 1.1rem;">QR Chuyển Khoản Theo Hóa Đơn</h4>
+            <p v-if="paymentQrLoading" style="text-align: center; color: #55503E;">Đang tạo QR an toàn...</p>
+            <div v-else-if="paymentQr" style="text-align: center;">
+              <img :src="paymentQr.qrUrl" alt="QR chuyển khoản cho hóa đơn" style="width: 180px; height: 180px; border-radius: 8px; padding: 5px; background: #FFFFFF;" />
+              <p style="margin-top: 10px; margin-bottom: 2px; font-weight: bold; color: #201D14;">Chủ TK: {{ paymentQr.accountHolder }}</p>
+              <p style="color: #55503E; font-size: 0.85rem; margin: 0;">Ngân hàng: {{ paymentQr.bankCode }} · {{ paymentQr.accountNumber }}</p>
+              <p style="color: #201D14; font-size: 0.85rem; margin: 4px 0 0;">Nội dung: <strong>{{ paymentQr.transferContent }}</strong></p>
+              <button class="btn-print" style="margin-top: 10px;" :disabled="paymentQrLoading" @click="regeneratePaymentQr">Tạo lại QR</button>
             </div>
-            <p style="text-align: center; margin-top: 10px; font-size: 0.8rem; color: #e74c3c; font-style: italic;">Khách chuyển khoản xong, vui lòng bấm "Xác Nhận Thanh Toán"</p>
+            <div v-else style="text-align: center;">
+              <p style="color: #55503E;">QR được backend tạo riêng cho hóa đơn này và tự đối soát qua ngân hàng.</p>
+              <button class="btn-pay" :disabled="paymentQrLoading" @click="createPaymentQr">Tạo QR chuyển khoản</button>
+            </div>
+            <p v-if="paymentQrError" style="text-align: center; margin-top: 10px; color: #B23B2E;">{{ paymentQrError }}</p>
+            <p v-if="paymentQr" style="text-align: center; margin-top: 10px; font-size: 0.8rem; color: #B23B2E; font-style: italic;">Không xác nhận thủ công. Hệ thống sẽ tự ghi nhận khi ngân hàng báo giao dịch thành công.</p>
           </div>
 
           <div class="invoice-footer" style="margin-top: 20px;">
@@ -134,8 +142,8 @@
         <div class="action-buttons">
           <button class="btn-print" @click="printInvoice">🖨️ In Hóa Đơn</button>
           <button v-if="!selectedOrder.isPaid && (selectedOrder.status === 0 || selectedOrder.status === 1 || selectedOrder.status === 5)" class="btn-print" style="background: var(--danger); border-color: var(--danger);" @click="cancelOrderAndRefund(selectedOrder)">❌ Hủy & Hoàn Cọc</button>
-          <button class="btn-pay" @click="payOrder" :disabled="selectedOrder.isPaid">
-            {{ selectedOrder.isPaid ? '✅ Đã Thanh Toán' : '💰 Xác Nhận Thanh Toán' }}
+          <button class="btn-pay" @click="payOrder" :disabled="selectedOrder.isPaid || selectedOrder.paymentOption === 'PREPAID_TRANSFER'">
+            {{ selectedOrder.isPaid ? '✅ Đã Thanh Toán' : selectedOrder.paymentOption === 'PREPAID_TRANSFER' ? '⏳ Chờ ngân hàng xác nhận' : '💵 Xác nhận đã thu tiền mặt' }}
           </button>
         </div>
       </div>
@@ -217,7 +225,7 @@
               <span class="stat-value text-danger">{{ shiftStats.unpaidCount }}</span>
             </div>
           </div>
-          <p v-if="shiftStats.unpaidCount > 0" class="text-danger" style="margin-top: 15px; font-weight: bold; text-align: center; border: 1px dashed #e74c3c; padding: 10px;">
+          <p v-if="shiftStats.unpaidCount > 0" class="text-danger" style="margin-top: 15px; font-weight: bold; text-align: center; border: 1px dashed #B23B2E; padding: 10px;">
             ⚠️ Cảnh báo: Vẫn còn {{ shiftStats.unpaidCount }} bàn đang có khách chưa thanh toán! Không nên kết ca lúc này.
           </p>
           
@@ -233,7 +241,7 @@
           </div>
         </div>
         <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
-          <button @click="printShiftReport" class="btn-primary" style="background: var(--primary); color: #000; border: none; padding: 10px 20px; border-radius: 6px;">🖨️ In Báo Cáo</button>
+          <button @click="printShiftReport" class="btn-primary" style="background: var(--primary); color: #201D14; border: none; padding: 10px 20px; border-radius: 6px;">🖨️ In Báo Cáo</button>
           <button @click="showShiftModal = false" class="btn-logout" style="border: 1px solid var(--border); color: var(--text-primary); padding: 10px 20px;">Đóng</button>
         </div>
       </div>
@@ -246,8 +254,8 @@
           <h2>Chi Tiết Hóa Đơn #{{ historySelectedOrder.id }}</h2>
           <button @click="historySelectedOrder = null" class="btn-close-modal">✖</button>
         </div>
-        <div class="modal-body" id="printable-history-invoice" style="background: white; color: black; padding: 20px; border-radius: 8px;">
-          <div style="text-align: center; border-bottom: 2px dashed #ccc; padding-bottom: 10px; margin-bottom: 15px;">
+        <div class="modal-body" id="printable-history-invoice" style="background: #FFFFFF; color: black; padding: 20px; border-radius: 8px;">
+          <div style="text-align: center; border-bottom: 2px dashed #A6B0AA; padding-bottom: 10px; margin-bottom: 15px;">
             <h2 style="margin: 0; font-size: 1.5rem;">Mộc Vị RESTAURANT</h2>
             <p style="margin: 5px 0 0; font-size: 0.9rem;">HÓA ĐƠN ĐÃ THANH TOÁN</p>
             <p style="margin: 5px 0 0; font-size: 0.8rem;">Ngày: {{ new Date(historySelectedOrder.createDate).toLocaleString('vi-VN') }}</p>
@@ -255,14 +263,14 @@
           </div>
           <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
             <thead>
-              <tr style="border-bottom: 1px solid #ddd;">
+              <tr style="border-bottom: 1px solid #CFC7A8;">
                 <th style="text-align: left; padding: 8px 0;">Món</th>
                 <th style="text-align: center; padding: 8px 0;">SL</th>
                 <th style="text-align: right; padding: 8px 0;">TTiền</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="item in historySelectedOrder.orderDetails" :key="item.id" style="border-bottom: 1px solid #f0f0f0;">
+              <tr v-for="item in historySelectedOrder.orderDetails" :key="item.id" style="border-bottom: 1px solid #E2DCC2;">
                 <td style="padding: 8px 0;">{{ item.product.name }}</td>
                 <td style="text-align: center; padding: 8px 0;">{{ item.quantity }}</td>
                 <td style="text-align: right; padding: 8px 0;">{{ item.price.toLocaleString() }}đ</td>
@@ -291,11 +299,15 @@ import { useRouter } from 'vue-router';
 import SockJS from 'sockjs-client';
 import { Stomp } from '@stomp/stompjs';
 import TimekeepingWidget from '../components/TimekeepingWidget.vue';
+import { foodImage, replaceFoodImage } from '@/utils/imageFallback';
 
 const router = useRouter();
 const pendingOrders = ref([]);
 const allOrders = ref([]);
 const selectedOrder = ref(null);
+const paymentQr = ref(null);
+const paymentQrLoading = ref(false);
+const paymentQrError = ref('');
 let stompClient = null;
 
 const currentUser = ref(JSON.parse(localStorage.getItem('user')) || null);
@@ -373,7 +385,7 @@ const printShiftReport = () => {
   const printContents = document.getElementById('printable-shift').innerHTML;
   const originalContents = document.body.innerHTML;
   
-  document.body.innerHTML = `<div style="padding: 20px; font-family: 'Courier New', Courier, monospace; color: #000; background: #fff;">${printContents}</div>`;
+  document.body.innerHTML = `<div style="padding: 20px; font-family: var(--font-primary); color: #201D14; background: #FFFFFF;">${printContents}</div>`;
   window.print();
   document.body.innerHTML = originalContents;
   window.location.reload(); 
@@ -404,7 +416,7 @@ const tables = ref([]);
 
 const fetchTables = async () => {
   try {
-    const res = await axios.get('http://localhost:8080/api/tables', configHeader());
+    const res = await axios.get('/api/tables', configHeader());
     tables.value = res.data;
   } catch (err) {
     console.error('Lỗi lấy bàn:', err);
@@ -423,6 +435,8 @@ const selectOrderForTable = (table) => {
   const order = pendingOrders.value.find(o => o.address && getTableName(o.address) === table.name);
   if (order) {
     selectedOrder.value = order;
+    paymentQr.value = null;
+    paymentQrError.value = '';
   } else {
     selectedOrder.value = null;
     alert("Bàn này chưa gọi món hoặc đã thanh toán xong!");
@@ -436,7 +450,7 @@ const getPendingTotalForTable = (tableName) => {
 
 const fetchOrders = async () => {
   try {
-    const res = await axios.get('http://localhost:8080/api/admin/orders', configHeader());
+    const res = await axios.get('/api/admin/orders', configHeader());
     allOrders.value = res.data;
     // Thu ngân chỉ quan tâm đơn ăn tại quán, chưa thanh toán (hoặc đã giao = cần thanh toán)
     // address chứa "Bàn", isPaid == false hoặc null, status != 3 (Đã hủy)
@@ -463,13 +477,13 @@ const payOrder = async () => {
   const token = localStorage.getItem('token');
   try {
     // Update order status
-    await axios.put(`http://localhost:8080/api/admin/orders/${selectedOrder.value.id}/pay`, {}, configHeader());
+    await axios.put(`/api/admin/orders/${selectedOrder.value.id}/pay`, {}, configHeader());
     
     // Update table status to 3 (Cleaning) if it was a table order
     const tableName = getTableName(selectedOrder.value.address);
     const table = tables.value.find(t => t.name === tableName);
     if (table) {
-      await axios.put(`http://localhost:8080/api/tables/${table.id}/status?status=3`, {}, { headers: { 'Authorization': `Bearer ${token}` } });
+      await axios.put(`/api/tables/${table.id}/status?status=3`, {}, { headers: { 'Authorization': `Bearer ${token}` } });
     }
 
     alert('Thanh toán thành công! Bàn đang chờ dọn dẹp.');
@@ -492,22 +506,48 @@ const printInvoice = () => {
   window.location.reload(); // reload lại trang để khôi phục event listeners của vue
 };
 
-const vietQrUrl = computed(() => {
-  if (!selectedOrder.value) return '';
-  const bank = 'vietcombank';
-  const accountNo = '1047187126';
-  const accountName = 'NGUYEN QUANG NHAT';
-  const amount = Math.max(0, calculateTotal(selectedOrder.value) - (selectedOrder.value.deposit || 0));
-  const tableName = getTableName(selectedOrder.value.address).replace(/\s/g, '');
-  const addInfo = encodeURIComponent(`Thanh toan ${tableName}`);
-  return `https://img.vietqr.io/image/${bank}-${accountNo}-compact2.png?amount=${amount}&addInfo=${addInfo}&accountName=${encodeURIComponent(accountName)}`;
-});
+const createPaymentQr = async () => {
+  if (!selectedOrder.value) return;
+  paymentQrLoading.value = true;
+  paymentQrError.value = '';
+  try {
+    const response = await axios.post(
+      `/api/admin/orders/${selectedOrder.value.id}/payment-qr`,
+      {},
+      configHeader(),
+    );
+    paymentQr.value = response.data;
+    selectedOrder.value.paymentOption = 'PREPAID_TRANSFER';
+  } catch (error) {
+    paymentQrError.value = error.response?.data?.message || error.response?.data || 'Không thể tạo QR thanh toán.';
+  } finally {
+    paymentQrLoading.value = false;
+  }
+};
+
+const regeneratePaymentQr = async () => {
+  if (!selectedOrder.value || !paymentQr.value?.paymentCode) return;
+  paymentQrLoading.value = true;
+  paymentQrError.value = '';
+  try {
+    const idempotencyKey = `order-qr-${selectedOrder.value.id}-${Date.now()}`;
+    const response = await axios.post(
+      `/api/admin/orders/${selectedOrder.value.id}/payment-qr/${paymentQr.value.paymentCode}/regenerate`,
+      {},
+      { ...configHeader(), headers: { ...configHeader().headers, 'X-Idempotency-Key': idempotencyKey } },
+    );
+    paymentQr.value = response.data;
+  } catch (error) {
+    paymentQrError.value = error.response?.data?.message || error.response?.data || 'Không thể tạo lại QR thanh toán.';
+  } finally {
+    paymentQrLoading.value = false;
+  }
+};
 
 const cancelOrderAndRefund = async (order) => {
   if (!confirm('Bạn có chắc muốn HỦY BÀN này? Nếu hủy, khách sẽ được hoàn lại 50% tiền cọc (Thu ngân tự chuyển khoản ngoài).')) return;
-  const token = localStorage.getItem('token');
   try {
-    const res = await axios.put(`http://localhost:8080/api/admin/orders/${order.id}/cancel-with-refund`, {}, configHeader());
+    const res = await axios.put(`/api/admin/orders/${order.id}/cancel-with-refund`, {}, configHeader());
     
     // Gửi thông báo cho Waiter update lại màu bàn
     if (stompClient) {
@@ -524,10 +564,11 @@ const cancelOrderAndRefund = async (order) => {
 
 // Kết nối socket để nghe đơn hàng mới / update
 const connectSocket = () => {
-  const socket = new SockJS('http://localhost:8080/ws');
+  const socket = new SockJS('/ws');
   stompClient = Stomp.over(socket);
   stompClient.debug = () => {};
-  stompClient.connect({}, () => {
+  const token = localStorage.getItem('token');
+  stompClient.connect(token ? { Authorization: `Bearer ${token}` } : {}, () => {
     stompClient.subscribe('/topic/kitchen', () => {
       fetchOrders();
     });
@@ -572,8 +613,8 @@ onUnmounted(() => {
 .brand-icon { font-size: 2.5rem; }
 .brand h2 { margin: 0; font-size: 1.5rem; font-weight: 800; letter-spacing: 1px; color: var(--primary); }
 .brand p { margin: 5px 0 0; font-size: 0.9rem; color: var(--text-muted); }
-.btn-logout { background: transparent; border: 1px solid rgba(231,76,60,0.5); color: #e74c3c; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 1rem; transition: 0.3s; }
-.btn-logout:hover { background: rgba(231,76,60,0.1); border-color: #e74c3c; transform: translateY(-2px); }
+.btn-logout { background: transparent; border: 1px solid rgba(178,59,46,0.5); color: #B23B2E; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 1rem; transition: 0.3s; }
+.btn-logout:hover { background: rgba(178,59,46,0.1); border-color: #B23B2E; transform: translateY(-2px); }
 
 .cashier-content {
   display: grid;
@@ -620,14 +661,14 @@ onUnmounted(() => {
   box-shadow: 0 8px 20px rgba(0,0,0,0.3);
 }
 .table-box.selected-table {
-  border-color: #3498db !important;
-  box-shadow: 0 0 15px rgba(52,152,219,0.5) !important;
+  border-color: #5A6E45 !important;
+  box-shadow: 0 0 15px rgba(90, 110, 69, 0.5) !important;
   transform: scale(1.02);
 }
-.table-box.table-empty { border-color: #2ecc71; box-shadow: 0 0 10px rgba(46, 204, 113, 0.1); opacity: 0.7; }
-.table-box.table-booked { border-color: #f1c40f; box-shadow: 0 0 10px rgba(241, 196, 15, 0.1); }
-.table-box.table-occupied { border-color: #e74c3c; box-shadow: 0 0 10px rgba(231, 76, 60, 0.1); }
-.table-box.table-cleaning { border-color: #9b59b6; box-shadow: 0 0 10px rgba(155, 89, 182, 0.1); }
+.table-box.table-empty { border-color: #2F8F5B; box-shadow: 0 0 10px rgba(47, 143, 91, 0.1); opacity: 0.7; }
+.table-box.table-booked { border-color: #B98229; box-shadow: 0 0 10px rgba(185, 130, 41, 0.1); }
+.table-box.table-occupied { border-color: #B23B2E; box-shadow: 0 0 10px rgba(178, 59, 46, 0.1); }
+.table-box.table-cleaning { border-color: #C08A2E; box-shadow: 0 0 10px rgba(192, 138, 46, 0.1); }
 
 .tc-top {
   display: flex;
@@ -637,7 +678,7 @@ onUnmounted(() => {
 }
 .tc-capacity {
   background: rgba(255,255,255,0.05);
-  color: #3498db;
+  color: #5A6E45;
   padding: 2px 8px;
   border-radius: 12px;
   font-size: 0.75rem;
@@ -660,16 +701,16 @@ onUnmounted(() => {
   border-radius: 50%;
   margin: 0 auto 8px auto;
 }
-.table-empty .tc-dot { background: #2ecc71; box-shadow: 0 0 8px #2ecc71; }
-.table-booked .tc-dot { background: #f1c40f; box-shadow: 0 0 8px #f1c40f; }
-.table-occupied .tc-dot { background: #e74c3c; box-shadow: 0 0 8px #e74c3c; }
-.table-cleaning .tc-dot { background: #9b59b6; box-shadow: 0 0 8px #9b59b6; }
+.table-empty .tc-dot { background: #2F8F5B; box-shadow: 0 0 8px #2F8F5B; }
+.table-booked .tc-dot { background: #B98229; box-shadow: 0 0 8px #B98229; }
+.table-occupied .tc-dot { background: #B23B2E; box-shadow: 0 0 8px #B23B2E; }
+.table-cleaning .tc-dot { background: #C08A2E; box-shadow: 0 0 8px #C08A2E; }
 
 .tc-center h4 {
   margin: 0 0 5px 0;
   font-size: 1.2rem;
   font-weight: 900;
-  color: #fff;
+  color: #FFFFFF;
 }
 .tc-subtitle {
   margin: 0;
@@ -704,12 +745,12 @@ onUnmounted(() => {
 
 .invoice-paper {
   flex: 1;
-  background: #fff;
+  background: #FFFFFF;
   padding: 20px;
-  font-family: 'Courier New', Courier, monospace;
-  color: #000;
+  font-family: var(--font-primary);
+  color: #201D14;
   overflow-y: auto;
-  border: 1px dashed #bdc3c7;
+  border: 1px dashed #A6B0AA;
   margin-bottom: 20px;
   border-radius: var(--radius-sm);
 }
@@ -719,9 +760,9 @@ onUnmounted(() => {
 .invoice-header h3 { margin: 15px 0; font-size: 1.2rem; }
 
 .invoice-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 0.85rem; }
-.invoice-table th, .invoice-table td { padding: 8px 0; text-align: right; border-bottom: 1px dotted #ccc; }
+.invoice-table th, .invoice-table td { padding: 8px 0; text-align: right; border-bottom: 1px dotted #A6B0AA; }
 .invoice-table th:first-child, .invoice-table td:first-child { text-align: left; }
-.invoice-table th { font-weight: bold; border-bottom: 1px solid #000; }
+.invoice-table th { font-weight: bold; border-bottom: 1px solid #201D14; }
 
 .invoice-total { display: flex; justify-content: space-between; font-weight: bold; font-size: 1.1rem; margin: 10px 0; }
 .invoice-footer { text-align: center; font-size: 0.8rem; margin-top: 30px; font-style: italic; }
@@ -732,11 +773,11 @@ onUnmounted(() => {
 }
 .btn-print { background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border) !important; }
 .btn-print:hover { background: rgba(255,255,255,0.05); }
-.btn-pay { background: var(--primary); color: #000; }
-.btn-pay:hover:not(:disabled) { background: #00b38f; transform: translateY(-2px); box-shadow: 0 4px 15px rgba(0,212,170,0.4); }
-.btn-pay:disabled { background: #555; color: #999; cursor: not-allowed; }
-.btn-primary { background: var(--primary); color: #000; border: none; cursor: pointer; transition: 0.3s; }
-.btn-primary:hover { background: #00b38f; transform: translateY(-2px); }
+.btn-pay { background: var(--primary); color: #201D14; }
+.btn-pay:hover:not(:disabled) { background: #33422A; transform: translateY(-2px); box-shadow: 0 4px 15px rgba(90, 110, 69, 0.4); }
+.btn-pay:disabled { background: #55503E; color: #7A7460; cursor: not-allowed; }
+.btn-primary { background: var(--primary); color: #201D14; border: none; cursor: pointer; transition: 0.3s; }
+.btn-primary:hover { background: #33422A; transform: translateY(-2px); }
 
 /* Modal Styles */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(5px); }
@@ -744,13 +785,13 @@ onUnmounted(() => {
 .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 15px; }
 .modal-header h2 { margin: 0; color: var(--primary); }
 .btn-close-modal { background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; transition: 0.3s; }
-.btn-close-modal:hover { color: #e74c3c; transform: rotate(90deg); }
+.btn-close-modal:hover { color: #B23B2E; transform: rotate(90deg); }
 .stats-box { display: flex; flex-direction: column; gap: 15px; margin-top: 20px; }
 .stat-item { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: rgba(255,255,255,0.03); border-radius: 8px; font-size: 1.1rem; border: 1px solid var(--border-light); }
 .stat-label { color: var(--text-secondary); }
 .stat-value { font-weight: bold; font-size: 1.3rem; }
 .text-primary { color: var(--primary); }
-.text-danger { color: #e74c3c; }
+.text-danger { color: #B23B2E; }
 
 /* Tabs */
 .tab-btn { background: transparent; color: var(--text-muted); border: none; padding: 10px 20px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: 0.3s; position: relative; }

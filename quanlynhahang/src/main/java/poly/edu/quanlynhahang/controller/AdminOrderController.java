@@ -16,8 +16,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -208,6 +210,21 @@ public class AdminOrderController {
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'CASHIER')")
     public ResponseEntity<?> confirmManualOrder(@PathVariable Integer id) {
         return ResponseEntity.ok(orderPaymentService.confirmManualDispatch(id));
+    }
+
+    @PostMapping("/{id}/payment-qr")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'CASHIER')")
+    public ResponseEntity<?> createPaymentQr(@PathVariable Integer id) {
+        return ResponseEntity.ok(orderPaymentService.createForExistingOrder(id));
+    }
+
+    @PostMapping("/{id}/payment-qr/{paymentCode}/regenerate")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'CASHIER')")
+    public ResponseEntity<?> regeneratePaymentQr(
+            @PathVariable Integer id,
+            @PathVariable String paymentCode,
+            @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey) {
+        return ResponseEntity.ok(orderPaymentService.regenerate(id, paymentCode, idempotencyKey));
     }
 
     private void requireManualConfirmationRole() {

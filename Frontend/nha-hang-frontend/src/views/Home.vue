@@ -316,14 +316,9 @@
                   </div>
                 </div>
 
-                <div v-else-if="msg.bookingState.paymentMethod === 'cọc' && !msg.bookingState.paid">
-                  <input v-model="msg.bookingState.guestName" placeholder="Tên của bạn" class="b-input" />
-                  <input v-model="msg.bookingState.guestPhone" placeholder="SĐT liên hệ" class="b-input" />
-                  <div v-if="msg.bookingState.guestName && msg.bookingState.guestPhone" class="b-qr-box">
-                    <img :src="bookingDepositQrUrl(msg.bookingState)" alt="Mã QR đặt cọc giữ bàn" />
-                    <p>Cọc giữ bàn: 100,000 VND</p>
-                    <button @click="confirmBooking(msg)" class="b-btn">Xác nhận đã thanh toán</button>
-                  </div>
+                <div v-else-if="msg.bookingState.paymentMethod === 'cọc' && !msg.bookingState.paid" class="b-success">
+                  <p>Tiếp tục trong quy trình đặt bàn an toàn để nhận báo giá, chính sách cọc và QR riêng.</p>
+                  <button @click="continueSecureReservation" class="b-btn">Tiếp tục đặt bàn</button>
                 </div>
 
                 <div v-else-if="msg.bookingState.paymentMethod === 'món'" class="b-success">
@@ -389,7 +384,6 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
 import CustomerLayout from '@/components/CustomerLayout.vue';
-import { buildVietQrUrl } from '@/services/paymentQr';
 
 const router = useRouter();
 
@@ -666,26 +660,8 @@ const choosePaymentMethod = (msg, method) => {
   scrollToBottomSupport();
 };
 
-const bookingDepositQrUrl = (bookingState) => buildVietQrUrl({
-  amount: 100000,
-  addInfo: `Coc Ban ${bookingState?.selectedTable?.name || ''} ${bookingState?.guestPhone || ''}`,
-});
-
-const confirmBooking = async (msg) => {
-  try {
-    const payload = {
-      customerName: msg.bookingState.guestName,
-      phone: msg.bookingState.guestPhone,
-      tableName: msg.bookingState.selectedTable.name,
-      scheduledTime: msg.bookingState.time
-    };
-    const res = await axios.post('/api/orders/guest-booking', payload);
-    msg.bookingState.paid = true;
-    msg.bookingState.orderCode = res.data.orderCode;
-    scrollToBottomSupport();
-  } catch (err) {
-    alert("Có lỗi xảy ra khi tạo đơn đặt bàn!");
-  }
+const continueSecureReservation = () => {
+  router.push('/reservation');
 };
 
 // === INTERVIEW CHATBOT ===
