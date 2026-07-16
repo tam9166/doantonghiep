@@ -9,6 +9,7 @@ import poly.edu.quanlynhahang.entity.Account;
 import poly.edu.quanlynhahang.entity.Voucher;
 import poly.edu.quanlynhahang.repository.AccountRepository;
 import poly.edu.quanlynhahang.repository.VoucherRepository;
+import poly.edu.quanlynhahang.service.LuckyWheelService;
 
 import java.util.Date;
 import java.util.List;
@@ -25,6 +26,9 @@ public class VoucherController {
     @Autowired
     private AccountRepository accountRepository;
 
+    @Autowired
+    private LuckyWheelService luckyWheelService;
+
     // Admin: Get all vouchers
     @GetMapping("/admin")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
@@ -40,29 +44,12 @@ public class VoucherController {
         return ResponseEntity.ok(myVouchers);
     }
 
-    // Auto-generate voucher when winning Lucky Wheel
-    @PostMapping("/generate")
-    public ResponseEntity<?> generateVoucher(@RequestBody Map<String, Integer> payload) {
+    // Reward selection, daily limit and eligibility are controlled entirely by the backend.
+    @PostMapping("/spin")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> spinLuckyWheel() {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        Integer discountPercent = payload.get("discount");
-
-        if (discountPercent == null || discountPercent <= 0) {
-            return ResponseEntity.badRequest().body("Phần trăm giảm giá không hợp lệ");
-        }
-
-        Optional<Account> accOpt = accountRepository.findById(username);
-        if (!accOpt.isPresent()) return ResponseEntity.badRequest().body("Tài khoản không tồn tại");
-
-        String code = "LUCKY-" + discountPercent + "-" + UUID.randomUUID().toString().substring(0, 5).toUpperCase();
-        Voucher voucher = new Voucher();
-        voucher.setCode(code);
-        voucher.setDiscountPercent(discountPercent);
-        voucher.setCreateDate(new Date());
-        voucher.setIsUsed(false);
-        voucher.setAccount(accOpt.get());
-
-        voucherRepository.save(voucher);
-        return ResponseEntity.ok(Map.of("message", "Tạo voucher thành công", "code", code));
+        return ResponseEntity.ok(luckyWheelService.spin(username));
     }
 
     // Admin: Manually create voucher

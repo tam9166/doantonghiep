@@ -428,83 +428,58 @@ const openLuckyWheel = async () => {
     return;
   }
   
-  const token = localStorage.getItem('token');
-  try {
-    const res = await axios.get('/api/orders/history', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    
-    let isEligible = false;
-    const todayStr = new Date().toDateString();
-
-    for (let order of res.data) {
-      if (order.status !== 3) { // Không tính đơn đã hủy
-        const orderDateStr = new Date(order.createDate).toDateString();
-        if (orderDateStr === todayStr) {
-          let total = order.orderDetails ? order.orderDetails.reduce((sum, item) => sum + item.price, 0) : 0;
-          if (total >= 3000000) {
-            isEligible = true;
-            break;
-          }
-        }
-      }
-    }
-    
-    if (!isEligible) {
-      alert("Rất tiếc! Hôm nay bạn cần có ít nhất 1 hóa đơn trị giá trên 3.000.000 VNĐ để được tham gia quay thưởng.");
-      return;
-    }
-  } catch(e) {
-    console.error("Lỗi kiểm tra hóa đơn", e);
-  }
-
   showLuckyWheel.value = true;
 };
 
-const spinWheel = () => {
+const spinWheel = async () => {
   if (isSpinning.value) return;
-  const username = JSON.parse(localStorage.getItem('user'))?.username;
-  const lastSpin = localStorage.getItem(`lastSpin_${username}`);
-  const todayStr = new Date().toLocaleDateString();
-  if (lastSpin === todayStr) {
-    alert("Hôm nay bạn đã quay rồi. Hãy quay lại vào ngày mai nhé!");
-    return;
-  }
 
   isSpinning.value = true;
   spinResult.value = null;
 
-  const prizeIndex = Math.floor(Math.random() * prizes.length);
+  let reward;
+  try {
+    const token = localStorage.getItem('token');
+    const response = await axios.post('/api/vouchers/spin', null, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    reward = response.data;
+  } catch (error) {
+    isSpinning.value = false;
+    if (error.response?.status === 409) {
+      alert('Hôm nay bạn đã quay rồi. Hãy quay lại vào ngày mai nhé!');
+    } else if (error.response?.status === 403) {
+      alert('Hôm nay bạn cần có hóa đơn đã thanh toán và hoàn tất từ 3.000.000 VNĐ để được quay thưởng.');
+    } else {
+      alert('Không thể thực hiện vòng quay lúc này. Vui lòng thử lại sau.');
+      console.error('Lỗi vòng quay may mắn', error);
+    }
+    return;
+  }
+
+  const prizeIndex = prizes.findIndex((prize) =>
+    prize.type === reward.type && prize.value === reward.value
+  );
+  if (prizeIndex < 0) {
+    isSpinning.value = false;
+    console.error('Phần thưởng từ máy chủ không khớp cấu hình giao diện', reward);
+    alert('Kết quả vòng quay không hợp lệ. Vui lòng liên hệ nhà hàng.');
+    return;
+  }
+
   const targetDeg = (360 - prizes[prizeIndex].deg) + 360 * 5; 
 
   wheelRotation.value += targetDeg;
 
-  setTimeout(async () => {
+  setTimeout(() => {
     isSpinning.value = false;
-    const won = prizes[prizeIndex];
+    const won = { ...prizes[prizeIndex], ...reward };
     spinResult.value = won;
-    localStorage.setItem(`lastSpin_${username}`, todayStr);
 
     if (won.type === 'points') {
-      const token = localStorage.getItem('token');
-      try {
-        const res = await axios.post('/api/auth/add-points', { points: won.value }, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        alert(`🎉 Chúc mừng bạn đã trúng ${won.label}! Điểm hiện tại: ${res.data.newPoints} PT (Hạng: ${res.data.newTier})`);
-      } catch(e) {
-        console.error("Lỗi cộng điểm", e);
-      }
+      alert(`🎉 Chúc mừng bạn đã trúng ${won.label}! Điểm hiện tại: ${won.currentPoints} PT (Hạng: ${won.membershipTier})`);
     } else if (won.type === 'discount') {
-      const token = localStorage.getItem('token');
-      try {
-        const res = await axios.post('/api/vouchers/generate', { discount: won.value }, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        alert(`🎉 Chúc mừng bạn đã trúng Giảm ${won.value}%!\nMã Voucher của bạn: ${res.data.code}\nHãy lưu lại để dùng cho lần ăn tiếp theo nhé!`);
-      } catch(e) {
-        console.error("Lỗi sinh voucher", e);
-      }
+      alert(`🎉 Chúc mừng bạn đã trúng Giảm ${won.value}%!\nMã Voucher của bạn: ${won.voucherCode}\nHãy lưu lại để dùng cho lần ăn tiếp theo nhé!`);
     } else if (won.type === 'gift') {
       alert(`🎉 Chúc mừng bạn đã trúng ${won.label}! Vui lòng đưa thông báo này cho nhân viên để nhận quà nhé!`);
     }
