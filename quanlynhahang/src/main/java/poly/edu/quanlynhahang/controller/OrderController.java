@@ -9,7 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -37,8 +37,6 @@ import poly.edu.quanlynhahang.entity.IngredientBatch;
 import poly.edu.quanlynhahang.entity.Recipe;
 
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-
-@CrossOrigin("*")
 @RestController
 @RequestMapping("/api/orders")
 public class OrderController {
@@ -73,17 +71,6 @@ public class OrderController {
         order.setCreateDate(new java.util.Date());
         order.setStatus(5); // 5 = Đặt bàn hẹn trước
         orderRepository.save(order);
-
-        // Đánh dấu bàn đã được đặt cọc
-        List<RestaurantTable> allTables = tableRepository.findAll();
-        for (RestaurantTable t : allTables) {
-            if (t.getName().equalsIgnoreCase(tableName)) {
-                t.setIsOccupied(1); // 1 = Đã đặt/có khách
-                t.setReservedTime("Cọc Bàn #" + uniqueOrderCode + " lúc " + time);
-                tableRepository.save(t);
-                break;
-            }
-        }
         
         return ResponseEntity.ok(java.util.Map.of("message", "Đặt bàn thành công!", "orderCode", uniqueOrderCode));
     }
@@ -227,12 +214,11 @@ public class OrderController {
             });
         }
 
-        if (orderRequest.getAddress() != null) {
+        if (isDineIn && orderRequest.getAddress() != null) {
             List<RestaurantTable> allTables = tableRepository.findAll();
             for (RestaurantTable t : allTables) {
                 if (orderRequest.getAddress().contains(t.getName())) {
-                    int status = orderRequest.getAddress().contains("[TẠI QUÁN]") ? 2 : 1;
-                    t.setIsOccupied(status);
+                    t.setIsOccupied(2);
                     t.setReservedTime("Đơn: #" + uniqueOrderCode);
                     tableRepository.save(t);
                     break;
@@ -250,6 +236,7 @@ public class OrderController {
 
 
     @PutMapping("/{id}/add-items")
+    @PreAuthorize("hasAnyRole('WAITER', 'CASHIER', 'MANAGER', 'ADMIN')")
     public ResponseEntity<?> addItemsToOrder(@PathVariable Integer id, @RequestBody OrderRequest orderRequest) {
         Optional<Order> orderOpt = orderRepository.findById(id);
         if (!orderOpt.isPresent()) return ResponseEntity.badRequest().body("Không tìm thấy đơn hàng!");
@@ -336,9 +323,27 @@ public class OrderController {
     }
 
     @PostMapping("/merge-tables")
+    @Transactional
+    @PreAuthorize("hasAnyRole('WAITER', 'CASHIER', 'MANAGER', 'ADMIN')")
     public ResponseEntity<?> mergeTables(@RequestBody java.util.Map<String, String> payload) {
         String fromTable = payload.get("fromTable");
         String toTable = payload.get("toTable");
+
+        Optional<Order> anySourceOrder = orderRepository.findAll().stream()
+            .filter(o -> o.getAddress() != null && o.getAddress().contains(fromTable) && o.getStatus() != 3)
+            .findFirst();
+
+        Optional<Order> anyTargetOrder = orderRepository.findAll().stream()
+            .filter(o -> o.getAddress() != null && o.getAddress().contains(toTable) && o.getStatus() != 3)
+            .findFirst();
+
+        if (anySourceOrder.isPresent() && anyTargetOrder.isPresent()) {
+            boolean sourcePaid = Boolean.TRUE.equals(anySourceOrder.get().getIsPaid());
+            boolean targetPaid = Boolean.TRUE.equals(anyTargetOrder.get().getIsPaid());
+            if (sourcePaid != targetPaid) {
+                return ResponseEntity.status(409).body("Không thể gộp bàn đã thanh toán với bàn chưa thanh toán!");
+            }
+        }
         
         Optional<Order> sourceOrderOpt = orderRepository.findAll().stream()
             .filter(o -> o.getAddress() != null && o.getAddress().contains(fromTable) && (o.getIsPaid() == null || !o.getIsPaid()) && o.getStatus() != 3)
@@ -395,6 +400,8 @@ public class OrderController {
     }
 
     @PostMapping("/split-table")
+    @Transactional
+    @PreAuthorize("hasAnyRole('WAITER', 'CASHIER', 'MANAGER', 'ADMIN')")
     public ResponseEntity<?> splitTable(@RequestBody java.util.Map<String, Object> payload) {
         String fromTable = (String) payload.get("fromTable");
         String toTable = (String) payload.get("toTable");
@@ -499,6 +506,7 @@ public class OrderController {
     }
 
     @org.springframework.web.bind.annotation.PutMapping("/details/{detailId}/status")
+    @PreAuthorize("hasAnyRole('KITCHEN', 'MANAGER', 'ADMIN')")
     public ResponseEntity<?> updateOrderDetailStatus(@PathVariable Integer detailId, @org.springframework.web.bind.annotation.RequestParam Integer status) {
         return orderDetailRepository.findById(detailId).map(detail -> {
             detail.setStatus(status);

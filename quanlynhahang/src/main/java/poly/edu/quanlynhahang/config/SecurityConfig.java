@@ -107,6 +107,11 @@ public class SecurityConfig {
             .requestMatchers("/api/auth/**", "/error").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/areas/admin").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER")
             .requestMatchers(HttpMethod.GET, "/api/products/**", "/api/categories/**", "/api/tables/**", "/api/areas/**", "/api/posts/**", "/api/reviews/**").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/categories", "/api/categories/**").hasAnyRole("ADMIN", "MANAGER")
+            .requestMatchers(HttpMethod.PUT, "/api/categories/**").hasAnyRole("ADMIN", "MANAGER")
+            .requestMatchers(HttpMethod.DELETE, "/api/categories/**").hasAnyRole("ADMIN", "MANAGER")
+            .requestMatchers(HttpMethod.GET, "/api/vouchers/admin").hasAnyRole("ADMIN", "MANAGER")
+            .requestMatchers(HttpMethod.POST, "/api/vouchers/admin/create").hasAnyRole("ADMIN", "MANAGER")
             .requestMatchers(HttpMethod.GET, "/api/menu-items/preorder").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/reservations").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/reservations/quote").permitAll()
@@ -123,6 +128,13 @@ public class SecurityConfig {
             .requestMatchers("/api/chatbot/**", "/ws/**").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/orders/guest-booking").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/orders/checkout").permitAll()
+
+            .requestMatchers(HttpMethod.PUT, "/api/orders/*/add-items")
+                .hasAnyRole("WAITER", "CASHIER", "MANAGER", "ADMIN")
+            .requestMatchers(HttpMethod.POST, "/api/orders/merge-tables", "/api/orders/split-table")
+                .hasAnyRole("WAITER", "CASHIER", "MANAGER", "ADMIN")
+            .requestMatchers(HttpMethod.PUT, "/api/orders/details/*/status")
+                .hasAnyRole("KITCHEN", "MANAGER", "ADMIN")
 
             // ✅ Cho phép user đã đăng nhập gọi các API đặt hàng khác
             .requestMatchers("/api/orders/**").authenticated()

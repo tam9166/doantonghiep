@@ -2,6 +2,7 @@ package poly.edu.quanlynhahang.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import poly.edu.quanlynhahang.entity.Account;
@@ -14,8 +15,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-
-@CrossOrigin("*")
 @RestController
 @RequestMapping("/api/vouchers")
 public class VoucherController {
@@ -28,6 +27,7 @@ public class VoucherController {
 
     // Admin: Get all vouchers
     @GetMapping("/admin")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     public ResponseEntity<?> getAllVouchers() {
         return ResponseEntity.ok(voucherRepository.findAll());
     }
@@ -67,6 +67,7 @@ public class VoucherController {
 
     // Admin: Manually create voucher
     @PostMapping("/admin/create")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     public ResponseEntity<?> adminCreateVoucher(@RequestBody Voucher voucherRequest) {
         if (voucherRequest.getCode() == null || voucherRequest.getCode().isEmpty()) {
             voucherRequest.setCode("CODE-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
