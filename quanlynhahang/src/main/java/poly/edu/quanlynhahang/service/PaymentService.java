@@ -35,26 +35,30 @@ public class PaymentService {
     private final ReservationRealtimeService realtimeService;
     private final ReservationStateMachine stateMachine;
     private final PaymentProperties paymentProperties;
+    private final PaymentCapabilityService capabilityService;
 
     public PaymentService(ReservationRepository reservationRepository,
                           PaymentIntentRepository paymentIntentRepository,
                           ReservationRealtimeService realtimeService,
                           ReservationStateMachine stateMachine,
-                          PaymentProperties paymentProperties) {
+                          PaymentProperties paymentProperties,
+                          PaymentCapabilityService capabilityService) {
         this.reservationRepository = reservationRepository;
         this.paymentIntentRepository = paymentIntentRepository;
         this.realtimeService = realtimeService;
         this.stateMachine = stateMachine;
         this.paymentProperties = paymentProperties;
+        this.capabilityService = capabilityService;
     }
 
     @Transactional
-    public PaymentQrResponse createQr(PaymentQrRequest request) {
+    public PaymentQrResponse createQr(PaymentQrRequest request, String capabilityToken) {
         if (request == null || request.getReservationCode() == null || request.getReservationCode().isBlank()) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Thiếu mã đặt bàn");
         }
         Reservation reservation = reservationRepository.findByReservationCode(request.getReservationCode())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy đặt bàn"));
+        capabilityService.authorizePaymentQr(reservation, capabilityToken);
         if (isClosedReservation(reservation.getReservationStatus())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Không thể tạo QR cho đặt bàn đã kết thúc hoặc bị hủy");
         }
@@ -67,6 +71,7 @@ public class PaymentService {
 
         PaymentIntent intent = new PaymentIntent();
         intent.setReservation(reservation);
+        intent.setCapabilityTokenHash(reservation.getPaymentCapabilityTokenHash());
         intent.setPaymentCode(nextPaymentCode());
         intent.setPaymentOption(option);
         intent.setAmount(amount);
@@ -81,9 +86,10 @@ public class PaymentService {
     }
 
     @Transactional
-    public PaymentQrResponse regenerate(String paymentCode) {
+    public PaymentQrResponse regenerate(String paymentCode, String capabilityToken) {
         PaymentIntent existing = paymentIntentRepository.findByPaymentCode(paymentCode)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy giao dịch thanh toán"));
+        capabilityService.authorizePaymentQr(existing.getReservation(), capabilityToken);
         if (PaymentStatus.PAID.equals(existing.getStatus())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Giao dịch đã thanh toán");
         }
@@ -96,7 +102,7 @@ public class PaymentService {
         PaymentQrRequest request = new PaymentQrRequest();
         request.setReservationCode(existing.getReservation().getReservationCode());
         request.setPaymentOption(existing.getPaymentOption());
-        return createQr(request);
+        return createQr(request, capabilityToken);
     }
 
     @Transactional

@@ -430,6 +430,7 @@ const submitting = ref(false)
 const submitResult = ref(null)
 const waitlistResult = ref(null)
 const paymentQr = ref(null)
+const paymentCapabilityToken = ref('')
 const quote = ref(null)
 const menuSearch = ref('')
 const menuCategory = ref('')
@@ -1009,11 +1010,14 @@ async function submitReservation() {
       headers: { 'X-Idempotency-Key': idempotencyKey.value }
     })
     submitResult.value = res.data
+    paymentCapabilityToken.value = res.data.paymentCapabilityToken || ''
     idempotencyKey.value = crypto.randomUUID()
     if (form.value.paymentOption !== 'PAY_AT_RESTAURANT' && Number(res.data.depositAmount || 0) > 0) {
       const qrRes = await api.post('/api/payments/qr', {
         reservationCode: res.data.reservationCode,
         paymentOption: form.value.paymentOption
+      }, {
+        headers: { 'X-Payment-Capability': paymentCapabilityToken.value }
       })
       paymentQr.value = qrRes.data
     }
@@ -1064,6 +1068,7 @@ function resetForm() {
   submitResult.value = null
   waitlistResult.value = null
   paymentQr.value = null
+  paymentCapabilityToken.value = ''
   quote.value = null
   step.value = 1
   form.value.tableId = null

@@ -35,6 +35,9 @@ public class PaymentProperties {
     @Min(1)
     private int qrExpirationMinutes = 15;
 
+    @Min(1)
+    private int capabilityExpirationMinutes = 30;
+
     private boolean demoMode;
 
     public void assertProductionReady() {

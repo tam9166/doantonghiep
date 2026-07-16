@@ -84,7 +84,8 @@ public class SecurityConfig {
                 .toList());
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With",
-                "X-Idempotency-Key", "X-Webhook-Signature", "X-Webhook-Timestamp", "X-Captcha-Token"));
+                "X-Idempotency-Key", "X-Webhook-Signature", "X-Webhook-Timestamp", "X-Captcha-Token",
+                "X-Payment-Capability"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

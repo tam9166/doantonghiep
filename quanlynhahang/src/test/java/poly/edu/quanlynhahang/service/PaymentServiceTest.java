@@ -35,12 +35,14 @@ class PaymentServiceTest {
     private final ReservationRealtimeService realtimeService = mock(ReservationRealtimeService.class);
     private final ReservationStateMachine stateMachine = mock(ReservationStateMachine.class);
     private final PaymentProperties paymentProperties = paymentProperties();
+    private final PaymentCapabilityService capabilityService = mock(PaymentCapabilityService.class);
     private final PaymentService service = new PaymentService(
             reservationRepository,
             paymentIntentRepository,
             realtimeService,
             stateMachine,
-            paymentProperties);
+            paymentProperties,
+            capabilityService);
 
     @Test
     void confirmFromWebhookMarksDepositPaidAndPublishesRealtimeEvent() {
@@ -107,7 +109,7 @@ class PaymentServiceTest {
         PaymentQrRequest request = new PaymentQrRequest();
         request.setReservationCode("MV-001");
         request.setPaymentOption(PaymentOption.DEPOSIT_50);
-        PaymentQrResponse response = service.createQr(request);
+        PaymentQrResponse response = service.createQr(request, "capability-token");
 
         assertEquals("MB", response.getBankCode());
         assertEquals("919112006789", response.getAccountNumber());
@@ -132,8 +134,8 @@ class PaymentServiceTest {
         secondRequest.setReservationCode("MV-002");
         secondRequest.setPaymentOption(PaymentOption.DEPOSIT_50);
 
-        PaymentQrResponse firstResponse = service.createQr(firstRequest);
-        PaymentQrResponse secondResponse = service.createQr(secondRequest);
+        PaymentQrResponse firstResponse = service.createQr(firstRequest, "first-capability-token");
+        PaymentQrResponse secondResponse = service.createQr(secondRequest, "second-capability-token");
 
         assertEquals(firstResponse.getAmount(), secondResponse.getAmount());
         assertNotEquals(firstResponse.getPaymentCode(), secondResponse.getPaymentCode());
