@@ -9,7 +9,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -28,7 +28,6 @@ import poly.edu.quanlynhahang.repository.AuthorityRepository;
 import poly.edu.quanlynhahang.repository.RoleRepository;
 import poly.edu.quanlynhahang.security.JwtUtils;
 
-@CrossOrigin(origins = "*", maxAge = 3600)
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -48,6 +47,9 @@ public class AuthController {
     @Autowired
     private AuthorityRepository authorityRepository;
 
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
     // Danh sách các role nhân sự (dùng chung cho cả 2 endpoint)
     private static final List<String> STAFF_ROLES = List.of(
         "ROLE_ADMIN", "ROLE_MANAGER", "ROLE_KITCHEN", "ROLE_WAITER", "ROLE_CASHIER"
@@ -66,6 +68,8 @@ public class AuthController {
             
             List<String> roles = authentication.getAuthorities().stream()
                     .map(item -> item.getAuthority())
+                    .filter(role -> role.startsWith("ROLE_"))
+                    .distinct()
                     .collect(Collectors.toList());
 
             // 🛡️ CHẶN: Nếu tài khoản có role nhân sự → không cho đăng nhập ở cổng khách hàng
@@ -97,6 +101,8 @@ public class AuthController {
             
             List<String> roles = authentication.getAuthorities().stream()
                     .map(item -> item.getAuthority())
+                    .filter(role -> role.startsWith("ROLE_"))
+                    .distinct()
                     .collect(Collectors.toList());
 
             // 🛡️ CHẶN: Nếu tài khoản KHÔNG có role nhân sự → không cho đăng nhập ở cổng quản trị
@@ -125,7 +131,7 @@ public class AuthController {
 
         Account account = new Account();
         account.setUsername(signUpRequest.getUsername());
-        account.setPassword(signUpRequest.getPassword()); 
+        account.setPassword(passwordEncoder.encode(signUpRequest.getPassword()));
         account.setFullname(signUpRequest.getFullname());
         account.setEmail(signUpRequest.getEmail());
         accountRepository.save(account);
@@ -215,11 +221,10 @@ public class AuthController {
         java.util.Optional<Account> accOpt = accountRepository.findById(username);
         if (accOpt.isPresent()) {
             Account acc = accOpt.get();
-            // Trong dự án này mật khẩu lưu plain text
-            if (!acc.getPassword().equals(request.getOldPassword())) {
+            if (!passwordEncoder.matches(request.getOldPassword(), acc.getPassword())) {
                 return ResponseEntity.badRequest().body("Mật khẩu cũ không chính xác!");
             }
-            acc.setPassword(request.getNewPassword());
+            acc.setPassword(passwordEncoder.encode(request.getNewPassword()));
             accountRepository.save(acc);
             return ResponseEntity.ok("Đổi mật khẩu thành công!");
         }

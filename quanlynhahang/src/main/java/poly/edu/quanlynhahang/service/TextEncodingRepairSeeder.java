@@ -1,6 +1,7 @@
 package poly.edu.quanlynhahang.service;
 
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +30,7 @@ import java.util.Map;
 import java.util.Objects;
 
 @Service
+@Profile("repair")
 @Order(45)
 public class TextEncodingRepairSeeder implements CommandLineRunner {
     private final TableAreaRepository tableAreaRepository;

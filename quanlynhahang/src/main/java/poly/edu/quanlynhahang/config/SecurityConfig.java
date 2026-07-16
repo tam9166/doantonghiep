@@ -3,6 +3,7 @@ package poly.edu.quanlynhahang.config;
 import java.util.Arrays;
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -11,7 +12,7 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.password.NoOpPasswordEncoder;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -24,6 +25,40 @@ import poly.edu.quanlynhahang.security.AuthTokenFilter;
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {
+    @Value("${app.cors.allowed-origins:http://localhost:5173,http://localhost:3000,http://localhost:8080}")
+    private String allowedOrigins;
+
+    private static final String[] SPA_ROUTES = {
+        "/",
+        "/index.html",
+        "/favicon.ico",
+        "/login",
+        "/register",
+        "/staff-login",
+        "/menu",
+        "/history",
+        "/profile",
+        "/admin",
+        "/admin/orders",
+        "/admin/analytics",
+        "/reservation",
+        "/reservation-lookup",
+        "/admin/categories",
+        "/admin/tables",
+        "/admin/table-areas",
+        "/admin/staff",
+        "/admin/posts",
+        "/dine-in",
+        "/kitchen",
+        "/waiter",
+        "/staff",
+        "/admin/ingredients",
+        "/admin/vouchers",
+        "/admin/reservations",
+        "/admin/reservation-reviews",
+        "/admin/customer-history",
+        "/cashier"
+    };
 
     @Bean
     public AuthTokenFilter authenticationJwtTokenFilter() {
@@ -37,16 +72,21 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return NoOpPasswordEncoder.getInstance();
+        return new BCryptPasswordEncoder();
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of("*"));
+        configuration.setAllowedOrigins(Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(origin -> !origin.isBlank())
+                .toList());
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With",
+                "X-Idempotency-Key", "X-Webhook-Signature", "X-Webhook-Timestamp", "X-Captcha-Token"));
         configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
@@ -59,11 +99,26 @@ public class SecurityConfig {
         http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
         http.authorizeHttpRequests(auth -> auth
+            .requestMatchers(SPA_ROUTES).permitAll()
             .requestMatchers(HttpMethod.GET, "/admin/**").permitAll()
+            .requestMatchers(HttpMethod.GET, "/assets/**").permitAll()
+            .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
             // Mở hoàn toàn cho auth, error, và đơn hàng (không cần prefix ROLE_)
             .requestMatchers("/api/auth/**", "/error").permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/products/**", "/api/categories/**", "/api/tables/**", "/api/posts/**", "/api/reviews/**").permitAll()
-            .requestMatchers(HttpMethod.POST, "/api/applications").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/areas/admin").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER")
+            .requestMatchers(HttpMethod.GET, "/api/products/**", "/api/categories/**", "/api/tables/**", "/api/areas/**", "/api/posts/**", "/api/reviews/**").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/menu-items/preorder").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/reservations").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/reservations/quote").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/reservations/table-suggestions").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/reservations/**").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/reservation-waitlist").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/reservation-waitlist/**").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/reservation-reviews/public", "/api/reservation-reviews/mine/**").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/reservation-reviews").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/payments/qr", "/api/payments/*/regenerate").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/webhooks/payments/**").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/applications", "/api/applications/upload").permitAll()
             .requestMatchers(HttpMethod.PUT, "/api/posts/*/like").permitAll()
             .requestMatchers("/api/chatbot/**", "/ws/**").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/orders/guest-booking").permitAll()
