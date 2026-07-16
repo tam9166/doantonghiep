@@ -123,6 +123,7 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.GET, "/api/reservation-reviews/public", "/api/reservation-reviews/mine/**").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/reservation-reviews").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/payments/qr", "/api/payments/*/regenerate").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/payments/*").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/webhooks/payments/**").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/applications", "/api/applications/upload").permitAll()
             .requestMatchers(HttpMethod.PUT, "/api/posts/*/like").permitAll()

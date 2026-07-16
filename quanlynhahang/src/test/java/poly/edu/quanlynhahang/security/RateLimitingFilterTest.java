@@ -28,4 +28,20 @@ class RateLimitingFilterTest {
 
         assertEquals(429, lastResponse.getStatus());
     }
+
+    @Test
+    void regenerateQrHasDedicatedRateLimit() throws Exception {
+        RateLimitingFilter filter = new RateLimitingFilter(new RateLimitService(), mock(JwtUtils.class));
+        MockHttpServletResponse lastResponse = null;
+
+        for (int index = 0; index < 6; index++) {
+            MockHttpServletRequest request = new MockHttpServletRequest(
+                    "POST", "/api/payments/PAY-ABC/regenerate");
+            request.setRemoteAddr("10.10.10.10");
+            lastResponse = new MockHttpServletResponse();
+            filter.doFilter(request, lastResponse, new MockFilterChain());
+        }
+
+        assertEquals(429, lastResponse.getStatus());
+    }
 }

@@ -1,7 +1,7 @@
 package poly.edu.quanlynhahang.controller;
 
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -26,6 +26,13 @@ public class PaymentController {
             @RequestHeader(value = "X-Payment-Capability", required = false) String capabilityToken,
             @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey) {
         return paymentService.createQr(request, capabilityToken, idempotencyKey);
+    }
+
+    @GetMapping("/api/payments/{paymentCode}")
+    public PaymentQrResponse getPayment(
+            @PathVariable String paymentCode,
+            @RequestHeader(value = "X-Payment-Capability", required = false) String capabilityToken) {
+        return paymentService.getPayment(paymentCode, capabilityToken);
     }
 
     @PostMapping("/api/payments/{paymentCode}/regenerate")

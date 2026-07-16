@@ -11,7 +11,11 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.server.ResponseStatusException;
 import poly.edu.quanlynhahang.config.PaymentProperties;
 import poly.edu.quanlynhahang.dto.PaymentQrResponse;
@@ -47,6 +51,11 @@ class PaymentServiceTest {
             paymentProperties,
             capabilityService,
             activityLogService);
+
+    @AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
+    }
 
     @Test
     void confirmFromWebhookMarksDepositPaidAndPublishesRealtimeEvent() {
@@ -190,6 +199,7 @@ class PaymentServiceTest {
         PaymentIntent existing = pendingIntent();
         Reservation reservation = existing.getReservation();
         when(paymentIntentRepository.findByPaymentCode("PAY-MV-001")).thenReturn(Optional.of(existing));
+        when(paymentIntentRepository.findLockedByPaymentCode("PAY-MV-001")).thenReturn(Optional.of(existing));
         when(reservationRepository.findLockedByReservationCode("MV-001")).thenReturn(Optional.of(reservation));
         when(paymentIntentRepository.saveAndFlush(existing)).thenReturn(existing);
         when(paymentIntentRepository.save(any())).thenAnswer(invocation -> {
@@ -205,7 +215,27 @@ class PaymentServiceTest {
         assertEquals(11L, existing.getReplacedById());
         assertNotEquals("PAY-MV-001", replacement.getPaymentCode());
         verify(reservationRepository, never()).save(any());
-        verify(activityLogService).log(any(), any(), any(), any());
+        verify(activityLogService).log(
+                "CREATE_PAYMENT_QR", "PaymentIntent", replacement.getPaymentCode(), "Tạo QR cho MV-001");
+        verify(activityLogService).log(
+                "REGENERATE_QR", "PaymentIntent", "10", "Tạo lại QR cho MV-001");
+    }
+
+    @Test
+    void strangerWhoKnowsPaymentCodeCannotReadQr() {
+        PaymentIntent intent = pendingIntent();
+        intent.getReservation().setCreatedBy("owner01");
+        SecurityContextHolder.getContext().setAuthentication(
+                new TestingAuthenticationToken("stranger01", null, "ROLE_CUSTOMER"));
+        when(paymentIntentRepository.findByPaymentCode("PAY-MV-001")).thenReturn(Optional.of(intent));
+        org.mockito.Mockito.doThrow(new ResponseStatusException(HttpStatus.FORBIDDEN, "PAYMENT_ACCESS_DENIED"))
+                .when(capabilityService).authorizePaymentQr(intent.getReservation(), null);
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+                () -> service.getPayment("PAY-MV-001", null));
+
+        assertEquals(HttpStatus.FORBIDDEN, error.getStatusCode());
+        verify(paymentIntentRepository, never()).save(any());
     }
 
     private PaymentQrRequest request(String reservationCode, PaymentOption option) {

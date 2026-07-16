@@ -136,7 +136,29 @@ public class PaymentService {
                 paymentProperties.getQrExpirationMinutes() * 60L)));
         intent.setQrUrl(buildVietQrUrl(intent));
         intent.setCreatedBy(currentUsername());
-        return paymentIntentRepository.save(intent);
+        PaymentIntent saved = paymentIntentRepository.save(intent);
+        activityLogService.log(
+                "CREATE_PAYMENT_QR",
+                "PaymentIntent",
+                saved.getPaymentCode(),
+                "Tạo QR cho " + reservation.getReservationCode());
+        return saved;
+    }
+
+    @Transactional
+    public PaymentQrResponse getPayment(String paymentCode, String capabilityToken) {
+        PaymentIntent intent = paymentIntentRepository.findByPaymentCode(paymentCode)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Không tìm thấy giao dịch thanh toán"));
+        if (intent.getReservation() == null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "ORDER_PAYMENT_LOOKUP_NOT_SUPPORTED");
+        }
+        capabilityService.authorizePaymentQr(intent.getReservation(), capabilityToken);
+        if (PaymentStatus.PENDING.equals(intent.getStatus()) && isExpired(intent)) {
+            intent.setStatus(PaymentStatus.EXPIRED);
+            intent = paymentIntentRepository.save(intent);
+        }
+        return toResponse(intent);
     }
 
     @Transactional
@@ -154,7 +176,7 @@ public class PaymentService {
         Reservation reservation = reservationRepository.findLockedByReservationCode(
                 initial.getReservation().getReservationCode())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy đặt bàn"));
-        PaymentIntent existing = paymentIntentRepository.findByPaymentCode(paymentCode)
+        PaymentIntent existing = paymentIntentRepository.findLockedByPaymentCode(paymentCode)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy giao dịch thanh toán"));
         capabilityService.authorizePaymentQr(existing.getReservation(), capabilityToken);
 

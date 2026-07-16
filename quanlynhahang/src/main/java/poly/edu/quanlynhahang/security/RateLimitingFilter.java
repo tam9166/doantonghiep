@@ -73,6 +73,15 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         if (path.startsWith("/api/reservations/lookup")) {
             return new RatePolicy("reservation-lookup", 30, 60);
         }
+        if ("POST".equals(method) && path.equals("/api/payments/qr")) {
+            return new RatePolicy("payment-qr-create", 10, 60);
+        }
+        if ("POST".equals(method) && path.matches("^/api/payments/[^/]+/regenerate$")) {
+            return new RatePolicy("payment-qr-regenerate", 5, 60);
+        }
+        if ("GET".equals(method) && path.matches("^/api/payments/[^/]+$")) {
+            return new RatePolicy("payment-qr-status", 30, 60);
+        }
         if (path.startsWith("/api/chatbot")
                 || path.startsWith("/api/admin/ai")
                 || path.startsWith("/api/staff/ai")) {
