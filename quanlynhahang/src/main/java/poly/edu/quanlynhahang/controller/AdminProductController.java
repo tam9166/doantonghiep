@@ -1,10 +1,12 @@
 package poly.edu.quanlynhahang.controller;
 
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -14,9 +16,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import poly.edu.quanlynhahang.entity.Product;
 import poly.edu.quanlynhahang.repository.ProductRepository;
+import poly.edu.quanlynhahang.repository.RecipeRepository;
+import poly.edu.quanlynhahang.repository.ReviewRepository;
 import poly.edu.quanlynhahang.service.ActivityLogService;
-
-@CrossOrigin("*")
 @RestController
 @RequestMapping("/api/admin/products")
 @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
@@ -26,7 +28,34 @@ public class AdminProductController {
     private ProductRepository productRepository;
 
     @Autowired
+    private ReviewRepository reviewRepository;
+
+    @Autowired
+    private RecipeRepository recipeRepository;
+
+    @Autowired
     private ActivityLogService activityLogService;
+
+    @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'KITCHEN')")
+    public List<Product> getProductsForOperations() {
+        List<Product> products = productRepository.findAll();
+        for (Product product : products) {
+            Double average = reviewRepository.getAverageRatingByProductId(product.getId());
+            product.setAverageRating(average == null ? 0.0 : Math.round(average * 10.0) / 10.0);
+
+            double recipeCost = recipeRepository.findByProduct(product).stream()
+                    .filter(recipe -> recipe.getIngredient() != null
+                            && recipe.getIngredient().getUnitPrice() != null
+                            && recipe.getAmountRequired() != null)
+                    .mapToDouble(recipe -> recipe.getIngredient().getUnitPrice() * recipe.getAmountRequired())
+                    .sum();
+            if (recipeCost > 0) {
+                product.setCostPrice(recipeCost);
+            }
+        }
+        return products;
+    }
 
     // API Thêm món ăn mới
     @PostMapping

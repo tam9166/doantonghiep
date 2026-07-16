@@ -175,6 +175,7 @@ public class SecurityConfig {
             .requestMatchers("/api/admin/ingredients", "/api/admin/ingredients/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_KITCHEN")
             .requestMatchers("/api/admin/recipes", "/api/admin/recipes/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_KITCHEN")
             .requestMatchers("/api/admin/import-invoices", "/api/admin/import-invoices/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_KITCHEN")
+            .requestMatchers(HttpMethod.GET, "/api/admin/products").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_KITCHEN")
             .requestMatchers(HttpMethod.PUT, "/api/admin/products/*/toggle-available").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_KITCHEN")
 
             // ✅ Các API mới: Nhật ký, Thông báo, Món hay dùng, Đề xuất mua hàng

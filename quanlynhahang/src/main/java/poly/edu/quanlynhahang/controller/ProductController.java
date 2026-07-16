@@ -1,70 +1,64 @@
 package poly.edu.quanlynhahang.controller;
 
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import poly.edu.quanlynhahang.dto.PublicProductResponse;
 import poly.edu.quanlynhahang.entity.Product;
 import poly.edu.quanlynhahang.repository.ProductRepository;
+import poly.edu.quanlynhahang.repository.ReviewRepository;
 
-@CrossOrigin("*")
 @RestController
 @RequestMapping("/api/products")
 public class ProductController {
 
-    @Autowired
-    private ProductRepository productRepository;
+    private final ProductRepository productRepository;
+    private final ReviewRepository reviewRepository;
 
-    @Autowired
-    private poly.edu.quanlynhahang.repository.ReviewRepository reviewRepository;
-
-    @Autowired
-    private poly.edu.quanlynhahang.repository.RecipeRepository recipeRepository;
-
-    // API lấy tất cả món ăn
-    @GetMapping
-    public List<Product> getAllProducts() {
-        List<Product> products = productRepository.findAll();
-        for (Product p : products) {
-            Double avg = reviewRepository.getAverageRatingByProductId(p.getId());
-            p.setAverageRating(avg != null ? Math.round(avg * 10.0) / 10.0 : 0.0);
-            
-            // Tính giá vốn (costPrice)
-            List<poly.edu.quanlynhahang.entity.Recipe> recipes = recipeRepository.findByProduct(p);
-            double cost = 0;
-            for(poly.edu.quanlynhahang.entity.Recipe r : recipes) {
-                if (r.getIngredient() != null && r.getIngredient().getUnitPrice() != null) {
-                    cost += r.getIngredient().getUnitPrice() * r.getAmountRequired();
-                }
-            }
-            p.setCostPrice(cost);
-        }
-        return products;
+    public ProductController(ProductRepository productRepository, ReviewRepository reviewRepository) {
+        this.productRepository = productRepository;
+        this.reviewRepository = reviewRepository;
     }
 
-    // API lấy món ăn theo ID của danh mục (Ví dụ: truyền số 2 vào sẽ lấy ra Đồ uống)
+    @GetMapping
+    public List<PublicProductResponse> getAllProducts() {
+        return toPublicResponse(productRepository.findAll());
+    }
+
     @GetMapping("/category/{categoryId}")
-    public List<Product> getProductsByCategory(@PathVariable Integer categoryId) {
-        List<Product> products = productRepository.findByCategoryId(categoryId);
-        for (Product p : products) {
-            Double avg = reviewRepository.getAverageRatingByProductId(p.getId());
-            p.setAverageRating(avg != null ? Math.round(avg * 10.0) / 10.0 : 0.0);
-            
-            // Tính giá vốn (costPrice)
-            List<poly.edu.quanlynhahang.entity.Recipe> recipes = recipeRepository.findByProduct(p);
-            double cost = 0;
-            for(poly.edu.quanlynhahang.entity.Recipe r : recipes) {
-                if (r.getIngredient() != null && r.getIngredient().getUnitPrice() != null) {
-                    cost += r.getIngredient().getUnitPrice() * r.getAmountRequired();
-                }
-            }
-            p.setCostPrice(cost);
+    public List<PublicProductResponse> getProductsByCategory(@PathVariable Integer categoryId) {
+        return toPublicResponse(productRepository.findByCategoryId(categoryId));
+    }
+
+    private List<PublicProductResponse> toPublicResponse(List<Product> products) {
+        if (products.isEmpty()) {
+            return List.of();
         }
-        return products;
+
+        List<Integer> productIds = products.stream().map(Product::getId).toList();
+        Map<Integer, ReviewRepository.ProductRatingSummary> ratings = reviewRepository
+                .getAverageRatingsByProductIds(productIds)
+                .stream()
+                .collect(Collectors.toMap(
+                        ReviewRepository.ProductRatingSummary::getProductId,
+                        Function.identity()));
+
+        return products.stream()
+                .map(product -> PublicProductResponse.from(product, roundRating(ratings.get(product.getId()))))
+                .toList();
+    }
+
+    private double roundRating(ReviewRepository.ProductRatingSummary rating) {
+        if (rating == null || rating.getAverageRating() == null) {
+            return 0.0;
+        }
+        return Math.round(rating.getAverageRating() * 10.0) / 10.0;
     }
 }

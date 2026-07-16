@@ -368,7 +368,7 @@ const fetchIngredients = async () => {
 
 const fetchProducts = async () => {
   try {
-    const res = await axios.get('http://localhost:8080/api/products');
+    const res = await axios.get('/api/admin/products', configHeader());
 products.value = res.data;
   } catch (err) { console.error('Lỗi lấy sản phẩm:', err); }
 };

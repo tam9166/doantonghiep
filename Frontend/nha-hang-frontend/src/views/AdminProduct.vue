@@ -142,7 +142,7 @@ const getAuthConfig = () => {
 
 const fetchProducts = async () => {
   try {
-    const res = await axios.get('http://localhost:8080/api/products');
+    const res = await axios.get('/api/admin/products', getAuthConfig());
     products.value = res.data;
   } catch (error) { console.error('Lỗi lấy sản phẩm', error); }
 };

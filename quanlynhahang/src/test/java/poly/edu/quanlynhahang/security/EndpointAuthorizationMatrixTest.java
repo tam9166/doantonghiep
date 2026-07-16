@@ -13,6 +13,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import poly.edu.quanlynhahang.controller.CategoryController;
 import poly.edu.quanlynhahang.controller.ChatbotController;
 import poly.edu.quanlynhahang.controller.AdminOrderController;
+import poly.edu.quanlynhahang.controller.AdminProductController;
 import poly.edu.quanlynhahang.controller.OrderController;
 import poly.edu.quanlynhahang.controller.VoucherController;
 import poly.edu.quanlynhahang.dto.OrderRequest;
@@ -70,6 +71,12 @@ class EndpointAuthorizationMatrixTest {
                 "KITCHEN", "ADMIN", "MANAGER");
         assertRoles(ChatbotController.class.getMethod("waiter", AiRequest.class),
                 "WAITER", "ADMIN", "MANAGER");
+    }
+
+    @Test
+    void internalProductCatalogExposesCostOnlyToOperationalRoles() throws Exception {
+        assertRoles(AdminProductController.class.getMethod("getProductsForOperations"),
+                "ADMIN", "MANAGER", "KITCHEN");
     }
 
     private void assertRoles(Method method, String... expectedRoles) {
