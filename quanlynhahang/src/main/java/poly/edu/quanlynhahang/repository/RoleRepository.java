@@ -11,4 +11,5 @@ public interface RoleRepository extends JpaRepository<Role, Integer>{
     
     // ĐÃ SỬA: Thêm Optional để có thể dùng được hàm .ifPresent() bên Controller
     Optional<Role> findByName(String name);
+    Optional<Role> findByNameIgnoreCase(String name);
 }

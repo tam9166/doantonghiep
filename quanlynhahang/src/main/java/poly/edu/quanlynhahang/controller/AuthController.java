@@ -183,15 +183,20 @@ public class AuthController {
 
     // API 5: ĐỔI MẬT KHẨU
     @org.springframework.web.bind.annotation.PutMapping("/password")
+    @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequest request) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        java.util.Optional<Account> accOpt = accountRepository.findById(username);
+        java.util.Optional<Account> accOpt = accountRepository.findLockedByUsername(username);
         if (accOpt.isPresent()) {
             Account acc = accOpt.get();
             if (!passwordEncoder.matches(request.getOldPassword(), acc.getPassword())) {
                 return ResponseEntity.badRequest().body("Mật khẩu cũ không chính xác!");
             }
+            if (request.getNewPassword() == null || request.getNewPassword().length() < 10) {
+                return ResponseEntity.unprocessableEntity().body("Mật khẩu mới phải có ít nhất 10 ký tự!");
+            }
             acc.setPassword(passwordEncoder.encode(request.getNewPassword()));
+            acc.setTokenVersion((acc.getTokenVersion() == null ? 0L : acc.getTokenVersion()) + 1L);
             accountRepository.save(acc);
             return ResponseEntity.ok("Đổi mật khẩu thành công!");
         }

@@ -42,6 +42,12 @@ public class Account {
     @Column(name = "assigned_area", columnDefinition = "nvarchar(100)")
     private String assignedArea;
 
+    @Column(name = "token_version", nullable = false)
+    private Long tokenVersion = 0L;
+
+    @Column(nullable = false)
+    private Boolean enabled = true;
+
     @JsonIgnore
     @OneToMany(mappedBy = "account", fetch = FetchType.EAGER)
     private List<Authority> authorities;
