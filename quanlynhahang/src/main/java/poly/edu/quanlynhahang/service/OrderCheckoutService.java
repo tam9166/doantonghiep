@@ -6,12 +6,15 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import poly.edu.quanlynhahang.dto.OrderDetailRequest;
 import poly.edu.quanlynhahang.dto.OrderRequest;
+import poly.edu.quanlynhahang.dto.PaymentQrResponse;
 import poly.edu.quanlynhahang.entity.Account;
 import poly.edu.quanlynhahang.entity.Ingredient;
 import poly.edu.quanlynhahang.entity.IngredientBatch;
 import poly.edu.quanlynhahang.entity.Order;
 import poly.edu.quanlynhahang.entity.OrderDetail;
 import poly.edu.quanlynhahang.entity.Product;
+import poly.edu.quanlynhahang.entity.OrderPaymentOption;
+import poly.edu.quanlynhahang.entity.PaymentStatus;
 import poly.edu.quanlynhahang.entity.Recipe;
 import poly.edu.quanlynhahang.entity.RestaurantTable;
 import poly.edu.quanlynhahang.entity.Voucher;
@@ -26,6 +29,8 @@ import poly.edu.quanlynhahang.repository.RestaurantTableRepository;
 import poly.edu.quanlynhahang.repository.VoucherRepository;
 
 import java.security.SecureRandom;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Date;
@@ -48,6 +53,7 @@ public class OrderCheckoutService {
     private final IngredientBatchRepository ingredientBatchRepository;
     private final VoucherRepository voucherRepository;
     private final ActivityLogService activityLogService;
+    private final OrderPaymentService orderPaymentService;
 
     public OrderCheckoutService(OrderRepository orderRepository,
                                 OrderDetailRepository orderDetailRepository,
@@ -58,7 +64,8 @@ public class OrderCheckoutService {
                                 IngredientRepository ingredientRepository,
                                 IngredientBatchRepository ingredientBatchRepository,
                                 VoucherRepository voucherRepository,
-                                ActivityLogService activityLogService) {
+                                ActivityLogService activityLogService,
+                                OrderPaymentService orderPaymentService) {
         this.orderRepository = orderRepository;
         this.orderDetailRepository = orderDetailRepository;
         this.productRepository = productRepository;
@@ -69,6 +76,7 @@ public class OrderCheckoutService {
         this.ingredientBatchRepository = ingredientBatchRepository;
         this.voucherRepository = voucherRepository;
         this.activityLogService = activityLogService;
+        this.orderPaymentService = orderPaymentService;
     }
 
     @Transactional
@@ -76,6 +84,7 @@ public class OrderCheckoutService {
         validateRequest(request);
         Account account = authenticatedAccount(username);
         boolean dineIn = request.getAddress() != null && request.getAddress().contains("[TẠI QUÁN]");
+        OrderPaymentOption paymentOption = resolvePaymentOption(request.getPaymentOption(), dineIn);
 
         Map<Integer, Integer> quantities = normalizeQuantities(request.getItems());
         List<CheckoutLine> lines = loadProducts(quantities);
@@ -91,6 +100,9 @@ public class OrderCheckoutService {
         order.setStatus(0);
         order.setIsPaid(false);
         order.setDeposit(0.0);
+        order.setPaymentOption(paymentOption);
+        order.setPaymentStatus(PaymentStatus.UNPAID);
+        order.setPaidAmount(BigDecimal.ZERO);
         Order savedOrder = orderRepository.save(order);
 
         double subTotal = 0.0;
@@ -117,14 +129,18 @@ public class OrderCheckoutService {
         savedOrder.setSubTotal(subTotal);
         savedOrder.setTaxAmount(taxAmount);
         savedOrder.setTotalAmount(subTotal + taxAmount);
+        savedOrder.setRemainingAmount(BigDecimal.valueOf(savedOrder.getTotalAmount())
+                .setScale(0, RoundingMode.HALF_UP));
         consumeInventory(requirements, lockedBatches);
         occupyDineInTable(savedOrder, request.getAddress(), orderCode, dineIn);
         orderRepository.save(savedOrder);
+        PaymentQrResponse payment = orderPaymentService.createForOrder(savedOrder);
         activityLogService.log("CREATE", "Order", String.valueOf(savedOrder.getId()),
                 "Tạo đơn chờ xác nhận #" + orderCode);
 
         return new CheckoutResult(savedOrder.getId(), orderCode, savedOrder.getStatus(),
-                savedOrder.getSubTotal(), savedOrder.getTaxAmount(), savedOrder.getTotalAmount());
+                savedOrder.getSubTotal(), savedOrder.getTaxAmount(), savedOrder.getTotalAmount(),
+                savedOrder.getPaymentOption(), savedOrder.getPaymentStatus(), payment);
     }
 
     private void validateRequest(OrderRequest request) {
@@ -174,6 +190,22 @@ public class OrderCheckoutService {
             return null;
         }
         return accountRepository.findById(username).orElse(null);
+    }
+
+    private OrderPaymentOption resolvePaymentOption(OrderPaymentOption requested, boolean dineIn) {
+        OrderPaymentOption option = requested == null
+                ? (dineIn ? OrderPaymentOption.PAY_AT_RESTAURANT : OrderPaymentOption.PREPAID_TRANSFER)
+                : requested;
+        if (dineIn && !OrderPaymentOption.PAY_AT_RESTAURANT.equals(option)) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Đơn tại quán phải chọn thanh toán tại nhà hàng");
+        }
+        if (!dineIn && !OrderPaymentOption.PREPAID_TRANSFER.equals(option)
+                && !OrderPaymentOption.COD.equals(option)) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Đơn giao hàng chỉ hỗ trợ chuyển khoản trước hoặc COD");
+        }
+        return option;
     }
 
     private double calculateDiscount(String voucherCode, Account account, boolean dineIn) {
@@ -328,6 +360,9 @@ public class OrderCheckoutService {
                                  Integer status,
                                  Double subTotal,
                                  Double taxAmount,
-                                 Double totalAmount) {
+                                 Double totalAmount,
+                                 OrderPaymentOption paymentOption,
+                                 PaymentStatus paymentStatus,
+                                 PaymentQrResponse payment) {
     }
 }

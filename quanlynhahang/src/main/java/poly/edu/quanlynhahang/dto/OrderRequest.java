@@ -6,6 +6,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
+import poly.edu.quanlynhahang.entity.OrderPaymentOption;
 
 @Data
 public class OrderRequest {
@@ -17,6 +18,8 @@ public class OrderRequest {
 
     @Deprecated(forRemoval = false)
     private Double deposit;
+
+    private OrderPaymentOption paymentOption;
 
     @Valid
     @NotEmpty(message = "Giỏ hàng không được để trống")

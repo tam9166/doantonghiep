@@ -24,11 +24,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 
 import poly.edu.quanlynhahang.entity.Order;
 import poly.edu.quanlynhahang.entity.PointsEventType;
+import poly.edu.quanlynhahang.entity.PaymentStatus;
+import poly.edu.quanlynhahang.entity.OrderPaymentOption;
 import poly.edu.quanlynhahang.entity.RestaurantTable;
 import poly.edu.quanlynhahang.repository.OrderRepository;
 import poly.edu.quanlynhahang.repository.RestaurantTableRepository;
 import poly.edu.quanlynhahang.service.ActivityLogService;
 import poly.edu.quanlynhahang.service.PointsLedgerService;
+import poly.edu.quanlynhahang.service.OrderPaymentService;
 @RestController
 @RequestMapping("/api/admin/orders")
 // ✅ FIX: Dùng hasAnyAuthority với ROLE_ prefix đầy đủ
@@ -49,6 +52,9 @@ public class AdminOrderController {
 
     @Autowired
     private PointsLedgerService pointsLedgerService;
+
+    @Autowired
+    private OrderPaymentService orderPaymentService;
 
     @GetMapping
     @Transactional(readOnly = true)
@@ -131,6 +137,14 @@ public class AdminOrderController {
     @PutMapping("/{id}/status")
     @Transactional
     public ResponseEntity<?> updateOrderStatus(@PathVariable Integer id, @RequestParam Integer status) {
+        if (status == 1) {
+            Order current = orderRepository.findById(id).orElse(null);
+            if (current != null && (Integer.valueOf(0).equals(current.getStatus())
+                    || Integer.valueOf(5).equals(current.getStatus()))) {
+                requireManualConfirmationRole();
+                return ResponseEntity.ok(orderPaymentService.confirmManualDispatch(id));
+            }
+        }
         return orderRepository.findById(id).map(order -> {
             if (status == 4 && order.getStatus() != 4 && Boolean.TRUE.equals(order.getIsPaid())) {
                 awardOrderPoints(order);
@@ -154,23 +168,58 @@ public class AdminOrderController {
     }
 
     @PutMapping("/{id}/pay")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_CASHIER', 'ROLE_WAITER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'CASHIER')")
     @Transactional
     public ResponseEntity<?> payOrder(@PathVariable Integer id) {
-        java.util.Optional<Order> orderOpt = orderRepository.findById(id);
+        java.util.Optional<Order> orderOpt = orderRepository.findLockedById(id);
         if (orderOpt.isPresent()) {
             Order order = orderOpt.get();
+            if (Integer.valueOf(3).equals(order.getStatus())) {
+                return ResponseEntity.status(409).body("Không thể thanh toán đơn đã hủy!");
+            }
+            if (OrderPaymentOption.PREPAID_TRANSFER.equals(order.getPaymentOption())) {
+                return ResponseEntity.status(409)
+                        .body("Đơn chuyển khoản chỉ được xác nhận qua payment ledger/webhook!");
+            }
             boolean firstPaymentConfirmation = !Boolean.TRUE.equals(order.getIsPaid());
             order.setIsPaid(true);
+            java.math.BigDecimal paid = java.math.BigDecimal.valueOf(
+                    order.getTotalAmount() == null ? 0.0 : order.getTotalAmount()).setScale(0, java.math.RoundingMode.HALF_UP);
+            order.setPaidAmount(paid);
+            order.setRemainingAmount(java.math.BigDecimal.ZERO);
+            order.setPaymentStatus(PaymentStatus.PAID);
+            order.setPaymentConfirmedBy(org.springframework.security.core.context.SecurityContextHolder
+                    .getContext().getAuthentication().getName());
+            order.setPaymentConfirmedAt(new Date());
             order.setStatus(4); 
             orderRepository.save(order);
             if (firstPaymentConfirmation) {
                 awardOrderPoints(order);
             }
+            activityLogService.log("MANUAL_PAYMENT_CONFIRM", "Order", String.valueOf(id),
+                    "Thu ngân/quản lý xác nhận thanh toán thủ công");
             messagingTemplate.convertAndSend("/topic/waiter", "ORDER_PAID");
             return ResponseEntity.ok(order);
         }
         return ResponseEntity.badRequest().body("Đơn hàng không tồn tại!");
+    }
+
+    @PutMapping("/{id}/confirm-manual")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'CASHIER')")
+    public ResponseEntity<?> confirmManualOrder(@PathVariable Integer id) {
+        return ResponseEntity.ok(orderPaymentService.confirmManualDispatch(id));
+    }
+
+    private void requireManualConfirmationRole() {
+        boolean allowed = org.springframework.security.core.context.SecurityContextHolder.getContext()
+                .getAuthentication().getAuthorities().stream()
+                .anyMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN")
+                        || authority.getAuthority().equals("ROLE_MANAGER")
+                        || authority.getAuthority().equals("ROLE_CASHIER"));
+        if (!allowed) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Chỉ thu ngân hoặc quản lý được xác nhận đơn thủ công");
+        }
     }
 
     private void awardOrderPoints(Order order) {

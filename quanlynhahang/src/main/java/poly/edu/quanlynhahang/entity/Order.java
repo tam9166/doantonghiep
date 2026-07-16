@@ -2,11 +2,14 @@ package poly.edu.quanlynhahang.entity;
 
 import java.util.Date;
 import java.util.List;
+import java.math.BigDecimal;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -49,6 +52,9 @@ public class Order {
     @Column(name = "deposit")
     private Double deposit = 0.0;
 
+    @Column(name = "table_id")
+    private Integer tableId;
+
     // Khóa ngoại liên kết với bảng Account (người đặt hàng)
     @ManyToOne
     @JoinColumn(name = "username")
@@ -60,4 +66,25 @@ public class Order {
     // Đánh dấu đơn hàng đã được thanh toán (đối với ăn tại quán)
     @Column(name = "is_paid")
     private Boolean isPaid = false;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_option", length = 30, nullable = false)
+    private OrderPaymentOption paymentOption = OrderPaymentOption.PAY_AT_RESTAURANT;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_status", length = 30, nullable = false)
+    private PaymentStatus paymentStatus = PaymentStatus.UNPAID;
+
+    @Column(name = "paid_amount", precision = 18, scale = 0, nullable = false)
+    private BigDecimal paidAmount = BigDecimal.ZERO;
+
+    @Column(name = "remaining_amount", precision = 18, scale = 0, nullable = false)
+    private BigDecimal remainingAmount = BigDecimal.ZERO;
+
+    @Column(name = "payment_confirmed_by", length = 80)
+    private String paymentConfirmedBy;
+
+    @Temporal(TemporalType.TIMESTAMP)
+    @Column(name = "payment_confirmed_at")
+    private Date paymentConfirmedAt;
 }

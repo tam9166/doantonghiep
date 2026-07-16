@@ -36,19 +36,22 @@ public class PaymentLedgerService {
     private final ReservationStateMachine stateMachine;
     private final ReservationRealtimeService realtimeService;
     private final ActivityLogService activityLogService;
+    private final OrderPaymentService orderPaymentService;
 
     public PaymentLedgerService(PaymentIntentRepository intentRepository,
                                 PaymentTransactionRepository transactionRepository,
                                 ReservationRepository reservationRepository,
                                 ReservationStateMachine stateMachine,
                                 ReservationRealtimeService realtimeService,
-                                ActivityLogService activityLogService) {
+                                ActivityLogService activityLogService,
+                                OrderPaymentService orderPaymentService) {
         this.intentRepository = intentRepository;
         this.transactionRepository = transactionRepository;
         this.reservationRepository = reservationRepository;
         this.stateMachine = stateMachine;
         this.realtimeService = realtimeService;
         this.activityLogService = activityLogService;
+        this.orderPaymentService = orderPaymentService;
     }
 
     @Transactional
@@ -106,10 +109,24 @@ public class PaymentLedgerService {
         intent.setStatus(paymentStatus(intentPaid, intent.getAmount()));
         intentRepository.save(intent);
 
-        Reservation reservation = intent.getReservation();
         BigDecimal aggregatePaid = netAmount(transactionRepository
                 .findByAggregateTypeAndAggregateIdAndStatus(
                         intent.getAggregateType(), intent.getAggregateId(), PaymentTransactionStatus.SUCCESS));
+        if ("ORDER".equals(intent.getAggregateType())) {
+            PaymentStatus orderPaymentStatus = paymentStatus(aggregatePaid, intent.getAmount());
+            orderPaymentService.applyLedgerPayment(intent.getAggregateId().intValue(), aggregatePaid, orderPaymentStatus);
+            activityLogService.log(
+                    "PAYMENT_CREDIT",
+                    "Order",
+                    String.valueOf(intent.getAggregateId()),
+                    "Đã ghi nhận giao dịch " + providerTransactionId);
+            return new PaymentLedgerResult("PAYMENT_" + orderPaymentStatus.name(), paymentCode);
+        }
+
+        Reservation reservation = intent.getReservation();
+        if (reservation == null) {
+            throw new IllegalStateException("PaymentIntent RESERVATION không gắn với đặt bàn");
+        }
         reservation.setPaidAmount(aggregatePaid.max(BigDecimal.ZERO));
         reservation.setRemainingAmount(reservation.getTotalAmount().subtract(aggregatePaid).max(BigDecimal.ZERO));
         reservation.setPaymentStatus(paymentStatus(aggregatePaid, reservation.getTotalAmount()));

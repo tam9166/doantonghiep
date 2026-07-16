@@ -513,12 +513,13 @@ const submitOrder = async () => {
   try {
     await axios.post('/api/orders/checkout', {
       address: infoFull,
+      paymentOption: 'PAY_AT_RESTAURANT',
       items: formattedItems
-    }, { headers: { 'Authorization': `Bearer ${token}` } });
+    }, { headers: token ? { 'Authorization': `Bearer ${token}` } : {} });
 
     cart.value = [];
     showModal.value = false;
-    toastMsg.value = '🍳 Đã gửi đơn xuống bếp thành công! Món ăn đang được chuẩn bị...';
+    toastMsg.value = 'Đã ghi nhận đơn. Nhân viên sẽ xác nhận trước khi chuyển xuống bếp.';
     setTimeout(() => { toastMsg.value = ''; }, 4000);
   } catch (error) {
     alert("Lỗi: Vui lòng thử lại!");

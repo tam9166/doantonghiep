@@ -43,6 +43,7 @@ class OrderCheckoutServiceTest {
     private final IngredientBatchRepository batchRepository = mock(IngredientBatchRepository.class);
     private final VoucherRepository voucherRepository = mock(VoucherRepository.class);
     private final ActivityLogService activityLogService = mock(ActivityLogService.class);
+    private final OrderPaymentService orderPaymentService = mock(OrderPaymentService.class);
 
     private final OrderCheckoutService service = new OrderCheckoutService(
             orderRepository,
@@ -54,7 +55,8 @@ class OrderCheckoutServiceTest {
             ingredientRepository,
             batchRepository,
             voucherRepository,
-            activityLogService);
+            activityLogService,
+            orderPaymentService);
 
     @Test
     void rejectsEmptyCartBeforeWritingAnything() {

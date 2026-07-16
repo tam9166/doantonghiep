@@ -92,6 +92,10 @@ public class OrderController {
         
         Order savedOrder = orderOpt.get();
 
+        if (Boolean.TRUE.equals(savedOrder.getIsPaid()) || Integer.valueOf(3).equals(savedOrder.getStatus())) {
+            return ResponseEntity.status(409).body("Không thể thêm món vào đơn đã thanh toán hoặc đã hủy!");
+        }
+
         double[] totals = new double[2];
         totals[0] = savedOrder.getSubTotal() != null ? savedOrder.getSubTotal() : 0.0;
         totals[1] = savedOrder.getTaxAmount() != null ? savedOrder.getTaxAmount() : 0.0;

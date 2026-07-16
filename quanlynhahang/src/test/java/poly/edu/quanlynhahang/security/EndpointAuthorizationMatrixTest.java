@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.security.access.prepost.PreAuthorize;
 
 import poly.edu.quanlynhahang.controller.CategoryController;
+import poly.edu.quanlynhahang.controller.AdminOrderController;
 import poly.edu.quanlynhahang.controller.OrderController;
 import poly.edu.quanlynhahang.controller.VoucherController;
 import poly.edu.quanlynhahang.dto.OrderRequest;
@@ -43,6 +44,14 @@ class EndpointAuthorizationMatrixTest {
                 "WAITER", "CASHIER", "MANAGER", "ADMIN");
         assertRoles(OrderController.class.getMethod("updateOrderDetailStatus", Integer.class, Integer.class),
                 "KITCHEN", "MANAGER", "ADMIN");
+    }
+
+    @Test
+    void manualOrderPaymentActionsOnlyAllowCashierOrManagers() throws Exception {
+        assertRoles(AdminOrderController.class.getMethod("payOrder", Integer.class),
+                "ADMIN", "MANAGER", "CASHIER");
+        assertRoles(AdminOrderController.class.getMethod("confirmManualOrder", Integer.class),
+                "ADMIN", "MANAGER", "CASHIER");
     }
 
     private void assertRoles(Method method, String... expectedRoles) {

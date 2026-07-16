@@ -25,4 +25,6 @@ public interface PaymentIntentRepository extends JpaRepository<PaymentIntent, Lo
     List<PaymentIntent> findByReservationIdAndStatusOrderByCreatedAtDesc(Long reservationId, PaymentStatus status);
     Optional<PaymentIntent> findFirstByReservationIdAndPaymentOptionAndStatusOrderByCreatedAtDesc(
             Long reservationId, PaymentOption paymentOption, PaymentStatus status);
+    Optional<PaymentIntent> findFirstByOrderIdAndPaymentOptionAndStatusOrderByCreatedAtDesc(
+            Integer orderId, PaymentOption paymentOption, PaymentStatus status);
 }

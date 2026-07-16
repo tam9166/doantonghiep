@@ -147,6 +147,9 @@ public class PaymentService {
         String normalizedIdempotencyKey = normalizeIdempotencyKey(idempotencyKey);
         PaymentIntent initial = paymentIntentRepository.findByPaymentCode(paymentCode)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy giao dịch thanh toán"));
+        if (initial.getReservation() == null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "ORDER_PAYMENT_REGENERATE_NOT_SUPPORTED");
+        }
         capabilityService.authorizePaymentQr(initial.getReservation(), capabilityToken);
         Reservation reservation = reservationRepository.findLockedByReservationCode(
                 initial.getReservation().getReservationCode())
@@ -193,6 +196,9 @@ public class PaymentService {
     public PaymentQrResponse confirm(String paymentCode, String bankTransactionCode, String note) {
         PaymentIntent intent = paymentIntentRepository.findByPaymentCode(paymentCode)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy giao dịch thanh toán"));
+        if (intent.getReservation() == null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "ORDER_PAYMENT_REQUIRES_LEDGER");
+        }
         if (bankTransactionCode != null && !bankTransactionCode.isBlank()) {
             paymentIntentRepository.findByBankTransactionCode(bankTransactionCode)
                     .filter(existing -> !existing.getId().equals(intent.getId()))

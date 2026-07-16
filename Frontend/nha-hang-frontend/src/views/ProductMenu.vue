@@ -73,7 +73,7 @@
       <div class="g-modal-box" style="max-width: 600px;">
         <h3>Thông Tin Giao Hàng & Thanh Toán</h3>
         
-        <div class="checkout-scroll-area" style="max-height: 400px; overflow-y: auto; padding-right: 10px;">
+        <div v-if="!paymentQr" class="checkout-scroll-area" style="max-height: 400px; overflow-y: auto; padding-right: 10px;">
           <div class="form-group mt-3">
             <label>Họ tên người nhận (*):</label>
             <input v-model="orderInfo.fullname" type="text" placeholder="Nguyễn Văn A..." class="g-form-control" />
@@ -88,34 +88,32 @@
           </div>
 
           <div class="payment-banking-box mt-4" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); padding: 15px; border-radius: 12px;">
-            <h4 style="color: var(--primary); margin: 0 0 10px 0;">💳 Chuyển khoản qua VietQR</h4>
-            <div style="display: flex; gap: 15px; align-items: center;">
-              <div style="flex: 1;">
-                <p style="margin-bottom: 5px;">Tạm tính: <strong>{{ cartSubtotal.toLocaleString() }}đ</strong></p>
-                <p style="margin-bottom: 5px;">Thuế GTGT: <strong>{{ cartTax.toLocaleString() }}đ</strong></p>
-                <p>Tổng thanh toán: <strong style="color: #B23B2E; font-size: 1.2rem;">{{ cartTotal.toLocaleString() }}đ</strong></p>
-                <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; margin-top: 10px;">
-                  <p>Ngân hàng: <strong>{{ paymentAccount.bankLabel }}</strong></p>
-                  <p>STK: <strong>{{ paymentAccount.accountNumber }}</strong></p>
-                  <p>Tên TK: <strong>{{ paymentAccount.accountName }}</strong></p>
-                  <p>Nội dung: <strong>{{ orderInfo.phone || 'SDT' }} SHIP</strong></p>
-                </div>
-              </div>
-              <div>
-                <img :src="deliveryQrUrl" alt="Mã QR thanh toán đơn giao hàng" style="width: 140px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.5);" />
-              </div>
-            </div>
-            
-            <div class="form-group mt-3">
-              <label style="color: #B23B2E;">Dán Mã giao dịch sau khi CK (*):</label>
-              <input v-model="orderInfo.txCode" type="text" placeholder="Ví dụ: FT24..." class="g-form-control" style="border-color: #B23B2E;" />
-            </div>
+            <h4 style="color: var(--primary); margin: 0 0 10px 0;">Chuyển khoản qua VietQR</h4>
+            <p style="margin-bottom: 5px;">Tạm tính: <strong>{{ cartSubtotal.toLocaleString() }}đ</strong></p>
+            <p style="margin-bottom: 5px;">Thuế GTGT dự kiến: <strong>{{ cartTax.toLocaleString() }}đ</strong></p>
+            <p>Tổng dự kiến: <strong style="color: #B23B2E; font-size: 1.2rem;">{{ cartTotal.toLocaleString() }}đ</strong></p>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 10px;">
+              Mã QR chính xác sẽ được tạo sau khi hệ thống ghi nhận đơn và tính lại giá.
+            </p>
           </div>
         </div>
 
+        <div v-else class="payment-banking-box payment-result">
+          <h4>Quét QR để thanh toán</h4>
+          <img :src="paymentQr.qrUrl" alt="Mã QR thanh toán đơn giao hàng" />
+          <p>Số tiền: <strong>{{ Number(paymentQr.amount).toLocaleString() }}đ</strong></p>
+          <p>Ngân hàng: <strong>{{ paymentQr.bankCode }}</strong></p>
+          <p>Số tài khoản: <strong>{{ paymentQr.accountNumber }}</strong></p>
+          <p>Chủ tài khoản: <strong>{{ paymentQr.accountHolder }}</strong></p>
+          <p>Nội dung: <strong>{{ paymentQr.transferContent }}</strong></p>
+          <small>Đơn chỉ được chuyển xuống bếp sau khi ngân hàng xác nhận đủ tiền.</small>
+        </div>
+
         <div class="modal-actions mt-4" style="display: flex; gap: 10px;">
-          <button @click="showCheckoutModal = false" class="g-btn-outline" style="flex: 1;">Đóng</button>
-          <button v-if="cart.length > 0" @click="submitShipOrder" class="g-btn-primary" style="flex: 1;">Xác Nhận & Đặt Hàng</button>
+          <button @click="closeCheckout" class="g-btn-outline" style="flex: 1;">{{ paymentQr ? 'Đã hiểu' : 'Đóng' }}</button>
+          <button v-if="cart.length > 0 && !paymentQr" @click="submitShipOrder" :disabled="checkoutSubmitting" class="g-btn-primary" style="flex: 1;">
+            {{ checkoutSubmitting ? 'Đang tạo đơn...' : 'Tạo đơn & lấy mã QR' }}
+          </button>
         </div>
       </div>
     </div>
@@ -129,7 +127,6 @@ import axios from 'axios';
 import { useRouter } from 'vue-router';
 import CustomerLayout from '@/components/CustomerLayout.vue';
 import SkeletonLoader from '@/components/SkeletonLoader.vue';
-import { buildVietQrUrl, paymentAccount } from '@/services/paymentQr';
 import { foodImage, replaceFoodImage } from '@/utils/imageFallback';
 
 const products = ref([]);
@@ -149,8 +146,9 @@ const isAdminOrManager = computed(() => {
 const showCheckoutModal = ref(false);
 const selectedCategory = ref(null); 
 
-// Cập nhật orderInfo để bỏ paymentMethod, thêm fullname và txCode
-const orderInfo = ref({ fullname: '', phone: '', address: '', txCode: '' });
+const orderInfo = ref({ fullname: '', phone: '', address: '' });
+const paymentQr = ref(null);
+const checkoutSubmitting = ref(false);
 
 const cartSubtotal = computed(() => {
   return cart.value.reduce((total, item) => total + (item.price * item.quantity), 0);
@@ -163,12 +161,6 @@ const cartTax = computed(() => {
 const cartTotal = computed(() => {
   return cartSubtotal.value + cartTax.value;
 });
-
-const deliveryQrUrl = computed(() => buildVietQrUrl({
-  amount: cartTotal.value,
-  addInfo: `${orderInfo.value.phone || 'SHIP'} SHIP`,
-  extension: 'jpg',
-}));
 
 const fetchProducts = async () => {
   const response = await axios.get('/api/products');
@@ -215,13 +207,13 @@ const addToCart = (product) => {
 const submitShipOrder = async () => {
   const token = localStorage.getItem('token');
   
-  if(!orderInfo.value.fullname || !orderInfo.value.phone || !orderInfo.value.address || !orderInfo.value.txCode) {
-    alert("Vui lòng điền đầy đủ thông tin nhận hàng và Mã giao dịch!");
+  if(!orderInfo.value.fullname || !orderInfo.value.phone || !orderInfo.value.address) {
+    alert("Vui lòng điền đầy đủ thông tin nhận hàng!");
     return;
   }
 
   // Cấu trúc infoFull để Admin dùng In hóa đơn sau này
-  const infoFull = `[GIAO HÀNG] Khách: ${orderInfo.value.fullname} | SĐT: ${orderInfo.value.phone} | ĐC: ${orderInfo.value.address} | MãGD: ${orderInfo.value.txCode}`;
+  const infoFull = `[GIAO HÀNG] Khách: ${orderInfo.value.fullname} | SĐT: ${orderInfo.value.phone} | ĐC: ${orderInfo.value.address}`;
   
   const formattedItems = cart.value.map(item => ({ 
     productId: item.productId, 
@@ -229,17 +221,27 @@ const submitShipOrder = async () => {
   }));
 
   try {
-    await axios.post('/api/orders/checkout', {
+    checkoutSubmitting.value = true;
+    const response = await axios.post('/api/orders/checkout', {
       address: infoFull,
+      paymentOption: 'PREPAID_TRANSFER',
       items: formattedItems
-    }, { headers: { 'Authorization': `Bearer ${token}` } });
+    }, { headers: token ? { 'Authorization': `Bearer ${token}` } : {} });
 
-    alert("🚀 Đặt hàng thành công! Cửa hàng sẽ kiểm tra và giao món ngay.");
-    showCheckoutModal.value = false;
+    paymentQr.value = response.data.payment;
     cart.value = [];
-    router.push('/history');
   } catch (error) {
-    alert("Lỗi: " + (error.response?.data || "Vui lòng thử lại"));
+    alert("Lỗi: " + (error.response?.data?.message || "Vui lòng thử lại"));
+  } finally {
+    checkoutSubmitting.value = false;
+  }
+};
+
+const closeCheckout = () => {
+  showCheckoutModal.value = false;
+  if (paymentQr.value) {
+    paymentQr.value = null;
+    router.push('/history');
   }
 };
 
@@ -418,6 +420,17 @@ onMounted(async () => {
 .cart-count { background: #1A170F; color: var(--primary); padding: 4px 10px; border-radius: 20px; font-size: 0.85rem; }
 .cart-total { font-size: 1.1rem; }
 .cart-checkout { margin-left: 10px; background: rgba(26, 23, 15, 0.1); padding: 5px 15px; border-radius: 20px; }
+
+.payment-result {
+  padding: 18px;
+  text-align: center;
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+}
+.payment-result h4 { margin: 0 0 12px; color: var(--primary); }
+.payment-result img { display: block; width: min(220px, 100%); margin: 0 auto 14px; }
+.payment-result p { margin: 6px 0; overflow-wrap: anywhere; }
+.payment-result small { display: block; margin-top: 12px; color: var(--text-secondary); }
 
 @media (max-width: 1024px) {
   .menu-content { margin: 44px auto; }

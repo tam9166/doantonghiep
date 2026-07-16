@@ -34,13 +34,15 @@ class PaymentLedgerServiceTest {
     private final ReservationStateMachine stateMachine = mock(ReservationStateMachine.class);
     private final ReservationRealtimeService realtimeService = mock(ReservationRealtimeService.class);
     private final ActivityLogService activityLogService = mock(ActivityLogService.class);
+    private final OrderPaymentService orderPaymentService = mock(OrderPaymentService.class);
     private final PaymentLedgerService service = new PaymentLedgerService(
             intentRepository,
             transactionRepository,
             reservationRepository,
             stateMachine,
             realtimeService,
-            activityLogService);
+            activityLogService,
+            orderPaymentService);
 
     private PaymentIntent intent;
     private AtomicReference<PaymentTransaction> savedTransaction;
@@ -125,6 +127,23 @@ class PaymentLedgerServiceTest {
         assertEquals("PAYMENT_MANUAL_REVIEW", result.code());
         assertEquals(PaymentTransactionStatus.MANUAL_REVIEW, savedTransaction.get().getStatus());
         verify(intentRepository, never()).save(any());
+        verify(reservationRepository, never()).save(any());
+    }
+
+    @Test
+    void orderCreditUpdatesOrderAggregateInsteadOfReservation() {
+        intent.setReservation(null);
+        intent.setAggregateType("ORDER");
+        intent.setAggregateId(12L);
+        when(transactionRepository.findByAggregateTypeAndAggregateIdAndStatus(
+                "ORDER", 12L, PaymentTransactionStatus.SUCCESS))
+                .thenAnswer(invocation -> List.of(savedTransaction.get()));
+
+        PaymentLedgerResult result = record(new BigDecimal("100000"), "TX-ORDER");
+
+        assertEquals("PAYMENT_PAID", result.code());
+        verify(orderPaymentService).applyLedgerPayment(
+                12, new BigDecimal("100000"), PaymentStatus.PAID);
         verify(reservationRepository, never()).save(any());
     }
 

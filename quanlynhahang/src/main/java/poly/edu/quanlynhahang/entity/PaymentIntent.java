@@ -29,8 +29,12 @@ public class PaymentIntent {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "reservation_id", nullable = false)
+    @JoinColumn(name = "reservation_id")
     private Reservation reservation;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id")
+    private Order order;
 
     @Column(name = "aggregate_type", length = 30, nullable = false)
     private String aggregateType = "RESERVATION";
