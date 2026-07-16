@@ -1,6 +1,7 @@
 package poly.edu.quanlynhahang.controller;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +16,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.validation.Valid;
+
 import poly.edu.quanlynhahang.dto.JwtResponse;
 import poly.edu.quanlynhahang.dto.LoginRequest;
 import poly.edu.quanlynhahang.dto.SignupRequest;
@@ -27,6 +30,7 @@ import poly.edu.quanlynhahang.repository.AccountRepository;
 import poly.edu.quanlynhahang.repository.AuthorityRepository;
 import poly.edu.quanlynhahang.repository.RoleRepository;
 import poly.edu.quanlynhahang.security.JwtUtils;
+import poly.edu.quanlynhahang.security.PasswordPolicy;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -57,10 +61,11 @@ public class AuthController {
 
     // API 1: ĐĂNG NHẬP KHÁCH HÀNG (Chặn nhân sự)
     @PostMapping("/login")
-    public ResponseEntity<?> customerLogin(@RequestBody LoginRequest loginRequest) {
+    public ResponseEntity<?> customerLogin(@Valid @RequestBody LoginRequest loginRequest) {
         try {
+            String username = normalizeUsername(loginRequest.getUsername());
             Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
+                    new UsernamePasswordAuthenticationToken(username, loginRequest.getPassword()));
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
@@ -80,9 +85,9 @@ public class AuthController {
             }
 
             // Lấy thông tin phụ của user
-            Account acc = accountRepository.findById(loginRequest.getUsername()).orElse(new Account());
+            Account acc = accountRepository.findById(username).orElse(new Account());
 
-            return ResponseEntity.ok(new JwtResponse(jwt, loginRequest.getUsername(), roles,
+            return ResponseEntity.ok(new JwtResponse(jwt, username, roles,
                     acc.getAssignedArea(), acc.getShift(), Boolean.TRUE.equals(acc.getMustChangePassword())));
         } catch (org.springframework.security.authentication.BadCredentialsException e) {
             return ResponseEntity.status(401).body("Sai tài khoản hoặc mật khẩu.");
@@ -91,10 +96,11 @@ public class AuthController {
 
     // API 1B: ĐĂNG NHẬP NHÂN SỰ / ADMIN (Chặn khách hàng)
     @PostMapping("/staff/login")
-    public ResponseEntity<?> staffLogin(@RequestBody LoginRequest loginRequest) {
+    public ResponseEntity<?> staffLogin(@Valid @RequestBody LoginRequest loginRequest) {
         try {
+            String username = normalizeUsername(loginRequest.getUsername());
             Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
+                    new UsernamePasswordAuthenticationToken(username, loginRequest.getPassword()));
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
@@ -114,9 +120,9 @@ public class AuthController {
             }
 
             // Lấy thông tin phụ của user
-            Account acc = accountRepository.findById(loginRequest.getUsername()).orElse(new Account());
+            Account acc = accountRepository.findById(username).orElse(new Account());
 
-            return ResponseEntity.ok(new JwtResponse(jwt, loginRequest.getUsername(), roles,
+            return ResponseEntity.ok(new JwtResponse(jwt, username, roles,
                     acc.getAssignedArea(), acc.getShift(), Boolean.TRUE.equals(acc.getMustChangePassword())));
         } catch (org.springframework.security.authentication.BadCredentialsException e) {
             return ResponseEntity.status(401).body("Sai tài khoản hoặc mật khẩu nội bộ.");
@@ -125,17 +131,19 @@ public class AuthController {
 
     // API 2: ĐĂNG KÝ TÀI KHOẢN MỚI
     @PostMapping("/signup")
-    public ResponseEntity<?> registerUser(@RequestBody SignupRequest signUpRequest) {
-        
-        if (accountRepository.existsById(signUpRequest.getUsername())) {
+    public ResponseEntity<?> registerUser(@Valid @RequestBody SignupRequest signUpRequest) {
+        String username = normalizeUsername(signUpRequest.getUsername());
+        PasswordPolicy.validate(signUpRequest.getPassword());
+
+        if (accountRepository.existsById(username)) {
             return ResponseEntity.badRequest().body("Lỗi: Tên đăng nhập đã được sử dụng!");
         }
 
         Account account = new Account();
-        account.setUsername(signUpRequest.getUsername());
+        account.setUsername(username);
         account.setPassword(passwordEncoder.encode(signUpRequest.getPassword()));
-        account.setFullname(signUpRequest.getFullname());
-        account.setEmail(signUpRequest.getEmail());
+        account.setFullname(signUpRequest.getFullname().trim());
+        account.setEmail(signUpRequest.getEmail().trim().toLowerCase(Locale.ROOT));
         accountRepository.save(account);
 
         Role userRole = roleRepository.findByName("USER").orElse(null);
@@ -170,13 +178,13 @@ public class AuthController {
 
     // API 4: CẬP NHẬT THÔNG TIN CÁ NHÂN
     @org.springframework.web.bind.annotation.PutMapping("/profile")
-    public ResponseEntity<?> updateProfile(@RequestBody UpdateProfileRequest updateRequest) {
+    public ResponseEntity<?> updateProfile(@Valid @RequestBody UpdateProfileRequest updateRequest) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         java.util.Optional<Account> accOpt = accountRepository.findById(username);
         if (accOpt.isPresent()) {
             Account acc = accOpt.get();
-            acc.setFullname(updateRequest.getFullname());
-            acc.setEmail(updateRequest.getEmail());
+            acc.setFullname(updateRequest.getFullname().trim());
+            acc.setEmail(updateRequest.getEmail().trim().toLowerCase(Locale.ROOT));
             accountRepository.save(acc);
             return ResponseEntity.ok("Cập nhật thông tin thành công!");
         }
@@ -186,7 +194,7 @@ public class AuthController {
     // API 5: ĐỔI MẬT KHẨU
     @org.springframework.web.bind.annotation.PutMapping("/password")
     @org.springframework.transaction.annotation.Transactional
-    public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequest request) {
+    public ResponseEntity<?> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         java.util.Optional<Account> accOpt = accountRepository.findLockedByUsername(username);
         if (accOpt.isPresent()) {
@@ -194,9 +202,7 @@ public class AuthController {
             if (!passwordEncoder.matches(request.getOldPassword(), acc.getPassword())) {
                 return ResponseEntity.badRequest().body("Mật khẩu cũ không chính xác!");
             }
-            if (request.getNewPassword() == null || request.getNewPassword().length() < 10) {
-                return ResponseEntity.unprocessableEntity().body("Mật khẩu mới phải có ít nhất 10 ký tự!");
-            }
+            PasswordPolicy.validate(request.getNewPassword());
             acc.setPassword(passwordEncoder.encode(request.getNewPassword()));
             acc.setMustChangePassword(false);
             acc.setTokenVersion((acc.getTokenVersion() == null ? 0L : acc.getTokenVersion()) + 1L);
@@ -204,5 +210,9 @@ public class AuthController {
             return ResponseEntity.ok("Đổi mật khẩu thành công!");
         }
         return ResponseEntity.badRequest().body("Lỗi: Không tìm thấy tài khoản");
+    }
+
+    private String normalizeUsername(String username) {
+        return username.trim().toLowerCase(Locale.ROOT);
     }
 }

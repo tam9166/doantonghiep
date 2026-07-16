@@ -13,6 +13,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import poly.edu.quanlynhahang.config.ApiErrorWriter;
 
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 20)
@@ -20,13 +21,15 @@ public class RateLimitingFilter extends OncePerRequestFilter {
 
     private final RateLimitService rateLimitService;
     private final JwtUtils jwtUtils;
+    private final ApiErrorWriter apiErrorWriter;
 
     @Value("${app.rate-limit.enabled:true}")
     private boolean enabled = true;
 
-    public RateLimitingFilter(RateLimitService rateLimitService, JwtUtils jwtUtils) {
+    public RateLimitingFilter(RateLimitService rateLimitService, JwtUtils jwtUtils, ApiErrorWriter apiErrorWriter) {
         this.rateLimitService = rateLimitService;
         this.jwtUtils = jwtUtils;
+        this.apiErrorWriter = apiErrorWriter;
     }
 
     @Override
@@ -52,12 +55,9 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             return;
         }
 
-        response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
-        response.setContentType("application/json;charset=UTF-8");
         response.setHeader("Retry-After", String.valueOf(result.retryAfterSeconds()));
-        response.getWriter().write("""
-                {"status":429,"error":"Too Many Requests","code":"RATE_LIMIT_EXCEEDED","message":"Bạn thao tác quá nhanh. Vui lòng thử lại sau.","retryAfterSeconds":%d}
-                """.formatted(result.retryAfterSeconds()));
+        apiErrorWriter.write(request, response, HttpStatus.TOO_MANY_REQUESTS,
+                "RATE_LIMIT_EXCEEDED", "Bạn thao tác quá nhanh. Vui lòng thử lại sau.");
     }
 
     private RatePolicy resolvePolicy(HttpServletRequest request) {

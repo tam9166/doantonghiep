@@ -3,6 +3,7 @@ package poly.edu.quanlynhahang.security;
 import java.io.IOException;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -14,6 +15,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import poly.edu.quanlynhahang.config.ApiErrorWriter;
 
 public class AuthTokenFilter extends OncePerRequestFilter {
 
@@ -22,6 +24,9 @@ public class AuthTokenFilter extends OncePerRequestFilter {
 
     @Autowired
     private CustomUserDetailsService userDetailsService;
+
+    @Autowired
+    private ApiErrorWriter apiErrorWriter;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -47,10 +52,8 @@ public class AuthTokenFilter extends OncePerRequestFilter {
                 if (customUserDetails.isPasswordChangeRequired()
                         && !("PUT".equals(request.getMethod())
                         && "/api/auth/password".equals(request.getRequestURI()))) {
-                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                    response.setContentType("application/json;charset=UTF-8");
-                    response.getWriter().write("{\"status\":403,\"code\":\"PASSWORD_CHANGE_REQUIRED\","
-                            + "\"message\":\"Bạn phải đổi mật khẩu trước khi tiếp tục.\"}");
+                    apiErrorWriter.write(request, response, HttpStatus.FORBIDDEN,
+                            "PASSWORD_CHANGE_REQUIRED", "Bạn phải đổi mật khẩu trước khi tiếp tục.");
                     return;
                 }
             }

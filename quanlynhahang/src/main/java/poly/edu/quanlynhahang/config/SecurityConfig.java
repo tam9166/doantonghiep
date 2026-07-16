@@ -95,10 +95,17 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, ApiErrorWriter apiErrorWriter) throws Exception {
         http.cors(cors -> cors.configurationSource(corsConfigurationSource()));
         http.csrf(csrf -> csrf.disable());
         http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+        http.exceptionHandling(errors -> errors
+                .authenticationEntryPoint((request, response, exception) -> apiErrorWriter.write(
+                        request, response, org.springframework.http.HttpStatus.UNAUTHORIZED,
+                        "UNAUTHORIZED", "Yêu cầu xác thực hợp lệ."))
+                .accessDeniedHandler((request, response, exception) -> apiErrorWriter.write(
+                        request, response, org.springframework.http.HttpStatus.FORBIDDEN,
+                        "PERMISSION_DENIED", "Bạn không có quyền thực hiện thao tác này.")));
 
         http.authorizeHttpRequests(auth -> auth
             .requestMatchers(SPA_ROUTES).permitAll()

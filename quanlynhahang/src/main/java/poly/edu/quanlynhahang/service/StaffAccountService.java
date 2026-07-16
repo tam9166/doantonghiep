@@ -16,6 +16,7 @@ import poly.edu.quanlynhahang.entity.Role;
 import poly.edu.quanlynhahang.repository.AccountRepository;
 import poly.edu.quanlynhahang.repository.AuthorityRepository;
 import poly.edu.quanlynhahang.repository.RoleRepository;
+import poly.edu.quanlynhahang.security.PasswordPolicy;
 
 import java.util.Locale;
 import java.util.Set;
@@ -57,6 +58,7 @@ public class StaffAccountService {
 
         Account account = new Account();
         account.setUsername(username);
+        PasswordPolicy.validate(request.password());
         account.setPassword(passwordEncoder.encode(request.password()));
         account.setFullname(request.fullname().trim());
         account.setEmail(request.email().trim().toLowerCase(Locale.ROOT));
@@ -83,10 +85,7 @@ public class StaffAccountService {
         if (request.shift() != null) account.setShift(trimToNull(request.shift()));
         if (request.assignedArea() != null) account.setAssignedArea(trimToNull(request.assignedArea()));
         if (request.password() != null && !request.password().isBlank()) {
-            if (request.password().length() < 10) {
-                throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
-                        "Mật khẩu phải có ít nhất 10 ký tự");
-            }
+            PasswordPolicy.validate(request.password());
             account.setPassword(passwordEncoder.encode(request.password()));
             account.setMustChangePassword(true);
             revokeTokens(account);

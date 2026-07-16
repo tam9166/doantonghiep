@@ -7,6 +7,8 @@ import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.util.ReflectionTestUtils;
+import tools.jackson.databind.ObjectMapper;
+import poly.edu.quanlynhahang.config.ApiErrorWriter;
 import poly.edu.quanlynhahang.entity.Account;
 
 import java.util.List;
@@ -59,6 +61,8 @@ class AccountTokenSecurityTest {
         AuthTokenFilter filter = new AuthTokenFilter();
         ReflectionTestUtils.setField(filter, "jwtUtils", jwtUtils);
         ReflectionTestUtils.setField(filter, "userDetailsService", userDetailsService);
+        ReflectionTestUtils.setField(filter, "apiErrorWriter",
+                new ApiErrorWriter(new ObjectMapper()));
         MockHttpServletRequest blockedRequest = new MockHttpServletRequest("GET", "/api/admin/staff");
         blockedRequest.addHeader("Authorization", "Bearer a.b.c");
         MockHttpServletResponse blockedResponse = new MockHttpServletResponse();
