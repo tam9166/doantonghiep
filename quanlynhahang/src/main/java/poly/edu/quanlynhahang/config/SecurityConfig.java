@@ -126,7 +126,8 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.POST, "/api/webhooks/payments/**").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/applications", "/api/applications/upload").permitAll()
             .requestMatchers(HttpMethod.PUT, "/api/posts/*/like").permitAll()
-            .requestMatchers("/api/chatbot/**", "/ws/**").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/chatbot/chat").permitAll()
+            .requestMatchers("/ws/**").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/orders/guest-booking").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/orders/checkout").permitAll()
 
@@ -148,6 +149,8 @@ public class SecurityConfig {
             // hasAuthority so sánh CHÍNH XÁC chuỗi, không thêm prefix
             .requestMatchers("/api/kitchen/**").hasAnyAuthority("ROLE_KITCHEN", "ROLE_ADMIN", "ROLE_MANAGER")
             .requestMatchers("/api/waiter/**").hasAnyAuthority("ROLE_WAITER", "ROLE_ADMIN", "ROLE_MANAGER")
+            .requestMatchers("/api/staff/ai/kitchen").hasAnyAuthority("ROLE_KITCHEN", "ROLE_ADMIN", "ROLE_MANAGER")
+            .requestMatchers("/api/staff/ai/waiter").hasAnyAuthority("ROLE_WAITER", "ROLE_ADMIN", "ROLE_MANAGER")
 
             // ✅ MỞ RỘNG: Cho phép Bếp, Phục vụ, Thu ngân cũng lấy được đơn hàng qua /api/admin/orders
             .requestMatchers("/api/admin/orders", "/api/admin/orders/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_KITCHEN", "ROLE_WAITER", "ROLE_CASHIER")
@@ -170,6 +173,7 @@ public class SecurityConfig {
             .requestMatchers("/api/admin/notifications", "/api/admin/notifications/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_KITCHEN", "ROLE_WAITER", "ROLE_CASHIER")
             .requestMatchers("/api/admin/popular-items", "/api/admin/popular-items/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_KITCHEN")
             .requestMatchers("/api/admin/purchase-suggestions", "/api/admin/purchase-suggestions/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER")
+            .requestMatchers("/api/admin/ai/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER")
 
             // Các API admin khác chỉ cho Admin/Manager
             .requestMatchers("/api/admin/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER")

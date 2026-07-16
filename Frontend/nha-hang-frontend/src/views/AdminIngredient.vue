@@ -815,9 +815,8 @@ const analyzeInventory = async () => {
     
     const dataStr = lowStockItems.map(i => `- ${i.name}: Tồn kho hiện tại ${i.quantity || 0}${i.unit}, Mức tối thiểu yêu cầu: ${i.minStock}${i.unit}`).join('\n');
     
-    const res = await axios.post('http://localhost:8080/api/chatbot/chat', {
+    const res = await axios.post('/api/admin/ai/inventory', {
       message: dataStr,
-      type: 'INVENTORY_FORECAST'
     }, configHeader());
     
     let reply = res.data.reply || '';

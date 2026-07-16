@@ -209,8 +209,7 @@ const analyzeWithAI = async () => {
   }));
 
   try {
-    const res = await axios.post('http://localhost:8080/api/chatbot/chat', {
-      type: 'ADMIN_ANALYTICS',
+    const res = await axios.post('/api/admin/ai/inventory', {
       message: JSON.stringify({
         type: 'PURCHASE_SUGGESTION',
         total_items_need_restock: summary.value.totalItems,

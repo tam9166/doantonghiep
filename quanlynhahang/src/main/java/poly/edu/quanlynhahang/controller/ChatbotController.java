@@ -1,44 +1,72 @@
 package poly.edu.quanlynhahang.controller;
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.client.RestTemplate;
+import poly.edu.quanlynhahang.dto.AiRequest;
+import poly.edu.quanlynhahang.repository.ProductRepository;
+import poly.edu.quanlynhahang.service.GeminiClient;
+
+import jakarta.validation.Valid;
 
 import java.util.Map;
-
-@CrossOrigin("*")
+import java.util.Set;
 @RestController
-@RequestMapping("/api/chatbot")
 public class ChatbotController {
+    private static final Set<String> PUBLIC_TYPES = Set.of(
+            "SUPPORT", "INTERVIEW", "VOICE_ORDER", "WEATHER_RECOMMEND", "COMBO_RECOMMEND");
 
-    @Value("${gemini.api.key}")
-    private String geminiApiKey;
+    private final ProductRepository productRepository;
+    private final GeminiClient geminiClient;
 
-    @org.springframework.beans.factory.annotation.Autowired
-    private poly.edu.quanlynhahang.repository.ProductRepository productRepository;
+    public ChatbotController(ProductRepository productRepository, GeminiClient geminiClient) {
+        this.productRepository = productRepository;
+        this.geminiClient = geminiClient;
+    }
 
-    private static final String GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=";
+    @PostMapping("/api/chatbot/chat")
+    public ResponseEntity<?> chatWithAI(@Valid @RequestBody AiRequest payload) {
+        String type = normalizePublicType(payload.type());
+        if (!PUBLIC_TYPES.contains(type)) {
+            throw new AccessDeniedException("Loại yêu cầu AI này không được phép trên endpoint công khai");
+        }
+        return generateChat(payload.withType(type));
+    }
 
-    @PostMapping("/chat")
-    public ResponseEntity<?> chatWithAI(@RequestBody Map<String, String> payload) {
-        String userMessage = payload.get("message");
-        String type = payload.get("type"); // "INTERVIEW" hoặc "SUPPORT"
-        String history = payload.get("history");
+    @PostMapping("/api/admin/ai/analytics")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    public ResponseEntity<?> analytics(@Valid @RequestBody AiRequest payload) {
+        return generateChat(payload.withType("ADMIN_ANALYTICS"));
+    }
+
+    @PostMapping("/api/admin/ai/inventory")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    public ResponseEntity<?> inventory(@Valid @RequestBody AiRequest payload) {
+        return generateChat(payload.withType("INVENTORY_FORECAST"));
+    }
+
+    @PostMapping("/api/admin/ai/customer")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    public ResponseEntity<?> customer(@Valid @RequestBody AiRequest payload) {
+        return generateChat(payload.withType("CUSTOMER_ANALYTICS"));
+    }
+
+    @PostMapping("/api/staff/ai/waiter")
+    @PreAuthorize("hasAnyRole('WAITER', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<?> waiter(@Valid @RequestBody AiRequest payload) {
+        return generateChat(payload.withType("WAITER_UPSELL"));
+    }
+
+    private ResponseEntity<?> generateChat(AiRequest payload) {
+        String userMessage = payload.message();
+        String type = payload.type();
+        String history = payload.history();
 
         if (userMessage == null || userMessage.trim().isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("reply", "Bạn cần nhập tin nhắn để chatbot trả lời!"));
-        }
-
-        if (geminiApiKey == null || geminiApiKey.equals("YOUR_GEMINI_API_KEY_HERE") || geminiApiKey.trim().isEmpty()) {
-            return ResponseEntity.ok(Map.of("reply", "Bot đang ở chế độ bảo trì do chưa có API Key!"));
         }
 
         String systemPrompt = "";
@@ -76,7 +104,7 @@ public class ChatbotController {
                     "Nhiệm vụ của bạn là gợi ý cho Phục vụ 1-2 món đồ uống hoặc tráng miệng (như Bia, Rượu vang, Nước ép, Trái cây, Bánh ngọt) phù hợp nhất với các món đó để ra mời khách gọi thêm. Trả lời như đang nói chuyện với Phục vụ, ngắn gọn (dưới 50 chữ), ví dụ: 'Khách đang ăn Lẩu, bạn ra mời thêm Nước ép dưa hấu hoặc Bia tươi đi!'. Không dùng ký tự **.";
             combinedText = systemPrompt + "\n\nBàn này đang ăn: " + userMessage + "\n\nHãy gợi ý 1 món mời thêm:";
         } else if ("VOICE_ORDER".equals(type)) {
-            String menu = payload.get("menu");
+            String menu = payload.menu();
             systemPrompt = "Bạn là Trợ lý Gọi món AI của Mộc Vị Restaurant. Bạn sẽ nhận được giọng nói (văn bản) của khách hàng yêu cầu gọi món và danh sách Menu của nhà hàng. "
                     +
                     "Nhiệm vụ của bạn là trích xuất các món khách muốn gọi, đối chiếu với danh sách Menu để lấy ID món ăn. "
@@ -98,7 +126,7 @@ public class ChatbotController {
                     + "\n\nHãy trả về JSON đề xuất nhập kho:";
         } else if ("WEATHER_RECOMMEND".equals(type)) {
             // Nhận thời tiết (vd: Trời mưa lạnh, 23 độ) -> Trả về ID 2 món phù hợp nhất
-            String menu = payload.get("menu");
+            String menu = payload.menu();
             systemPrompt = "Bạn là Trợ lý AI gợi ý món ăn theo thời tiết của Mộc Vị Restaurant. Bạn sẽ nhận được tình trạng Thời tiết hiện tại và Menu nhà hàng. "
                     +
                     "Nhiệm vụ: Phân tích thời tiết và CHỌN RA ĐÚNG 2 MÓN ĂN phù hợp nhất. VD: Trời lạnh/mưa thì chọn Lẩu, Nướng, Cay nóng. Trời nóng thì chọn Nước ép, Đồ mát. "
@@ -107,7 +135,7 @@ public class ChatbotController {
             combinedText = systemPrompt + "\n\nDanh sách Menu:\n" + menu + "\n\nThời tiết hiện tại ở nhà hàng: "
                     + userMessage + "\n\nHãy trả về JSON:";
         } else if ("COMBO_RECOMMEND".equals(type)) {
-            String menu = payload.get("menu");
+            String menu = payload.menu();
             systemPrompt = "Bạn là Trợ lý AI tư vấn Combo món ăn của Mộc Vị Restaurant. Bạn sẽ nhận được thông tin số lượng khách, Thời tiết hiện tại và Menu nhà hàng. "
                     +
                     "Nhiệm vụ: Dựa vào số người và thời tiết, hãy thiết kế 1 COMBO PHONG PHÚ, ĐA DẠNG và hợp lý nhất bao gồm nhiều loại món ăn khác nhau (khai vị, món chính, tráng miệng) và nước uống. "
@@ -160,91 +188,24 @@ public class ChatbotController {
             combinedText += "Khách hàng vừa nói: " + userMessage + "\n\nHãy phản hồi tự nhiên:";
         }
 
-        try {
-            RestTemplate restTemplate = new RestTemplate();
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-
-            String requestBody = "{\n" +
-                    "  \"contents\": [{\n" +
-                    "    \"parts\":[{\"text\": \"" + combinedText.replace("\"", "\\\"").replace("\n", "\\n") + "\"}]\n"
-                    +
-                    "  }]\n" +
-                    "}";
-
-            HttpEntity<String> entity = new HttpEntity<>(requestBody, headers);
-            ResponseEntity<Map> response = restTemplate.postForEntity(GEMINI_API_URL + geminiApiKey, entity, Map.class);
-
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                try {
-                    Map<String, Object> body = response.getBody();
-                    java.util.List<?> candidates = (java.util.List<?>) body.get("candidates");
-                    Map<?, ?> firstCandidate = (Map<?, ?>) candidates.get(0);
-                    Map<?, ?> content = (Map<?, ?>) firstCandidate.get("content");
-                    java.util.List<?> parts = (java.util.List<?>) content.get("parts");
-                    Map<?, ?> firstPart = (Map<?, ?>) parts.get(0);
-                    String aiReply = (String) firstPart.get("text");
-                    aiReply = aiReply.replace("**", "");
-
-                    return ResponseEntity.ok(Map.of("reply", aiReply));
-                } catch (Exception e) {
-                    return ResponseEntity.ok(
-                            Map.of("reply", "Xin lỗi, mình không hiểu ý bạn. Vui lòng gọi Hotline để được hỗ trợ!"));
-                }
-            }
-            return ResponseEntity.ok(Map.of("reply", "Hệ thống AI đang quá tải, vui lòng thử lại sau."));
-        } catch (org.springframework.web.client.HttpClientErrorException e) {
-            if (e.getStatusCode().value() == 429) {
-                return ResponseEntity.ok(
-                        Map.of("reply", "AI đang quá tải do vượt giới hạn truy cập. Vui lòng thử lại sau 30 giây!"));
-            }
-            e.printStackTrace();
-            return ResponseEntity.ok(Map.of("reply",
-                    "AI tạm thời không khả dụng (Lỗi " + e.getStatusCode().value() + "). Vui lòng thử lại sau!"));
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity
-                    .ok(Map.of("reply", "Không thể kết nối tới AI. Vui lòng kiểm tra kết nối mạng và thử lại!"));
-        }
+        return ResponseEntity.ok(Map.of("reply", geminiClient.generate(combinedText, type)));
     }
 
-    @PostMapping("/kitchen/suggest")
-    public ResponseEntity<?> suggestKitchenOrder(@RequestBody Map<String, String> payload) {
-        String dishesList = payload.get("dishes");
+    @PostMapping("/api/staff/ai/kitchen")
+    @PreAuthorize("hasAnyRole('KITCHEN', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<?> suggestKitchenOrder(@Valid @RequestBody AiRequest payload) {
+        String dishesList = payload.dishes();
         if (dishesList == null || dishesList.isBlank()) {
             return ResponseEntity.ok(Map.of("reply", "Chưa có món nào để gợi ý."));
         }
 
-        try {
-            String prompt = "Bạn là Bếp Trưởng AI của Mộc Vị Restaurant. Hãy phân tích danh sách các món cần nấu sau đây và đề xuất thứ tự ưu tiên làm món nào trước, món nào sau để tối ưu hóa thời gian (Ví dụ: các món cùng loại có thể nấu chung 1 chảo, món lâu nấu trước...). Hãy trả lời RẤT NGẮN GỌN (3-4 dòng) với gạch đầu dòng.\nDanh sách: "
-                    + dishesList;
+        String prompt = "Bạn là Bếp Trưởng AI của Mộc Vị Restaurant. Hãy phân tích danh sách các món cần nấu sau đây và đề xuất thứ tự ưu tiên làm món nào trước, món nào sau để tối ưu hóa thời gian (Ví dụ: các món cùng loại có thể nấu chung 1 chảo, món lâu nấu trước...). Hãy trả lời RẤT NGẮN GỌN (3-4 dòng) với gạch đầu dòng.\nDanh sách: "
+                + dishesList;
+        return ResponseEntity.ok(Map.of("reply", geminiClient.generate(prompt, "KITCHEN")));
+    }
 
-            String requestBody = "{"
-                    + "\"contents\": [{"
-                    + "\"parts\": [{\"text\": \"" + prompt.replace("\"", "\\\"").replace("\n", "\\n") + "\"}]"
-                    + "}]"
-                    + "}";
-
-            org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
-            headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
-            org.springframework.http.HttpEntity<String> entity = new org.springframework.http.HttpEntity<>(requestBody,
-                    headers);
-
-            org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
-            ResponseEntity<Map> response = restTemplate.postForEntity(GEMINI_API_URL + geminiApiKey, entity, Map.class);
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                Map<String, Object> body = response.getBody();
-                java.util.List<?> candidates = (java.util.List<?>) body.get("candidates");
-                Map<?, ?> firstCandidate = (Map<?, ?>) candidates.get(0);
-                Map<?, ?> content = (Map<?, ?>) firstCandidate.get("content");
-                java.util.List<?> parts = (java.util.List<?>) content.get("parts");
-                Map<?, ?> firstPart = (Map<?, ?>) parts.get(0);
-                String aiReply = (String) firstPart.get("text");
-                return ResponseEntity.ok(Map.of("reply", aiReply.replace("**", "")));
-            }
-            return ResponseEntity.ok(Map.of("reply", "AI đang bận, vui lòng tự điều phối thủ công."));
-        } catch (Exception e) {
-            return ResponseEntity.ok(Map.of("reply", "Không thể kết nối AI gợi ý bếp."));
-        }
+    private String normalizePublicType(String type) {
+        if (type == null || type.isBlank()) return "SUPPORT";
+        return type.trim().toUpperCase(java.util.Locale.ROOT);
     }
 }

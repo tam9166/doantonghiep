@@ -545,8 +545,7 @@ const analyzeWithAI = async () => {
   };
 
   try {
-    const res = await axios.post('/api/chatbot/chat', {
-      type: 'ADMIN_ANALYTICS',
+    const res = await axios.post('/api/admin/ai/analytics', {
       message: JSON.stringify(dataForAI)
     });
     aiResponse.value = res.data.reply;

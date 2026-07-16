@@ -11,10 +11,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.security.access.prepost.PreAuthorize;
 
 import poly.edu.quanlynhahang.controller.CategoryController;
+import poly.edu.quanlynhahang.controller.ChatbotController;
 import poly.edu.quanlynhahang.controller.AdminOrderController;
 import poly.edu.quanlynhahang.controller.OrderController;
 import poly.edu.quanlynhahang.controller.VoucherController;
 import poly.edu.quanlynhahang.dto.OrderRequest;
+import poly.edu.quanlynhahang.dto.AiRequest;
 import poly.edu.quanlynhahang.entity.Category;
 import poly.edu.quanlynhahang.entity.Voucher;
 
@@ -57,6 +59,17 @@ class EndpointAuthorizationMatrixTest {
         assertRoles(AdminOrderController.class.getMethod(
                         "regeneratePaymentQr", Integer.class, String.class, String.class),
                 "ADMIN", "MANAGER", "CASHIER");
+    }
+
+    @Test
+    void internalAiEndpointsUseExplicitRoleWhitelists() throws Exception {
+        assertRoles(ChatbotController.class.getMethod("analytics", AiRequest.class), "ADMIN", "MANAGER");
+        assertRoles(ChatbotController.class.getMethod("inventory", AiRequest.class), "ADMIN", "MANAGER");
+        assertRoles(ChatbotController.class.getMethod("customer", AiRequest.class), "ADMIN", "MANAGER");
+        assertRoles(ChatbotController.class.getMethod("suggestKitchenOrder", AiRequest.class),
+                "KITCHEN", "ADMIN", "MANAGER");
+        assertRoles(ChatbotController.class.getMethod("waiter", AiRequest.class),
+                "WAITER", "ADMIN", "MANAGER");
     }
 
     private void assertRoles(Method method, String... expectedRoles) {

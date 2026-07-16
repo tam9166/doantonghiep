@@ -725,9 +725,8 @@ const analyzeCustomer = async () => {
   };
 
   try {
-    const res = await axios.post('http://localhost:8080/api/chatbot/chat', {
+    const res = await axios.post('/api/admin/ai/customer', {
       message: JSON.stringify(data),
-      type: 'CUSTOMER_ANALYTICS'
     }, configHeader());
     
     // Tự đánh máy cho giống AI thật

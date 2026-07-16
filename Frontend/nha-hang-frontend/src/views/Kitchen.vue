@@ -492,7 +492,7 @@ const analyzeDishes = async () => {
   aiLoading.value = true;
   try {
     const token = localStorage.getItem('token');
-    const res = await axios.post('http://localhost:8080/api/chatbot/kitchen/suggest', { dishes }, {
+    const res = await axios.post('/api/staff/ai/kitchen', { dishes }, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     aiResponse.value = res.data.reply;

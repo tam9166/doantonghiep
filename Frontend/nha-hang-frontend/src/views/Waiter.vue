@@ -1191,8 +1191,7 @@ const getAiUpsellAdvice = async () => {
   }
 
   try {
-    const res = await axios.post('/api/chatbot/chat', {
-      type: 'WAITER_UPSELL',
+    const res = await axios.post('/api/staff/ai/waiter', {
       message: JSON.stringify(dishList)
     });
     aiResponse.value = res.data.reply;
