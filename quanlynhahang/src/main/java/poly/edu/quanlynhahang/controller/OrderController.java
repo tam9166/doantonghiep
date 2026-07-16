@@ -18,13 +18,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.validation.Valid;
 import poly.edu.quanlynhahang.dto.OrderDetailRequest;
 import poly.edu.quanlynhahang.dto.OrderRequest;
 import poly.edu.quanlynhahang.entity.Account;
 import poly.edu.quanlynhahang.entity.Order;
 import poly.edu.quanlynhahang.entity.OrderDetail;
 import poly.edu.quanlynhahang.entity.RestaurantTable;
-import poly.edu.quanlynhahang.entity.Voucher;
 import poly.edu.quanlynhahang.repository.AccountRepository;
 import poly.edu.quanlynhahang.repository.OrderDetailRepository;
 import poly.edu.quanlynhahang.repository.OrderRepository;
@@ -35,6 +35,7 @@ import poly.edu.quanlynhahang.repository.IngredientBatchRepository;
 import poly.edu.quanlynhahang.repository.RestaurantTableRepository;
 import poly.edu.quanlynhahang.entity.IngredientBatch;
 import poly.edu.quanlynhahang.entity.Recipe;
+import poly.edu.quanlynhahang.service.OrderCheckoutService;
 
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 @RestController
@@ -49,7 +50,7 @@ public class OrderController {
     @Autowired private IngredientRepository ingredientRepository;
     @Autowired private IngredientBatchRepository ingredientBatchRepository;
     @Autowired private SimpMessagingTemplate messagingTemplate;
-    @Autowired private poly.edu.quanlynhahang.repository.VoucherRepository voucherRepository;
+    @Autowired private OrderCheckoutService orderCheckoutService;
 
     @GetMapping("/history")
     public ResponseEntity<?> getMyOrders() {
@@ -76,164 +77,12 @@ public class OrderController {
     }
 
     @PostMapping("/checkout")
-    public ResponseEntity<?> checkout(@RequestBody OrderRequest orderRequest) {
-        String currentUsername = SecurityContextHolder.getContext().getAuthentication() != null ? 
-                                 SecurityContextHolder.getContext().getAuthentication().getName() : "anonymousUser";
-        
-        Optional<Account> accountOpt = accountRepository.findById(currentUsername);
-        
-        String uniqueOrderCode = generateUnique4DigitCode();
-        Order order = new Order();
-        
-        if (accountOpt.isPresent()) {
-            order.setAccount(accountOpt.get());
-        } else {
-            order.setAccount(null); // Khách vãng lai (Guest)
-        }
-        
-        String finalAddress = "MÃ ĐƠN: #" + uniqueOrderCode + " | " + orderRequest.getAddress();
-        order.setAddress(finalAddress);
-        order.setCreateDate(new Date());
-        
-        // 🌟 Đơn đặt bàn trước (có "Lúc:") → status=5 (Chờ hẹn giờ, chưa gửi bếp)
-        // Đơn tại quán / giao hàng → status=1 (Chuyển thẳng bếp)
-        if (orderRequest.getAddress() != null && orderRequest.getAddress().contains("Lúc:") && !orderRequest.getAddress().contains("[TẠI QUÁN]")) {
-            order.setStatus(5); // Chờ hẹn giờ
-        } else {
-            order.setStatus(1); // Chuyển thẳng bếp
-        }
-        
-        if (orderRequest.getDeposit() != null) {
-            order.setDeposit(orderRequest.getDeposit());
-        }
-        
-        Order savedOrder = orderRepository.save(order);
-
-        Account account = accountOpt.orElse(null);
-        double discount = 0;
-
-        // 🌟 Đơn TẠI QUÁN: Không áp dụng giảm giá lúc gọi món (thanh toán sau)
-        boolean isDineIn = orderRequest.getAddress() != null && orderRequest.getAddress().contains("[TẠI QUÁN]");
-        
-        if (!isDineIn && account != null) {
-            if ("Kim Cương".equals(account.getMembershipTier())) discount = 0.15;
-            else if ("Vàng".equals(account.getMembershipTier())) discount = 0.10;
-            else if ("Bạc".equals(account.getMembershipTier())) discount = 0.05;
-
-            // Xử lý Voucher nếu có (chỉ cho đơn giao hàng / đặt bàn)
-            if (orderRequest.getVoucherCode() != null && !orderRequest.getVoucherCode().isEmpty()) {
-                Optional<Voucher> vOpt = voucherRepository.findByCode(orderRequest.getVoucherCode());
-                if (vOpt.isPresent() && !vOpt.get().getIsUsed()) {
-                    Voucher voucher = vOpt.get();
-                    if (voucher.getAccount() == null || voucher.getAccount().getUsername().equals(account.getUsername())) {
-                        discount += (double) voucher.getDiscountPercent() / 100.0;
-                        voucher.setIsUsed(true);
-                        voucherRepository.save(voucher);
-                    }
-                }
-            }
-        }
-        
-        // Đảm bảo giảm giá không vượt quá 100%
-        if (discount > 1.0) discount = 1.0;
-
-        final double finalDiscount = discount;
-
-        double[] totals = new double[2];
-
-        for (OrderDetailRequest item : orderRequest.getItems()) {
-            productRepository.findById(item.getProductId()).ifPresent(product -> {
-                OrderDetail detail = new OrderDetail();
-                detail.setOrder(savedOrder);
-                detail.setProduct(product);
-                detail.setQuantity(item.getQuantity());
-                
-                double subTotalLine = product.getPrice() * item.getQuantity() * (1 - finalDiscount);
-                double itemTaxRate = product.getTaxRate() != null ? product.getTaxRate() : 8.0;
-                double taxAmountLine = subTotalLine * itemTaxRate / 100.0;
-
-                detail.setPrice(subTotalLine);
-                detail.setTaxRate(itemTaxRate);
-                detail.setTaxAmount(taxAmountLine);
-                
-                totals[0] += subTotalLine;
-                totals[1] += taxAmountLine;
-
-                orderDetailRepository.save(detail);
-            });
-        }
-        
-        savedOrder.setSubTotal(totals[0]);
-        savedOrder.setTaxAmount(totals[1]);
-        savedOrder.setTotalAmount(totals[0] + totals[1]);
-        orderRepository.save(savedOrder);
-
-        // 🌟 TỰ ĐỘNG TRỪ KHO NGUYÊN LIỆU (FEFO - Trừ theo lô hết hạn trước)
-        for (OrderDetailRequest item : orderRequest.getItems()) {
-            productRepository.findById(item.getProductId()).ifPresent(product -> {
-                List<Recipe> recipes = recipeRepository.findByProduct(product);
-                for (Recipe recipe : recipes) {
-                    var ingredient = recipe.getIngredient();
-                    if (ingredient != null) {
-                        double deduct = recipe.getAmountRequired() * item.getQuantity();
-                        
-                        // Lấy các lô hàng còn tồn kho, ưu tiên hết hạn trước
-                        List<IngredientBatch> batches = ingredientBatchRepository.findAvailableBatchesOrderByExpirationAsc(ingredient);
-                        
-                        for (IngredientBatch batch : batches) {
-                            if (deduct <= 0) break; // Đã trừ đủ
-                            
-                            if (batch.getQuantity() >= deduct) {
-                                batch.setQuantity(batch.getQuantity() - deduct);
-                                deduct = 0;
-                            } else {
-                                deduct -= batch.getQuantity();
-                                batch.setQuantity(0.0);
-                            }
-                            ingredientBatchRepository.save(batch);
-                        }
-                        
-                        // Cập nhật lại tổng tồn kho của Ingredient
-                        double totalQuantity = ingredientBatchRepository.findAvailableBatchesOrderByExpirationAsc(ingredient)
-                                .stream().mapToDouble(IngredientBatch::getQuantity).sum();
-                        ingredient.setQuantity(totalQuantity);
-                        ingredientRepository.save(ingredient);
-                        
-                        // Tự động báo hết món nếu nguyên liệu không đủ
-                        List<Recipe> relatedRecipes = recipeRepository.findByIngredient(ingredient);
-                        for (Recipe r : relatedRecipes) {
-                            if (r.getProduct() != null && r.getProduct().getAvailable()) {
-                                if (totalQuantity < r.getAmountRequired()) {
-                                    r.getProduct().setAvailable(false);
-                                    productRepository.save(r.getProduct());
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        if (isDineIn && orderRequest.getAddress() != null) {
-            List<RestaurantTable> allTables = tableRepository.findAll();
-            for (RestaurantTable t : allTables) {
-                if (orderRequest.getAddress().contains(t.getName())) {
-                    t.setIsOccupied(2);
-                    t.setReservedTime("Đơn: #" + uniqueOrderCode);
-                    tableRepository.save(t);
-                    break;
-                }
-            }
-        }
-        if (order.getStatus() == 1) {
-            messagingTemplate.convertAndSend("/topic/kitchen", "NEW_ORDER");
-        }
-        return ResponseEntity.ok(java.util.Map.of(
-            "message", "Đặt hàng thành công! Mã: " + uniqueOrderCode,
-            "orderId", savedOrder.getId()
-        ));
+    public ResponseEntity<?> checkout(@Valid @RequestBody OrderRequest orderRequest) {
+        String username = SecurityContextHolder.getContext().getAuthentication() == null
+                ? null
+                : SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(orderCheckoutService.checkout(orderRequest, username));
     }
-
 
     @PutMapping("/{id}/add-items")
     @PreAuthorize("hasAnyRole('WAITER', 'CASHIER', 'MANAGER', 'ADMIN')")

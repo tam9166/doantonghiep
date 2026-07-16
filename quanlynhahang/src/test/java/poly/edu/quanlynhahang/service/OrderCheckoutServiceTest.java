@@ -1,0 +1,175 @@
+package poly.edu.quanlynhahang.service;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+import poly.edu.quanlynhahang.dto.OrderDetailRequest;
+import poly.edu.quanlynhahang.dto.OrderRequest;
+import poly.edu.quanlynhahang.entity.Ingredient;
+import poly.edu.quanlynhahang.entity.IngredientBatch;
+import poly.edu.quanlynhahang.entity.Order;
+import poly.edu.quanlynhahang.entity.OrderDetail;
+import poly.edu.quanlynhahang.entity.Product;
+import poly.edu.quanlynhahang.entity.Recipe;
+import poly.edu.quanlynhahang.repository.AccountRepository;
+import poly.edu.quanlynhahang.repository.IngredientBatchRepository;
+import poly.edu.quanlynhahang.repository.IngredientRepository;
+import poly.edu.quanlynhahang.repository.OrderDetailRepository;
+import poly.edu.quanlynhahang.repository.OrderRepository;
+import poly.edu.quanlynhahang.repository.ProductRepository;
+import poly.edu.quanlynhahang.repository.RecipeRepository;
+import poly.edu.quanlynhahang.repository.RestaurantTableRepository;
+import poly.edu.quanlynhahang.repository.VoucherRepository;
+
+import java.util.List;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+class OrderCheckoutServiceTest {
+    private final OrderRepository orderRepository = mock(OrderRepository.class);
+    private final OrderDetailRepository orderDetailRepository = mock(OrderDetailRepository.class);
+    private final ProductRepository productRepository = mock(ProductRepository.class);
+    private final AccountRepository accountRepository = mock(AccountRepository.class);
+    private final RestaurantTableRepository tableRepository = mock(RestaurantTableRepository.class);
+    private final RecipeRepository recipeRepository = mock(RecipeRepository.class);
+    private final IngredientRepository ingredientRepository = mock(IngredientRepository.class);
+    private final IngredientBatchRepository batchRepository = mock(IngredientBatchRepository.class);
+    private final VoucherRepository voucherRepository = mock(VoucherRepository.class);
+    private final ActivityLogService activityLogService = mock(ActivityLogService.class);
+
+    private final OrderCheckoutService service = new OrderCheckoutService(
+            orderRepository,
+            orderDetailRepository,
+            productRepository,
+            accountRepository,
+            tableRepository,
+            recipeRepository,
+            ingredientRepository,
+            batchRepository,
+            voucherRepository,
+            activityLogService);
+
+    @Test
+    void rejectsEmptyCartBeforeWritingAnything() {
+        OrderRequest request = new OrderRequest();
+        request.setItems(List.of());
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+                () -> service.checkout(request, "anonymousUser"));
+
+        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY, error.getStatusCode());
+        verify(orderRepository, never()).save(any());
+        verify(orderDetailRepository, never()).save(any());
+    }
+
+    @Test
+    void rejectsUnknownProductInsteadOfSilentlySkippingIt() {
+        when(productRepository.findById(999)).thenReturn(Optional.empty());
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+                () -> service.checkout(request(999, 1), "anonymousUser"));
+
+        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY, error.getStatusCode());
+        verify(orderRepository, never()).save(any());
+        verify(orderDetailRepository, never()).save(any());
+    }
+
+    @Test
+    void rejectsInsufficientInventoryBeforeCreatingOrder() {
+        Product product = product(1, 100_000.0);
+        Ingredient ingredient = ingredient(10L, "Thịt bò");
+        Recipe recipe = recipe(product, ingredient, 2.0);
+        IngredientBatch batch = batch(1.0);
+        when(productRepository.findById(1)).thenReturn(Optional.of(product));
+        when(recipeRepository.findByProduct(product)).thenReturn(List.of(recipe));
+        when(batchRepository.findAvailableBatchesForUpdate(10L)).thenReturn(List.of(batch));
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+                () -> service.checkout(request(1, 1), "anonymousUser"));
+
+        assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
+        verify(orderRepository, never()).save(any());
+        verify(batchRepository, never()).saveAll(any());
+    }
+
+    @Test
+    void calculatesServerPriceAndConsumesLockedInventory() {
+        Product product = product(1, 100_000.0);
+        product.setTaxRate(8.0);
+        Ingredient ingredient = ingredient(10L, "Thịt bò");
+        Recipe recipe = recipe(product, ingredient, 2.0);
+        IngredientBatch batch = batch(10.0);
+        when(productRepository.findById(1)).thenReturn(Optional.of(product));
+        when(recipeRepository.findByProduct(product)).thenReturn(List.of(recipe));
+        when(recipeRepository.findByIngredient(ingredient)).thenReturn(List.of(recipe));
+        when(batchRepository.findAvailableBatchesForUpdate(10L)).thenReturn(List.of(batch));
+        when(orderRepository.save(any())).thenAnswer(invocation -> {
+            Order order = invocation.getArgument(0);
+            order.setId(22);
+            return order;
+        });
+        when(orderDetailRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        OrderCheckoutService.CheckoutResult result = service.checkout(request(1, 2), "anonymousUser");
+
+        assertEquals(22, result.orderId());
+        assertEquals(0, result.status());
+        assertEquals(200_000.0, result.subTotal());
+        assertEquals(16_000.0, result.taxAmount());
+        assertEquals(216_000.0, result.totalAmount());
+        assertEquals(6.0, batch.getQuantity());
+        assertEquals(6.0, ingredient.getQuantity());
+        verify(batchRepository).findAvailableBatchesForUpdate(10L);
+        verify(batchRepository).saveAll(List.of(batch));
+        verify(orderDetailRepository).save(any(OrderDetail.class));
+    }
+
+    private OrderRequest request(int productId, int quantity) {
+        OrderDetailRequest detail = new OrderDetailRequest();
+        detail.setProductId(productId);
+        detail.setQuantity(quantity);
+        OrderRequest request = new OrderRequest();
+        request.setAddress("Giao hàng");
+        request.setItems(List.of(detail));
+        return request;
+    }
+
+    private Product product(int id, double price) {
+        Product product = new Product();
+        product.setId(id);
+        product.setName("Món test");
+        product.setPrice(price);
+        product.setStatus(true);
+        product.setAvailable(true);
+        return product;
+    }
+
+    private Ingredient ingredient(long id, String name) {
+        Ingredient ingredient = new Ingredient();
+        ingredient.setId(id);
+        ingredient.setName(name);
+        return ingredient;
+    }
+
+    private Recipe recipe(Product product, Ingredient ingredient, double amount) {
+        Recipe recipe = new Recipe();
+        recipe.setProduct(product);
+        recipe.setIngredient(ingredient);
+        recipe.setAmountRequired(amount);
+        return recipe;
+    }
+
+    private IngredientBatch batch(double quantity) {
+        IngredientBatch batch = new IngredientBatch();
+        batch.setId(1L);
+        batch.setQuantity(quantity);
+        return batch;
+    }
+}
