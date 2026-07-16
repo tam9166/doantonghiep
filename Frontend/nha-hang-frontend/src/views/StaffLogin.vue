@@ -157,13 +157,18 @@ const handleStaffLogin = async () => {
       username: res.data.username,
       roles: res.data.roles,
       assignedArea: res.data.assignedArea,
-      shift: res.data.shift
+      shift: res.data.shift,
+      mustChangePassword: res.data.mustChangePassword
     }))
 
     toast.success(`Chào mừng ${res.data.username}!`, 'Đăng nhập hệ thống thành công')
 
     // Redirect theo vai trò nhân sự
     setTimeout(() => {
+      if (res.data.mustChangePassword) {
+        window.location.href = '/change-password'
+        return
+      }
       const roles = res.data.roles
       if (roles.includes('ROLE_ADMIN') || roles.includes('ROLE_MANAGER')) {
         window.location.href = '/admin'

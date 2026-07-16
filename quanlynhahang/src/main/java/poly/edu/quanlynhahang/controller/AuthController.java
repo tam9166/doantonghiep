@@ -82,7 +82,8 @@ public class AuthController {
             // Lấy thông tin phụ của user
             Account acc = accountRepository.findById(loginRequest.getUsername()).orElse(new Account());
 
-            return ResponseEntity.ok(new JwtResponse(jwt, loginRequest.getUsername(), roles, acc.getAssignedArea(), acc.getShift()));
+            return ResponseEntity.ok(new JwtResponse(jwt, loginRequest.getUsername(), roles,
+                    acc.getAssignedArea(), acc.getShift(), Boolean.TRUE.equals(acc.getMustChangePassword())));
         } catch (org.springframework.security.authentication.BadCredentialsException e) {
             return ResponseEntity.status(401).body("Sai tài khoản hoặc mật khẩu.");
         }
@@ -115,7 +116,8 @@ public class AuthController {
             // Lấy thông tin phụ của user
             Account acc = accountRepository.findById(loginRequest.getUsername()).orElse(new Account());
 
-            return ResponseEntity.ok(new JwtResponse(jwt, loginRequest.getUsername(), roles, acc.getAssignedArea(), acc.getShift()));
+            return ResponseEntity.ok(new JwtResponse(jwt, loginRequest.getUsername(), roles,
+                    acc.getAssignedArea(), acc.getShift(), Boolean.TRUE.equals(acc.getMustChangePassword())));
         } catch (org.springframework.security.authentication.BadCredentialsException e) {
             return ResponseEntity.status(401).body("Sai tài khoản hoặc mật khẩu nội bộ.");
         }
@@ -196,6 +198,7 @@ public class AuthController {
                 return ResponseEntity.unprocessableEntity().body("Mật khẩu mới phải có ít nhất 10 ký tự!");
             }
             acc.setPassword(passwordEncoder.encode(request.getNewPassword()));
+            acc.setMustChangePassword(false);
             acc.setTokenVersion((acc.getTokenVersion() == null ? 0L : acc.getTokenVersion()) + 1L);
             accountRepository.save(acc);
             return ResponseEntity.ok("Đổi mật khẩu thành công!");

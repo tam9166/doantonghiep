@@ -152,14 +152,15 @@ const handleLogin = async () => {
     localStorage.setItem('token', res.data.token)
     localStorage.setItem('user', JSON.stringify({
       username: res.data.username,
-      roles: res.data.roles
+      roles: res.data.roles,
+      mustChangePassword: res.data.mustChangePassword
     }))
 
     toast.success(`Chào mừng ${res.data.username}!`, 'Đăng nhập thành công')
 
     // Khách hàng luôn redirect về trang chủ
     setTimeout(() => {
-      window.location.href = '/'
+      window.location.href = res.data.mustChangePassword ? '/change-password' : '/'
     }, 800)
 
   } catch (error) {

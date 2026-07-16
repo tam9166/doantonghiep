@@ -44,6 +44,15 @@ public class AuthTokenFilter extends OncePerRequestFilter {
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
+                if (customUserDetails.isPasswordChangeRequired()
+                        && !("PUT".equals(request.getMethod())
+                        && "/api/auth/password".equals(request.getRequestURI()))) {
+                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    response.setContentType("application/json;charset=UTF-8");
+                    response.getWriter().write("{\"status\":403,\"code\":\"PASSWORD_CHANGE_REQUIRED\","
+                            + "\"message\":\"Bạn phải đổi mật khẩu trước khi tiếp tục.\"}");
+                    return;
+                }
             }
         } catch (Exception e) {
             System.err.println("Cannot set user authentication: " + e);

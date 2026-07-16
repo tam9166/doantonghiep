@@ -11,12 +11,15 @@ public class JwtResponse {
     private List<String> roles;
     private String assignedArea;
     private String shift;
+    private boolean mustChangePassword;
 
-    public JwtResponse(String token, String username, List<String> roles, String assignedArea, String shift) {
+    public JwtResponse(String token, String username, List<String> roles, String assignedArea, String shift,
+                       boolean mustChangePassword) {
         this.token = token;
         this.username = username;
         this.roles = roles;
         this.assignedArea = assignedArea;
         this.shift = shift;
+        this.mustChangePassword = mustChangePassword;
     }
 }

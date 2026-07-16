@@ -3,6 +3,7 @@ import Home from '@/views/Home.vue'
 import Login from '@/views/Login.vue'
 import Register from '@/views/Register.vue'
 import StaffLogin from '@/views/StaffLogin.vue'
+import FirstPasswordChange from '@/views/FirstPasswordChange.vue'
 import ProductMenu from '@/views/ProductMenu.vue'
 import OrderHistory from '@/views/OrderHistory.vue'
 import AdminProduct from '@/views/AdminProduct.vue'
@@ -23,6 +24,7 @@ const router = createRouter({
     { path: '/login', name: 'login', component: Login },
     { path: '/register', name: 'register', component: Register },
     { path: '/staff-login', name: 'staff-login', component: StaffLogin },
+    { path: '/change-password', name: 'change-password', component: FirstPasswordChange },
     { path: '/menu', name: 'menu', component: ProductMenu },
     { path: '/history', name: 'history', component: OrderHistory },
     { path: '/profile', name: 'profile', component: CustomerProfile },
@@ -52,10 +54,13 @@ router.beforeEach((to, from) => {
   const token = localStorage.getItem('token')
   const storedUser = localStorage.getItem('user')
   let userRoles = []
+  let mustChangePassword = false
 
   if (storedUser) {
     try {
-      userRoles = JSON.parse(storedUser).roles || []
+      const user = JSON.parse(storedUser)
+      userRoles = user.roles || []
+      mustChangePassword = Boolean(user.mustChangePassword)
     } catch (e) {
       userRoles = []
     }
@@ -64,6 +69,13 @@ router.beforeEach((to, from) => {
   // Danh sách role nhân sự
   const staffRoles = ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_KITCHEN', 'ROLE_WAITER', 'ROLE_CASHIER']
   const isStaff = userRoles.some(r => staffRoles.includes(r))
+
+  if (token && mustChangePassword && to.path !== '/change-password') {
+    return '/change-password'
+  }
+  if (to.path === '/change-password' && !token) {
+    return isStaff ? '/staff-login' : '/login'
+  }
 
   // 1. NGĂN NHÂN VIÊN LÀM VIỆC RIÊNG (Chỉ Admin/Manager mới được xem trang khách)
   const customerRoutes = ['/', '/reservation', '/history', '/profile']

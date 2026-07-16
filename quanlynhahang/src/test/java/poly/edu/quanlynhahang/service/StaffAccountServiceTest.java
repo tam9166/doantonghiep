@@ -23,6 +23,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -66,6 +67,23 @@ class StaffAccountServiceTest {
                 () -> service.update("orphan", emptyUpdate(), null));
 
         verify(accountRepository, never()).save(any());
+    }
+
+    @Test
+    void adminCreatedStaffMustChangePasswordOnFirstLogin() {
+        authenticate("root", "ROLE_ADMIN");
+        Role waiter = new Role();
+        waiter.setName("ROLE_WAITER");
+        CreateStaffRequest request = new CreateStaffRequest(
+                "waiter01", "strong-password", "Waiter One", "waiter@example.com", null, null);
+        when(roleRepository.findByNameIgnoreCase("ROLE_WAITER")).thenReturn(Optional.of(waiter));
+        when(passwordEncoder.encode("strong-password")).thenReturn("encoded-password");
+        when(accountRepository.save(any(Account.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Account created = service.create(request, "ROLE_WAITER");
+
+        assertTrue(created.getMustChangePassword());
+        verify(authorityRepository).save(any(Authority.class));
     }
 
     @Test

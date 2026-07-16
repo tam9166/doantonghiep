@@ -52,4 +52,5 @@ public class CustomUserDetails implements UserDetails {
     
     public Account getAccount() { return account; }
     public long getTokenVersion() { return account.getTokenVersion() == null ? 0L : account.getTokenVersion(); }
+    public boolean isPasswordChangeRequired() { return Boolean.TRUE.equals(account.getMustChangePassword()); }
 }

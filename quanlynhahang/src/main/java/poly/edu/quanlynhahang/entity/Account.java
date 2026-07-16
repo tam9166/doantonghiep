@@ -48,6 +48,9 @@ public class Account {
     @Column(nullable = false)
     private Boolean enabled = true;
 
+    @Column(name = "must_change_password", nullable = false)
+    private Boolean mustChangePassword = false;
+
     @JsonIgnore
     @OneToMany(mappedBy = "account", fetch = FetchType.EAGER)
     private List<Authority> authorities;

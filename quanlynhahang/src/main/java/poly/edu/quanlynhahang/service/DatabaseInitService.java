@@ -74,6 +74,7 @@ public class DatabaseInitService implements CommandLineRunner {
         admin.setPassword(passwordEncoder.encode(password));
         admin.setFullname(fullname.trim());
         admin.setEmail(email.trim().toLowerCase());
+        admin.setMustChangePassword(true);
         accountRepository.save(admin);
 
         Authority authority = new Authority();

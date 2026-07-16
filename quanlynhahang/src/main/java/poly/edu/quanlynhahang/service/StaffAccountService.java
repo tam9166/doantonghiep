@@ -64,6 +64,7 @@ public class StaffAccountService {
         account.setAssignedArea(trimToNull(request.assignedArea()));
         account.setEnabled(true);
         account.setTokenVersion(0L);
+        account.setMustChangePassword(true);
         Account saved = accountRepository.save(account);
         assignRole(saved, role);
         activityLogService.log("CREATE_STAFF", "Account", username, "Tạo nhân viên với quyền " + roleName);
@@ -87,6 +88,7 @@ public class StaffAccountService {
                         "Mật khẩu phải có ít nhất 10 ký tự");
             }
             account.setPassword(passwordEncoder.encode(request.password()));
+            account.setMustChangePassword(true);
             revokeTokens(account);
         }
 
