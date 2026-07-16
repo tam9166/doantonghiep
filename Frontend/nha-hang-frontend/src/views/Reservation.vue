@@ -1028,6 +1028,9 @@ async function submitReservation() {
     })
     submitResult.value = res.data
     paymentCapabilityToken.value = res.data.paymentCapabilityToken || ''
+    if (paymentCapabilityToken.value && res.data.reservationCode) {
+      sessionStorage.setItem(`reservation-capability:${res.data.reservationCode}`, paymentCapabilityToken.value)
+    }
     idempotencyKey.value = crypto.randomUUID()
     if (form.value.paymentOption !== 'PAY_AT_RESTAURANT' && Number(res.data.depositAmount || 0) > 0) {
       await createPaymentQr()

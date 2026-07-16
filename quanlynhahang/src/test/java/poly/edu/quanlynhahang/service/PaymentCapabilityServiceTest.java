@@ -82,6 +82,26 @@ class PaymentCapabilityServiceTest {
         assertDoesNotThrow(() -> service.authorizePaymentQr(reservation, null));
     }
 
+    @Test
+    void realtimeSubscriptionRequiresOwnerStaffOrMatchingScopedCapability() {
+        Reservation reservation = new Reservation();
+        reservation.setCreatedBy("customer");
+        String token = service.issue(reservation, "customer");
+
+        assertDoesNotThrow(() -> service.authorizeReservationRealtime(reservation, token, null));
+        assertThrows(ResponseStatusException.class,
+                () -> service.authorizeReservationRealtime(reservation, "wrong-token", null));
+
+        TestingAuthenticationToken owner = new TestingAuthenticationToken(
+                "customer", null, "ROLE_CUSTOMER");
+        assertDoesNotThrow(() -> service.authorizeReservationRealtime(reservation, null, owner));
+
+        TestingAuthenticationToken stranger = new TestingAuthenticationToken(
+                "another-customer", null, "ROLE_CUSTOMER");
+        assertThrows(ResponseStatusException.class,
+                () -> service.authorizeReservationRealtime(reservation, null, stranger));
+    }
+
     private PaymentProperties properties() {
         PaymentProperties properties = new PaymentProperties();
         properties.setCapabilityExpirationMinutes(30);

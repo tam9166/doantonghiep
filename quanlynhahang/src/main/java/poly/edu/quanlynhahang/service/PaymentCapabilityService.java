@@ -9,6 +9,7 @@ import java.util.Base64;
 import java.util.Date;
 import java.util.HexFormat;
 import java.util.Set;
+import java.security.Principal;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -24,6 +25,7 @@ import poly.edu.quanlynhahang.entity.Reservation;
 public class PaymentCapabilityService {
 
     public static final String PAYMENT_QR_SCOPE = "PAYMENT_QR";
+    public static final String RESERVATION_REALTIME_SCOPE = "RESERVATION_REALTIME";
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final Set<String> STAFF_ROLES = Set.of(
@@ -41,7 +43,7 @@ public class PaymentCapabilityService {
         String rawToken = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
         reservation.setCreatedBy(createdBy);
         reservation.setPaymentCapabilityTokenHash(hash(rawToken));
-        reservation.setPaymentCapabilityScope(PAYMENT_QR_SCOPE);
+        reservation.setPaymentCapabilityScope(PAYMENT_QR_SCOPE + "," + RESERVATION_REALTIME_SCOPE);
         reservation.setPaymentCapabilityExpiresAt(Date.from(Instant.now().plusSeconds(
                 paymentProperties.getCapabilityExpirationMinutes() * 60L)));
         reservation.setPaymentCapabilityRevoked(false);
@@ -55,7 +57,7 @@ public class PaymentCapabilityService {
         }
         if (rawToken == null || rawToken.isBlank()
                 || Boolean.TRUE.equals(reservation.getPaymentCapabilityRevoked())
-                || !PAYMENT_QR_SCOPE.equals(reservation.getPaymentCapabilityScope())
+                || !hasScope(reservation, PAYMENT_QR_SCOPE)
                 || reservation.getPaymentCapabilityExpiresAt() == null
                 || reservation.getPaymentCapabilityExpiresAt().before(new Date())
                 || reservation.getPaymentCapabilityTokenHash() == null) {
@@ -67,6 +69,39 @@ public class PaymentCapabilityService {
         if (!MessageDigest.isEqual(expected, actual)) {
             throw forbidden();
         }
+    }
+
+    public void authorizeReservationRealtime(Reservation reservation, String rawToken, Principal principal) {
+        Authentication authentication = principal instanceof Authentication auth ? auth : null;
+        if (isStaff(authentication) || isOwner(authentication, reservation)) {
+            return;
+        }
+        if (rawToken == null || rawToken.isBlank()
+                || Boolean.TRUE.equals(reservation.getPaymentCapabilityRevoked())
+                || !hasScope(reservation, RESERVATION_REALTIME_SCOPE)
+                || reservation.getPaymentCapabilityExpiresAt() == null
+                || reservation.getPaymentCapabilityExpiresAt().before(new Date())
+                || reservation.getPaymentCapabilityTokenHash() == null) {
+            throw forbidden();
+        }
+        byte[] expected = reservation.getPaymentCapabilityTokenHash().getBytes(StandardCharsets.US_ASCII);
+        byte[] actual = hash(rawToken).getBytes(StandardCharsets.US_ASCII);
+        if (!MessageDigest.isEqual(expected, actual)) {
+            throw forbidden();
+        }
+    }
+
+    private boolean hasScope(Reservation reservation, String expectedScope) {
+        String scopes = reservation.getPaymentCapabilityScope();
+        if (scopes == null) {
+            return false;
+        }
+        for (String scope : scopes.split(",")) {
+            if (expectedScope.equals(scope.trim())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     String hash(String rawToken) {
