@@ -122,6 +122,9 @@ public class Reservation {
     @Column(name = "deposit_amount", precision = 18, scale = 0, nullable = false)
     private BigDecimal depositAmount = BigDecimal.ZERO;
 
+    @Column(name = "paid_amount", precision = 18, scale = 0, nullable = false)
+    private BigDecimal paidAmount = BigDecimal.ZERO;
+
     @Column(name = "remaining_amount", precision = 18, scale = 0, nullable = false)
     private BigDecimal remainingAmount = BigDecimal.ZERO;
 
@@ -135,7 +138,7 @@ public class Reservation {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "payment_status", length = 30, nullable = false)
-    private PaymentStatus paymentStatus = PaymentStatus.PENDING;
+    private PaymentStatus paymentStatus = PaymentStatus.UNPAID;
 
     @Column(name = "manager_note", columnDefinition = "nvarchar(500)")
     private String managerNote;

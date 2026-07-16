@@ -22,6 +22,7 @@ import poly.edu.quanlynhahang.dto.TableSuggestionResponse;
 import poly.edu.quanlynhahang.entity.DepositStatus;
 import poly.edu.quanlynhahang.entity.PaymentIntent;
 import poly.edu.quanlynhahang.entity.PaymentOption;
+import poly.edu.quanlynhahang.entity.PaymentStatus;
 import poly.edu.quanlynhahang.entity.Reservation;
 import poly.edu.quanlynhahang.entity.ReservationPreorderItem;
 import poly.edu.quanlynhahang.entity.ReservationStatus;
@@ -207,7 +208,9 @@ public class ReservationService {
         reservation.setDepositPolicyCode(deposit.policy().getPolicyCode());
         reservation.setDepositPolicySnapshot(deposit.policy().getExplanation());
         reservation.setDepositAmount(payableNow);
-        reservation.setRemainingAmount(totalAmount.subtract(payableNow));
+        reservation.setPaidAmount(BigDecimal.ZERO);
+        reservation.setRemainingAmount(totalAmount);
+        reservation.setPaymentStatus(PaymentStatus.UNPAID);
         reservation.setDepositStatus(payableNow.signum() > 0 ? DepositStatus.PENDING : DepositStatus.NOT_REQUIRED);
         reservation.setReservationStatus(ReservationStatus.PENDING);
 
@@ -769,6 +772,7 @@ public class ReservationService {
         response.setFoodAmount(reservation.getFoodAmount());
         response.setDepositRate(reservation.getDepositRate());
         response.setDepositAmount(reservation.getDepositAmount());
+        response.setPaidAmount(reservation.getPaidAmount());
         response.setRemainingAmount(reservation.getRemainingAmount());
         response.setDepositStatus(reservation.getDepositStatus());
         response.setPaymentOption(reservation.getPaymentOption());

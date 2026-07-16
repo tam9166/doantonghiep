@@ -40,6 +40,7 @@ public class ReservationResponse {
     private BigDecimal foodAmount;
     private BigDecimal depositRate;
     private BigDecimal depositAmount;
+    private BigDecimal paidAmount;
     private BigDecimal remainingAmount;
     private DepositStatus depositStatus;
     private PaymentOption paymentOption;
