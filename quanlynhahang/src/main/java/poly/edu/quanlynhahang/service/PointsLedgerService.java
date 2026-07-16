@@ -1,5 +1,7 @@
 package poly.edu.quanlynhahang.service;
 
+import java.util.Optional;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -81,6 +83,22 @@ public class PointsLedgerService {
         reversal.setBalanceAfter(balance);
         reversal.setReason(reason);
         return ledgerRepository.save(reversal);
+    }
+
+    @Transactional
+    public Optional<PointsLedger> reverseIfPresent(
+            String username,
+            String originalEventKey,
+            String reversalEventKey,
+            String reason) {
+        Optional<PointsLedger> existingReversal = ledgerRepository.findByEventKey(reversalEventKey);
+        if (existingReversal.isPresent()) {
+            return existingReversal;
+        }
+        if (ledgerRepository.findByEventKey(originalEventKey).isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(reverse(username, originalEventKey, reversalEventKey, reason));
     }
 
     private String resolveTier(int points) {

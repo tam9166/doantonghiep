@@ -2,6 +2,7 @@ package poly.edu.quanlynhahang.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -73,6 +74,33 @@ class PointsLedgerServiceTest {
         assertEquals(0, account.getPoints());
         assertEquals(-5, reversal.getDelta());
         assertEquals(0, reversal.getBalanceAfter());
+    }
+
+    @Test
+    void cancellationWithoutAwardDoesNotFailOrCreateLedger() {
+        when(ledgerRepository.findByEventKey("ORDER_CANCELLED:11")).thenReturn(Optional.empty());
+        when(ledgerRepository.findByEventKey("ORDER_COMPLETED:11")).thenReturn(Optional.empty());
+
+        Optional<PointsLedger> reversal = service.reverseIfPresent(
+                "customer", "ORDER_COMPLETED:11", "ORDER_CANCELLED:11", "Cancelled");
+
+        assertTrue(reversal.isEmpty());
+        verify(accountRepository, never()).findLockedByUsername(any());
+        verify(ledgerRepository, never()).save(any());
+    }
+
+    @Test
+    void duplicateCancellationReturnsExistingReversal() {
+        PointsLedger existing = new PointsLedger();
+        existing.setEventKey("ORDER_CANCELLED:12");
+        when(ledgerRepository.findByEventKey("ORDER_CANCELLED:12")).thenReturn(Optional.of(existing));
+
+        Optional<PointsLedger> reversal = service.reverseIfPresent(
+                "customer", "ORDER_COMPLETED:12", "ORDER_CANCELLED:12", "Cancelled");
+
+        assertSame(existing, reversal.orElseThrow());
+        verify(accountRepository, never()).findLockedByUsername(any());
+        verify(ledgerRepository, never()).save(any());
     }
 
     private Account account(String username, int points) {

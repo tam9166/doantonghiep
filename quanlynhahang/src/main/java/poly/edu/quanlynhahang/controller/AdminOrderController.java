@@ -266,8 +266,10 @@ public class AdminOrderController {
     }
 
     @PutMapping("/{id}/cancel")
+    @Transactional
     public ResponseEntity<?> cancelOrder(@PathVariable Integer id, @RequestBody Map<String, String> body) {
         return orderRepository.findById(id).map(order -> {
+            reverseOrderPointsIfAwarded(order, "ORDER_CANCELLED");
             order.setStatus(3);
             orderRepository.save(order);
             return ResponseEntity.ok("Hủy đơn hàng thành công!");
@@ -275,8 +277,10 @@ public class AdminOrderController {
     }
 
     @PutMapping("/{id}/cancel-with-refund")
+    @Transactional
     public ResponseEntity<?> cancelOrderWithRefund(@PathVariable Integer id) {
         return orderRepository.findById(id).map(order -> {
+            reverseOrderPointsIfAwarded(order, "ORDER_REFUNDED");
             order.setStatus(3);
             Double refundAmount = (order.getDeposit() != null ? order.getDeposit() : 0.0) / 2.0;
             orderRepository.save(order);
@@ -318,6 +322,17 @@ public class AdminOrderController {
 
     // 🌟 API MỚI: TỰ ĐỘNG KÍCH HOẠT ĐƠN ĐẶT BÀN HẸN GIờ
     // Frontend gọi mỗi 30 giây. Nếu có đơn status=5 và hiện tại ≥ giờ hẹn - 15 phút → chuyển status=1
+    private void reverseOrderPointsIfAwarded(Order order, String eventPrefix) {
+        if (order.getAccount() == null || order.getId() == null) {
+            return;
+        }
+        pointsLedgerService.reverseIfPresent(
+                order.getAccount().getUsername(),
+                "ORDER_COMPLETED:" + order.getId(),
+                eventPrefix + ":" + order.getId(),
+                "Thu hoi diem do huy/hoan tien don #" + order.getId());
+    }
+
     @PutMapping("/activate-scheduled")
     public ResponseEntity<?> activateScheduledOrders() {
         List<Order> scheduledOrders = orderRepository.findAll().stream()
