@@ -48,7 +48,19 @@
               </dl>
             </div>
             <img :src="paymentQr.qrUrl" :alt="text.qrTitle" />
+            <button class="secondary-btn" type="button" :disabled="qrLoading" @click="regeneratePaymentQr">
+              {{ lang === 'vi' ? 'Tạo lại QR' : 'Regenerate QR' }}
+            </button>
           </article>
+          <div v-else-if="qrLoading" class="qr-local-state">
+            {{ lang === 'vi' ? 'Đang tạo QR...' : 'Creating QR...' }}
+          </div>
+          <div v-else-if="qrError" class="qr-local-state qr-error-state">
+            <p>{{ qrError }}</p>
+            <button class="secondary-btn" type="button" @click="createPaymentQr">
+              {{ lang === 'vi' ? 'Thử lại QR' : 'Retry QR' }}
+            </button>
+          </div>
           <button class="primary-btn" type="button" @click="resetForm">{{ text.newBooking }}</button>
         </section>
 
@@ -431,6 +443,10 @@ const submitResult = ref(null)
 const waitlistResult = ref(null)
 const paymentQr = ref(null)
 const paymentCapabilityToken = ref('')
+const paymentIdempotencyKey = ref(crypto.randomUUID())
+const regenerateIdempotencyKey = ref('')
+const qrLoading = ref(false)
+const qrError = ref('')
 const quote = ref(null)
 const menuSearch = ref('')
 const menuCategory = ref('')
@@ -998,6 +1014,7 @@ async function submitReservation() {
   submitting.value = true
   serverError.value = ''
   paymentQr.value = null
+  qrError.value = ''
   try {
     await loadQuote()
     const payload = {
@@ -1013,18 +1030,59 @@ async function submitReservation() {
     paymentCapabilityToken.value = res.data.paymentCapabilityToken || ''
     idempotencyKey.value = crypto.randomUUID()
     if (form.value.paymentOption !== 'PAY_AT_RESTAURANT' && Number(res.data.depositAmount || 0) > 0) {
-      const qrRes = await api.post('/api/payments/qr', {
-        reservationCode: res.data.reservationCode,
-        paymentOption: form.value.paymentOption
-      }, {
-        headers: { 'X-Payment-Capability': paymentCapabilityToken.value }
-      })
-      paymentQr.value = qrRes.data
+      await createPaymentQr()
     }
   } catch (err) {
     serverError.value = err.response?.data?.message || err.response?.data || (lang.value === 'vi' ? 'Không gửi được yêu cầu đặt bàn' : 'Could not submit reservation')
   } finally {
     submitting.value = false
+  }
+}
+
+async function createPaymentQr() {
+  if (!submitResult.value?.reservationCode || qrLoading.value) return
+  qrLoading.value = true
+  qrError.value = ''
+  try {
+    const qrRes = await api.post('/api/payments/qr', {
+      reservationCode: submitResult.value.reservationCode,
+      paymentOption: form.value.paymentOption
+    }, {
+      headers: {
+        'X-Payment-Capability': paymentCapabilityToken.value,
+        'X-Idempotency-Key': paymentIdempotencyKey.value
+      }
+    })
+    paymentQr.value = qrRes.data
+  } catch (err) {
+    qrError.value = err.response?.data?.message
+      || (lang.value === 'vi' ? 'Không tạo được QR thanh toán.' : 'Could not create payment QR.')
+  } finally {
+    qrLoading.value = false
+  }
+}
+
+async function regeneratePaymentQr() {
+  if (!paymentQr.value?.paymentCode || qrLoading.value) return
+  if (!regenerateIdempotencyKey.value) {
+    regenerateIdempotencyKey.value = crypto.randomUUID()
+  }
+  qrLoading.value = true
+  qrError.value = ''
+  try {
+    const qrRes = await api.post(`/api/payments/${paymentQr.value.paymentCode}/regenerate`, null, {
+      headers: {
+        'X-Payment-Capability': paymentCapabilityToken.value,
+        'X-Idempotency-Key': regenerateIdempotencyKey.value
+      }
+    })
+    paymentQr.value = qrRes.data
+    regenerateIdempotencyKey.value = ''
+  } catch (err) {
+    qrError.value = err.response?.data?.message
+      || (lang.value === 'vi' ? 'Không thể tạo lại QR.' : 'Could not regenerate QR.')
+  } finally {
+    qrLoading.value = false
   }
 }
 
@@ -1069,6 +1127,9 @@ function resetForm() {
   waitlistResult.value = null
   paymentQr.value = null
   paymentCapabilityToken.value = ''
+  paymentIdempotencyKey.value = crypto.randomUUID()
+  regenerateIdempotencyKey.value = ''
+  qrError.value = ''
   quote.value = null
   step.value = 1
   form.value.tableId = null
@@ -1673,6 +1734,23 @@ small {
 
 .qr-card dt {
   color: #7A7460;
+}
+
+.qr-card > .secondary-btn {
+  grid-column: 1 / -1;
+  justify-self: end;
+}
+
+.qr-local-state {
+  margin: 18px 0;
+  padding: 18px;
+  border: 1px solid #CFC7A8;
+  background: #FFFFFF;
+}
+
+.qr-error-state {
+  border-color: #A74335;
+  color: #7C2E24;
 }
 
 @keyframes shimmer {

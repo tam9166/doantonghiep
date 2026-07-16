@@ -20,11 +20,15 @@ import poly.edu.quanlynhahang.repository.ReservationRepository;
 import java.math.BigDecimal;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Date;
+import java.util.HexFormat;
 import java.util.Locale;
+import java.util.Optional;
 
 @Service
 public class PaymentService {
@@ -36,73 +40,153 @@ public class PaymentService {
     private final ReservationStateMachine stateMachine;
     private final PaymentProperties paymentProperties;
     private final PaymentCapabilityService capabilityService;
+    private final ActivityLogService activityLogService;
 
     public PaymentService(ReservationRepository reservationRepository,
                           PaymentIntentRepository paymentIntentRepository,
                           ReservationRealtimeService realtimeService,
                           ReservationStateMachine stateMachine,
                           PaymentProperties paymentProperties,
-                          PaymentCapabilityService capabilityService) {
+                          PaymentCapabilityService capabilityService,
+                          ActivityLogService activityLogService) {
         this.reservationRepository = reservationRepository;
         this.paymentIntentRepository = paymentIntentRepository;
         this.realtimeService = realtimeService;
         this.stateMachine = stateMachine;
         this.paymentProperties = paymentProperties;
         this.capabilityService = capabilityService;
+        this.activityLogService = activityLogService;
     }
 
     @Transactional
-    public PaymentQrResponse createQr(PaymentQrRequest request, String capabilityToken) {
+    public PaymentQrResponse createQr(
+            PaymentQrRequest request,
+            String capabilityToken,
+            String idempotencyKey) {
         if (request == null || request.getReservationCode() == null || request.getReservationCode().isBlank()) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Thiếu mã đặt bàn");
         }
-        Reservation reservation = reservationRepository.findByReservationCode(request.getReservationCode())
+        String normalizedIdempotencyKey = normalizeIdempotencyKey(idempotencyKey);
+        Reservation reservation = reservationRepository.findLockedByReservationCode(request.getReservationCode().trim())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy đặt bàn"));
         capabilityService.authorizePaymentQr(reservation, capabilityToken);
         if (isClosedReservation(reservation.getReservationStatus())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Không thể tạo QR cho đặt bàn đã kết thúc hoặc bị hủy");
         }
-        expireOldPendingPayments(reservation);
         PaymentOption option = request.getPaymentOption() == null ? reservation.getPaymentOption() : request.getPaymentOption();
         BigDecimal amount = payableAmount(reservation, option);
         if (amount.signum() <= 0) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Hình thức thanh toán này không cần tạo QR");
         }
 
+        String requestHash = requestHash("CREATE", reservation.getReservationCode(), option.name());
+        Optional<PaymentIntent> idempotentIntent = paymentIntentRepository.findByIdempotencyKey(normalizedIdempotencyKey);
+        if (idempotentIntent.isPresent()) {
+            return idempotentResponse(idempotentIntent.get(), reservation, requestHash);
+        }
+
+        Optional<PaymentIntent> activeIntent = paymentIntentRepository
+                .findFirstByReservationIdAndPaymentOptionAndStatusOrderByCreatedAtDesc(
+                        reservation.getId(), option, PaymentStatus.PENDING);
+        if (activeIntent.isPresent()) {
+            PaymentIntent active = activeIntent.get();
+            if (!isExpired(active)) {
+                return toResponse(active);
+            }
+            active.setStatus(PaymentStatus.EXPIRED);
+            paymentIntentRepository.saveAndFlush(active);
+        }
+
+        return toResponse(createIntent(
+                reservation,
+                option,
+                amount,
+                normalizedIdempotencyKey,
+                requestHash));
+    }
+
+    private PaymentIntent createIntent(
+            Reservation reservation,
+            PaymentOption option,
+            BigDecimal amount,
+            String idempotencyKey,
+            String requestHash) {
         PaymentIntent intent = new PaymentIntent();
         intent.setReservation(reservation);
+        intent.setAggregateType("RESERVATION");
+        intent.setAggregateId(reservation.getId());
+        intent.setAggregateCode(reservation.getReservationCode());
+        intent.setPurpose(option.name());
         intent.setCapabilityTokenHash(reservation.getPaymentCapabilityTokenHash());
+        intent.setIdempotencyKey(idempotencyKey);
+        intent.setRequestHash(requestHash);
         intent.setPaymentCode(nextPaymentCode());
         intent.setPaymentOption(option);
         intent.setAmount(amount);
+        intent.setPaidAmount(BigDecimal.ZERO);
+        intent.setRemainingAmount(amount);
+        intent.setCurrency("VND");
         intent.setBankCode(paymentProperties.getBankCode().trim().toUpperCase(Locale.ROOT));
+        intent.setBankBin(paymentProperties.getBankBin());
         intent.setAccountNumber(paymentProperties.getAccountNumber().trim());
         intent.setAccountHolder(paymentProperties.getAccountHolder().trim().toUpperCase(Locale.ROOT));
+        intent.setQrProvider(paymentProperties.getQrProvider().trim().toUpperCase(Locale.ROOT));
         intent.setTransferContent(buildTransferContent(reservation.getReservationCode(), intent.getPaymentCode()));
         intent.setExpiresAt(Date.from(Instant.now().plusSeconds(
                 paymentProperties.getQrExpirationMinutes() * 60L)));
         intent.setQrUrl(buildVietQrUrl(intent));
-        return toResponse(paymentIntentRepository.save(intent));
+        intent.setCreatedBy(currentUsername());
+        return paymentIntentRepository.save(intent);
     }
 
     @Transactional
-    public PaymentQrResponse regenerate(String paymentCode, String capabilityToken) {
+    public PaymentQrResponse regenerate(
+            String paymentCode,
+            String capabilityToken,
+            String idempotencyKey) {
+        String normalizedIdempotencyKey = normalizeIdempotencyKey(idempotencyKey);
+        PaymentIntent initial = paymentIntentRepository.findByPaymentCode(paymentCode)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy giao dịch thanh toán"));
+        capabilityService.authorizePaymentQr(initial.getReservation(), capabilityToken);
+        Reservation reservation = reservationRepository.findLockedByReservationCode(
+                initial.getReservation().getReservationCode())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy đặt bàn"));
         PaymentIntent existing = paymentIntentRepository.findByPaymentCode(paymentCode)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy giao dịch thanh toán"));
         capabilityService.authorizePaymentQr(existing.getReservation(), capabilityToken);
+
+        String requestHash = requestHash("REGENERATE", paymentCode, existing.getPaymentOption().name());
+        Optional<PaymentIntent> idempotentIntent = paymentIntentRepository.findByIdempotencyKey(normalizedIdempotencyKey);
+        if (idempotentIntent.isPresent()) {
+            return idempotentResponse(idempotentIntent.get(), reservation, requestHash);
+        }
         if (PaymentStatus.PAID.equals(existing.getStatus())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Giao dịch đã thanh toán");
         }
-        if (isClosedReservation(existing.getReservation().getReservationStatus())) {
+        if (PaymentStatus.REPLACED.equals(existing.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "PAYMENT_INTENT_ALREADY_REPLACED");
+        }
+        if (isClosedReservation(reservation.getReservationStatus())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Không thể tạo lại QR cho đặt bàn đã kết thúc hoặc bị hủy");
         }
-        existing.setStatus(PaymentStatus.EXPIRED);
-        paymentIntentRepository.save(existing);
 
-        PaymentQrRequest request = new PaymentQrRequest();
-        request.setReservationCode(existing.getReservation().getReservationCode());
-        request.setPaymentOption(existing.getPaymentOption());
-        return createQr(request, capabilityToken);
+        existing.setStatus(PaymentStatus.REPLACED);
+        paymentIntentRepository.saveAndFlush(existing);
+        BigDecimal amount = payableAmount(reservation, existing.getPaymentOption());
+        PaymentIntent replacement = createIntent(
+                reservation,
+                existing.getPaymentOption(),
+                amount,
+                normalizedIdempotencyKey,
+                requestHash);
+        existing.setReplacedById(replacement.getId());
+        paymentIntentRepository.save(existing);
+        activityLogService.log(
+                "REGENERATE_QR",
+                "PaymentIntent",
+                String.valueOf(existing.getId()),
+                "Tạo lại QR cho " + reservation.getReservationCode());
+        return toResponse(replacement);
     }
 
     @Transactional
@@ -157,6 +241,8 @@ public class PaymentService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Giao dịch đã hết hạn");
         }
         intent.setStatus(PaymentStatus.PAID);
+        intent.setPaidAmount(intent.getAmount());
+        intent.setRemainingAmount(BigDecimal.ZERO);
         intent.setPaidAt(new Date());
         intent.setConfirmedBy(confirmedBy);
         intent.setBankTransactionCode(bankTransactionCode);
@@ -196,15 +282,43 @@ public class PaymentService {
         return reservation.getDepositAmount();
     }
 
-    private void expireOldPendingPayments(Reservation reservation) {
-        Date now = new Date();
-        paymentIntentRepository.findByReservationIdAndStatusOrderByCreatedAtDesc(reservation.getId(), PaymentStatus.PENDING)
-                .forEach(intent -> {
-                    if (intent.getExpiresAt() == null || intent.getExpiresAt().after(now)) {
-                        intent.setStatus(PaymentStatus.EXPIRED);
-                        paymentIntentRepository.save(intent);
-                    }
-                });
+    private PaymentQrResponse idempotentResponse(
+            PaymentIntent intent,
+            Reservation reservation,
+            String requestHash) {
+        if (!reservation.getId().equals(intent.getReservation().getId())
+                || intent.getRequestHash() == null
+                || !MessageDigest.isEqual(
+                        intent.getRequestHash().getBytes(StandardCharsets.US_ASCII),
+                        requestHash.getBytes(StandardCharsets.US_ASCII))) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "IDEMPOTENCY_CONFLICT");
+        }
+        return toResponse(intent);
+    }
+
+    private String normalizeIdempotencyKey(String idempotencyKey) {
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "IDEMPOTENCY_KEY_REQUIRED");
+        }
+        String normalized = idempotencyKey.trim();
+        if (normalized.length() < 8 || normalized.length() > 100) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "IDEMPOTENCY_KEY_INVALID");
+        }
+        return normalized;
+    }
+
+    private String requestHash(String action, String aggregateCode, String purpose) {
+        try {
+            String canonical = action + "|" + aggregateCode.trim().toUpperCase(Locale.ROOT) + "|" + purpose;
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+                    .digest(canonical.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 is unavailable", exception);
+        }
+    }
+
+    private boolean isExpired(PaymentIntent intent) {
+        return intent.getExpiresAt() == null || !intent.getExpiresAt().after(new Date());
     }
 
     private boolean isClosedReservation(ReservationStatus status) {

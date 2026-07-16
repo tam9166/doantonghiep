@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -25,8 +27,8 @@ import poly.edu.quanlynhahang.repository.ReservationRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Date;
-import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
 class PaymentServiceTest {
 
@@ -36,13 +38,15 @@ class PaymentServiceTest {
     private final ReservationStateMachine stateMachine = mock(ReservationStateMachine.class);
     private final PaymentProperties paymentProperties = paymentProperties();
     private final PaymentCapabilityService capabilityService = mock(PaymentCapabilityService.class);
+    private final ActivityLogService activityLogService = mock(ActivityLogService.class);
     private final PaymentService service = new PaymentService(
             reservationRepository,
             paymentIntentRepository,
             realtimeService,
             stateMachine,
             paymentProperties,
-            capabilityService);
+            capabilityService,
+            activityLogService);
 
     @Test
     void confirmFromWebhookMarksDepositPaidAndPublishesRealtimeEvent() {
@@ -101,15 +105,13 @@ class PaymentServiceTest {
     @Test
     void createQrUsesConfiguredMbAccountWithoutDemoFallback() {
         Reservation reservation = pendingIntent().getReservation();
-        when(reservationRepository.findByReservationCode("MV-001")).thenReturn(Optional.of(reservation));
-        when(paymentIntentRepository.findByReservationIdAndStatusOrderByCreatedAtDesc(
-                reservation.getId(), PaymentStatus.PENDING)).thenReturn(List.of());
+        when(reservationRepository.findLockedByReservationCode("MV-001")).thenReturn(Optional.of(reservation));
         when(paymentIntentRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         PaymentQrRequest request = new PaymentQrRequest();
         request.setReservationCode("MV-001");
         request.setPaymentOption(PaymentOption.DEPOSIT_50);
-        PaymentQrResponse response = service.createQr(request, "capability-token");
+        PaymentQrResponse response = service.createQr(request, "capability-token", "create-qr-001");
 
         assertEquals("MB", response.getBankCode());
         assertEquals("919112006789", response.getAccountNumber());
@@ -121,10 +123,8 @@ class PaymentServiceTest {
     void twoReservationsWithSameAmountReceiveDifferentPaymentCodesAndTransferContent() {
         Reservation first = reservation(1L, "MV-001");
         Reservation second = reservation(2L, "MV-002");
-        when(reservationRepository.findByReservationCode("MV-001")).thenReturn(Optional.of(first));
-        when(reservationRepository.findByReservationCode("MV-002")).thenReturn(Optional.of(second));
-        when(paymentIntentRepository.findByReservationIdAndStatusOrderByCreatedAtDesc(
-                any(), any())).thenReturn(List.of());
+        when(reservationRepository.findLockedByReservationCode("MV-001")).thenReturn(Optional.of(first));
+        when(reservationRepository.findLockedByReservationCode("MV-002")).thenReturn(Optional.of(second));
         when(paymentIntentRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         PaymentQrRequest firstRequest = new PaymentQrRequest();
@@ -134,13 +134,85 @@ class PaymentServiceTest {
         secondRequest.setReservationCode("MV-002");
         secondRequest.setPaymentOption(PaymentOption.DEPOSIT_50);
 
-        PaymentQrResponse firstResponse = service.createQr(firstRequest, "first-capability-token");
-        PaymentQrResponse secondResponse = service.createQr(secondRequest, "second-capability-token");
+        PaymentQrResponse firstResponse = service.createQr(
+                firstRequest, "first-capability-token", "create-first-001");
+        PaymentQrResponse secondResponse = service.createQr(
+                secondRequest, "second-capability-token", "create-second-001");
 
         assertEquals(firstResponse.getAmount(), secondResponse.getAmount());
         assertNotEquals(firstResponse.getPaymentCode(), secondResponse.getPaymentCode());
         assertNotEquals(firstResponse.getTransferContent(), secondResponse.getTransferContent());
         assertNotEquals(firstResponse.getQrUrl(), secondResponse.getQrUrl());
+    }
+
+    @Test
+    void retryWithSameIdempotencyKeyReturnsSameIntentWithoutSavingAgain() {
+        Reservation reservation = reservation(1L, "MV-001");
+        AtomicReference<PaymentIntent> savedIntent = new AtomicReference<>();
+        when(reservationRepository.findLockedByReservationCode("MV-001")).thenReturn(Optional.of(reservation));
+        when(paymentIntentRepository.findByIdempotencyKey("same-key-001"))
+                .thenAnswer(invocation -> Optional.ofNullable(savedIntent.get()));
+        when(paymentIntentRepository.save(any())).thenAnswer(invocation -> {
+            PaymentIntent intent = invocation.getArgument(0);
+            intent.setId(20L);
+            savedIntent.set(intent);
+            return intent;
+        });
+        PaymentQrRequest request = request("MV-001", PaymentOption.DEPOSIT_50);
+
+        PaymentQrResponse first = service.createQr(request, "capability", "same-key-001");
+        PaymentQrResponse retry = service.createQr(request, "capability", "same-key-001");
+
+        assertEquals(first.getPaymentCode(), retry.getPaymentCode());
+        assertEquals(first.getQrUrl(), retry.getQrUrl());
+        verify(paymentIntentRepository, times(1)).save(any());
+    }
+
+    @Test
+    void sameIdempotencyKeyWithDifferentPayloadReturnsConflict() {
+        Reservation reservation = reservation(1L, "MV-001");
+        PaymentIntent existing = pendingIntent();
+        existing.setRequestHash("different-request-hash");
+        when(reservationRepository.findLockedByReservationCode("MV-001")).thenReturn(Optional.of(reservation));
+        when(paymentIntentRepository.findByIdempotencyKey("conflict-key-001")).thenReturn(Optional.of(existing));
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+                () -> service.createQr(
+                        request("MV-001", PaymentOption.DEPOSIT_50),
+                        "capability",
+                        "conflict-key-001"));
+
+        assertEquals("409 CONFLICT \"IDEMPOTENCY_CONFLICT\"", error.getMessage());
+    }
+
+    @Test
+    void regenerateReplacesOldIntentWithoutCreatingReservation() {
+        PaymentIntent existing = pendingIntent();
+        Reservation reservation = existing.getReservation();
+        when(paymentIntentRepository.findByPaymentCode("PAY-MV-001")).thenReturn(Optional.of(existing));
+        when(reservationRepository.findLockedByReservationCode("MV-001")).thenReturn(Optional.of(reservation));
+        when(paymentIntentRepository.saveAndFlush(existing)).thenReturn(existing);
+        when(paymentIntentRepository.save(any())).thenAnswer(invocation -> {
+            PaymentIntent intent = invocation.getArgument(0);
+            if (intent.getId() == null) intent.setId(11L);
+            return intent;
+        });
+
+        PaymentQrResponse replacement = service.regenerate(
+                "PAY-MV-001", "capability", "regenerate-key-001");
+
+        assertEquals(PaymentStatus.REPLACED, existing.getStatus());
+        assertEquals(11L, existing.getReplacedById());
+        assertNotEquals("PAY-MV-001", replacement.getPaymentCode());
+        verify(reservationRepository, never()).save(any());
+        verify(activityLogService).log(any(), any(), any(), any());
+    }
+
+    private PaymentQrRequest request(String reservationCode, PaymentOption option) {
+        PaymentQrRequest request = new PaymentQrRequest();
+        request.setReservationCode(reservationCode);
+        request.setPaymentOption(option);
+        return request;
     }
 
     private PaymentIntent pendingIntent() {

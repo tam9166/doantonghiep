@@ -23,15 +23,17 @@ public class PaymentController {
     @PostMapping("/api/payments/qr")
     public PaymentQrResponse createQr(
             @RequestBody PaymentQrRequest request,
-            @RequestHeader(value = "X-Payment-Capability", required = false) String capabilityToken) {
-        return paymentService.createQr(request, capabilityToken);
+            @RequestHeader(value = "X-Payment-Capability", required = false) String capabilityToken,
+            @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey) {
+        return paymentService.createQr(request, capabilityToken, idempotencyKey);
     }
 
     @PostMapping("/api/payments/{paymentCode}/regenerate")
     public PaymentQrResponse regenerate(
             @PathVariable String paymentCode,
-            @RequestHeader(value = "X-Payment-Capability", required = false) String capabilityToken) {
-        return paymentService.regenerate(paymentCode, capabilityToken);
+            @RequestHeader(value = "X-Payment-Capability", required = false) String capabilityToken,
+            @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey) {
+        return paymentService.regenerate(paymentCode, capabilityToken, idempotencyKey);
     }
 
     @PatchMapping("/api/admin/payments/{paymentCode}/confirm")
