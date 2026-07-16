@@ -100,7 +100,7 @@
               <label>Mật khẩu *</label>
               <div class="input-field">
                 <span class="field-icon">🔒</span>
-                <input v-model="form.password" :type="showPw ? 'text' : 'password'" placeholder="Tối thiểu 4 ký tự..." />
+                <input v-model="form.password" :type="showPw ? 'text' : 'password'" minlength="10" maxlength="72" placeholder="Tối thiểu 10 ký tự..." />
                 <button class="toggle-pw" @click="showPw = !showPw" type="button">{{ showPw ? '🙈' : '👁️' }}</button>
               </div>
               <!-- Password Strength -->
@@ -179,6 +179,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/services/api'
+import { getApiErrorMessage } from '@/services/errorMessage'
 import { useToast } from '@/composables/useToast'
 
 const router = useRouter()
@@ -195,8 +196,8 @@ const pwStrength = computed(() => {
   const pw = form.value.password
   if (!pw) return 0
   let score = 0
-  if (pw.length >= 4) score++
-  if (pw.length >= 8) score++
+  if (pw.length >= 10) score++
+  if (pw.length >= 12) score++
   if (/[A-Z]/.test(pw)) score++
   if (/[0-9]/.test(pw)) score++
   if (/[^A-Za-z0-9]/.test(pw)) score++
@@ -220,8 +221,8 @@ function goStep2() {
     errorMsg.value = 'Vui lòng điền đầy đủ thông tin bắt buộc!'
     return
   }
-  if (form.value.password.length < 4) {
-    errorMsg.value = 'Mật khẩu phải có ít nhất 4 ký tự!'
+  if (form.value.password.length < 10) {
+    errorMsg.value = 'Mật khẩu phải có ít nhất 10 ký tự!'
     return
   }
   step.value = 2
@@ -235,7 +236,7 @@ async function handleRegister() {
     toast.success('Tài khoản đã được tạo. Hãy đăng nhập!', 'Đăng ký thành công')
     router.push('/login')
   } catch (error) {
-    errorMsg.value = error.response?.data || 'Đăng ký thất bại! Vui lòng thử lại.'
+    errorMsg.value = getApiErrorMessage(error, 'Đăng ký thất bại! Vui lòng thử lại.')
   } finally {
     isLoading.value = false
   }

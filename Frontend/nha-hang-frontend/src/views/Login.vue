@@ -128,6 +128,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/services/api'
+import { getApiErrorMessage } from '@/services/errorMessage'
 import { useToast } from '@/composables/useToast'
 
 const router = useRouter()
@@ -166,9 +167,11 @@ const handleLogin = async () => {
   } catch (error) {
     if (error.response && error.response.status === 403) {
       // Nhân viên nhầm trang đăng nhập
-      errorMsg.value = error.response.data || 'Vui lòng sử dụng trang đăng nhập dành cho nhân viên.'
+      errorMsg.value = getApiErrorMessage(error, 'Vui lòng sử dụng trang đăng nhập dành cho nhân viên.')
     } else if (error.response && error.response.status === 401) {
       errorMsg.value = 'Sai tài khoản hoặc mật khẩu!'
+    } else if (error.response) {
+      errorMsg.value = getApiErrorMessage(error, 'Đăng nhập không thành công.')
     } else if (error.request) {
       errorMsg.value = 'Không thể kết nối Server. Vui lòng kiểm tra Backend.'
     } else {

@@ -131,6 +131,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/services/api'
+import { getApiErrorMessage } from '@/services/errorMessage'
 import { useToast } from '@/composables/useToast'
 
 const router = useRouter()
@@ -186,9 +187,11 @@ const handleStaffLogin = async () => {
   } catch (error) {
     if (error.response && error.response.status === 403) {
       // Khách hàng nhầm trang đăng nhập
-      errorMsg.value = error.response.data || 'Tài khoản không có quyền truy cập hệ thống quản trị.'
+      errorMsg.value = getApiErrorMessage(error, 'Tài khoản không có quyền truy cập hệ thống quản trị.')
     } else if (error.response && error.response.status === 401) {
       errorMsg.value = 'Sai tài khoản hoặc mật khẩu!'
+    } else if (error.response) {
+      errorMsg.value = getApiErrorMessage(error, 'Đăng nhập không thành công.')
     } else if (error.request) {
       errorMsg.value = 'Không thể kết nối Server. Vui lòng kiểm tra Backend.'
     } else {
