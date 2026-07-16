@@ -23,10 +23,12 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestBody;
 
 import poly.edu.quanlynhahang.entity.Order;
+import poly.edu.quanlynhahang.entity.PointsEventType;
 import poly.edu.quanlynhahang.entity.RestaurantTable;
 import poly.edu.quanlynhahang.repository.OrderRepository;
 import poly.edu.quanlynhahang.repository.RestaurantTableRepository;
 import poly.edu.quanlynhahang.service.ActivityLogService;
+import poly.edu.quanlynhahang.service.PointsLedgerService;
 @RestController
 @RequestMapping("/api/admin/orders")
 // ✅ FIX: Dùng hasAnyAuthority với ROLE_ prefix đầy đủ
@@ -44,6 +46,9 @@ public class AdminOrderController {
 
     @Autowired
     private ActivityLogService activityLogService;
+
+    @Autowired
+    private PointsLedgerService pointsLedgerService;
 
     @GetMapping
     @Transactional(readOnly = true)
@@ -122,23 +127,13 @@ public class AdminOrderController {
         return ResponseEntity.ok(stats);
     }
 
-    @Autowired
-    private poly.edu.quanlynhahang.repository.AccountRepository accountRepository;
-
     // 🌟 API MỚI: XỬ LÝ NÚT BẤM "XONG MÓN" HOẶC "ĐÃ BƯNG RA BÀN"
     @PutMapping("/{id}/status")
+    @Transactional
     public ResponseEntity<?> updateOrderStatus(@PathVariable Integer id, @RequestParam Integer status) {
         return orderRepository.findById(id).map(order -> {
-            if (status == 4 && order.getStatus() != 4 && order.getAccount() != null) {
-                poly.edu.quanlynhahang.entity.Account acc = order.getAccount();
-                double total = order.getOrderDetails().stream().mapToDouble(d -> d.getPrice() * d.getQuantity()).sum();
-                acc.setPoints((acc.getPoints() != null ? acc.getPoints() : 0) + (int)(total / 10000));
-                
-                if (acc.getPoints() >= 2000) acc.setMembershipTier("Kim Cương");
-                else if (acc.getPoints() >= 1000) acc.setMembershipTier("Vàng");
-                else if (acc.getPoints() >= 500) acc.setMembershipTier("Bạc");
-                
-                accountRepository.save(acc);
+            if (status == 4 && order.getStatus() != 4 && Boolean.TRUE.equals(order.getIsPaid())) {
+                awardOrderPoints(order);
             }
             order.setStatus(status);
             orderRepository.save(order);
@@ -160,17 +155,38 @@ public class AdminOrderController {
 
     @PutMapping("/{id}/pay")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_CASHIER', 'ROLE_WAITER')")
+    @Transactional
     public ResponseEntity<?> payOrder(@PathVariable Integer id) {
         java.util.Optional<Order> orderOpt = orderRepository.findById(id);
         if (orderOpt.isPresent()) {
             Order order = orderOpt.get();
+            boolean firstPaymentConfirmation = !Boolean.TRUE.equals(order.getIsPaid());
             order.setIsPaid(true);
             order.setStatus(4); 
             orderRepository.save(order);
+            if (firstPaymentConfirmation) {
+                awardOrderPoints(order);
+            }
             messagingTemplate.convertAndSend("/topic/waiter", "ORDER_PAID");
             return ResponseEntity.ok(order);
         }
         return ResponseEntity.badRequest().body("Đơn hàng không tồn tại!");
+    }
+
+    private void awardOrderPoints(Order order) {
+        if (order.getAccount() == null) {
+            return;
+        }
+        double total = order.getTotalAmount() == null ? 0.0 : order.getTotalAmount();
+        int points = (int) Math.floor(total / 10_000.0);
+        if (points > 0) {
+            pointsLedgerService.credit(
+                    order.getAccount().getUsername(),
+                    PointsEventType.ORDER_COMPLETED,
+                    "ORDER_COMPLETED:" + order.getId(),
+                    points,
+                    "Thưởng điểm đơn đã thanh toán #" + order.getId());
+        }
     }
 
     // 🌟 API MỚI: CHUYỂN BÀN (Cập nhật địa chỉ đơn hàng)

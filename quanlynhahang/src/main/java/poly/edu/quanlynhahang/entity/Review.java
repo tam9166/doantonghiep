@@ -10,13 +10,16 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Temporal;
 import jakarta.persistence.TemporalType;
 import lombok.Data;
 
 @Data
 @Entity
-@Table(name = "Reviews")
+@Table(name = "Reviews", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_reviews_account_product", columnNames = {"username", "product_id"})
+})
 public class Review {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
