@@ -45,7 +45,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                            CustomUserDetailsService userDetailsService,
                            ReservationRepository reservationRepository,
                            PaymentCapabilityService capabilityService,
-                           @Value("${app.cors.allowed-origins:http://localhost:5173,http://localhost:8080}") String origins) {
+                           @Value("${app.cors.allowed-origins:}") String origins) {
         this.jwtUtils = jwtUtils;
         this.userDetailsService = userDetailsService;
         this.reservationRepository = reservationRepository;

@@ -25,7 +25,7 @@ import poly.edu.quanlynhahang.security.AuthTokenFilter;
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {
-    @Value("${app.cors.allowed-origins:http://localhost:5173,http://localhost:3000,http://localhost:8080}")
+    @Value("${app.cors.allowed-origins:}")
     private String allowedOrigins;
 
     private static final String[] SPA_ROUTES = {
@@ -89,7 +89,8 @@ public class SecurityConfig {
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
+        source.registerCorsConfiguration("/api/**", configuration);
+        source.registerCorsConfiguration("/ws/**", configuration);
         return source;
     }
 
