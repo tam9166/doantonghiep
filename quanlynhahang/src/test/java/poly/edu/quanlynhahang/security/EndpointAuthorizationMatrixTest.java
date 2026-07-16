@@ -18,7 +18,7 @@ import poly.edu.quanlynhahang.controller.OrderController;
 import poly.edu.quanlynhahang.controller.VoucherController;
 import poly.edu.quanlynhahang.dto.OrderRequest;
 import poly.edu.quanlynhahang.dto.AiRequest;
-import poly.edu.quanlynhahang.entity.Category;
+import poly.edu.quanlynhahang.dto.CategoryUpsertRequest;
 import poly.edu.quanlynhahang.entity.Voucher;
 
 class EndpointAuthorizationMatrixTest {
@@ -31,8 +31,8 @@ class EndpointAuthorizationMatrixTest {
 
     @Test
     void categoryWritesOnlyAllowAdminOrManager() throws Exception {
-        assertRoles(CategoryController.class.getMethod("addCategory", Category.class), "ADMIN", "MANAGER");
-        assertRoles(CategoryController.class.getMethod("updateCategory", Integer.class, Category.class),
+        assertRoles(CategoryController.class.getMethod("addCategory", CategoryUpsertRequest.class), "ADMIN", "MANAGER");
+        assertRoles(CategoryController.class.getMethod("updateCategory", Integer.class, CategoryUpsertRequest.class),
                 "ADMIN", "MANAGER");
         assertRoles(CategoryController.class.getMethod("deleteCategory", Integer.class), "ADMIN", "MANAGER");
     }
