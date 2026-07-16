@@ -17,6 +17,7 @@ import poly.edu.quanlynhahang.dto.ReservationQuoteRequest;
 import poly.edu.quanlynhahang.dto.ReservationQuoteResponse;
 import poly.edu.quanlynhahang.dto.ReservationRequest;
 import poly.edu.quanlynhahang.dto.ReservationResponse;
+import poly.edu.quanlynhahang.dto.PublicReservationResponse;
 import poly.edu.quanlynhahang.dto.TableSuggestionRequest;
 import poly.edu.quanlynhahang.dto.TableSuggestionResponse;
 import poly.edu.quanlynhahang.entity.DepositStatus;
@@ -245,13 +246,13 @@ public class ReservationService {
     }
 
     @Transactional(readOnly = true)
-    public ReservationResponse getPublicReservation(String code, String phone) {
+    public PublicReservationResponse getPublicReservation(String code, String phone) {
         if (phone == null || phone.isBlank()) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Vui lòng nhập số điện thoại để tra cứu đặt bàn");
         }
         Reservation reservation = reservationRepository.findByReservationCodeAndCustomerPhone(code, normalizePhone(phone))
                 .orElseThrow(() -> notFound());
-        return toResponse(reservation, false);
+        return PublicReservationResponse.from(toResponse(reservation, false));
     }
 
     @Transactional(readOnly = true)

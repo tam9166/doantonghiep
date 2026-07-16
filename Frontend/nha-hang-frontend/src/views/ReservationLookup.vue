@@ -160,10 +160,15 @@ let stompClient = null
 let realtimeTimer = null
 
 const latestPayment = computed(() => reservation.value?.payments?.[0] || null)
+const paymentCapability = computed(() => reservation.value?.reservationCode
+  ? sessionStorage.getItem(`reservation-capability:${reservation.value.reservationCode}`)
+  : '')
+const hasPaymentAccess = computed(() => Boolean(paymentCapability.value || localStorage.getItem('token')))
 const activeStatuses = ['PENDING', 'CONFIRMED', 'DEPOSIT_REQUIRED', 'DEPOSIT_PENDING', 'DEPOSIT_PAID']
 const canCreateQr = computed(() => reservation.value
   && Number(reservation.value.depositAmount || 0) > 0
   && reservation.value.paymentOption !== 'PAY_AT_RESTAURANT'
+  && hasPaymentAccess.value
   && activeStatuses.includes(reservation.value.reservationStatus))
 const canRegenerateQr = computed(() => latestPayment.value && ['PENDING', 'EXPIRED'].includes(latestPayment.value.status))
 const canReview = computed(() => reservation.value?.reservationStatus === 'COMPLETED')
@@ -331,7 +336,7 @@ async function createQr() {
     const res = await api.post('/api/payments/qr', {
       reservationCode: reservation.value.reservationCode,
       paymentOption: reservation.value.paymentOption
-    })
+    }, { headers: paymentRequestHeaders() })
     reservation.value.payments = [res.data, ...(reservation.value.payments || [])]
   } catch (err) {
     error.value = err.response?.data?.message || err.response?.data || 'Không tạo được QR thanh toán.'
@@ -345,13 +350,23 @@ async function regenerateQr() {
   qrLoading.value = true
   error.value = ''
   try {
-    const res = await api.post(`/api/payments/${latestPayment.value.paymentCode}/regenerate`)
+    const res = await api.post(
+      `/api/payments/${latestPayment.value.paymentCode}/regenerate`,
+      null,
+      { headers: paymentRequestHeaders() }
+    )
     reservation.value.payments = [res.data, ...(reservation.value.payments || []).filter(item => item.paymentCode !== res.data.paymentCode)]
   } catch (err) {
     error.value = err.response?.data?.message || err.response?.data || 'Không tạo lại được QR thanh toán.'
   } finally {
     qrLoading.value = false
   }
+}
+
+function paymentRequestHeaders() {
+  const headers = { 'X-Idempotency-Key': crypto.randomUUID() }
+  if (paymentCapability.value) headers['X-Payment-Capability'] = paymentCapability.value
+  return headers
 }
 
 onMounted(() => {
