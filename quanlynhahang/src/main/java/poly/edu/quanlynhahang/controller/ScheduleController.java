@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import poly.edu.quanlynhahang.entity.Account;
 import poly.edu.quanlynhahang.entity.WorkSchedule;
+import poly.edu.quanlynhahang.dto.WorkScheduleResponse;
 import poly.edu.quanlynhahang.repository.AccountRepository;
 import poly.edu.quanlynhahang.repository.WorkScheduleRepository;
 @RestController
@@ -34,7 +35,7 @@ public class ScheduleController {
             Date start = new SimpleDateFormat("yyyy-MM-dd").parse(startDate);
             Date end = new SimpleDateFormat("yyyy-MM-dd").parse(endDate);
             List<WorkSchedule> schedules = workScheduleRepository.findByWorkDateBetweenOrderByWorkDateAsc(start, end);
-            return ResponseEntity.ok(schedules);
+            return ResponseEntity.ok(schedules.stream().map(WorkScheduleResponse::from).toList());
         } catch (ParseException e) {
             return ResponseEntity.badRequest().body("Định dạng ngày không hợp lệ. Vui lòng dùng yyyy-MM-dd");
         }
@@ -49,7 +50,7 @@ public class ScheduleController {
             Date start = new SimpleDateFormat("yyyy-MM-dd").parse(startDate);
             Date end = new SimpleDateFormat("yyyy-MM-dd").parse(endDate);
             List<WorkSchedule> schedules = workScheduleRepository.findByAccountUsernameAndWorkDateBetweenOrderByWorkDateAsc(username, start, end);
-            return ResponseEntity.ok(schedules);
+            return ResponseEntity.ok(schedules.stream().map(WorkScheduleResponse::from).toList());
         } catch (ParseException e) {
             return ResponseEntity.badRequest().body("Định dạng ngày không hợp lệ.");
         }
@@ -80,7 +81,7 @@ public class ScheduleController {
             ws.setWorkDate(workDate);
             ws.setShift(request.getShift());
             
-            return ResponseEntity.ok(workScheduleRepository.save(ws));
+            return ResponseEntity.ok(WorkScheduleResponse.from(workScheduleRepository.save(ws)));
         } catch (ParseException e) {
             return ResponseEntity.badRequest().body("Ngày không hợp lệ.");
         }

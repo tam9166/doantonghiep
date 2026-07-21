@@ -71,6 +71,7 @@ class SelfServiceIdentityTest {
         when(accountRepository.findById(ACTOR)).thenReturn(java.util.Optional.of(account));
         when(workScheduleRepository.findByAccountUsernameAndWorkDate(eq(ACTOR), any(Date.class)))
                 .thenReturn(Collections.emptyList());
+        when(timekeepingRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         TimekeepingController controller = new TimekeepingController();
         ReflectionTestUtils.setField(controller, "timekeepingRepository", timekeepingRepository);

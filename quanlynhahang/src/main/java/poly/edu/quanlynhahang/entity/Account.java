@@ -3,6 +3,7 @@ package poly.edu.quanlynhahang.entity;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -25,6 +26,7 @@ public class Account {
     @Column(nullable = false)
     private Long version = 0L;
 
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     @Column(nullable = false, length = 100)
     private String password;
 
@@ -47,12 +49,15 @@ public class Account {
     @Column(name = "assigned_area", columnDefinition = "nvarchar(100)")
     private String assignedArea;
 
+    @JsonIgnore
     @Column(name = "token_version", nullable = false)
     private Long tokenVersion = 0L;
 
+    @JsonIgnore
     @Column(nullable = false)
     private Boolean enabled = true;
 
+    @JsonIgnore
     @Column(name = "must_change_password", nullable = false)
     private Boolean mustChangePassword = false;
 

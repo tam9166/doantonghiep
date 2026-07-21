@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
 import poly.edu.quanlynhahang.dto.TimekeepingCheckRequest;
+import poly.edu.quanlynhahang.dto.TimekeepingResponse;
 import poly.edu.quanlynhahang.entity.Account;
 import poly.edu.quanlynhahang.entity.Timekeeping;
 import poly.edu.quanlynhahang.repository.AccountRepository;
@@ -40,7 +41,7 @@ public class TimekeepingController {
             Date start = new SimpleDateFormat("yyyy-MM-dd").parse(startDate);
             Date end = new SimpleDateFormat("yyyy-MM-dd").parse(endDate);
             List<Timekeeping> records = timekeepingRepository.findByAccountUsernameAndWorkDateBetweenOrderByWorkDateAsc(username, start, end);
-            return ResponseEntity.ok(records);
+            return ResponseEntity.ok(records.stream().map(TimekeepingResponse::from).toList());
         } catch (ParseException e) {
             return ResponseEntity.badRequest().body("Định dạng ngày không hợp lệ.");
         }
@@ -54,7 +55,7 @@ public class TimekeepingController {
             Date start = new SimpleDateFormat("yyyy-MM-dd").parse(startDate);
             Date end = new SimpleDateFormat("yyyy-MM-dd").parse(endDate);
             List<Timekeeping> records = timekeepingRepository.findByWorkDateBetweenOrderByWorkDateAsc(start, end);
-            return ResponseEntity.ok(records);
+            return ResponseEntity.ok(records.stream().map(TimekeepingResponse::from).toList());
         } catch (ParseException e) {
             return ResponseEntity.badRequest().body("Định dạng ngày không hợp lệ.");
         }
@@ -71,7 +72,7 @@ public class TimekeepingController {
             
             Optional<Timekeeping> tkOpt = timekeepingRepository.findByAccountUsernameAndWorkDate(username, today);
             if (tkOpt.isPresent()) {
-                return ResponseEntity.ok(tkOpt.get());
+                return ResponseEntity.ok(TimekeepingResponse.from(tkOpt.get()));
             }
             return ResponseEntity.ok().build(); // chưa có bản ghi
         } catch (ParseException e) {
@@ -144,7 +145,7 @@ public class TimekeepingController {
                 return ResponseEntity.badRequest().body("Loại chấm công không hợp lệ.");
             }
 
-            return ResponseEntity.ok(timekeepingRepository.save(tk));
+            return ResponseEntity.ok(TimekeepingResponse.from(timekeepingRepository.save(tk)));
         } catch (ParseException e) {
             return ResponseEntity.badRequest().build();
         }

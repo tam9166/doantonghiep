@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import poly.edu.quanlynhahang.entity.Account;
 import poly.edu.quanlynhahang.entity.RestaurantTable;
 import poly.edu.quanlynhahang.entity.ServiceZoneAssignment;
+import poly.edu.quanlynhahang.dto.ServiceZoneAssignmentResponse;
 import poly.edu.quanlynhahang.repository.AccountRepository;
 import poly.edu.quanlynhahang.repository.RestaurantTableRepository;
 import poly.edu.quanlynhahang.repository.ServiceZoneAssignmentRepository;
@@ -41,7 +42,7 @@ public class ServiceZoneController {
         try {
             Date workDate = new SimpleDateFormat("yyyy-MM-dd").parse(date);
             List<ServiceZoneAssignment> zones = zoneRepo.findByWorkDate(workDate);
-            return ResponseEntity.ok(zones);
+            return ResponseEntity.ok(zones.stream().map(ServiceZoneAssignmentResponse::from).toList());
         } catch (ParseException e) {
             return ResponseEntity.badRequest().body("Định dạng ngày không hợp lệ. Vui lòng dùng yyyy-MM-dd");
         }
@@ -55,7 +56,7 @@ public class ServiceZoneController {
             String username = authentication.getName();
             Date workDate = new SimpleDateFormat("yyyy-MM-dd").parse(date);
             List<ServiceZoneAssignment> zones = zoneRepo.findByAccountUsernameAndWorkDate(username, workDate);
-            return ResponseEntity.ok(zones);
+            return ResponseEntity.ok(zones.stream().map(ServiceZoneAssignmentResponse::from).toList());
         } catch (ParseException e) {
             return ResponseEntity.badRequest().body("Định dạng ngày không hợp lệ.");
         }
@@ -96,7 +97,7 @@ public class ServiceZoneController {
             zone.setShift(shift);
             zone.setWorkDate(workDate);
 
-            return ResponseEntity.ok(zoneRepo.save(zone));
+            return ResponseEntity.ok(ServiceZoneAssignmentResponse.from(zoneRepo.save(zone)));
         } catch (ParseException e) {
             return ResponseEntity.badRequest().body("Ngày không hợp lệ.");
         }
