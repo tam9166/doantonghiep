@@ -12,11 +12,14 @@ import poly.edu.quanlynhahang.config.ApiErrorWriter;
 import poly.edu.quanlynhahang.entity.Account;
 
 import java.util.List;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -44,6 +47,15 @@ class AccountTokenSecurityTest {
                 new UsernamePasswordAuthenticationToken(details, null, details.getAuthorities()));
 
         assertEquals(7L, jwtUtils.getTokenVersionFromJwtToken(token));
+        var claims = jwtUtils.claims(token);
+        assertEquals("restaurant-api", claims.getIssuer());
+        assertEquals("restaurant-web", claims.getAudience());
+        assertEquals("access", claims.get("typ", String.class));
+        assertFalse(claims.getId().isBlank());
+        assertTrue(claims.getExpiration().getTime() - claims.getIssuedAt().getTime() <= 900_000L);
+
+        String header = new String(Base64.getUrlDecoder().decode(token.split("\\.")[0]), StandardCharsets.UTF_8);
+        assertTrue(header.contains("\"kid\":\"primary\""));
     }
 
     @Test
