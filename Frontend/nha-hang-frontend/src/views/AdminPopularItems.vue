@@ -127,7 +127,7 @@
 <script setup>
 import AdminLayout from '@/components/AdminLayout.vue';
 import { ref, onMounted } from 'vue';
-import axios from 'axios';
+import api from '@/services/api';
 
 const activeTab = ref('products');
 const period = ref('week');
@@ -140,8 +140,8 @@ const configHeader = () => ({ headers: { 'Authorization': `Bearer ${getToken()}`
 const fetchData = async () => {
   try {
     const [prodRes, ingRes] = await Promise.all([
-      axios.get(`http://localhost:8080/api/admin/popular-items/products?period=${period.value}`, configHeader()),
-      axios.get(`http://localhost:8080/api/admin/popular-items/ingredients?period=${period.value}`, configHeader())
+      api.get(`http://localhost:8080/api/admin/popular-items/products?period=${period.value}`, configHeader()),
+      api.get(`http://localhost:8080/api/admin/popular-items/ingredients?period=${period.value}`, configHeader())
     ]);
     topProducts.value = prodRes.data;
     topIngredients.value = ingRes.data;

@@ -549,7 +549,7 @@
 import AdminLayout from '@/components/AdminLayout.vue';
 
 import { ref, computed, onMounted } from 'vue';
-import axios from 'axios';
+import api from '@/services/api';
 
 // Kiểm tra quyền để hiển thị Navbar phù hợp
 const userRoles = computed(() => {
@@ -664,16 +664,16 @@ const showToast = (msg) => { toastMsg.value = msg; setTimeout(() => toastMsg.val
 
 const loadData = async () => {
   try {
-    const resIng = await axios.get('http://localhost:8080/api/admin/ingredients', configHeader());
+    const resIng = await api.get('http://localhost:8080/api/admin/ingredients', configHeader());
     ingredients.value = resIng.data;
     
-    const resStats = await axios.get('http://localhost:8080/api/admin/ingredients/stats', configHeader());
+    const resStats = await api.get('http://localhost:8080/api/admin/ingredients/stats', configHeader());
     stats.value = resStats.data;
 
-    const resProd = await axios.get('http://localhost:8080/api/products');
+    const resProd = await api.get('http://localhost:8080/api/products');
     products.value = resProd.data;
 
-    const resCat = await axios.get('http://localhost:8080/api/categories');
+    const resCat = await api.get('http://localhost:8080/api/categories');
     categories.value = resCat.data;
     
     await fetchInvoices();
@@ -682,7 +682,7 @@ const loadData = async () => {
 
 const fetchInvoices = async () => {
   try {
-    const res = await axios.get('http://localhost:8080/api/admin/import-invoices', configHeader());
+    const res = await api.get('http://localhost:8080/api/admin/import-invoices', configHeader());
     invoices.value = res.data;
   } catch (err) { console.error('Lỗi lấy danh sách hóa đơn:', err); }
 };
@@ -704,10 +704,10 @@ const saveIngredient = async () => {
   if (!ingForm.value.name || !ingForm.value.unit) return alert('Nhập đủ Tên và Đơn vị!');
   try {
     if (isEditingIng.value) {
-      await axios.put(`http://localhost:8080/api/admin/ingredients/${editingIngId.value}`, ingForm.value, configHeader());
+      await api.put(`http://localhost:8080/api/admin/ingredients/${editingIngId.value}`, ingForm.value, configHeader());
       showToast('✅ Đã cập nhật nguyên liệu!');
     } else {
-      await axios.post('http://localhost:8080/api/admin/ingredients', ingForm.value, configHeader());
+      await api.post('http://localhost:8080/api/admin/ingredients', ingForm.value, configHeader());
       showToast('✅ Đã thêm nguyên liệu mới!');
     }
     cancelEditIng();
@@ -718,7 +718,7 @@ const saveIngredient = async () => {
 const deleteIngredient = async (id) => {
   if (!confirm('Xóa nguyên liệu này?')) return;
   try {
-    await axios.delete(`http://localhost:8080/api/admin/ingredients/${id}`, configHeader());
+    await api.delete(`http://localhost:8080/api/admin/ingredients/${id}`, configHeader());
     showToast('✅ Đã xóa!');
     loadData();
   } catch (err) { alert('Không thể xóa vì nguyên liệu này đang có trong công thức!'); }
@@ -734,7 +734,7 @@ const submitBatch = async () => {
   if (!batchForm.value.quantity || batchForm.value.quantity <= 0) return alert('Số lượng phải > 0');
   
   try {
-    await axios.post(`http://localhost:8080/api/admin/ingredients/${selectedIngForRestock.value.id}/batches`, batchForm.value, configHeader());
+    await api.post(`http://localhost:8080/api/admin/ingredients/${selectedIngForRestock.value.id}/batches`, batchForm.value, configHeader());
     showToast(`📦 Đã nhập lô mới thành công!`);
     showRestockModal.value = false;
     loadData();
@@ -743,7 +743,7 @@ const submitBatch = async () => {
 
 const viewBatches = async (id) => {
   try {
-    const res = await axios.get(`http://localhost:8080/api/admin/ingredients/${id}/batches`, configHeader());
+    const res = await api.get(`http://localhost:8080/api/admin/ingredients/${id}/batches`, configHeader());
     selectedBatches.value = res.data;
     showBatchesModal.value = true;
   } catch (err) { alert('Lỗi tải danh sách lô hàng'); }
@@ -752,7 +752,7 @@ const viewBatches = async (id) => {
 const deleteBatch = async (batchId) => {
   if (!confirm('Bạn có chắc muốn xóa lô hàng này? (Dùng để loại bỏ các lô đã hết hạn hoặc sai lệch)')) return;
   try {
-    await axios.delete(`http://localhost:8080/api/admin/ingredients/batches/${batchId}`, configHeader());
+    await api.delete(`http://localhost:8080/api/admin/ingredients/batches/${batchId}`, configHeader());
     showToast('🗑️ Đã xóa lô hàng!');
     showBatchesModal.value = false;
     loadData();
@@ -770,7 +770,7 @@ const filteredProducts = computed(() => {
 const selectProduct = async (prod) => {
   selectedProduct.value = prod;
   try {
-    const res = await axios.get(`http://localhost:8080/api/admin/recipes/product/${prod.id}`, configHeader());
+    const res = await api.get(`http://localhost:8080/api/admin/recipes/product/${prod.id}`, configHeader());
     currentRecipes.value = res.data;
   } catch (err) { console.error('Lỗi lấy công thức', err); }
 };
@@ -783,7 +783,7 @@ const addRecipe = async () => {
     amountRequired: parseFloat(newRecipe.value.amount)
   };
   try {
-    await axios.post('http://localhost:8080/api/admin/recipes', payload, configHeader());
+    await api.post('http://localhost:8080/api/admin/recipes', payload, configHeader());
     showToast('🍳 Đã thêm nguyên liệu vào món!');
     newRecipe.value = { ingredientId: '', amount: '' };
     selectProduct(selectedProduct.value); // reload recipes for this product
@@ -793,7 +793,7 @@ const addRecipe = async () => {
 const deleteRecipe = async (recipeId) => {
   if (!confirm('Xóa nguyên liệu này khỏi món?')) return;
   try {
-    await axios.delete(`http://localhost:8080/api/admin/recipes/${recipeId}`, configHeader());
+    await api.delete(`http://localhost:8080/api/admin/recipes/${recipeId}`, configHeader());
     showToast('✅ Đã xóa!');
     selectProduct(selectedProduct.value);
   } catch (err) { alert('Lỗi xóa'); }
@@ -815,7 +815,7 @@ const analyzeInventory = async () => {
     
     const dataStr = lowStockItems.map(i => `- ${i.name}: Tồn kho hiện tại ${i.quantity || 0}${i.unit}, Mức tối thiểu yêu cầu: ${i.minStock}${i.unit}`).join('\n');
     
-    const res = await axios.post('/api/admin/ai/inventory', {
+    const res = await api.post('/api/admin/ai/inventory', {
       message: dataStr,
     }, configHeader());
     
@@ -874,12 +874,12 @@ const submitInvoice = async () => {
       }))
     };
     
-    await axios.post('http://localhost:8080/api/admin/import-invoices', payload, configHeader());
+    await api.post('http://localhost:8080/api/admin/import-invoices', payload, configHeader());
     showToast('📦 Đã nhập hàng thành công! Đã tạo phiếu lưu kho.');
     showCreateInvoiceModal.value = false;
     fetchInvoices();
     // Cập nhật lại kho
-    const res = await axios.get('http://localhost:8080/api/admin/ingredients', configHeader());
+    const res = await api.get('http://localhost:8080/api/admin/ingredients', configHeader());
     ingredients.value = res.data;
   } catch (err) {
     alert('Lỗi tạo phiếu nhập kho!');
@@ -890,7 +890,7 @@ const submitInvoice = async () => {
 const viewInvoiceDetails = async (id) => {
   selectedInvoiceId.value = id;
   try {
-    const res = await axios.get(`http://localhost:8080/api/admin/import-invoices/${id}`, configHeader());
+    const res = await api.get(`http://localhost:8080/api/admin/import-invoices/${id}`, configHeader());
     invoiceDetails.value = res.data;
     showInvoiceDetailsModal.value = true;
   } catch (err) { console.error('Lỗi lấy chi tiết HD:', err); }

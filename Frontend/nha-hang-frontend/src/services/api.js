@@ -1,15 +1,18 @@
-/**
+﻿/**
  * ============================================================
  * API SERVICE - Tập trung hóa tất cả HTTP calls
  * ============================================================
- * Thay vì hardcode http://localhost:8080 ở mọi nơi,
+ * Thay vì hardcode  ở mọi nơi,
  * import { api } from '@/services/api' rồi dùng api.get(), api.post()...
  */
 import axios from 'axios'
 import router from '@/router'
+import { captchaActionForRequest, executeCaptcha } from './captcha'
 
-// Base URL - dễ dàng thay đổi khi deploy
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
+// Only this client is allowed to talk to the restaurant backend. Keeping the
+// base URL explicit prevents the authenticated interceptor from being reused
+// accidentally for a third-party origin.
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/'
 
 // Tạo Axios instance
 const api = axios.create({
@@ -20,16 +23,55 @@ const api = axios.create({
   }
 })
 
-// ========== REQUEST INTERCEPTOR ==========
-// Tự động gắn JWT token vào mọi request
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
+// External integrations must use this client. It deliberately has no request
+// interceptor, so application credentials cannot leave the backend origin.
+const externalApi = axios.create({
+  timeout: 15000
+})
+
+function isInternalRequest(config) {
+  const requestUrl = config.url || ''
+  if (requestUrl.startsWith('/') && !requestUrl.startsWith('//')) {
+    return true
+  }
+
+  if (typeof window === 'undefined') {
+    return false
+  }
+
+  try {
+    const backendOrigin = new URL(API_BASE_URL, window.location.origin).origin
+    return new URL(requestUrl, backendOrigin).origin === backendOrigin
+  } catch {
+    return false
+  }
+}
+
+async function attachAuthAndCaptcha(config) {
+  config.headers = config.headers || {}
+  if (!isInternalRequest(config)) {
     return config
-  },
+  }
+
+  const token = localStorage.getItem('token')
+  if (token && !config.headers.Authorization) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+
+  const action = captchaActionForRequest(config)
+  if (action && !config.headers['X-Captcha-Token']) {
+    const captchaToken = await executeCaptcha(action)
+    if (captchaToken) {
+      config.headers['X-Captcha-Token'] = captchaToken
+    }
+  }
+  return config
+}
+
+// ========== REQUEST INTERCEPTOR ==========
+// Only the dedicated internal client can attach application credentials.
+api.interceptors.request.use(
+  attachAuthAndCaptcha,
   (error) => Promise.reject(error)
 )
 
@@ -117,5 +159,5 @@ export function logout() {
   window.location.href = '/'
 }
 
-export { api, API_BASE_URL }
+export { api, externalApi, API_BASE_URL }
 export default api

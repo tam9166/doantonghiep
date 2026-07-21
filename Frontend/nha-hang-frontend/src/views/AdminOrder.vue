@@ -222,7 +222,7 @@
 import AdminLayout from '@/components/AdminLayout.vue';
 
 import { ref, computed, onMounted } from 'vue';
-import axios from 'axios';
+import api from '@/services/api';
 
 const orders = ref([]);
 const searchCode = ref('');
@@ -236,7 +236,7 @@ const configHeader = () => {
 
 const loadData = async () => {
   try {
-    const resOrders = await axios.get('http://localhost:8080/api/admin/orders', configHeader());
+    const resOrders = await api.get('http://localhost:8080/api/admin/orders', configHeader());
     orders.value = resOrders.data;
   } catch (err) { console.error('Lỗi tải dữ liệu', err); }
 };
@@ -244,7 +244,7 @@ const loadData = async () => {
 const approveOrderToKitchen = async (orderId) => {
   if (confirm('Xác nhận chuyển đơn hàng này xuống bếp để chuẩn bị?')) {
     try {
-      await axios.put(`http://localhost:8080/api/admin/orders/${orderId}/status?status=1`, {}, configHeader());
+      await api.put(`http://localhost:8080/api/admin/orders/${orderId}/status?status=1`, {}, configHeader());
       alert('Đã chuyển đơn xuống Bếp thành công!');
       loadData();
     } catch (error) {
@@ -355,7 +355,7 @@ const activateScheduled = async () => {
   try {
     const token = localStorage.getItem('token');
     if (!token || token === 'null' || token === 'undefined') return; // Skip if no valid token
-    await axios.put('http://localhost:8080/api/admin/orders/activate-scheduled', {}, configHeader());
+    await api.put('http://localhost:8080/api/admin/orders/activate-scheduled', {}, configHeader());
     loadData(); // Refresh list
   } catch (err) { /* silent */ }
 };

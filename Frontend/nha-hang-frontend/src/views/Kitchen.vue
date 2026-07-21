@@ -285,7 +285,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import axios from 'axios';
+import api from '@/services/api';
 import { useRouter } from 'vue-router';
 import SockJS from 'sockjs-client';
 import { Stomp } from '@stomp/stompjs';
@@ -339,7 +339,7 @@ const playNotificationSound = () => {
 // === FETCH DATA ===
 const fetchOrders = async () => {
   try {
-    const res = await axios.get('http://localhost:8080/api/admin/orders', configHeader());
+    const res = await api.get('http://localhost:8080/api/admin/orders', configHeader());
     allOrders.value = res.data;
     const newPending = res.data.filter(o => o.status === 1 || o.status === 6);
     const newIds = newPending.map(o => o.id);
@@ -357,18 +357,18 @@ const fetchOrders = async () => {
 
 const fetchIngredients = async () => {
   try {
-    const res = await axios.get('http://localhost:8080/api/admin/ingredients', configHeader());
+    const res = await api.get('http://localhost:8080/api/admin/ingredients', configHeader());
     ingredients.value = res.data;
     
     // Lấy lô hàng sắp hết hạn
-    const resExp = await axios.get('http://localhost:8080/api/admin/ingredients/expiring-batches', configHeader());
+    const resExp = await api.get('http://localhost:8080/api/admin/ingredients/expiring-batches', configHeader());
     expiringBatches.value = resExp.data;
   } catch (err) { console.error('Lỗi lấy nguyên liệu:', err); }
 };
 
 const fetchProducts = async () => {
   try {
-    const res = await axios.get('/api/admin/products', configHeader());
+    const res = await api.get('/api/admin/products', configHeader());
 products.value = res.data;
   } catch (err) { console.error('Lỗi lấy sản phẩm:', err); }
 };
@@ -438,7 +438,7 @@ const getStockBarClass = (ing) => {
 const markReady = async (id) => {
   try {
     const token = localStorage.getItem('token');
-    await axios.put(`http://localhost:8080/api/admin/orders/${id}/status?status=2`, {}, {
+    await api.put(`http://localhost:8080/api/admin/orders/${id}/status?status=2`, {}, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     fetchOrders();
@@ -451,7 +451,7 @@ const markReady = async (id) => {
 const markDishReady = async (detailId) => {
   try {
     const token = localStorage.getItem('token');
-    await axios.put(`http://localhost:8080/api/orders/details/${detailId}/status?status=1`, {}, {
+    await api.put(`http://localhost:8080/api/orders/details/${detailId}/status?status=1`, {}, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     fetchOrders();
@@ -492,7 +492,7 @@ const analyzeDishes = async () => {
   aiLoading.value = true;
   try {
     const token = localStorage.getItem('token');
-    const res = await axios.post('/api/staff/ai/kitchen', { dishes }, {
+    const res = await api.post('/api/staff/ai/kitchen', { dishes }, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     aiResponse.value = res.data.reply;
@@ -508,7 +508,7 @@ const markGroupReady = async (detailIds) => {
   try {
     const token = localStorage.getItem('token');
     for (const detailId of detailIds) {
-      await axios.put(`http://localhost:8080/api/orders/details/${detailId}/status?status=1`, {}, {
+      await api.put(`http://localhost:8080/api/orders/details/${detailId}/status?status=1`, {}, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
     }
@@ -522,7 +522,7 @@ const markGroupReady = async (detailIds) => {
 
 const startCooking = async (id) => {
   try {
-    await axios.put(`http://localhost:8080/api/admin/orders/${id}/status?status=6`, {}, configHeader());
+    await api.put(`http://localhost:8080/api/admin/orders/${id}/status?status=6`, {}, configHeader());
     toastMsg.value = '🔥 Đang nấu...';
     setTimeout(() => { toastMsg.value = ''; }, 2500);
     fetchOrders();
@@ -533,7 +533,7 @@ const toggleAvailable = async (product) => {
   const originalState = product.available;
   product.available = !product.available;
   try {
-    const res = await axios.put(`http://localhost:8080/api/admin/products/${product.id}/toggle-available`, {}, configHeader());
+    const res = await api.put(`http://localhost:8080/api/admin/products/${product.id}/toggle-available`, {}, configHeader());
     toastMsg.value = typeof res.data === 'string' ? res.data : '✅ Đã cập nhật!';
     setTimeout(() => { toastMsg.value = ''; }, 3000);
     fetchProducts();
@@ -546,7 +546,7 @@ const toggleAvailable = async (product) => {
 const viewRecipeDetails = async (product) => {
   selectedProductForRecipe.value = product;
   try {
-    const res = await axios.get(`http://localhost:8080/api/admin/recipes/product/${product.id}`, configHeader());
+    const res = await api.get(`http://localhost:8080/api/admin/recipes/product/${product.id}`, configHeader());
     currentProductRecipes.value = res.data;
     showRecipeModal.value = true;
   } catch (err) {
@@ -582,7 +582,7 @@ const getAiKitchenAdvice = async () => {
   }
 
   try {
-    const res = await axios.post('http://localhost:8080/api/chatbot/chat', {
+    const res = await api.post('http://localhost:8080/api/chatbot/chat', {
       type: 'KITCHEN_SORT',
       message: JSON.stringify(dishListText)
     });

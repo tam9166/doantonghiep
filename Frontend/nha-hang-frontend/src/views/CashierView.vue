@@ -294,7 +294,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import axios from 'axios';
+import api from '@/services/api';
 import { useRouter } from 'vue-router';
 import SockJS from 'sockjs-client';
 import { Stomp } from '@stomp/stompjs';
@@ -416,7 +416,7 @@ const tables = ref([]);
 
 const fetchTables = async () => {
   try {
-    const res = await axios.get('/api/tables', configHeader());
+    const res = await api.get('/api/tables', configHeader());
     tables.value = res.data;
   } catch (err) {
     console.error('Lỗi lấy bàn:', err);
@@ -450,7 +450,7 @@ const getPendingTotalForTable = (tableName) => {
 
 const fetchOrders = async () => {
   try {
-    const res = await axios.get('/api/admin/orders', configHeader());
+    const res = await api.get('/api/admin/orders', configHeader());
     allOrders.value = res.data;
     // Thu ngân chỉ quan tâm đơn ăn tại quán, chưa thanh toán (hoặc đã giao = cần thanh toán)
     // address chứa "Bàn", isPaid == false hoặc null, status != 3 (Đã hủy)
@@ -477,13 +477,13 @@ const payOrder = async () => {
   const token = localStorage.getItem('token');
   try {
     // Update order status
-    await axios.put(`/api/admin/orders/${selectedOrder.value.id}/pay`, {}, configHeader());
+    await api.put(`/api/admin/orders/${selectedOrder.value.id}/pay`, {}, configHeader());
     
     // Update table status to 3 (Cleaning) if it was a table order
     const tableName = getTableName(selectedOrder.value.address);
     const table = tables.value.find(t => t.name === tableName);
     if (table) {
-      await axios.put(`/api/tables/${table.id}/status?status=3`, {}, { headers: { 'Authorization': `Bearer ${token}` } });
+      await api.put(`/api/tables/${table.id}/status?status=3`, {}, { headers: { 'Authorization': `Bearer ${token}` } });
     }
 
     alert('Thanh toán thành công! Bàn đang chờ dọn dẹp.');
@@ -511,7 +511,7 @@ const createPaymentQr = async () => {
   paymentQrLoading.value = true;
   paymentQrError.value = '';
   try {
-    const response = await axios.post(
+    const response = await api.post(
       `/api/admin/orders/${selectedOrder.value.id}/payment-qr`,
       {},
       configHeader(),
@@ -531,7 +531,7 @@ const regeneratePaymentQr = async () => {
   paymentQrError.value = '';
   try {
     const idempotencyKey = `order-qr-${selectedOrder.value.id}-${Date.now()}`;
-    const response = await axios.post(
+    const response = await api.post(
       `/api/admin/orders/${selectedOrder.value.id}/payment-qr/${paymentQr.value.paymentCode}/regenerate`,
       {},
       { ...configHeader(), headers: { ...configHeader().headers, 'X-Idempotency-Key': idempotencyKey } },
@@ -547,7 +547,7 @@ const regeneratePaymentQr = async () => {
 const cancelOrderAndRefund = async (order) => {
   if (!confirm('Bạn có chắc muốn HỦY BÀN này? Nếu hủy, khách sẽ được hoàn lại 50% tiền cọc (Thu ngân tự chuyển khoản ngoài).')) return;
   try {
-    const res = await axios.put(`/api/admin/orders/${order.id}/cancel-with-refund`, {}, configHeader());
+    const res = await api.put(`/api/admin/orders/${order.id}/cancel-with-refund`, {}, configHeader());
     
     // Gửi thông báo cho Waiter update lại màu bàn
     if (stompClient) {

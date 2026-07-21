@@ -382,7 +382,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import axios from 'axios';
+import api from '@/services/api';
 import CustomerLayout from '@/components/CustomerLayout.vue';
 
 const router = useRouter();
@@ -434,7 +434,7 @@ const spinWheel = async () => {
   let reward;
   try {
     const token = localStorage.getItem('token');
-    const response = await axios.post('/api/vouchers/spin', null, {
+    const response = await api.post('/api/vouchers/spin', null, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     reward = response.data;
@@ -486,7 +486,7 @@ const isLiked = (id) => likedPosts.value.includes(id);
 const likePost = async (post) => {
   if (isLiked(post.id)) return;
   try {
-    await axios.put(`/api/posts/${post.id}/like`);
+    await api.put(`/api/posts/${post.id}/like`);
     post.likes = (post.likes || 0) + 1;
     likedPosts.value.push(post.id);
     localStorage.setItem('likedPosts', JSON.stringify(likedPosts.value));
@@ -521,7 +521,7 @@ const submitApplication = async () => {
     if (appForm.value.postId) formData.append('postId', appForm.value.postId);
     if (appForm.value.cvFile) formData.append('file', appForm.value.cvFile);
 
-    await axios.post('/api/applications/upload', formData, {
+    await api.post('/api/applications/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
     alert('Đã gửi đơn ứng tuyển thành công! Nhà hàng sẽ liên hệ sớm nhất.');
@@ -568,7 +568,7 @@ const sendSupportMessage = async () => {
       }
     }
 
-    const res = await axios.post('/api/chatbot/chat', { 
+    const res = await api.post('/api/chatbot/chat', { 
       message: text,
       type: 'SUPPORT',
       history: historyStr
@@ -590,7 +590,7 @@ const sendSupportMessage = async () => {
       const view = match[3];
 
       // Fetch tables
-      const tRes = await axios.get('/api/tables');
+      const tRes = await api.get('/api/tables');
       
       const available = tRes.data.filter(t => {
         if (t.isOccupied !== 0) return false;
@@ -711,7 +711,7 @@ const sendInterviewMessage = async () => {
       historyStr += `${msg.type === 'bot' ? 'HR' : 'Ứng viên'}: ${msg.text}\n`;
     }
 
-    const res = await axios.post('/api/chatbot/chat', {
+    const res = await api.post('/api/chatbot/chat', {
       message: text,
       type: 'INTERVIEW',
       history: historyStr
@@ -738,8 +738,8 @@ onMounted(async () => {
   // Fetch posts
   try {
     const [newsRes, recruitRes] = await Promise.all([
-      axios.get('/api/posts/news'),
-      axios.get('/api/posts/recruitment')
+      api.get('/api/posts/news'),
+      api.get('/api/posts/recruitment')
     ]);
     newsPosts.value = newsRes.data.slice(0, 6); // Max 6 tin
     recruitPosts.value = recruitRes.data.slice(0, 5); // Max 5 tuyển dụng

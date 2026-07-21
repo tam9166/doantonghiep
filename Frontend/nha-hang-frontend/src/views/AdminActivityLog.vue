@@ -119,7 +119,7 @@
 <script setup>
 import AdminLayout from '@/components/AdminLayout.vue';
 import { ref, onMounted } from 'vue';
-import axios from 'axios';
+import api from '@/services/api';
 
 const logs = ref([]);
 const stats = ref({ totalLogs: 0, creates: 0, updates: 0, deletes: 0 });
@@ -137,14 +137,14 @@ const fetchLogs = async () => {
     if (filterUser.value) url += `username=${filterUser.value}&`;
     if (filterAction.value) url += `action=${filterAction.value}&`;
     if (filterEntity.value) url += `entityType=${filterEntity.value}&`;
-    const res = await axios.get(url, configHeader());
+    const res = await api.get(url, configHeader());
     logs.value = res.data;
   } catch (err) { console.error('Lỗi lấy nhật ký', err); }
 };
 
 const fetchStats = async () => {
   try {
-    const res = await axios.get('http://localhost:8080/api/admin/activity-logs/stats', configHeader());
+    const res = await api.get('http://localhost:8080/api/admin/activity-logs/stats', configHeader());
     stats.value = res.data;
     userList.value = res.data.users || [];
   } catch (err) { console.error('Lỗi lấy thống kê', err); }

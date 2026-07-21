@@ -124,7 +124,7 @@
 import AdminLayout from '@/components/AdminLayout.vue';
 
 import { ref, onMounted } from 'vue';
-import axios from 'axios';
+import api from '@/services/api';
 
 const products = ref([]);
 const categories = ref([]);
@@ -142,14 +142,14 @@ const getAuthConfig = () => {
 
 const fetchProducts = async () => {
   try {
-    const res = await axios.get('/api/admin/products', getAuthConfig());
+    const res = await api.get('/api/admin/products', getAuthConfig());
     products.value = res.data;
   } catch (error) { console.error('Lỗi lấy sản phẩm', error); }
 };
 
 const fetchCategories = async () => {
   try {
-    const res = await axios.get('http://localhost:8080/api/categories');
+    const res = await api.get('http://localhost:8080/api/categories');
     categories.value = res.data;
   } catch (error) { console.error('Lỗi lấy danh mục', error); }
 };
@@ -192,10 +192,10 @@ const saveProduct = async () => {
 
   try {
     if (isEditing.value) {
-      await axios.put(`http://localhost:8080/api/admin/products/${editingId.value}`, payload, getAuthConfig());
+      await api.put(`http://localhost:8080/api/admin/products/${editingId.value}`, payload, getAuthConfig());
       alert('Cập nhật thành công!');
     } else {
-      await axios.post('http://localhost:8080/api/admin/products', payload, getAuthConfig());
+      await api.post('http://localhost:8080/api/admin/products', payload, getAuthConfig());
       alert('Thêm món thành công!');
     }
     cancelEdit();
@@ -209,7 +209,7 @@ const toggleStatus = async (product) => {
   const newStatus = product.status === false ? true : false;
   const payload = { ...product, status: newStatus, category: product.category ? { id: product.category.id } : null };
   try {
-    await axios.put(`http://localhost:8080/api/admin/products/${product.id}`, payload, getAuthConfig());
+    await api.put(`http://localhost:8080/api/admin/products/${product.id}`, payload, getAuthConfig());
     fetchProducts();
   } catch (error) { alert('Lỗi cập nhật trạng thái!'); }
 };
@@ -217,7 +217,7 @@ const toggleStatus = async (product) => {
 const handleDelete = async (id) => {
   if (!confirm('Chắc chắn muốn xóa?')) return;
   try {
-    await axios.delete(`http://localhost:8080/api/admin/products/${id}`, getAuthConfig());
+    await api.delete(`http://localhost:8080/api/admin/products/${id}`, getAuthConfig());
     alert('Đã xóa!');
     fetchProducts();
   } catch (error) {

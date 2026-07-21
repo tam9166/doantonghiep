@@ -199,7 +199,7 @@ import AdminLayout from '@/components/AdminLayout.vue';
 import SkeletonLoader from '@/components/SkeletonLoader.vue';
 
 import { ref, onMounted, computed, watch } from 'vue';
-import axios from 'axios';
+import api from '@/services/api';
 import {
   Chart as ChartJS,
   Title,
@@ -319,11 +319,11 @@ const fetchData = async () => {
     const startStr = lastYear.toISOString().split('T')[0];
 
     const [resOrders, resRecipes, resIngredients, resSchedules, resStaff] = await Promise.all([
-      axios.get('/api/admin/orders', { headers }),
-      axios.get('/api/admin/recipes', { headers }),
-      axios.get('/api/admin/ingredients', { headers }),
-      axios.get(`/api/schedules?startDate=${startStr}&endDate=${endStr}`, { headers }),
-      axios.get('/api/admin/staff', { headers })
+      api.get('/api/admin/orders', { headers }),
+      api.get('/api/admin/recipes', { headers }),
+      api.get('/api/admin/ingredients', { headers }),
+      api.get(`/api/schedules?startDate=${startStr}&endDate=${endStr}`, { headers }),
+      api.get('/api/admin/staff', { headers })
     ]);
 
     orders.value = resOrders.data.filter(o => o.status === 4);
@@ -545,7 +545,7 @@ const analyzeWithAI = async () => {
   };
 
   try {
-    const res = await axios.post('/api/admin/ai/analytics', {
+    const res = await api.post('/api/admin/ai/analytics', {
       message: JSON.stringify(dataForAI)
     });
     aiResponse.value = res.data.reply;

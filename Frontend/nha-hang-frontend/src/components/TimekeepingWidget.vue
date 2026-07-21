@@ -48,7 +48,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import axios from 'axios';
+import api from '@/services/api';
 
 const isExpanded = ref(false);
 const loading = ref(true);
@@ -84,7 +84,7 @@ const toggleExpanded = () => {
 const fetchStatus = async () => {
   loading.value = true;
   try {
-    const res = await axios.get(`http://localhost:8080/api/timekeeping/status?username=${username}`, configHeader());
+    const res = await api.get(`http://localhost:8080/api/timekeeping/status?username=${username}`, configHeader());
     if (res.data && res.data.id) {
       currentStatus.value = res.data.status;
       checkInTime.value = res.data.checkInTime;
@@ -103,7 +103,7 @@ const fetchStatus = async () => {
 
 const performCheck = async (type) => {
   try {
-    const res = await axios.post('http://localhost:8080/api/timekeeping/check', {
+    const res = await api.post('http://localhost:8080/api/timekeeping/check', {
       username: username,
       type: type
     }, configHeader());

@@ -551,7 +551,7 @@
 import AdminLayout from '@/components/AdminLayout.vue';
 
 import { ref, computed, onMounted } from 'vue';
-import axios from 'axios';
+import api from '@/services/api';
 
 const currentTab = ref('staff');
 const staffList = ref([]);
@@ -675,7 +675,7 @@ const getStatusClass = (status) => {
 
 const fetchStaff = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/admin/staff', configHeader());
+    const response = await api.get('http://localhost:8080/api/admin/staff', configHeader());
     staffList.value = response.data;
   } catch (error) {
     console.error('Lỗi khi tải danh sách nhân viên:', error);
@@ -684,7 +684,7 @@ const fetchStaff = async () => {
 
 const fetchCustomers = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/admin/staff/customers', configHeader());
+    const response = await api.get('http://localhost:8080/api/admin/staff/customers', configHeader());
     customerList.value = response.data;
   } catch (error) {
     console.error('Lỗi tải khách hàng:', error);
@@ -696,7 +696,7 @@ const viewCustomerOrders = async (cus) => {
     currentCustomerView.value = cus;
     searchCustomerOrderQuery.value = '';
     aiCustomerAnalysis.value = '';
-    const res = await axios.get(`http://localhost:8080/api/admin/staff/customers/${cus.username}/orders`, configHeader());
+    const res = await api.get(`http://localhost:8080/api/admin/staff/customers/${cus.username}/orders`, configHeader());
     customerOrders.value = res.data;
     showCustomerOrdersModal.value = true;
   } catch (err) {
@@ -725,7 +725,7 @@ const analyzeCustomer = async () => {
   };
 
   try {
-    const res = await axios.post('/api/admin/ai/customer', {
+    const res = await api.post('/api/admin/ai/customer', {
       message: JSON.stringify(data),
     }, configHeader());
     
@@ -749,7 +749,7 @@ const createStaff = async () => {
     const payload = { ...newStaff.value };
     const roleId = payload.role;
     delete payload.role; // Remove role from body since it expects Account only
-    await axios.post(`http://localhost:8080/api/admin/staff?roleId=${roleId}`, payload, configHeader());
+    await api.post(`http://localhost:8080/api/admin/staff?roleId=${roleId}`, payload, configHeader());
     alert('Thêm nhân viên thành công!');
     showAddModal.value = false;
     newStaff.value = { username: '', password: '', fullname: '', email: '', role: 'ROLE_WAITER', shift: '', assignedArea: '' };
@@ -784,7 +784,7 @@ const updateStaff = async () => {
       payload.password = editStaff.value.password;
     }
     
-    await axios.put(`http://localhost:8080/api/admin/staff/${editStaff.value.username}?roleId=${editStaff.value.role}`, payload, configHeader());
+    await api.put(`http://localhost:8080/api/admin/staff/${editStaff.value.username}?roleId=${editStaff.value.role}`, payload, configHeader());
     alert('Cập nhật nhân viên thành công!');
     showEditModal.value = false;
     fetchStaff();
@@ -796,7 +796,7 @@ const updateStaff = async () => {
 const deleteStaff = async (username) => {
   if (!confirm('Bạn có chắc muốn xóa nhân viên ' + username + '?')) return;
   try {
-    await axios.delete(`http://localhost:8080/api/admin/staff/${username}`, configHeader());
+    await api.delete(`http://localhost:8080/api/admin/staff/${username}`, configHeader());
     alert('Xóa thành công!');
     fetchStaff();
   } catch (err) {
@@ -806,7 +806,7 @@ const deleteStaff = async (username) => {
 
 const fetchSchedules = async () => {
   try {
-    const res = await axios.get(`http://localhost:8080/api/schedules?startDate=${scheduleStartDate.value}&endDate=${scheduleEndDate.value}`, configHeader());
+    const res = await api.get(`http://localhost:8080/api/schedules?startDate=${scheduleStartDate.value}&endDate=${scheduleEndDate.value}`, configHeader());
     scheduleList.value = res.data;
   } catch (err) {
     console.error('Lỗi lấy lịch', err);
@@ -826,7 +826,7 @@ const addSchedule = async () => {
       d.setDate(d.getDate() + i);
       const dateStr = d.toISOString().split('T')[0];
       const payload = { ...newSchedule.value, workDate: dateStr };
-      requests.push(axios.post('http://localhost:8080/api/schedules', payload, configHeader()));
+      requests.push(api.post('http://localhost:8080/api/schedules', payload, configHeader()));
     }
     
     await Promise.all(requests);
@@ -843,7 +843,7 @@ const addSchedule = async () => {
 const deleteSchedule = async (id) => {
   if (!confirm('Hủy ca làm này?')) return;
   try {
-    await axios.delete(`http://localhost:8080/api/schedules/${id}`, configHeader());
+    await api.delete(`http://localhost:8080/api/schedules/${id}`, configHeader());
     fetchSchedules();
   } catch (err) {
     alert('Lỗi hủy lịch');
@@ -852,7 +852,7 @@ const deleteSchedule = async (id) => {
 
 const fetchTimekeeping = async () => {
   try {
-    const res = await axios.get(`http://localhost:8080/api/timekeeping?startDate=${timekeepingStartDate.value}&endDate=${timekeepingEndDate.value}`, configHeader());
+    const res = await api.get(`http://localhost:8080/api/timekeeping?startDate=${timekeepingStartDate.value}&endDate=${timekeepingEndDate.value}`, configHeader());
     timekeepingList.value = res.data;
   } catch (err) {
     console.error('Lỗi lấy báo cáo chấm công', err);
@@ -862,7 +862,7 @@ const fetchTimekeeping = async () => {
 const generateDemoSalary = async () => {
   if (!confirm('Bạn có chắc muốn tạo dữ liệu lương mẫu cho tháng 05/2026? Dữ liệu cũ của tháng này sẽ bị xóa!')) return;
   try {
-    const res = await axios.post('http://localhost:8080/api/admin/staff/demo-salary', {}, configHeader());
+    const res = await api.post('http://localhost:8080/api/admin/staff/demo-salary', {}, configHeader());
     alert(res.data.message || 'Thành công!');
     salaryMonth.value = '2026-05';
     fetchSalary();
@@ -882,8 +882,8 @@ const fetchSalary = async () => {
     const endDate = `${year}-${month}-${lastDay}`;
     
     const [resSched, resTk] = await Promise.all([
-      axios.get(`http://localhost:8080/api/schedules?startDate=${startDate}&endDate=${endDate}`, configHeader()),
-      axios.get(`http://localhost:8080/api/timekeeping?startDate=${startDate}&endDate=${endDate}`, configHeader())
+      api.get(`http://localhost:8080/api/schedules?startDate=${startDate}&endDate=${endDate}`, configHeader()),
+      api.get(`http://localhost:8080/api/timekeeping?startDate=${startDate}&endDate=${endDate}`, configHeader())
     ]);
     
     const schedules = resSched.data;
@@ -938,7 +938,7 @@ const waiterList = computed(() => {
 
 const fetchFloors = async () => {
   try {
-    const res = await axios.get('http://localhost:8080/api/service-zones/floors', configHeader());
+    const res = await api.get('http://localhost:8080/api/service-zones/floors', configHeader());
     floorList.value = res.data;
   } catch (err) {
     console.error('Lỗi lấy danh sách tầng', err);
@@ -947,7 +947,7 @@ const fetchFloors = async () => {
 
 const fetchZones = async () => {
   try {
-    const res = await axios.get(`http://localhost:8080/api/service-zones?date=${zoneDate.value}`, configHeader());
+    const res = await api.get(`http://localhost:8080/api/service-zones?date=${zoneDate.value}`, configHeader());
     zoneList.value = res.data;
     fetchZoneMap();
   } catch (err) {
@@ -959,7 +959,7 @@ const fetchZoneMap = async () => {
   try {
     let url = `http://localhost:8080/api/service-zones/map?date=${zoneDate.value}`;
     if (zoneMapShift.value) url += `&shift=${encodeURIComponent(zoneMapShift.value)}`;
-    const res = await axios.get(url, configHeader());
+    const res = await api.get(url, configHeader());
     zoneMap.value = res.data;
   } catch (err) {
     console.error('Lỗi lấy bản đồ khu vực', err);
@@ -979,7 +979,7 @@ const addZoneAssignment = async () => {
       d.setDate(d.getDate() + i);
       const dateStr = d.toISOString().split('T')[0];
       requests.push(
-        axios.post('http://localhost:8080/api/service-zones', {
+        api.post('http://localhost:8080/api/service-zones', {
           username: newZone.value.username,
           floor: newZone.value.floor,
           shift: newZone.value.shift,
@@ -1003,7 +1003,7 @@ const addZoneAssignment = async () => {
 const deleteZoneAssignment = async (id) => {
   if (!confirm('Xóa phân công khu vực này?')) return;
   try {
-    await axios.delete(`http://localhost:8080/api/service-zones/${id}`, configHeader());
+    await api.delete(`http://localhost:8080/api/service-zones/${id}`, configHeader());
     fetchZones();
   } catch (err) {
     alert('Lỗi xóa phân công');

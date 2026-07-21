@@ -207,7 +207,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getCurrentUser } from '@/services/api'
-import axios from 'axios'
+import api from '@/services/api'
 
 const router = useRouter()
 const sidebarCollapsed = ref(false)
@@ -227,8 +227,8 @@ const configHeader = () => ({ headers: { 'Authorization': `Bearer ${getToken()}`
 const fetchNotifications = async () => {
   try {
     const [notifRes, countRes] = await Promise.all([
-      axios.get('/api/admin/notifications', configHeader()),
-      axios.get('/api/admin/notifications/unread-count', configHeader())
+      api.get('/api/admin/notifications', configHeader()),
+      api.get('/api/admin/notifications/unread-count', configHeader())
     ])
     notifications.value = notifRes.data.slice(0, 20)
     const newCount = countRes.data.count || 0
@@ -242,7 +242,7 @@ const fetchNotifications = async () => {
 
 const checkAlerts = async () => {
   try {
-    await axios.post('/api/admin/notifications/check-alerts', {}, configHeader())
+    await api.post('/api/admin/notifications/check-alerts', {}, configHeader())
     await fetchNotifications()
   } catch (err) { /* silent */ }
 }
@@ -254,7 +254,7 @@ const toggleNotifPanel = () => {
 const readNotification = async (n) => {
   if (!n.isRead) {
     try {
-      await axios.put(`/api/admin/notifications/${n.id}/read`, {}, configHeader())
+      await api.put(`/api/admin/notifications/${n.id}/read`, {}, configHeader())
       n.isRead = true
       unreadCount.value = Math.max(0, unreadCount.value - 1)
     } catch (err) { /* silent */ }
@@ -270,7 +270,7 @@ const readNotification = async (n) => {
 
 const markAllRead = async () => {
   try {
-    await axios.put('/api/admin/notifications/read-all', {}, configHeader())
+    await api.put('/api/admin/notifications/read-all', {}, configHeader())
     notifications.value.forEach(n => n.isRead = true)
     unreadCount.value = 0
   } catch (err) { /* silent */ }

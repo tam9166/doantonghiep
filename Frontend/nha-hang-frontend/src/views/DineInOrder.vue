@@ -172,7 +172,7 @@
 import CustomerLayout from '@/components/CustomerLayout.vue';
 
 import { ref, computed, onMounted } from 'vue';
-import axios from 'axios';
+import api, { externalApi } from '@/services/api';
 import { useRoute } from 'vue-router';
 import { foodImage, replaceFoodImage } from '@/utils/imageFallback';
 
@@ -249,7 +249,7 @@ const fetchComboForParty = async () => {
   isFetchingAI.value = true;
   try {
     // Gọi API thời tiết Đà Nẵng
-    const wRes = await axios.get('https://api.open-meteo.com/v1/forecast?latitude=16.0678&longitude=108.2208&current_weather=true');
+    const wRes = await externalApi.get('https://api.open-meteo.com/v1/forecast?latitude=16.0678&longitude=108.2208&current_weather=true');
     const weather = wRes.data.current_weather;
     const weatherCode = weather.weathercode;
     let weatherStr = `Trời quang, nhiệt độ ${weather.temperature}°C`;
@@ -261,7 +261,7 @@ const fetchComboForParty = async () => {
     const menuStr = activeProducts.value.map(p => `${p.id}-${p.name}`).join(', ');
     const message = `Khách đi ${partySize.value} người. Thời tiết hiện tại: ${weatherStr}`;
     
-    const aiRes = await axios.post('/api/chatbot/chat', {
+    const aiRes = await api.post('/api/chatbot/chat', {
       type: 'COMBO_RECOMMEND',
       message: message,
       menu: menuStr
@@ -345,8 +345,8 @@ const addComboToCart = () => {
 const loadData = async () => {
   try {
     const [resProd, resTable] = await Promise.all([
-      axios.get('/api/products'),
-      axios.get('/api/tables') // Lấy danh sách bàn
+      api.get('/api/products'),
+      api.get('/api/tables') // Lấy danh sách bàn
     ]);
     products.value = resProd.data;
     allTables.value = resTable.data;
@@ -360,7 +360,7 @@ const loadData = async () => {
     // Lấy thông tin User để áp dụng hạng thẻ
     const token = localStorage.getItem('token');
     if (token) {
-      const resProfile = await axios.get('/api/auth/profile', {
+      const resProfile = await api.get('/api/auth/profile', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       userProfile.value = resProfile.data;
@@ -381,7 +381,7 @@ const loadData = async () => {
     
     // Tải Món Gợi Ý (Bán Chạy)
     try {
-      const response = await axios.get('/api/admin/popular-items/products?limit=4', {
+      const response = await api.get('/api/admin/popular-items/products?limit=4', {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {}
       });
       if (response.data && response.data.length > 0) {
@@ -445,7 +445,7 @@ const startVoiceOrder = () => {
       try {
         // Gửi danh sách tên món cho AI
         const menuStr = activeProducts.value.map(p => `${p.id}: ${p.name}`).join(', ');
-        const res = await axios.post('/api/chatbot/chat', {
+        const res = await api.post('/api/chatbot/chat', {
           message: transcript,
           type: 'VOICE_ORDER',
           menu: menuStr
@@ -511,7 +511,7 @@ const submitOrder = async () => {
   const formattedItems = cart.value.map(item => ({ productId: item.productId, quantity: item.quantity }));
 
   try {
-    await axios.post('/api/orders/checkout', {
+    await api.post('/api/orders/checkout', {
       address: infoFull,
       paymentOption: 'PAY_AT_RESTAURANT',
       items: formattedItems

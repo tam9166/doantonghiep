@@ -73,7 +73,7 @@
 import CustomerLayout from '@/components/CustomerLayout.vue';
 
 import { ref, onMounted } from 'vue';
-import axios from 'axios';
+import api from '@/services/api';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
@@ -106,7 +106,7 @@ const loadProfile = async () => {
     return;
   }
   try {
-    const res = await axios.get('http://localhost:8080/api/auth/profile', {
+    const res = await api.get('http://localhost:8080/api/auth/profile', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     userProfile.value = res.data;
@@ -124,7 +124,7 @@ const saveProfile = async () => {
     return;
   }
   try {
-    await axios.put('http://localhost:8080/api/auth/profile', {
+    await api.put('http://localhost:8080/api/auth/profile', {
       fullname: editProfile.value.fullname,
       email: editProfile.value.email
     }, {
@@ -148,7 +148,7 @@ const changePassword = async () => {
     return;
   }
   try {
-    await axios.put('http://localhost:8080/api/auth/password', {
+    await api.put('http://localhost:8080/api/auth/password', {
       oldPassword: passwordForm.value.oldPassword,
       newPassword: passwordForm.value.newPassword
     }, {

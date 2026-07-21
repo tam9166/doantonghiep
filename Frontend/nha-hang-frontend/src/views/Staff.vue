@@ -128,7 +128,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import axios from 'axios';
+import api from '@/services/api';
 
 const router = useRouter();
 const currentTab = ref('schedule');
@@ -204,8 +204,8 @@ const fetchData = async () => {
     const endDate = `${year}-${month}-${lastDay}`;
     
     const [resSched, resTk] = await Promise.all([
-      axios.get(`http://localhost:8080/api/schedules/my-schedules?username=${user.value.username}&startDate=${startDate}&endDate=${endDate}`, configHeader()),
-      axios.get(`http://localhost:8080/api/timekeeping/me?username=${user.value.username}&startDate=${startDate}&endDate=${endDate}`, configHeader())
+      api.get(`http://localhost:8080/api/schedules/my-schedules?username=${user.value.username}&startDate=${startDate}&endDate=${endDate}`, configHeader()),
+      api.get(`http://localhost:8080/api/timekeeping/me?username=${user.value.username}&startDate=${startDate}&endDate=${endDate}`, configHeader())
     ]);
     
     scheduleList.value = resSched.data;

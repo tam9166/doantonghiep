@@ -73,7 +73,7 @@
 import AdminLayout from '@/components/AdminLayout.vue';
 
 import { ref, onMounted } from 'vue';
-import axios from 'axios';
+import api from '@/services/api';
 
 const vouchers = ref([]);
 const showAddModal = ref(false);
@@ -81,7 +81,7 @@ const newVoucher = ref({ code: '', discountPercent: 10, accountUsername: '' });
 
 const fetchVouchers = async () => {
   try {
-    const res = await axios.get('http://localhost:8080/api/vouchers/admin', {
+    const res = await api.get('http://localhost:8080/api/vouchers/admin', {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     });
     vouchers.value = res.data;
@@ -98,7 +98,7 @@ const createVoucher = async () => {
       discountPercent: newVoucher.value.discountPercent,
       account: newVoucher.value.accountUsername ? { username: newVoucher.value.accountUsername } : null
     };
-    await axios.post('http://localhost:8080/api/vouchers/admin/create', payload, {
+    await api.post('http://localhost:8080/api/vouchers/admin/create', payload, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     });
     alert('Tạo Voucher thành công!');

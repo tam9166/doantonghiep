@@ -593,7 +593,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue';
-import axios from 'axios';
+import api from '@/services/api';
 import { useRouter } from 'vue-router';
 import SockJS from 'sockjs-client';
 import { Stomp } from '@stomp/stompjs';
@@ -625,7 +625,7 @@ const fetchMyZones = async () => {
     if (!u || !u.username) return;
     const token = localStorage.getItem('token');
     const today = new Date().toISOString().split('T')[0];
-    const res = await axios.get(`/api/service-zones/my?username=${u.username}&date=${today}`, {
+    const res = await api.get(`/api/service-zones/my?username=${u.username}&date=${today}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     // Xác định ca hiện tại
@@ -783,7 +783,7 @@ const fetchData = async () => {
   try {
     const token = localStorage.getItem('token');
 
-    const resOrders = await axios.get('/api/admin/orders', {
+    const resOrders = await api.get('/api/admin/orders', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     orders.value = resOrders.data;
@@ -800,7 +800,7 @@ const fetchData = async () => {
     }
     previousReadyIds = newReadyIds;
 
-    const resTables = await axios.get('/api/tables');
+    const resTables = await api.get('/api/tables');
     tables.value = resTables.data;
 
   } catch (error) {
@@ -813,7 +813,7 @@ const fetchData = async () => {
 
 const markAsServed = async (id) => {
   try {
-    await axios.put(`/api/admin/orders/${id}/status?status=7`, {}, {
+    await api.put(`/api/admin/orders/${id}/status?status=7`, {}, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     });
     toastMsg.value = '✅ Đã bưng ra bàn thành công!';
@@ -824,7 +824,7 @@ const markAsServed = async (id) => {
 
 const markDishServed = async (order, detailId) => {
   try {
-    await axios.put(`/api/orders/details/${detailId}/status?status=2`, {}, {
+    await api.put(`/api/orders/details/${detailId}/status?status=2`, {}, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     });
     toastMsg.value = '✅ Đã bưng món!';
@@ -854,7 +854,7 @@ const markAsCleaning = async (table) => {
   if (!confirmed) return;
 
   try {
-    await axios.put(`/api/tables/${table.id}/status?status=3`, {}, {
+    await api.put(`/api/tables/${table.id}/status?status=3`, {}, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     });
     toastMsg.value = `🧹 Bàn "${table.name}" đang chờ dọn!`;
@@ -868,7 +868,7 @@ const markAsCleaning = async (table) => {
 // Nút ĐÃ DỌN XONG: chuyển bàn về Trống (0)
 const checkoutTable = async (table) => {
   try {
-    await axios.put(`/api/tables/${table.id}/status?status=0`, {}, {
+    await api.put(`/api/tables/${table.id}/status?status=0`, {}, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     });
     showCheckoutToast(table.name);
@@ -997,17 +997,17 @@ const confirmMoveTable = async () => {
     const oldAddress = activeOrder.address;
     const newAddress = oldAddress.replace(`Bàn: ${movingTable.value.name}`, `Bàn: ${newTable.name}`);
     
-    await axios.put(`/api/admin/orders/${activeOrder.id}/address?newAddress=${encodeURIComponent(newAddress)}`, {}, {
+    await api.put(`/api/admin/orders/${activeOrder.id}/address?newAddress=${encodeURIComponent(newAddress)}`, {}, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
 
     // 2. Set bàn mới thành Có Khách (2)
-    await axios.put(`/api/tables/${newTable.id}/status?status=2`, {}, {
+    await api.put(`/api/tables/${newTable.id}/status?status=2`, {}, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
 
     // 3. Set bàn cũ thành Trống (0)
-    await axios.put(`/api/tables/${movingTable.value.id}/status?status=0`, {}, {
+    await api.put(`/api/tables/${movingTable.value.id}/status?status=0`, {}, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
 
@@ -1044,12 +1044,12 @@ const confirmMergeTable = async () => {
   const token = localStorage.getItem('token');
   try {
     if (mergeMode.value === 'PHYSICAL') {
-      await axios.put(`/api/tables/${movingTable.value.id}/link/${targetTable.id}`, {}, {
+      await api.put(`/api/tables/${movingTable.value.id}/link/${targetTable.id}`, {}, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       toastMsg.value = `✅ Đã ghép bàn vật lý ${movingTable.value.name} vào ${targetTable.name}!`;
     } else {
-      await axios.post('/api/orders/merge-tables', {
+      await api.post('/api/orders/merge-tables', {
         fromTable: movingTable.value.name,
         toTable: targetTable.name
       }, { headers: { 'Authorization': `Bearer ${token}` } });
@@ -1068,7 +1068,7 @@ const unlinkTable = async (table) => {
   if (!confirm('Bạn có chắc chắn muốn tách bàn này ra trở lại thành bàn trống không?')) return;
   try {
     const token = localStorage.getItem('token');
-    await axios.put(`/api/tables/${table.id}/unlink`, {}, {
+    await api.put(`/api/tables/${table.id}/unlink`, {}, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     toastMsg.value = `✅ Đã tách ${table.name} thành công!`;
@@ -1114,7 +1114,7 @@ const confirmSplitTable = async () => {
   const targetTable = tables.value.find(t => t.id === splitTargetTableId.value);
   const token = localStorage.getItem('token');
   try {
-    await axios.post('/api/orders/split-table', {
+    await api.post('/api/orders/split-table', {
       fromTable: movingTable.value.name,
       toTable: targetTable.name,
       detailIds: selectedDetailIds.value
@@ -1133,7 +1133,7 @@ const confirmSplitTable = async () => {
 const upgradeToOccupied = async (table) => {
   if (!confirm(`Khách đặt trước bàn ${table.name} đã đến?`)) return;
   try {
-    await axios.put(`/api/tables/${table.id}/status?status=2`, {}, {
+    await api.put(`/api/tables/${table.id}/status?status=2`, {}, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     });
     toastMsg.value = `✅ Đã đánh dấu Bàn ${table.name} CÓ KHÁCH!`;
@@ -1147,7 +1147,7 @@ const upgradeToOccupied = async (table) => {
 const cancelBooking = async (table) => {
   if (!confirm(`Xác nhận HỦY CỌC bàn ${table.name}? Bàn sẽ trở về trạng thái TRỐNG.`)) return;
   try {
-    await axios.put(`/api/tables/${table.id}/status?status=0`, {}, {
+    await api.put(`/api/tables/${table.id}/status?status=0`, {}, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     });
     toastMsg.value = `❌ Đã hủy cọc Bàn ${table.name}!`;
@@ -1191,7 +1191,7 @@ const getAiUpsellAdvice = async () => {
   }
 
   try {
-    const res = await axios.post('/api/staff/ai/waiter', {
+    const res = await api.post('/api/staff/ai/waiter', {
       message: JSON.stringify(dishList)
     });
     aiResponse.value = res.data.reply;

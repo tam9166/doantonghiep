@@ -178,7 +178,7 @@
 import AdminLayout from '@/components/AdminLayout.vue';
 
 import { ref, computed, onMounted } from 'vue';
-import axios from 'axios';
+import api from '@/services/api';
 import QrcodeVue from 'qrcode.vue';
 
 const tablesList = ref([]);
@@ -207,7 +207,7 @@ const executeMerge = async () => {
     const token = localStorage.getItem('token');
     
     if (mergeData.value.type === 'ORDER') {
-      const res = await axios.post('http://localhost:8080/api/orders/merge-tables', {
+      const res = await api.post('http://localhost:8080/api/orders/merge-tables', {
         fromTable: fromT.name,
         toTable: toT.name
       }, {
@@ -215,7 +215,7 @@ const executeMerge = async () => {
       });
       alert(res.data.message || 'Gộp bàn thành công!');
     } else {
-      const res = await axios.put(`http://localhost:8080/api/tables/${fromT.id}/link/${toT.id}`, {}, {
+      const res = await api.put(`http://localhost:8080/api/tables/${fromT.id}/link/${toT.id}`, {}, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       alert(res.data || 'Ghép bàn vật lý thành công!');
@@ -233,7 +233,7 @@ const unlinkTable = async (id) => {
   if (!confirm('Bạn có chắc chắn muốn tách bàn này ra không?')) return;
   try {
     const token = localStorage.getItem('token');
-    const res = await axios.put(`http://localhost:8080/api/tables/${id}/unlink`, {}, {
+    const res = await api.put(`http://localhost:8080/api/tables/${id}/unlink`, {}, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     alert(res.data || 'Tách bàn thành công!');
@@ -277,7 +277,7 @@ const downloadQRImage = () => {
 const fetchTables = async () => {
   const token = localStorage.getItem('token');
   try {
-    const res = await axios.get('http://localhost:8080/api/tables', {
+    const res = await api.get('http://localhost:8080/api/tables', {
       headers: token ? { 'Authorization': `Bearer ${token}` } : {}
     });
     tablesList.value = res.data;
@@ -288,7 +288,7 @@ const handleAddTable = async () => {
   if (!newTable.value.name) return;
   const token = localStorage.getItem('token');
   try {
-    await axios.post('http://localhost:8080/api/tables', newTable.value, {
+    await api.post('http://localhost:8080/api/tables', newTable.value, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     newTable.value.name = '';
@@ -302,7 +302,7 @@ const updateStatus = async (tableId, newStatus) => {
   }
   const token = localStorage.getItem('token');
   try {
-    await axios.put(`http://localhost:8080/api/tables/${tableId}/status?status=${newStatus}`, {}, {
+    await api.put(`http://localhost:8080/api/tables/${tableId}/status?status=${newStatus}`, {}, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     fetchTables();
@@ -317,7 +317,7 @@ const toggleHeatmap = async () => {
   showHeatmap.value = !showHeatmap.value;
   if (showHeatmap.value) {
     try {
-      const res = await axios.get('http://localhost:8080/api/orders/history', {
+      const res = await api.get('http://localhost:8080/api/orders/history', {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
       const orders = res.data;
@@ -354,7 +354,7 @@ const getHeatLevel = (tName) => {
 const deleteTable = async (id) => {
   if (!confirm('Xóa bàn này khỏi hệ thống?')) return;
   try {
-    await axios.delete(`http://localhost:8080/api/tables/${id}`, {
+    await api.delete(`http://localhost:8080/api/tables/${id}`, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     });
     fetchTables();

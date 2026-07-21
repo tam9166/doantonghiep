@@ -131,7 +131,7 @@
 import AdminLayout from '@/components/AdminLayout.vue';
 
 import { ref, computed, onMounted } from 'vue';
-import axios from 'axios';
+import api from '@/services/api';
 
 const posts = ref([]);
 const applications = ref([]);
@@ -149,14 +149,14 @@ const configHeader = () => {
 
 const loadPosts = async () => {
   try {
-    const res = await axios.get('http://localhost:8080/api/admin/posts', configHeader());
+    const res = await api.get('http://localhost:8080/api/admin/posts', configHeader());
     posts.value = res.data;
   } catch (err) { console.error('Lỗi tải bài đăng', err); }
 };
 
 const loadApplications = async () => {
   try {
-    const res = await axios.get('http://localhost:8080/api/applications', configHeader());
+    const res = await api.get('http://localhost:8080/api/applications', configHeader());
     applications.value = res.data;
   } catch (err) { console.error('Lỗi tải đơn ứng tuyển', err); }
 };
@@ -172,10 +172,10 @@ const submitPost = async () => {
   }
   try {
     if (editingPost.value) {
-      await axios.put(`http://localhost:8080/api/admin/posts/${editingPost.value.id}`, form.value, configHeader());
+      await api.put(`http://localhost:8080/api/admin/posts/${editingPost.value.id}`, form.value, configHeader());
       alert('Cập nhật bài đăng thành công!');
     } else {
-      await axios.post('http://localhost:8080/api/admin/posts', form.value, configHeader());
+      await api.post('http://localhost:8080/api/admin/posts', form.value, configHeader());
       alert('Đăng bài thành công!');
     }
     resetForm();
@@ -200,7 +200,7 @@ const resetForm = () => {
 const deletePost = async (id) => {
   if (!confirm('Bạn có chắc muốn xóa bài đăng này?')) return;
   try {
-    await axios.delete(`http://localhost:8080/api/admin/posts/${id}`, configHeader());
+    await api.delete(`http://localhost:8080/api/admin/posts/${id}`, configHeader());
     loadPosts();
   } catch (err) { alert('Lỗi xóa bài đăng!'); }
 };

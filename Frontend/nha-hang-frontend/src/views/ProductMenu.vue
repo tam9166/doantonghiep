@@ -123,7 +123,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import axios from 'axios';
+import api from '@/services/api';
 import { useRouter } from 'vue-router';
 import CustomerLayout from '@/components/CustomerLayout.vue';
 import SkeletonLoader from '@/components/SkeletonLoader.vue';
@@ -163,19 +163,19 @@ const cartTotal = computed(() => {
 });
 
 const fetchProducts = async () => {
-  const response = await axios.get('/api/products');
+  const response = await api.get('/api/products');
   products.value = response.data;
 };
 
 const fetchCategories = async () => {
-  const response = await axios.get('/api/categories');
+  const response = await api.get('/api/categories');
   categories.value = response.data;
 };
 
 const fetchSuggested = async () => {
   try {
     const token = localStorage.getItem('token');
-    const response = await axios.get('/api/admin/popular-items/products?limit=4', {
+    const response = await api.get('/api/admin/popular-items/products?limit=4', {
       headers: token ? { 'Authorization': `Bearer ${token}` } : {}
     });
     // Lọc ra các món có isPopular = true hoặc lấy thẳng top 4
@@ -222,7 +222,7 @@ const submitShipOrder = async () => {
 
   try {
     checkoutSubmitting.value = true;
-    const response = await axios.post('/api/orders/checkout', {
+    const response = await api.post('/api/orders/checkout', {
       address: infoFull,
       paymentOption: 'PREPAID_TRANSFER',
       items: formattedItems

@@ -65,7 +65,7 @@
 import AdminLayout from '@/components/AdminLayout.vue';
 
 import { ref, onMounted } from 'vue';
-import axios from 'axios';
+import api from '@/services/api';
 
 const categories = ref([]);
 const newCategory = ref({ name: '' });
@@ -74,7 +74,7 @@ const editingId = ref(null);
 
 const fetchCategories = async () => {
   try {
-    const res = await axios.get('http://localhost:8080/api/categories');
+    const res = await api.get('http://localhost:8080/api/categories');
     categories.value = res.data;
   } catch (error) { console.error('Lỗi:', error); }
 };
@@ -85,7 +85,7 @@ const handleAdd = async () => {
   }
   const token = localStorage.getItem('token');
   try {
-    await axios.post('http://localhost:8080/api/categories', newCategory.value, {
+    await api.post('http://localhost:8080/api/categories', newCategory.value, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     alert('Thêm thành công!');
@@ -110,7 +110,7 @@ const handleUpdate = async () => {
   if (!newCategory.value.name) return alert('Vui lòng nhập tên danh mục!');
   const token = localStorage.getItem('token');
   try {
-    await axios.put(`http://localhost:8080/api/categories/${editingId.value}`, newCategory.value, {
+    await api.put(`http://localhost:8080/api/categories/${editingId.value}`, newCategory.value, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     alert('Cập nhật thành công!');
@@ -123,7 +123,7 @@ const handleDelete = async (id) => {
   if (!confirm('Xóa danh mục này? Lưu ý: Cần đảm bảo không có món ăn nào đang dùng danh mục này!')) return;
   const token = localStorage.getItem('token');
   try {
-    await axios.delete(`http://localhost:8080/api/categories/${id}`, {
+    await api.delete(`http://localhost:8080/api/categories/${id}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     alert('Đã xóa!');

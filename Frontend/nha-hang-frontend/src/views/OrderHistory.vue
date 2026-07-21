@@ -87,7 +87,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import axios from 'axios';
+import api from '@/services/api';
 import CustomerLayout from '@/components/CustomerLayout.vue';
 
 const orders = ref([]);
@@ -101,7 +101,7 @@ const fetchHistory = async () => {
   const token = localStorage.getItem('token');
   if (!token) return;
   try {
-    const res = await axios.get('http://localhost:8080/api/orders/history', {
+    const res = await api.get('http://localhost:8080/api/orders/history', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     orders.value = res.data.sort((a, b) => b.id - a.id);
@@ -114,7 +114,7 @@ const fetchProfile = async () => {
   const token = localStorage.getItem('token');
   if (!token) return;
   try {
-    const res = await axios.get('http://localhost:8080/api/auth/profile', {
+    const res = await api.get('http://localhost:8080/api/auth/profile', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     userProfile.value = res.data;
@@ -152,7 +152,7 @@ const submitReview = async (productId) => {
   const token = localStorage.getItem('token');
   const data = reviewData.value[productId];
   try {
-    const res = await axios.post(`http://localhost:8080/api/reviews/product/${productId}`, {
+    const res = await api.post(`http://localhost:8080/api/reviews/product/${productId}`, {
       rating: parseInt(data.rating),
       comment: data.comment
     }, {

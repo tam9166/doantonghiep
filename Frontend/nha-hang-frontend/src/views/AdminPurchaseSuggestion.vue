@@ -141,7 +141,7 @@
 <script setup>
 import AdminLayout from '@/components/AdminLayout.vue';
 import { ref, onMounted } from 'vue';
-import axios from 'axios';
+import api from '@/services/api';
 
 const suggestions = ref([]);
 const summary = ref({ totalItems: 0, criticalCount: 0, warningCount: 0, totalEstimatedCost: 0 });
@@ -154,7 +154,7 @@ const configHeader = () => ({ headers: { 'Authorization': `Bearer ${getToken()}`
 
 const fetchSuggestions = async () => {
   try {
-    const res = await axios.get('http://localhost:8080/api/admin/purchase-suggestions', configHeader());
+    const res = await api.get('http://localhost:8080/api/admin/purchase-suggestions', configHeader());
     suggestions.value = (res.data.suggestions || []).map(s => ({ ...s, approved: false }));
     summary.value = {
       totalItems: res.data.totalItems || 0,
@@ -168,7 +168,7 @@ const fetchSuggestions = async () => {
 const approveSuggestion = async (item) => {
   if (item.approved) return;
   try {
-    await axios.post(
+    await api.post(
       `http://localhost:8080/api/admin/purchase-suggestions/approve/${item.ingredientId}?quantity=${item.suggestedAmount}`,
       {}, configHeader()
     );
@@ -209,7 +209,7 @@ const analyzeWithAI = async () => {
   }));
 
   try {
-    const res = await axios.post('/api/admin/ai/inventory', {
+    const res = await api.post('/api/admin/ai/inventory', {
       message: JSON.stringify({
         type: 'PURCHASE_SUGGESTION',
         total_items_need_restock: summary.value.totalItems,
