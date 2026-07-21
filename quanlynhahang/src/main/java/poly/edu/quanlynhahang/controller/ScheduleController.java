@@ -9,14 +9,13 @@ import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import poly.edu.quanlynhahang.entity.Account;
 import poly.edu.quanlynhahang.entity.WorkSchedule;
 import poly.edu.quanlynhahang.repository.AccountRepository;
 import poly.edu.quanlynhahang.repository.WorkScheduleRepository;
-
-@CrossOrigin("*")
 @RestController
 @RequestMapping("/api/schedules")
 public class ScheduleController {
@@ -44,8 +43,9 @@ public class ScheduleController {
     // Nhân viên xem lịch của chính mình
     @GetMapping("/my-schedules")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_KITCHEN', 'ROLE_WAITER', 'ROLE_CASHIER')")
-    public ResponseEntity<?> getMySchedules(@RequestParam String username, @RequestParam String startDate, @RequestParam String endDate) {
+    public ResponseEntity<?> getMySchedules(Authentication authentication, @RequestParam String startDate, @RequestParam String endDate) {
         try {
+            String username = authentication.getName();
             Date start = new SimpleDateFormat("yyyy-MM-dd").parse(startDate);
             Date end = new SimpleDateFormat("yyyy-MM-dd").parse(endDate);
             List<WorkSchedule> schedules = workScheduleRepository.findByAccountUsernameAndWorkDateBetweenOrderByWorkDateAsc(username, start, end);

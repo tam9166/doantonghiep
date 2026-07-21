@@ -56,8 +56,6 @@ const currentStatus = ref('');
 const checkInTime = ref(null);
 const checkOutTime = ref(null);
 
-const username = JSON.parse(localStorage.getItem('user'))?.username || '';
-
 const configHeader = () => {
   const token = localStorage.getItem('token');
   return { headers: { Authorization: 'Bearer ' + token } };
@@ -84,7 +82,7 @@ const toggleExpanded = () => {
 const fetchStatus = async () => {
   loading.value = true;
   try {
-    const res = await api.get(`http://localhost:8080/api/timekeeping/status?username=${username}`, configHeader());
+    const res = await api.get('/api/timekeeping/status', configHeader());
     if (res.data && res.data.id) {
       currentStatus.value = res.data.status;
       checkInTime.value = res.data.checkInTime;
@@ -103,10 +101,7 @@ const fetchStatus = async () => {
 
 const performCheck = async (type) => {
   try {
-    const res = await api.post('http://localhost:8080/api/timekeeping/check', {
-      username: username,
-      type: type
-    }, configHeader());
+    const res = await api.post('/api/timekeeping/check', { type }, configHeader());
     
     alert(type === 'IN' ? 'Đã check-in bắt đầu ca!' : 'Đã check-out kết thúc ca!');
     

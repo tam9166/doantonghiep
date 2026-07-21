@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import poly.edu.quanlynhahang.entity.Account;
@@ -20,8 +21,6 @@ import poly.edu.quanlynhahang.entity.ServiceZoneAssignment;
 import poly.edu.quanlynhahang.repository.AccountRepository;
 import poly.edu.quanlynhahang.repository.RestaurantTableRepository;
 import poly.edu.quanlynhahang.repository.ServiceZoneAssignmentRepository;
-
-@CrossOrigin("*")
 @RestController
 @RequestMapping("/api/service-zones")
 public class ServiceZoneController {
@@ -51,8 +50,9 @@ public class ServiceZoneController {
     // === 2. Nhân viên xem khu vực mình được phân ===
     @GetMapping("/my")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_WAITER', 'ROLE_CASHIER', 'ROLE_KITCHEN')")
-    public ResponseEntity<?> getMyZones(@RequestParam String username, @RequestParam String date) {
+    public ResponseEntity<?> getMyZones(Authentication authentication, @RequestParam String date) {
         try {
+            String username = authentication.getName();
             Date workDate = new SimpleDateFormat("yyyy-MM-dd").parse(date);
             List<ServiceZoneAssignment> zones = zoneRepo.findByAccountUsernameAndWorkDate(username, workDate);
             return ResponseEntity.ok(zones);

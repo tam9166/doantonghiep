@@ -204,8 +204,8 @@ const fetchData = async () => {
     const endDate = `${year}-${month}-${lastDay}`;
     
     const [resSched, resTk] = await Promise.all([
-      api.get(`http://localhost:8080/api/schedules/my-schedules?username=${user.value.username}&startDate=${startDate}&endDate=${endDate}`, configHeader()),
-      api.get(`http://localhost:8080/api/timekeeping/me?username=${user.value.username}&startDate=${startDate}&endDate=${endDate}`, configHeader())
+      api.get(`/api/schedules/my-schedules?startDate=${startDate}&endDate=${endDate}`, configHeader()),
+      api.get(`/api/timekeeping/me?startDate=${startDate}&endDate=${endDate}`, configHeader())
     ]);
     
     scheduleList.value = resSched.data;

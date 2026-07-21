@@ -625,7 +625,7 @@ const fetchMyZones = async () => {
     if (!u || !u.username) return;
     const token = localStorage.getItem('token');
     const today = new Date().toISOString().split('T')[0];
-    const res = await api.get(`/api/service-zones/my?username=${u.username}&date=${today}`, {
+    const res = await api.get(`/api/service-zones/my?date=${today}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     // Xác định ca hiện tại

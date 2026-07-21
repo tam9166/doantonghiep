@@ -4,20 +4,20 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.validation.Valid;
+import poly.edu.quanlynhahang.dto.TimekeepingCheckRequest;
 import poly.edu.quanlynhahang.entity.Account;
 import poly.edu.quanlynhahang.entity.Timekeeping;
 import poly.edu.quanlynhahang.repository.AccountRepository;
 import poly.edu.quanlynhahang.repository.TimekeepingRepository;
-
-@CrossOrigin("*")
 @RestController
 @RequestMapping("/api/timekeeping")
 public class TimekeepingController {
@@ -34,8 +34,9 @@ public class TimekeepingController {
     // Xem lịch sử chấm công của mình
     @GetMapping("/me")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_KITCHEN', 'ROLE_WAITER', 'ROLE_CASHIER')")
-    public ResponseEntity<?> getMyTimekeeping(@RequestParam String username, @RequestParam String startDate, @RequestParam String endDate) {
+    public ResponseEntity<?> getMyTimekeeping(Authentication authentication, @RequestParam String startDate, @RequestParam String endDate) {
         try {
+            String username = authentication.getName();
             Date start = new SimpleDateFormat("yyyy-MM-dd").parse(startDate);
             Date end = new SimpleDateFormat("yyyy-MM-dd").parse(endDate);
             List<Timekeeping> records = timekeepingRepository.findByAccountUsernameAndWorkDateBetweenOrderByWorkDateAsc(username, start, end);
@@ -62,8 +63,9 @@ public class TimekeepingController {
     // Lấy trạng thái chấm công của ngày hôm nay
     @GetMapping("/status")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_KITCHEN', 'ROLE_WAITER', 'ROLE_CASHIER')")
-    public ResponseEntity<?> getTodayStatus(@RequestParam String username) {
+    public ResponseEntity<?> getTodayStatus(Authentication authentication) {
         try {
+            String username = authentication.getName();
             String todayStr = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
             Date today = new SimpleDateFormat("yyyy-MM-dd").parse(todayStr);
             
@@ -80,9 +82,9 @@ public class TimekeepingController {
     // Thực hiện Check-in / Check-out
     @PostMapping("/check")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_KITCHEN', 'ROLE_WAITER', 'ROLE_CASHIER')")
-    public ResponseEntity<?> performCheck(@RequestBody Map<String, String> payload) {
-        String username = payload.get("username");
-        String type = payload.get("type"); // "IN" hoặc "OUT"
+    public ResponseEntity<?> performCheck(Authentication authentication, @Valid @RequestBody TimekeepingCheckRequest payload) {
+        String username = authentication.getName();
+        String type = payload.type();
 
         Optional<Account> accOpt = accountRepository.findById(username);
         if (!accOpt.isPresent()) return ResponseEntity.badRequest().body("Không tìm thấy tài khoản");
