@@ -194,6 +194,36 @@ class OrderCheckoutServiceTest {
         verify(batchRepository, never()).saveAll(any());
     }
 
+    @Test
+    void addItemsRejectsMissingIdempotencyKeyBeforeLockingTheOrder() {
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+                () -> service.addItems(22, request(1, 2), " "));
+
+        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY, error.getStatusCode());
+        assertEquals("IDEMPOTENCY_KEY_REQUIRED", error.getReason());
+        verify(orderRepository, never()).findLockedById(any());
+    }
+
+    @Test
+    void addItemsRejectsReusedIdempotencyKeyWithDifferentPayload() {
+        Order order = new Order();
+        order.setId(22);
+        OrderItemOperation operation = new OrderItemOperation();
+        operation.setOrderId(22);
+        operation.setIdempotencyKey("add-item-key-001");
+        operation.setRequestHash("7acaa2e3bafe499aedd41ea9500f071b2c661bfe50ad8a07ccb3953cf836fcdc");
+        when(orderRepository.findLockedById(22)).thenReturn(Optional.of(order));
+        when(orderItemOperationRepository.findByOrderIdAndIdempotencyKey(22, "add-item-key-001"))
+                .thenReturn(Optional.of(operation));
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+                () -> service.addItems(22, request(1, 3), "add-item-key-001"));
+
+        assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
+        verify(orderDetailRepository, never()).save(any());
+        verify(batchRepository, never()).saveAll(any());
+    }
+
     private OrderRequest request(int productId, int quantity) {
         OrderDetailRequest detail = new OrderDetailRequest();
         detail.setProductId(productId);
