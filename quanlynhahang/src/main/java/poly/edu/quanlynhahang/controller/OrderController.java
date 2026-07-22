@@ -88,7 +88,13 @@ public class OrderController {
 
     @PutMapping("/{id}/add-items")
     @PreAuthorize("hasAnyRole('WAITER', 'CASHIER', 'MANAGER', 'ADMIN')")
-    public ResponseEntity<?> addItemsToOrder(@PathVariable Integer id, @RequestBody OrderRequest orderRequest) {
+    public ResponseEntity<?> addItemsToOrder(@PathVariable Integer id, @Valid @RequestBody OrderRequest orderRequest) {
+        return ResponseEntity.ok(orderCheckoutService.addItems(id, orderRequest));
+    }
+
+    // Retained temporarily only for reference while the new transactional service is adopted.
+    @SuppressWarnings("unused")
+    private ResponseEntity<?> legacyAddItemsToOrder(Integer id, OrderRequest orderRequest) {
         Optional<Order> orderOpt = orderRepository.findById(id);
         if (!orderOpt.isPresent()) return ResponseEntity.badRequest().body("Không tìm thấy đơn hàng!");
         

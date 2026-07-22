@@ -149,6 +149,48 @@ public class OrderCheckoutService {
         }
     }
 
+    @Transactional
+    public AddItemsResult addItems(Integer orderId, OrderRequest request) {
+        validateRequest(request);
+        Order order = orderRepository.findLockedById(orderId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+        if (Boolean.TRUE.equals(order.getIsPaid()) || Integer.valueOf(3).equals(order.getStatus())
+                || Integer.valueOf(4).equals(order.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Order cannot accept more items");
+        }
+        List<CheckoutLine> lines = loadProducts(normalizeQuantities(request.getItems()));
+        Map<Long, IngredientRequirement> requirements = inventoryRequirements(lines);
+        Map<Long, List<IngredientBatch>> lockedBatches = lockAndValidateInventory(requirements);
+        double subTotal = order.getSubTotal() == null ? 0.0 : order.getSubTotal();
+        double taxAmount = order.getTaxAmount() == null ? 0.0 : order.getTaxAmount();
+        int addedItems = 0;
+        for (CheckoutLine line : lines) {
+            Product product = line.product();
+            double lineSubtotal = product.getPrice() * line.quantity();
+            double taxRate = product.getTaxRate() == null ? 8.0 : product.getTaxRate();
+            double lineTax = lineSubtotal * taxRate / 100.0;
+            OrderDetail detail = new OrderDetail();
+            detail.setOrder(order);
+            detail.setProduct(product);
+            detail.setQuantity(line.quantity());
+            detail.setPrice(lineSubtotal);
+            detail.setTaxRate(taxRate);
+            detail.setTaxAmount(lineTax);
+            detail.setStatus(0);
+            orderDetailRepository.save(detail);
+            subTotal += lineSubtotal;
+            taxAmount += lineTax;
+            addedItems += line.quantity();
+        }
+        consumeInventory(requirements, lockedBatches);
+        order.setSubTotal(subTotal);
+        order.setTaxAmount(taxAmount);
+        order.setTotalAmount(subTotal + taxAmount);
+        orderRepository.save(order);
+        activityLogService.log("UPDATE", "Order", String.valueOf(orderId), "Them mon vao don hang");
+        return new AddItemsResult(order.getId(), addedItems, order.getSubTotal(), order.getTaxAmount(), order.getTotalAmount());
+    }
+
     private Map<Integer, Integer> normalizeQuantities(List<OrderDetailRequest> items) {
         Map<Integer, Integer> quantities = new LinkedHashMap<>();
         for (OrderDetailRequest item : items) {
@@ -364,5 +406,8 @@ public class OrderCheckoutService {
                                  OrderPaymentOption paymentOption,
                                  PaymentStatus paymentStatus,
                                  PaymentQrResponse payment) {
+    }
+
+    public record AddItemsResult(Integer orderId, int addedItems, Double subTotal, Double taxAmount, Double totalAmount) {
     }
 }

@@ -133,6 +133,36 @@ class OrderCheckoutServiceTest {
         verify(orderDetailRepository).save(any(OrderDetail.class));
     }
 
+    @Test
+    void addItemsLocksOrderAndValidatesInventoryBeforeWritingDetails() {
+        Order order = new Order();
+        order.setId(22);
+        order.setStatus(0);
+        order.setSubTotal(0.0);
+        order.setTaxAmount(0.0);
+        Product product = product(1, 100_000.0);
+        Ingredient ingredient = ingredient(10L, "Thit bo");
+        Recipe recipe = recipe(product, ingredient, 2.0);
+        IngredientBatch batch = batch(4.0);
+        when(orderRepository.findLockedById(22)).thenReturn(Optional.of(order));
+        when(productRepository.findById(1)).thenReturn(Optional.of(product));
+        when(recipeRepository.findByProduct(product)).thenReturn(List.of(recipe));
+        when(recipeRepository.findByIngredient(ingredient)).thenReturn(List.of(recipe));
+        when(batchRepository.findAvailableBatchesForUpdate(10L)).thenReturn(List.of(batch));
+        when(orderRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        OrderCheckoutService.AddItemsResult result = service.addItems(22, request(1, 2));
+
+        assertEquals(2, result.addedItems());
+        assertEquals(200_000.0, result.subTotal());
+        assertEquals(16_000.0, result.taxAmount());
+        assertEquals(216_000.0, result.totalAmount());
+        assertEquals(0.0, batch.getQuantity());
+        verify(orderRepository).findLockedById(22);
+        verify(orderDetailRepository).save(any(OrderDetail.class));
+        verify(batchRepository).saveAll(List.of(batch));
+    }
+
     private OrderRequest request(int productId, int quantity) {
         OrderDetailRequest detail = new OrderDetailRequest();
         detail.setProductId(productId);
