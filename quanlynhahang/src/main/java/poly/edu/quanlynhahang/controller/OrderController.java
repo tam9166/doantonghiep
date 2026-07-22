@@ -1,5 +1,7 @@
 package poly.edu.quanlynhahang.controller;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -136,20 +138,22 @@ public class OrderController {
         Order targetOrder = targetOrderOpt.get();
         
         // Chuyá»ƒn toÃ n bá»™ mÃ³n tá»« hÃ³a Ä‘Æ¡n cÅ© sang hÃ³a Ä‘Æ¡n má»›i
-        double transferSub = 0.0;
-        double transferTax = 0.0;
+        BigDecimal transferSub = BigDecimal.ZERO;
+        BigDecimal transferTax = BigDecimal.ZERO;
         if (sourceOrder.getOrderDetails() != null) {
             for (OrderDetail detail : sourceOrder.getOrderDetails()) {
                 detail.setOrder(targetOrder);
                 orderDetailRepository.save(detail);
-                transferSub += detail.getPrice() != null ? detail.getPrice() : 0.0;
-                transferTax += detail.getTaxAmount() != null ? detail.getTaxAmount() : 0.0;
+                transferSub = transferSub.add(money(detail.getPrice()));
+                transferTax = transferTax.add(money(detail.getTaxAmount()));
             }
         }
         
-        targetOrder.setSubTotal((targetOrder.getSubTotal() != null ? targetOrder.getSubTotal() : 0.0) + transferSub);
-        targetOrder.setTaxAmount((targetOrder.getTaxAmount() != null ? targetOrder.getTaxAmount() : 0.0) + transferTax);
-        targetOrder.setTotalAmount(targetOrder.getSubTotal() + targetOrder.getTaxAmount());
+        BigDecimal targetSubTotal = money(targetOrder.getSubTotal()).add(transferSub);
+        BigDecimal targetTaxAmount = money(targetOrder.getTaxAmount()).add(transferTax);
+        targetOrder.setSubTotal(targetSubTotal.doubleValue());
+        targetOrder.setTaxAmount(targetTaxAmount.doubleValue());
+        targetOrder.setTotalAmount(targetSubTotal.add(targetTaxAmount).doubleValue());
         orderRepository.save(targetOrder);
         
         // Há»§y hÃ³a Ä‘Æ¡n cÅ©
@@ -228,8 +232,8 @@ public class OrderController {
         }
         
         final Order finalTargetOrder = targetOrder;
-        double moveSub = 0.0;
-        double moveTax = 0.0;
+        BigDecimal moveSub = BigDecimal.ZERO;
+        BigDecimal moveTax = BigDecimal.ZERO;
         // Di chuyá»ƒn cÃ¡c order detail
         for (Integer detailId : detailIds) {
             Optional<OrderDetail> detailOpt = orderDetailRepository.findById(detailId);
@@ -238,20 +242,24 @@ public class OrderController {
                 if (detail.getOrder().getId().equals(sourceOrder.getId())) {
                     detail.setOrder(finalTargetOrder);
                     orderDetailRepository.save(detail);
-                    moveSub += detail.getPrice() != null ? detail.getPrice() : 0.0;
-                    moveTax += detail.getTaxAmount() != null ? detail.getTaxAmount() : 0.0;
+                    moveSub = moveSub.add(money(detail.getPrice()));
+                    moveTax = moveTax.add(money(detail.getTaxAmount()));
                 }
             }
         }
         
-        sourceOrder.setSubTotal(Math.max(0, (sourceOrder.getSubTotal() != null ? sourceOrder.getSubTotal() : 0.0) - moveSub));
-        sourceOrder.setTaxAmount(Math.max(0, (sourceOrder.getTaxAmount() != null ? sourceOrder.getTaxAmount() : 0.0) - moveTax));
-        sourceOrder.setTotalAmount(sourceOrder.getSubTotal() + sourceOrder.getTaxAmount());
+        BigDecimal sourceSubTotal = money(sourceOrder.getSubTotal()).subtract(moveSub).max(BigDecimal.ZERO);
+        BigDecimal sourceTaxAmount = money(sourceOrder.getTaxAmount()).subtract(moveTax).max(BigDecimal.ZERO);
+        sourceOrder.setSubTotal(sourceSubTotal.doubleValue());
+        sourceOrder.setTaxAmount(sourceTaxAmount.doubleValue());
+        sourceOrder.setTotalAmount(sourceSubTotal.add(sourceTaxAmount).doubleValue());
         orderRepository.save(sourceOrder);
         
-        finalTargetOrder.setSubTotal((finalTargetOrder.getSubTotal() != null ? finalTargetOrder.getSubTotal() : 0.0) + moveSub);
-        finalTargetOrder.setTaxAmount((finalTargetOrder.getTaxAmount() != null ? finalTargetOrder.getTaxAmount() : 0.0) + moveTax);
-        finalTargetOrder.setTotalAmount(finalTargetOrder.getSubTotal() + finalTargetOrder.getTaxAmount());
+        BigDecimal finalTargetSubTotal = money(finalTargetOrder.getSubTotal()).add(moveSub);
+        BigDecimal finalTargetTaxAmount = money(finalTargetOrder.getTaxAmount()).add(moveTax);
+        finalTargetOrder.setSubTotal(finalTargetSubTotal.doubleValue());
+        finalTargetOrder.setTaxAmount(finalTargetTaxAmount.doubleValue());
+        finalTargetOrder.setTotalAmount(finalTargetSubTotal.add(finalTargetTaxAmount).doubleValue());
         orderRepository.save(finalTargetOrder);
 
         // Náº¿u bÃ n nguá»“n khÃ´ng cÃ²n OrderDetail nÃ o, thÃ¬ Há»§y order Ä‘Ã³ vÃ  giáº£i phÃ³ng bÃ n
@@ -326,5 +334,9 @@ public class OrderController {
                 .anyMatch(o -> o.getAddress() != null && o.getAddress().contains(checkCode));
         } while (isDuplicate);
         return code;
+    }
+
+    private static BigDecimal money(Double value) {
+        return BigDecimal.valueOf(value == null ? 0.0 : value).setScale(2, RoundingMode.HALF_UP);
     }
 }
