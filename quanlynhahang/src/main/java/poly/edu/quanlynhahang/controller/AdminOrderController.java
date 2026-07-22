@@ -298,7 +298,8 @@ public class AdminOrderController {
         return orderRepository.findById(id).map(order -> {
             reverseOrderPointsIfAwarded(order, "ORDER_REFUNDED");
             order.setStatus(3);
-            Double refundAmount = (order.getDeposit() != null ? order.getDeposit() : 0.0) / 2.0;
+            BigDecimal refundAmount = money(order.getDeposit())
+                    .divide(BigDecimal.valueOf(2), 2, RoundingMode.HALF_UP);
             orderRepository.save(order);
             
             // Giải phóng bàn (nếu có)
