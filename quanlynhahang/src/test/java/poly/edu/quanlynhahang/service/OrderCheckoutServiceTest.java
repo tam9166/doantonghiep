@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 import poly.edu.quanlynhahang.dto.OrderDetailRequest;
 import poly.edu.quanlynhahang.dto.OrderRequest;
+import poly.edu.quanlynhahang.exception.InsufficientInventoryException;
 import poly.edu.quanlynhahang.entity.Ingredient;
 import poly.edu.quanlynhahang.entity.IngredientBatch;
 import poly.edu.quanlynhahang.entity.Order;
@@ -98,10 +99,10 @@ class OrderCheckoutServiceTest {
         when(recipeRepository.findByProduct(product)).thenReturn(List.of(recipe));
         when(batchRepository.findAvailableBatchesForUpdate(10L)).thenReturn(List.of(batch));
 
-        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+        InsufficientInventoryException error = assertThrows(InsufficientInventoryException.class,
                 () -> service.checkout(request(1, 1), "anonymousUser"));
 
-        assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
+        assertEquals(1, error.getShortages().size());
         verify(orderRepository, never()).save(any());
         verify(batchRepository, never()).saveAll(any());
     }

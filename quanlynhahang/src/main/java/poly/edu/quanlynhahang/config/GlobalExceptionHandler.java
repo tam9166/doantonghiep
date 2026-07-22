@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
 import poly.edu.quanlynhahang.dto.ApiErrorResponse;
+import poly.edu.quanlynhahang.exception.InsufficientInventoryException;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -86,6 +87,13 @@ public class GlobalExceptionHandler {
             DataIntegrityViolationException exception, HttpServletRequest request) {
         return response(HttpStatus.CONFLICT, "DATA_CONFLICT",
                 "Dữ liệu xung đột với trạng thái hiện tại.", request, Map.of());
+    }
+
+    @ExceptionHandler(InsufficientInventoryException.class)
+    public ResponseEntity<ApiErrorResponse> handleInsufficientInventory(
+            InsufficientInventoryException exception, HttpServletRequest request) {
+        return response(HttpStatus.CONFLICT, "INSUFFICIENT_INVENTORY",
+                "Insufficient inventory for this request.", request, exception.getShortages());
     }
 
     @ExceptionHandler({OptimisticLockException.class, ObjectOptimisticLockingFailureException.class})

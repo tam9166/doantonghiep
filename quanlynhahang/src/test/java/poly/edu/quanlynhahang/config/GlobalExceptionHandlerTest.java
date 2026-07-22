@@ -7,6 +7,9 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.server.ResponseStatusException;
 import poly.edu.quanlynhahang.dto.ApiErrorResponse;
+import poly.edu.quanlynhahang.exception.InsufficientInventoryException;
+
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -39,5 +42,17 @@ class GlobalExceptionHandlerTest {
 
         assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
         assertEquals("PERMISSION_DENIED", response.getBody().code());
+    }
+
+    @Test
+    void inventoryShortageReturnsConflictWithIngredientDetails() {
+        MockHttpServletRequest request = new MockHttpServletRequest("PUT", "/api/orders/7/add-items");
+
+        ResponseEntity<ApiErrorResponse> response = handler.handleInsufficientInventory(
+                new InsufficientInventoryException(Map.of("Thit bo", "required=2.0, available=1.0")), request);
+
+        assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+        assertEquals("INSUFFICIENT_INVENTORY", response.getBody().code());
+        assertEquals("required=2.0, available=1.0", response.getBody().fieldErrors().get("Thit bo"));
     }
 }

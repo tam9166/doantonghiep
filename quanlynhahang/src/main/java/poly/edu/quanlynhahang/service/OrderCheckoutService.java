@@ -7,6 +7,7 @@ import org.springframework.web.server.ResponseStatusException;
 import poly.edu.quanlynhahang.dto.OrderDetailRequest;
 import poly.edu.quanlynhahang.dto.OrderRequest;
 import poly.edu.quanlynhahang.dto.PaymentQrResponse;
+import poly.edu.quanlynhahang.exception.InsufficientInventoryException;
 import poly.edu.quanlynhahang.entity.Account;
 import poly.edu.quanlynhahang.entity.Ingredient;
 import poly.edu.quanlynhahang.entity.IngredientBatch;
@@ -366,6 +367,7 @@ public class OrderCheckoutService {
     private Map<Long, List<IngredientBatch>> lockAndValidateInventory(
             Map<Long, IngredientRequirement> requirements) {
         Map<Long, List<IngredientBatch>> result = new LinkedHashMap<>();
+        Map<String, String> shortages = new LinkedHashMap<>();
         requirements.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())
                 .forEach(entry -> {
@@ -376,12 +378,16 @@ public class OrderCheckoutService {
                             .filter(value -> value != null && value > 0)
                             .mapToDouble(Double::doubleValue)
                             .sum();
-                    if (available + 0.000001 < entry.getValue().amount()) {
-                        throw new ResponseStatusException(HttpStatus.CONFLICT,
-                                "Không đủ nguyên liệu: " + entry.getValue().ingredient().getName());
+                    IngredientRequirement requirement = entry.getValue();
+                    if (available + 0.000001 < requirement.amount()) {
+                        shortages.put(requirement.ingredient().getName(),
+                                "required=" + requirement.amount() + ", available=" + available);
                     }
                     result.put(entry.getKey(), batches);
                 });
+        if (!shortages.isEmpty()) {
+            throw new InsufficientInventoryException(shortages);
+        }
         return result;
     }
 
