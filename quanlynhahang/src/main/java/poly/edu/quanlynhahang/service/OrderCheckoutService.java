@@ -49,6 +49,7 @@ import java.util.Map;
 @Service
 public class OrderCheckoutService {
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
 
     private final OrderRepository orderRepository;
     private final OrderDetailRepository orderDetailRepository;
@@ -115,32 +116,34 @@ public class OrderCheckoutService {
         order.setPaidAmount(BigDecimal.ZERO);
         Order savedOrder = orderRepository.save(order);
 
-        double subTotal = 0.0;
-        double taxAmount = 0.0;
+        BigDecimal subTotal = BigDecimal.ZERO;
+        BigDecimal taxAmount = BigDecimal.ZERO;
+        BigDecimal discountMultiplier = BigDecimal.ONE.subtract(BigDecimal.valueOf(discountRate));
         for (CheckoutLine line : lines) {
             Product product = line.product();
-            double lineSubtotal = product.getPrice() * line.quantity() * (1.0 - discountRate);
-            double taxRate = product.getTaxRate() == null ? 8.0 : product.getTaxRate();
-            double lineTax = lineSubtotal * taxRate / 100.0;
+            BigDecimal lineSubtotal = money(product.getPrice()).multiply(BigDecimal.valueOf(line.quantity()))
+                    .multiply(discountMultiplier).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal taxRate = decimal(product.getTaxRate(), 8.0);
+            BigDecimal lineTax = lineSubtotal.multiply(taxRate).divide(HUNDRED, 2, RoundingMode.HALF_UP);
 
             OrderDetail detail = new OrderDetail();
             detail.setOrder(savedOrder);
             detail.setProduct(product);
             detail.setQuantity(line.quantity());
-            detail.setPrice(lineSubtotal);
-            detail.setTaxRate(taxRate);
-            detail.setTaxAmount(lineTax);
+            detail.setPrice(lineSubtotal.doubleValue());
+            detail.setTaxRate(taxRate.doubleValue());
+            detail.setTaxAmount(lineTax.doubleValue());
             detail.setStatus(0);
             orderDetailRepository.save(detail);
-            subTotal += lineSubtotal;
-            taxAmount += lineTax;
+            subTotal = subTotal.add(lineSubtotal);
+            taxAmount = taxAmount.add(lineTax);
         }
 
-        savedOrder.setSubTotal(subTotal);
-        savedOrder.setTaxAmount(taxAmount);
-        savedOrder.setTotalAmount(subTotal + taxAmount);
-        savedOrder.setRemainingAmount(BigDecimal.valueOf(savedOrder.getTotalAmount())
-                .setScale(0, RoundingMode.HALF_UP));
+        BigDecimal totalAmount = subTotal.add(taxAmount).setScale(2, RoundingMode.HALF_UP);
+        savedOrder.setSubTotal(subTotal.doubleValue());
+        savedOrder.setTaxAmount(taxAmount.doubleValue());
+        savedOrder.setTotalAmount(totalAmount.doubleValue());
+        savedOrder.setRemainingAmount(totalAmount.setScale(0, RoundingMode.HALF_UP));
         consumeInventory(requirements, lockedBatches);
         occupyDineInTable(savedOrder, request.getAddress(), orderCode, dineIn);
         orderRepository.save(savedOrder);
@@ -186,40 +189,42 @@ public class OrderCheckoutService {
         List<CheckoutLine> lines = loadProducts(quantities);
         Map<Long, IngredientRequirement> requirements = inventoryRequirements(lines);
         Map<Long, List<IngredientBatch>> lockedBatches = lockAndValidateInventory(requirements);
-        double subTotal = order.getSubTotal() == null ? 0.0 : order.getSubTotal();
-        double taxAmount = order.getTaxAmount() == null ? 0.0 : order.getTaxAmount();
+        BigDecimal subTotal = money(order.getSubTotal());
+        BigDecimal taxAmount = money(order.getTaxAmount());
         int addedItems = 0;
         for (CheckoutLine line : lines) {
             Product product = line.product();
-            double lineSubtotal = product.getPrice() * line.quantity();
-            double taxRate = product.getTaxRate() == null ? 8.0 : product.getTaxRate();
-            double lineTax = lineSubtotal * taxRate / 100.0;
+            BigDecimal lineSubtotal = money(product.getPrice()).multiply(BigDecimal.valueOf(line.quantity()))
+                    .setScale(2, RoundingMode.HALF_UP);
+            BigDecimal taxRate = decimal(product.getTaxRate(), 8.0);
+            BigDecimal lineTax = lineSubtotal.multiply(taxRate).divide(HUNDRED, 2, RoundingMode.HALF_UP);
             OrderDetail detail = new OrderDetail();
             detail.setOrder(order);
             detail.setProduct(product);
             detail.setQuantity(line.quantity());
-            detail.setPrice(lineSubtotal);
-            detail.setTaxRate(taxRate);
-            detail.setTaxAmount(lineTax);
+            detail.setPrice(lineSubtotal.doubleValue());
+            detail.setTaxRate(taxRate.doubleValue());
+            detail.setTaxAmount(lineTax.doubleValue());
             detail.setStatus(0);
             orderDetailRepository.save(detail);
-            subTotal += lineSubtotal;
-            taxAmount += lineTax;
+            subTotal = subTotal.add(lineSubtotal);
+            taxAmount = taxAmount.add(lineTax);
             addedItems += line.quantity();
         }
         consumeInventory(requirements, lockedBatches);
-        order.setSubTotal(subTotal);
-        order.setTaxAmount(taxAmount);
-        order.setTotalAmount(subTotal + taxAmount);
+        BigDecimal totalAmount = subTotal.add(taxAmount).setScale(2, RoundingMode.HALF_UP);
+        order.setSubTotal(subTotal.doubleValue());
+        order.setTaxAmount(taxAmount.doubleValue());
+        order.setTotalAmount(totalAmount.doubleValue());
         orderRepository.save(order);
         OrderItemOperation operation = new OrderItemOperation();
         operation.setOrderId(orderId);
         operation.setIdempotencyKey(normalizedIdempotencyKey);
         operation.setRequestHash(requestHash);
         operation.setAddedItems(addedItems);
-        operation.setSubTotal(BigDecimal.valueOf(order.getSubTotal()));
-        operation.setTaxAmount(BigDecimal.valueOf(order.getTaxAmount()));
-        operation.setTotalAmount(BigDecimal.valueOf(order.getTotalAmount()));
+        operation.setSubTotal(subTotal);
+        operation.setTaxAmount(taxAmount);
+        operation.setTotalAmount(totalAmount);
         orderItemOperationRepository.save(operation);
         activityLogService.log("UPDATE", "Order", String.valueOf(orderId), "Them mon vao don hang");
         return new AddItemsResult(order.getId(), addedItems, order.getSubTotal(), order.getTaxAmount(), order.getTotalAmount());
@@ -234,6 +239,14 @@ public class OrderCheckoutService {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "IDEMPOTENCY_KEY_INVALID");
         }
         return normalized;
+    }
+
+    private BigDecimal money(Double value) {
+        return decimal(value, 0.0).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal decimal(Double value, double fallback) {
+        return BigDecimal.valueOf(value == null ? fallback : value);
     }
 
     private String addItemsRequestHash(Integer orderId, Map<Integer, Integer> quantities) {

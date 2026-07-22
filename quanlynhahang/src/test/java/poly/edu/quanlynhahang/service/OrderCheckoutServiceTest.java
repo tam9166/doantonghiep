@@ -140,6 +140,25 @@ class OrderCheckoutServiceTest {
     }
 
     @Test
+    void roundsDecimalTaxBeforePersistingOrderTotals() {
+        Product product = product(1, 0.10);
+        product.setTaxRate(8.0);
+        when(productRepository.findById(1)).thenReturn(Optional.of(product));
+        when(recipeRepository.findByProduct(product)).thenReturn(List.of());
+        when(orderRepository.save(any())).thenAnswer(invocation -> {
+            Order order = invocation.getArgument(0);
+            order.setId(23);
+            return order;
+        });
+
+        OrderCheckoutService.CheckoutResult result = service.checkout(request(1, 3), "anonymousUser");
+
+        assertEquals(0.30, result.subTotal());
+        assertEquals(0.02, result.taxAmount());
+        assertEquals(0.32, result.totalAmount());
+    }
+
+    @Test
     void addItemsLocksOrderAndValidatesInventoryBeforeWritingDetails() {
         Order order = new Order();
         order.setId(22);
