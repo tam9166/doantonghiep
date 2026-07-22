@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestBody;
 
 import poly.edu.quanlynhahang.entity.Order;
+import poly.edu.quanlynhahang.dto.OrderResponse;
 import poly.edu.quanlynhahang.entity.PointsEventType;
 import poly.edu.quanlynhahang.entity.PaymentStatus;
 import poly.edu.quanlynhahang.entity.OrderPaymentOption;
@@ -64,7 +65,7 @@ public class AdminOrderController {
         List<Order> orders = orderRepository.findAllWithDetails().stream()
                 .sorted((o1, o2) -> o2.getId().compareTo(o1.getId()))
                 .collect(Collectors.toList());
-        return ResponseEntity.ok(orders);
+        return ResponseEntity.ok(orders.stream().map(OrderResponse::from).toList());
     }
 
     // THỐNG KÊ (Khóa lại chỉ cho Quản lý xem)
@@ -201,7 +202,7 @@ public class AdminOrderController {
             activityLogService.log("MANUAL_PAYMENT_CONFIRM", "Order", String.valueOf(id),
                     "Thu ngân/quản lý xác nhận thanh toán thủ công");
             messagingTemplate.convertAndSend("/topic/waiter", "ORDER_PAID");
-            return ResponseEntity.ok(order);
+            return ResponseEntity.ok(OrderResponse.from(order));
         }
         return ResponseEntity.badRequest().body("Đơn hàng không tồn tại!");
     }

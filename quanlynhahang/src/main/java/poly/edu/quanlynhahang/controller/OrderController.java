@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 import jakarta.validation.Valid;
 import poly.edu.quanlynhahang.dto.OrderDetailRequest;
 import poly.edu.quanlynhahang.dto.OrderRequest;
+import poly.edu.quanlynhahang.dto.OrderResponse;
 import poly.edu.quanlynhahang.entity.Account;
 import poly.edu.quanlynhahang.entity.Order;
 import poly.edu.quanlynhahang.entity.OrderDetail;
@@ -55,7 +56,8 @@ public class OrderController {
     @GetMapping("/history")
     public ResponseEntity<?> getMyOrders() {
         String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
-        return ResponseEntity.ok(orderRepository.findByAccountUsername(currentUsername));
+        return ResponseEntity.ok(orderRepository.findByAccountUsername(currentUsername).stream()
+                .map(OrderResponse::from).toList());
     }
 
     @PostMapping("/guest-booking")

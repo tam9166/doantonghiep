@@ -20,6 +20,7 @@ import poly.edu.quanlynhahang.entity.Account;
 import poly.edu.quanlynhahang.entity.Authority;
 import poly.edu.quanlynhahang.dto.CreateStaffRequest;
 import poly.edu.quanlynhahang.dto.UpdateStaffRequest;
+import poly.edu.quanlynhahang.dto.OrderResponse;
 import poly.edu.quanlynhahang.repository.AccountRepository;
 import poly.edu.quanlynhahang.service.StaffAccountService;
 
@@ -133,6 +134,7 @@ public class AdminAccountController {
     // 6. Xem lịch sử hóa đơn của khách hàng
     @GetMapping("/customers/{username}/orders")
     public ResponseEntity<?> getCustomerOrders(@PathVariable String username) {
-        return ResponseEntity.ok(orderRepository.findByAccountUsername(username));
+        return ResponseEntity.ok(orderRepository.findByAccountUsername(username).stream()
+                .map(OrderResponse::from).toList());
     }
 }
