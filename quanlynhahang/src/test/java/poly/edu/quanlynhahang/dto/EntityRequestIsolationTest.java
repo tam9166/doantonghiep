@@ -6,10 +6,12 @@ import poly.edu.quanlynhahang.controller.AdminProductController;
 import poly.edu.quanlynhahang.controller.AdminTableController;
 import poly.edu.quanlynhahang.controller.CategoryController;
 import poly.edu.quanlynhahang.controller.RestaurantTableController;
+import poly.edu.quanlynhahang.controller.VoucherController;
 import poly.edu.quanlynhahang.entity.Category;
 import poly.edu.quanlynhahang.entity.Post;
 import poly.edu.quanlynhahang.entity.Product;
 import poly.edu.quanlynhahang.entity.RestaurantTable;
+import poly.edu.quanlynhahang.entity.Voucher;
 import tools.jackson.databind.ObjectMapper;
 
 import java.lang.reflect.Method;
@@ -40,6 +42,7 @@ class EntityRequestIsolationTest {
                 "addTable", RestaurantTableUpsertRequest.class), RestaurantTable.class);
         assertRequestType(AdminTableController.class.getMethod(
                 "updateTable", Integer.class, RestaurantTableUpsertRequest.class), RestaurantTable.class);
+        assertRequestType(VoucherController.class.getMethod("adminCreateVoucher", VoucherUpsertRequest.class), Voucher.class);
     }
 
     @Test

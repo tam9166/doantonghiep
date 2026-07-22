@@ -5,6 +5,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
+import poly.edu.quanlynhahang.dto.VoucherResponse;
+import poly.edu.quanlynhahang.dto.VoucherUpsertRequest;
 import poly.edu.quanlynhahang.entity.Account;
 import poly.edu.quanlynhahang.entity.Voucher;
 import poly.edu.quanlynhahang.repository.AccountRepository;
@@ -33,7 +36,7 @@ public class VoucherController {
     @GetMapping("/admin")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     public ResponseEntity<?> getAllVouchers() {
-        return ResponseEntity.ok(voucherRepository.findAll());
+        return ResponseEntity.ok(voucherRepository.findAll().stream().map(VoucherResponse::from).toList());
     }
 
     // User: Get my active vouchers
@@ -41,7 +44,7 @@ public class VoucherController {
     public ResponseEntity<?> getMyVouchers() {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         List<Voucher> myVouchers = voucherRepository.findByAccountUsername(username);
-        return ResponseEntity.ok(myVouchers);
+        return ResponseEntity.ok(myVouchers.stream().map(VoucherResponse::from).toList());
     }
 
     // Reward selection, daily limit and eligibility are controlled entirely by the backend.
@@ -55,25 +58,29 @@ public class VoucherController {
     // Admin: Manually create voucher
     @PostMapping("/admin/create")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
-    public ResponseEntity<?> adminCreateVoucher(@RequestBody Voucher voucherRequest) {
-        if (voucherRequest.getCode() == null || voucherRequest.getCode().isEmpty()) {
-            voucherRequest.setCode("CODE-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+    public ResponseEntity<?> adminCreateVoucher(@Valid @RequestBody VoucherUpsertRequest request) {
+        Voucher voucher = new Voucher();
+        if (request.code() == null || request.code().isBlank()) {
+            voucher.setCode("CODE-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+        } else {
+            voucher.setCode(request.code().trim());
         }
-        voucherRequest.setCreateDate(new Date());
-        voucherRequest.setIsUsed(false);
+        voucher.setDiscountPercent(request.discountPercent());
+        voucher.setCreateDate(new Date());
+        voucher.setIsUsed(false);
         
         // Nếu admin chỉ định user cụ thể
-        if (voucherRequest.getAccount() != null && voucherRequest.getAccount().getUsername() != null) {
-            Optional<Account> accOpt = accountRepository.findById(voucherRequest.getAccount().getUsername());
+        if (request.account() != null) {
+            Optional<Account> accOpt = accountRepository.findById(request.account().username().trim());
             if (accOpt.isPresent()) {
-                voucherRequest.setAccount(accOpt.get());
+                voucher.setAccount(accOpt.get());
             } else {
-                voucherRequest.setAccount(null);
+                return ResponseEntity.unprocessableEntity().body(Map.of("code", "ACCOUNT_NOT_FOUND"));
             }
         }
 
-        Voucher saved = voucherRepository.save(voucherRequest);
-        return ResponseEntity.ok(saved);
+        Voucher saved = voucherRepository.save(voucher);
+        return ResponseEntity.ok(VoucherResponse.from(saved));
     }
 
     // Check voucher validity

@@ -19,14 +19,14 @@ import poly.edu.quanlynhahang.controller.VoucherController;
 import poly.edu.quanlynhahang.dto.OrderRequest;
 import poly.edu.quanlynhahang.dto.AiRequest;
 import poly.edu.quanlynhahang.dto.CategoryUpsertRequest;
-import poly.edu.quanlynhahang.entity.Voucher;
+import poly.edu.quanlynhahang.dto.VoucherUpsertRequest;
 
 class EndpointAuthorizationMatrixTest {
 
     @Test
     void voucherAdminEndpointsOnlyAllowAdminOrManager() throws Exception {
         assertRoles(VoucherController.class.getMethod("getAllVouchers"), "ADMIN", "MANAGER");
-        assertRoles(VoucherController.class.getMethod("adminCreateVoucher", Voucher.class), "ADMIN", "MANAGER");
+        assertRoles(VoucherController.class.getMethod("adminCreateVoucher", VoucherUpsertRequest.class), "ADMIN", "MANAGER");
     }
 
     @Test
