@@ -9,6 +9,7 @@ import poly.edu.quanlynhahang.repository.ReviewRepository;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
+import java.math.BigDecimal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -52,7 +53,8 @@ class ProductControllerPrivacyTest {
         assertEquals(1, response.size());
         assertEquals(4.3, response.getFirst().averageRating());
         assertEquals("Mon chinh", response.getFirst().category().name());
-        assertTrue(json.contains("\"price\":125000.0"));
+        assertEquals(new BigDecimal("125000.00"), response.getFirst().price());
+        assertTrue(json.contains("\"price\":125000.00"));
         assertFalse(json.contains("costPrice"));
         assertFalse(json.contains("createDate"));
         assertFalse(json.contains("recipe"));

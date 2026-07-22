@@ -1,12 +1,15 @@
 package poly.edu.quanlynhahang.dto;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
 import poly.edu.quanlynhahang.entity.Category;
 import poly.edu.quanlynhahang.entity.Product;
 
 public record PublicProductResponse(
         Integer id,
         String name,
-        Double price,
+        BigDecimal price,
         Double taxRate,
         String image,
         String description,
@@ -19,7 +22,7 @@ public record PublicProductResponse(
         return new PublicProductResponse(
                 product.getId(),
                 product.getName(),
-                product.getPrice(),
+                money(product.getPrice()),
                 product.getTaxRate(),
                 product.getImage(),
                 product.getDescription(),
@@ -33,5 +36,9 @@ public record PublicProductResponse(
         private static CategorySummary from(Category category) {
             return category == null ? null : new CategorySummary(category.getId(), category.getName());
         }
+    }
+
+    private static BigDecimal money(Double value) {
+        return value == null ? null : BigDecimal.valueOf(value).setScale(2, RoundingMode.HALF_UP);
     }
 }
