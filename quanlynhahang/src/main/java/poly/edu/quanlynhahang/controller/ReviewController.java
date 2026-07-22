@@ -13,12 +13,15 @@ import poly.edu.quanlynhahang.repository.OrderDetailRepository;
 import poly.edu.quanlynhahang.repository.ProductRepository;
 import poly.edu.quanlynhahang.repository.ReviewRepository;
 import poly.edu.quanlynhahang.entity.PointsEventType;
+import poly.edu.quanlynhahang.dto.ReviewCreateRequest;
+import poly.edu.quanlynhahang.dto.ReviewResponse;
 import poly.edu.quanlynhahang.service.PointsLedgerService;
 
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import jakarta.validation.Valid;
 @RestController
 @RequestMapping("/api/reviews")
 public class ReviewController {
@@ -39,14 +42,15 @@ public class ReviewController {
         List<Review> reviews = reviewRepository.findByProductIdOrderByCreateDateDesc(productId);
         Double avg = reviewRepository.getAverageRatingByProductId(productId);
         return ResponseEntity.ok(Map.of(
-            "reviews", reviews,
+            "reviews", reviews.stream().map(ReviewResponse::from).toList(),
             "averageRating", avg != null ? avg : 0.0
         ));
     }
 
     @PostMapping("/product/{productId}")
     @Transactional
-    public ResponseEntity<?> addReview(@PathVariable Integer productId, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> addReview(@PathVariable Integer productId,
+                                       @Valid @RequestBody ReviewCreateRequest request) {
         String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
         Optional<Account> accountOpt = accountRepository.findById(currentUsername);
         Optional<Product> productOpt = productRepository.findById(productId);
@@ -55,7 +59,7 @@ public class ReviewController {
             return ResponseEntity.badRequest().body("Lỗi thông tin!");
         }
 
-        Object ratingValue = payload.get("rating");
+        Object ratingValue = request.rating();
         if (!(ratingValue instanceof Number) || ((Number) ratingValue).intValue() < 1
                 || ((Number) ratingValue).intValue() > 5) {
             return ResponseEntity.badRequest().body("Điểm đánh giá phải từ 1 đến 5");
@@ -68,10 +72,10 @@ public class ReviewController {
         if (existing.isPresent()) {
             Review review = existing.get();
             review.setRating(((Number) ratingValue).intValue());
-            review.setComment((String) payload.get("comment"));
+            review.setComment(request.comment() == null ? null : request.comment().trim());
             review.setCreateDate(new Date());
             return ResponseEntity.ok(Map.of(
-                    "review", reviewRepository.save(review),
+                    "review", ReviewResponse.from(reviewRepository.save(review)),
                     "message", "Đã cập nhật đánh giá. Điểm thưởng không được cộng lại."
             ));
         }
@@ -80,7 +84,7 @@ public class ReviewController {
         review.setAccount(accountOpt.get());
         review.setProduct(productOpt.get());
         review.setRating(((Number) ratingValue).intValue());
-        review.setComment((String) payload.get("comment"));
+        review.setComment(request.comment() == null ? null : request.comment().trim());
         review.setCreateDate(new Date());
 
         Review saved = reviewRepository.save(review);
@@ -92,7 +96,7 @@ public class ReviewController {
                 "Thưởng điểm đánh giá sản phẩm #" + productId);
 
         return ResponseEntity.ok(Map.of(
-            "review", saved,
+            "review", ReviewResponse.from(saved),
             "message", "Cảm ơn bạn đã đánh giá! Bạn được cộng +2 Điểm thưởng."
         ));
     }

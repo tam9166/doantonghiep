@@ -6,11 +6,13 @@ import poly.edu.quanlynhahang.controller.AdminProductController;
 import poly.edu.quanlynhahang.controller.AdminTableController;
 import poly.edu.quanlynhahang.controller.CategoryController;
 import poly.edu.quanlynhahang.controller.RestaurantTableController;
+import poly.edu.quanlynhahang.controller.ReviewController;
 import poly.edu.quanlynhahang.controller.VoucherController;
 import poly.edu.quanlynhahang.entity.Category;
 import poly.edu.quanlynhahang.entity.Post;
 import poly.edu.quanlynhahang.entity.Product;
 import poly.edu.quanlynhahang.entity.RestaurantTable;
+import poly.edu.quanlynhahang.entity.Review;
 import poly.edu.quanlynhahang.entity.Voucher;
 import tools.jackson.databind.ObjectMapper;
 
@@ -43,6 +45,7 @@ class EntityRequestIsolationTest {
         assertRequestType(AdminTableController.class.getMethod(
                 "updateTable", Integer.class, RestaurantTableUpsertRequest.class), RestaurantTable.class);
         assertRequestType(VoucherController.class.getMethod("adminCreateVoucher", VoucherUpsertRequest.class), Voucher.class);
+        assertRequestType(ReviewController.class.getMethod("addReview", Integer.class, ReviewCreateRequest.class), Review.class);
     }
 
     @Test
@@ -83,7 +86,8 @@ class EntityRequestIsolationTest {
     }
 
     private boolean isUpsertRequest(Class<?> type) {
-        return type.getSimpleName().endsWith("UpsertRequest");
+        return type.getSimpleName().endsWith("UpsertRequest")
+                || type.getSimpleName().endsWith("CreateRequest");
     }
 
     private Set<String> componentNames(Class<?> recordType) {
