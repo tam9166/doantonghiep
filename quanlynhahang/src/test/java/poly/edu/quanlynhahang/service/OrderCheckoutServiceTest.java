@@ -9,12 +9,14 @@ import poly.edu.quanlynhahang.entity.Ingredient;
 import poly.edu.quanlynhahang.entity.IngredientBatch;
 import poly.edu.quanlynhahang.entity.Order;
 import poly.edu.quanlynhahang.entity.OrderDetail;
+import poly.edu.quanlynhahang.entity.OrderItemOperation;
 import poly.edu.quanlynhahang.entity.Product;
 import poly.edu.quanlynhahang.entity.Recipe;
 import poly.edu.quanlynhahang.repository.AccountRepository;
 import poly.edu.quanlynhahang.repository.IngredientBatchRepository;
 import poly.edu.quanlynhahang.repository.IngredientRepository;
 import poly.edu.quanlynhahang.repository.OrderDetailRepository;
+import poly.edu.quanlynhahang.repository.OrderItemOperationRepository;
 import poly.edu.quanlynhahang.repository.OrderRepository;
 import poly.edu.quanlynhahang.repository.ProductRepository;
 import poly.edu.quanlynhahang.repository.RecipeRepository;
@@ -35,6 +37,7 @@ import static org.mockito.Mockito.when;
 class OrderCheckoutServiceTest {
     private final OrderRepository orderRepository = mock(OrderRepository.class);
     private final OrderDetailRepository orderDetailRepository = mock(OrderDetailRepository.class);
+    private final OrderItemOperationRepository orderItemOperationRepository = mock(OrderItemOperationRepository.class);
     private final ProductRepository productRepository = mock(ProductRepository.class);
     private final AccountRepository accountRepository = mock(AccountRepository.class);
     private final RestaurantTableRepository tableRepository = mock(RestaurantTableRepository.class);
@@ -48,6 +51,7 @@ class OrderCheckoutServiceTest {
     private final OrderCheckoutService service = new OrderCheckoutService(
             orderRepository,
             orderDetailRepository,
+            orderItemOperationRepository,
             productRepository,
             accountRepository,
             tableRepository,
@@ -151,7 +155,7 @@ class OrderCheckoutServiceTest {
         when(batchRepository.findAvailableBatchesForUpdate(10L)).thenReturn(List.of(batch));
         when(orderRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        OrderCheckoutService.AddItemsResult result = service.addItems(22, request(1, 2));
+        OrderCheckoutService.AddItemsResult result = service.addItems(22, request(1, 2), "add-item-key-001");
 
         assertEquals(2, result.addedItems());
         assertEquals(200_000.0, result.subTotal());
@@ -161,6 +165,31 @@ class OrderCheckoutServiceTest {
         verify(orderRepository).findLockedById(22);
         verify(orderDetailRepository).save(any(OrderDetail.class));
         verify(batchRepository).saveAll(List.of(batch));
+        verify(orderItemOperationRepository).save(any(OrderItemOperation.class));
+    }
+
+    @Test
+    void addItemsReturnsStoredResultForTheSameIdempotencyKey() {
+        Order order = new Order();
+        order.setId(22);
+        OrderItemOperation operation = new OrderItemOperation();
+        operation.setOrderId(22);
+        operation.setIdempotencyKey("add-item-key-001");
+        operation.setRequestHash("7acaa2e3bafe499aedd41ea9500f071b2c661bfe50ad8a07ccb3953cf836fcdc");
+        operation.setAddedItems(2);
+        operation.setSubTotal(200_000.0);
+        operation.setTaxAmount(16_000.0);
+        operation.setTotalAmount(216_000.0);
+        when(orderRepository.findLockedById(22)).thenReturn(Optional.of(order));
+        when(orderItemOperationRepository.findByOrderIdAndIdempotencyKey(22, "add-item-key-001"))
+                .thenReturn(Optional.of(operation));
+
+        OrderCheckoutService.AddItemsResult result = service.addItems(22, request(1, 2), "add-item-key-001");
+
+        assertEquals(2, result.addedItems());
+        assertEquals(216_000.0, result.totalAmount());
+        verify(orderDetailRepository, never()).save(any());
+        verify(batchRepository, never()).saveAll(any());
     }
 
     private OrderRequest request(int productId, int quantity) {

@@ -12,6 +12,7 @@ import poly.edu.quanlynhahang.entity.Ingredient;
 import poly.edu.quanlynhahang.entity.IngredientBatch;
 import poly.edu.quanlynhahang.entity.Order;
 import poly.edu.quanlynhahang.entity.OrderDetail;
+import poly.edu.quanlynhahang.entity.OrderItemOperation;
 import poly.edu.quanlynhahang.entity.Product;
 import poly.edu.quanlynhahang.entity.OrderPaymentOption;
 import poly.edu.quanlynhahang.entity.PaymentStatus;
@@ -22,6 +23,7 @@ import poly.edu.quanlynhahang.repository.AccountRepository;
 import poly.edu.quanlynhahang.repository.IngredientBatchRepository;
 import poly.edu.quanlynhahang.repository.IngredientRepository;
 import poly.edu.quanlynhahang.repository.OrderDetailRepository;
+import poly.edu.quanlynhahang.repository.OrderItemOperationRepository;
 import poly.edu.quanlynhahang.repository.OrderRepository;
 import poly.edu.quanlynhahang.repository.ProductRepository;
 import poly.edu.quanlynhahang.repository.RecipeRepository;
@@ -29,11 +31,15 @@ import poly.edu.quanlynhahang.repository.RestaurantTableRepository;
 import poly.edu.quanlynhahang.repository.VoucherRepository;
 
 import java.security.SecureRandom;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.nio.charset.StandardCharsets;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -45,6 +51,7 @@ public class OrderCheckoutService {
 
     private final OrderRepository orderRepository;
     private final OrderDetailRepository orderDetailRepository;
+    private final OrderItemOperationRepository orderItemOperationRepository;
     private final ProductRepository productRepository;
     private final AccountRepository accountRepository;
     private final RestaurantTableRepository tableRepository;
@@ -57,6 +64,7 @@ public class OrderCheckoutService {
 
     public OrderCheckoutService(OrderRepository orderRepository,
                                 OrderDetailRepository orderDetailRepository,
+                                OrderItemOperationRepository orderItemOperationRepository,
                                 ProductRepository productRepository,
                                 AccountRepository accountRepository,
                                 RestaurantTableRepository tableRepository,
@@ -68,6 +76,7 @@ public class OrderCheckoutService {
                                 OrderPaymentService orderPaymentService) {
         this.orderRepository = orderRepository;
         this.orderDetailRepository = orderDetailRepository;
+        this.orderItemOperationRepository = orderItemOperationRepository;
         this.productRepository = productRepository;
         this.accountRepository = accountRepository;
         this.tableRepository = tableRepository;
@@ -150,15 +159,30 @@ public class OrderCheckoutService {
     }
 
     @Transactional
-    public AddItemsResult addItems(Integer orderId, OrderRequest request) {
+    public AddItemsResult addItems(Integer orderId, OrderRequest request, String idempotencyKey) {
         validateRequest(request);
+        String normalizedIdempotencyKey = normalizeIdempotencyKey(idempotencyKey);
+        Map<Integer, Integer> quantities = normalizeQuantities(request.getItems());
         Order order = orderRepository.findLockedById(orderId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+        String requestHash = addItemsRequestHash(orderId, quantities);
+        var existingOperation = orderItemOperationRepository
+                .findByOrderIdAndIdempotencyKey(orderId, normalizedIdempotencyKey);
+        if (existingOperation.isPresent()) {
+            OrderItemOperation operation = existingOperation.get();
+            if (!MessageDigest.isEqual(operation.getRequestHash().getBytes(StandardCharsets.US_ASCII),
+                    requestHash.getBytes(StandardCharsets.US_ASCII))) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Idempotency key has already been used for a different request");
+            }
+            return new AddItemsResult(orderId, operation.getAddedItems(), operation.getSubTotal(),
+                    operation.getTaxAmount(), operation.getTotalAmount());
+        }
         if (Boolean.TRUE.equals(order.getIsPaid()) || Integer.valueOf(3).equals(order.getStatus())
                 || Integer.valueOf(4).equals(order.getStatus())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Order cannot accept more items");
         }
-        List<CheckoutLine> lines = loadProducts(normalizeQuantities(request.getItems()));
+        List<CheckoutLine> lines = loadProducts(quantities);
         Map<Long, IngredientRequirement> requirements = inventoryRequirements(lines);
         Map<Long, List<IngredientBatch>> lockedBatches = lockAndValidateInventory(requirements);
         double subTotal = order.getSubTotal() == null ? 0.0 : order.getSubTotal();
@@ -187,8 +211,41 @@ public class OrderCheckoutService {
         order.setTaxAmount(taxAmount);
         order.setTotalAmount(subTotal + taxAmount);
         orderRepository.save(order);
+        OrderItemOperation operation = new OrderItemOperation();
+        operation.setOrderId(orderId);
+        operation.setIdempotencyKey(normalizedIdempotencyKey);
+        operation.setRequestHash(requestHash);
+        operation.setAddedItems(addedItems);
+        operation.setSubTotal(order.getSubTotal());
+        operation.setTaxAmount(order.getTaxAmount());
+        operation.setTotalAmount(order.getTotalAmount());
+        orderItemOperationRepository.save(operation);
         activityLogService.log("UPDATE", "Order", String.valueOf(orderId), "Them mon vao don hang");
         return new AddItemsResult(order.getId(), addedItems, order.getSubTotal(), order.getTaxAmount(), order.getTotalAmount());
+    }
+
+    private String normalizeIdempotencyKey(String idempotencyKey) {
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "IDEMPOTENCY_KEY_REQUIRED");
+        }
+        String normalized = idempotencyKey.trim();
+        if (normalized.length() < 8 || normalized.length() > 100) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "IDEMPOTENCY_KEY_INVALID");
+        }
+        return normalized;
+    }
+
+    private String addItemsRequestHash(Integer orderId, Map<Integer, Integer> quantities) {
+        String payload = quantities.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(entry -> entry.getKey() + ":" + entry.getValue())
+                .reduce("ADD_ITEMS|" + orderId, (left, right) -> left + "|" + right);
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+                    .digest(payload.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 is unavailable", exception);
+        }
     }
 
     private Map<Integer, Integer> normalizeQuantities(List<OrderDetailRequest> items) {

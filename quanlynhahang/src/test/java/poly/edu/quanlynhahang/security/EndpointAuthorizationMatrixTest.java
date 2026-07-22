@@ -39,7 +39,7 @@ class EndpointAuthorizationMatrixTest {
 
     @Test
     void operationalOrderEndpointsExcludeCustomer() throws Exception {
-        assertRoles(OrderController.class.getMethod("addItemsToOrder", Integer.class, OrderRequest.class),
+        assertRoles(OrderController.class.getMethod("addItemsToOrder", Integer.class, OrderRequest.class, String.class),
                 "WAITER", "CASHIER", "MANAGER", "ADMIN");
         assertRoles(OrderController.class.getMethod("mergeTables", Map.class),
                 "WAITER", "CASHIER", "MANAGER", "ADMIN");
