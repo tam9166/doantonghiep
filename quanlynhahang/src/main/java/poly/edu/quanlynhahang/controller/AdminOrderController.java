@@ -1,5 +1,7 @@
 package poly.edu.quanlynhahang.controller;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
@@ -77,11 +79,11 @@ public class AdminOrderController {
         List<Order> completedOrders = allOrders.stream()
                 .filter(o -> o.getStatus() != null && o.getStatus() == 4)
                 .collect(Collectors.toList());
-        double totalRevenue = 0;
+        BigDecimal totalRevenue = BigDecimal.ZERO;
         int totalItemsSold = 0;
         for (Order order : completedOrders) {
             if (order.getOrderDetails() != null) {
-                totalRevenue += order.getTotalAmount() != null && order.getTotalAmount() > 0 ? order.getTotalAmount() : order.getOrderDetails().stream().mapToDouble(d -> (d.getPrice() != null ? d.getPrice() : 0) + (d.getTaxAmount() != null ? d.getTaxAmount() : 0)).sum();
+                totalRevenue = totalRevenue.add(orderTotal(order));
                 totalItemsSold += order.getOrderDetails().stream().mapToInt(d -> d.getQuantity()).sum();
             }
         }
@@ -102,13 +104,12 @@ public class AdminOrderController {
                 .collect(Collectors.toList());
 
         // 1. Doanh thu 7 ngày qua
-        Map<String, Double> revenueByDate = new HashMap<>();
+        Map<String, BigDecimal> revenueByDate = new HashMap<>();
         SimpleDateFormat sdf = new SimpleDateFormat("dd/MM");
         for (Order o : completedOrders) {
             if (o.getCreateDate() != null && o.getOrderDetails() != null) {
                 String dateStr = sdf.format(o.getCreateDate());
-                double rev = o.getTotalAmount() != null && o.getTotalAmount() > 0 ? o.getTotalAmount() : o.getOrderDetails().stream().mapToDouble(d -> (d.getPrice() != null ? d.getPrice() : 0) + (d.getTaxAmount() != null ? d.getTaxAmount() : 0)).sum();
-                revenueByDate.put(dateStr, revenueByDate.getOrDefault(dateStr, 0.0) + rev);
+                revenueByDate.merge(dateStr, orderTotal(o), BigDecimal::add);
             }
         }
 
@@ -244,8 +245,9 @@ public class AdminOrderController {
         if (order.getAccount() == null) {
             return;
         }
-        double total = order.getTotalAmount() == null ? 0.0 : order.getTotalAmount();
-        int points = (int) Math.floor(total / 10_000.0);
+        int points = money(order.getTotalAmount())
+                .divideToIntegralValue(BigDecimal.valueOf(10_000))
+                .intValue();
         if (points > 0) {
             pointsLedgerService.credit(
                     order.getAccount().getUsername(),
@@ -257,6 +259,19 @@ public class AdminOrderController {
     }
 
     // 🌟 API MỚI: CHUYỂN BÀN (Cập nhật địa chỉ đơn hàng)
+    private BigDecimal orderTotal(Order order) {
+        if (order.getTotalAmount() != null && order.getTotalAmount() > 0) {
+            return money(order.getTotalAmount());
+        }
+        return order.getOrderDetails().stream()
+                .map(detail -> money(detail.getPrice()).add(money(detail.getTaxAmount())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private BigDecimal money(Double value) {
+        return BigDecimal.valueOf(value == null ? 0.0 : value).setScale(2, RoundingMode.HALF_UP);
+    }
+
     @PutMapping("/{id}/address")
     public ResponseEntity<?> updateOrderAddress(@PathVariable Integer id, @RequestParam String newAddress) {
         return orderRepository.findById(id).map(order -> {
