@@ -10,6 +10,7 @@ import jakarta.persistence.Temporal;
 import jakarta.persistence.TemporalType;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.util.Date;
 
 @Data
@@ -33,13 +34,13 @@ public class OrderItemOperation {
     private Integer addedItems;
 
     @Column(name = "sub_total", nullable = false)
-    private Double subTotal;
+    private BigDecimal subTotal;
 
     @Column(name = "tax_amount", nullable = false)
-    private Double taxAmount;
+    private BigDecimal taxAmount;
 
     @Column(name = "total_amount", nullable = false)
-    private Double totalAmount;
+    private BigDecimal totalAmount;
 
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "created_at", nullable = false)

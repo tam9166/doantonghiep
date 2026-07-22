@@ -175,8 +175,8 @@ public class OrderCheckoutService {
                 throw new ResponseStatusException(HttpStatus.CONFLICT,
                         "Idempotency key has already been used for a different request");
             }
-            return new AddItemsResult(orderId, operation.getAddedItems(), operation.getSubTotal(),
-                    operation.getTaxAmount(), operation.getTotalAmount());
+            return new AddItemsResult(orderId, operation.getAddedItems(), operation.getSubTotal().doubleValue(),
+                    operation.getTaxAmount().doubleValue(), operation.getTotalAmount().doubleValue());
         }
         if (Boolean.TRUE.equals(order.getIsPaid()) || Integer.valueOf(3).equals(order.getStatus())
                 || Integer.valueOf(4).equals(order.getStatus())) {
@@ -216,9 +216,9 @@ public class OrderCheckoutService {
         operation.setIdempotencyKey(normalizedIdempotencyKey);
         operation.setRequestHash(requestHash);
         operation.setAddedItems(addedItems);
-        operation.setSubTotal(order.getSubTotal());
-        operation.setTaxAmount(order.getTaxAmount());
-        operation.setTotalAmount(order.getTotalAmount());
+        operation.setSubTotal(BigDecimal.valueOf(order.getSubTotal()));
+        operation.setTaxAmount(BigDecimal.valueOf(order.getTaxAmount()));
+        operation.setTotalAmount(BigDecimal.valueOf(order.getTotalAmount()));
         orderItemOperationRepository.save(operation);
         activityLogService.log("UPDATE", "Order", String.valueOf(orderId), "Them mon vao don hang");
         return new AddItemsResult(order.getId(), addedItems, order.getSubTotal(), order.getTaxAmount(), order.getTotalAmount());

@@ -25,6 +25,7 @@ import poly.edu.quanlynhahang.repository.VoucherRepository;
 
 import java.util.List;
 import java.util.Optional;
+import java.math.BigDecimal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -177,9 +178,9 @@ class OrderCheckoutServiceTest {
         operation.setIdempotencyKey("add-item-key-001");
         operation.setRequestHash("7acaa2e3bafe499aedd41ea9500f071b2c661bfe50ad8a07ccb3953cf836fcdc");
         operation.setAddedItems(2);
-        operation.setSubTotal(200_000.0);
-        operation.setTaxAmount(16_000.0);
-        operation.setTotalAmount(216_000.0);
+        operation.setSubTotal(BigDecimal.valueOf(200_000.0));
+        operation.setTaxAmount(BigDecimal.valueOf(16_000.0));
+        operation.setTotalAmount(BigDecimal.valueOf(216_000.0));
         when(orderRepository.findLockedById(22)).thenReturn(Optional.of(order));
         when(orderItemOperationRepository.findByOrderIdAndIdempotencyKey(22, "add-item-key-001"))
                 .thenReturn(Optional.of(operation));
