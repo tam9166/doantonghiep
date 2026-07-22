@@ -1,5 +1,7 @@
 package poly.edu.quanlynhahang.controller;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 
 import jakarta.validation.Valid;
@@ -57,14 +59,16 @@ public class AdminProductController {
             Double average = reviewRepository.getAverageRatingByProductId(product.getId());
             product.setAverageRating(average == null ? 0.0 : Math.round(average * 10.0) / 10.0);
 
-            double recipeCost = recipeRepository.findByProduct(product).stream()
+            BigDecimal recipeCost = recipeRepository.findByProduct(product).stream()
                     .filter(recipe -> recipe.getIngredient() != null
                             && recipe.getIngredient().getUnitPrice() != null
                             && recipe.getAmountRequired() != null)
-                    .mapToDouble(recipe -> recipe.getIngredient().getUnitPrice() * recipe.getAmountRequired())
-                    .sum();
-            if (recipeCost > 0) {
-                product.setCostPrice(recipeCost);
+                    .map(recipe -> BigDecimal.valueOf(recipe.getIngredient().getUnitPrice())
+                            .multiply(BigDecimal.valueOf(recipe.getAmountRequired())))
+                    .reduce(BigDecimal.ZERO, BigDecimal::add)
+                    .setScale(2, RoundingMode.HALF_UP);
+            if (recipeCost.signum() > 0) {
+                product.setCostPrice(recipeCost.doubleValue());
             }
         }
         return products.stream().map(AdminProductResponse::from).toList();
