@@ -129,9 +129,9 @@ class OrderCheckoutServiceTest {
 
         assertEquals(22, result.orderId());
         assertEquals(0, result.status());
-        assertEquals(200_000.0, result.subTotal());
-        assertEquals(16_000.0, result.taxAmount());
-        assertEquals(216_000.0, result.totalAmount());
+        assertEquals(new BigDecimal("200000.00"), result.subTotal());
+        assertEquals(new BigDecimal("16000.00"), result.taxAmount());
+        assertEquals(new BigDecimal("216000.00"), result.totalAmount());
         assertEquals(6.0, batch.getQuantity());
         assertEquals(6.0, ingredient.getQuantity());
         verify(batchRepository).findAvailableBatchesForUpdate(10L);
@@ -153,9 +153,9 @@ class OrderCheckoutServiceTest {
 
         OrderCheckoutService.CheckoutResult result = service.checkout(request(1, 3), "anonymousUser");
 
-        assertEquals(0.30, result.subTotal());
-        assertEquals(0.02, result.taxAmount());
-        assertEquals(0.32, result.totalAmount());
+        assertEquals(new BigDecimal("0.30"), result.subTotal());
+        assertEquals(new BigDecimal("0.02"), result.taxAmount());
+        assertEquals(new BigDecimal("0.32"), result.totalAmount());
     }
 
     @Test
@@ -179,9 +179,9 @@ class OrderCheckoutServiceTest {
         OrderCheckoutService.AddItemsResult result = service.addItems(22, request(1, 2), "add-item-key-001");
 
         assertEquals(2, result.addedItems());
-        assertEquals(200_000.0, result.subTotal());
-        assertEquals(16_000.0, result.taxAmount());
-        assertEquals(216_000.0, result.totalAmount());
+        assertEquals(new BigDecimal("200000.00"), result.subTotal());
+        assertEquals(new BigDecimal("16000.00"), result.taxAmount());
+        assertEquals(new BigDecimal("216000.00"), result.totalAmount());
         assertEquals(0.0, batch.getQuantity());
         verify(orderRepository).findLockedById(22);
         verify(orderDetailRepository).save(any(OrderDetail.class));
@@ -198,9 +198,9 @@ class OrderCheckoutServiceTest {
         operation.setIdempotencyKey("add-item-key-001");
         operation.setRequestHash("7acaa2e3bafe499aedd41ea9500f071b2c661bfe50ad8a07ccb3953cf836fcdc");
         operation.setAddedItems(2);
-        operation.setSubTotal(BigDecimal.valueOf(200_000.0));
-        operation.setTaxAmount(BigDecimal.valueOf(16_000.0));
-        operation.setTotalAmount(BigDecimal.valueOf(216_000.0));
+        operation.setSubTotal(new BigDecimal("200000.00"));
+        operation.setTaxAmount(new BigDecimal("16000.00"));
+        operation.setTotalAmount(new BigDecimal("216000.00"));
         when(orderRepository.findLockedById(22)).thenReturn(Optional.of(order));
         when(orderItemOperationRepository.findByOrderIdAndIdempotencyKey(22, "add-item-key-001"))
                 .thenReturn(Optional.of(operation));
@@ -208,7 +208,7 @@ class OrderCheckoutServiceTest {
         OrderCheckoutService.AddItemsResult result = service.addItems(22, request(1, 2), "add-item-key-001");
 
         assertEquals(2, result.addedItems());
-        assertEquals(216_000.0, result.totalAmount());
+        assertEquals(new BigDecimal("216000.00"), result.totalAmount());
         verify(orderDetailRepository, never()).save(any());
         verify(batchRepository, never()).saveAll(any());
     }

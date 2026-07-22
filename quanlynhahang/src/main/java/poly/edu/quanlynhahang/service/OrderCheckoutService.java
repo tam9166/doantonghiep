@@ -152,7 +152,7 @@ public class OrderCheckoutService {
                 "Tạo đơn chờ xác nhận #" + orderCode);
 
         return new CheckoutResult(savedOrder.getId(), orderCode, savedOrder.getStatus(),
-                savedOrder.getSubTotal(), savedOrder.getTaxAmount(), savedOrder.getTotalAmount(),
+                subTotal, taxAmount, totalAmount,
                 savedOrder.getPaymentOption(), savedOrder.getPaymentStatus(), payment);
     }
 
@@ -179,8 +179,8 @@ public class OrderCheckoutService {
                 throw new ResponseStatusException(HttpStatus.CONFLICT,
                         "Idempotency key has already been used for a different request");
             }
-            return new AddItemsResult(orderId, operation.getAddedItems(), operation.getSubTotal().doubleValue(),
-                    operation.getTaxAmount().doubleValue(), operation.getTotalAmount().doubleValue());
+            return new AddItemsResult(orderId, operation.getAddedItems(), operation.getSubTotal(),
+                    operation.getTaxAmount(), operation.getTotalAmount());
         }
         if (Boolean.TRUE.equals(order.getIsPaid()) || Integer.valueOf(3).equals(order.getStatus())
                 || Integer.valueOf(4).equals(order.getStatus())) {
@@ -227,7 +227,7 @@ public class OrderCheckoutService {
         operation.setTotalAmount(totalAmount);
         orderItemOperationRepository.save(operation);
         activityLogService.log("UPDATE", "Order", String.valueOf(orderId), "Them mon vao don hang");
-        return new AddItemsResult(order.getId(), addedItems, order.getSubTotal(), order.getTaxAmount(), order.getTotalAmount());
+        return new AddItemsResult(order.getId(), addedItems, subTotal, taxAmount, totalAmount);
     }
 
     private String normalizeIdempotencyKey(String idempotencyKey) {
@@ -476,14 +476,15 @@ public class OrderCheckoutService {
     public record CheckoutResult(Integer orderId,
                                  String orderCode,
                                  Integer status,
-                                 Double subTotal,
-                                 Double taxAmount,
-                                 Double totalAmount,
+                                 BigDecimal subTotal,
+                                 BigDecimal taxAmount,
+                                 BigDecimal totalAmount,
                                  OrderPaymentOption paymentOption,
                                  PaymentStatus paymentStatus,
                                  PaymentQrResponse payment) {
     }
 
-    public record AddItemsResult(Integer orderId, int addedItems, Double subTotal, Double taxAmount, Double totalAmount) {
+    public record AddItemsResult(Integer orderId, int addedItems, BigDecimal subTotal,
+                                 BigDecimal taxAmount, BigDecimal totalAmount) {
     }
 }
