@@ -1,7 +1,9 @@
 package poly.edu.quanlynhahang.dto;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
@@ -36,5 +38,28 @@ class OrderResponsePrivacyTest {
         assertFalse(json.contains("tokenVersion"));
         assertFalse(json.contains("customer@example.test"));
         assertFalse(json.contains("cashier-a"));
+    }
+
+    @Test
+    void monetaryValuesAreExposedAsTwoDecimalBigDecimals() {
+        OrderDetail detail = new OrderDetail();
+        detail.setPrice(0.1 + 0.2);
+        detail.setTaxAmount(0.02);
+
+        Order order = new Order();
+        order.setSubTotal(0.1 + 0.2);
+        order.setTaxAmount(0.02);
+        order.setTotalAmount(0.32);
+        order.setDeposit(0.15);
+        order.setOrderDetails(List.of(detail));
+
+        OrderResponse response = OrderResponse.from(order);
+
+        assertEquals(new BigDecimal("0.30"), response.subTotal());
+        assertEquals(new BigDecimal("0.02"), response.taxAmount());
+        assertEquals(new BigDecimal("0.32"), response.totalAmount());
+        assertEquals(new BigDecimal("0.15"), response.deposit());
+        assertEquals(new BigDecimal("0.30"), response.orderDetails().getFirst().price());
+        assertEquals(new BigDecimal("0.02"), response.orderDetails().getFirst().taxAmount());
     }
 }

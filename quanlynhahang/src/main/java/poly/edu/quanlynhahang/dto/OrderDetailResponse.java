@@ -1,11 +1,18 @@
 package poly.edu.quanlynhahang.dto;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
 import poly.edu.quanlynhahang.entity.OrderDetail;
 
-public record OrderDetailResponse(Integer id, Double price, Double taxRate, Double taxAmount,
+public record OrderDetailResponse(Integer id, BigDecimal price, Double taxRate, BigDecimal taxAmount,
         Integer quantity, Integer status, OrderProductResponse product) {
     public static OrderDetailResponse from(OrderDetail detail) {
-        return new OrderDetailResponse(detail.getId(), detail.getPrice(), detail.getTaxRate(), detail.getTaxAmount(),
+        return new OrderDetailResponse(detail.getId(), money(detail.getPrice()), detail.getTaxRate(), money(detail.getTaxAmount()),
                 detail.getQuantity(), detail.getStatus(), OrderProductResponse.from(detail.getProduct()));
+    }
+
+    private static BigDecimal money(Double value) {
+        return value == null ? null : BigDecimal.valueOf(value).setScale(2, RoundingMode.HALF_UP);
     }
 }
