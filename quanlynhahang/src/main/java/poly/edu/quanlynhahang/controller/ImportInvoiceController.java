@@ -12,6 +12,8 @@ import poly.edu.quanlynhahang.repository.ImportInvoiceRepository;
 import poly.edu.quanlynhahang.repository.IngredientBatchRepository;
 import poly.edu.quanlynhahang.repository.IngredientRepository;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
@@ -23,7 +25,6 @@ import poly.edu.quanlynhahang.service.ActivityLogService;
 
 @RestController
 @RequestMapping("/api/admin/import-invoices")
-@CrossOrigin("*")
 @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_KITCHEN')")
 public class ImportInvoiceController {
 
@@ -67,7 +68,7 @@ public class ImportInvoiceController {
         invoice.setSupplier(request.getSupplier());
         invoice.setNote(request.getNote());
         
-        double totalAmount = 0;
+        BigDecimal totalAmount = BigDecimal.ZERO;
         
         ImportInvoice savedInvoice = importInvoiceRepository.save(invoice);
 
@@ -95,7 +96,8 @@ public class ImportInvoiceController {
                 
                 ingredientBatchRepository.save(batch);
                 
-                totalAmount += (batch.getQuantity() * batch.getUnitPrice());
+                totalAmount = totalAmount.add(batch.getUnitPrice()
+                        .multiply(BigDecimal.valueOf(batch.getQuantity())));
                 
                 // Cập nhật giá nhập mới nhất cho nguyên liệu
                 ing.setUnitPrice(batch.getUnitPrice());
@@ -110,7 +112,7 @@ public class ImportInvoiceController {
             }
         }
         
-        savedInvoice.setTotalAmount(totalAmount);
+        savedInvoice.setTotalAmount(totalAmount.setScale(2, RoundingMode.HALF_UP));
         importInvoiceRepository.save(savedInvoice);
 
         activityLogService.log("CREATE", "ImportInvoice", String.valueOf(savedInvoice.getId()),

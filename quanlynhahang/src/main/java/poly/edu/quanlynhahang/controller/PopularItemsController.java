@@ -10,10 +10,9 @@ import poly.edu.quanlynhahang.entity.Recipe;
 import poly.edu.quanlynhahang.repository.OrderRepository;
 import poly.edu.quanlynhahang.repository.RecipeRepository;
 
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
-
-@CrossOrigin("*")
 @RestController
 @RequestMapping("/api/admin/popular-items")
 @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_KITCHEN')")
@@ -64,14 +63,15 @@ public class PopularItemsController {
                     m.put("productId", productId);
                     m.put("image", detail.getProduct().getImage());
                     m.put("totalQuantity", 0);
-                    m.put("totalRevenue", 0.0);
+                    m.put("totalRevenue", BigDecimal.ZERO);
                     m.put("orderCount", 0);
                     return m;
                 });
 
                 Map<String, Object> data = productMap.get(productName);
                 data.put("totalQuantity", (int) data.get("totalQuantity") + (detail.getQuantity() != null ? detail.getQuantity() : 0));
-                data.put("totalRevenue", (double) data.get("totalRevenue") + (detail.getPrice() != null ? detail.getPrice() : 0.0));
+                data.put("totalRevenue", ((BigDecimal) data.get("totalRevenue"))
+                        .add(detail.getPrice() == null ? BigDecimal.ZERO : detail.getPrice()));
                 data.put("orderCount", (int) data.get("orderCount") + 1);
             }
         }

@@ -1,5 +1,7 @@
 package poly.edu.quanlynhahang.dto;
 
+import java.math.BigDecimal;
+
 import lombok.Data;
 import java.util.Date;
 
@@ -7,6 +9,6 @@ import java.util.Date;
 public class ImportInvoiceItemRequest {
     private Long ingredientId;
     private Double quantity;
-    private Double unitPrice;
+    private BigDecimal unitPrice;
     private Date expirationDate;
 }

@@ -12,7 +12,7 @@ public record OrderDetailResponse(Integer id, BigDecimal price, Double taxRate, 
                 detail.getQuantity(), detail.getStatus(), OrderProductResponse.from(detail.getProduct()));
     }
 
-    private static BigDecimal money(Double value) {
-        return value == null ? null : BigDecimal.valueOf(value).setScale(2, RoundingMode.HALF_UP);
+    private static BigDecimal money(BigDecimal value) {
+        return value == null ? null : value.setScale(2, RoundingMode.HALF_UP);
     }
 }

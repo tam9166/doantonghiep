@@ -179,7 +179,7 @@ class OrderPaymentServiceTest {
         order.setIsPaid(false);
         order.setPaymentOption(option);
         order.setPaymentStatus(status);
-        order.setTotalAmount(total);
+        order.setTotalAmount(BigDecimal.valueOf(total));
         return order;
     }
 

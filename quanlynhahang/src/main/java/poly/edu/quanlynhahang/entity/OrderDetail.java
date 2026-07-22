@@ -1,5 +1,8 @@
 package poly.edu.quanlynhahang.entity;
 
+import java.math.BigDecimal;
+
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -18,13 +21,14 @@ public class OrderDetail {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    private Double price;
+    @Column(precision = 18, scale = 2)
+    private BigDecimal price;
 
     @jakarta.persistence.Column(name = "tax_rate", columnDefinition = "FLOAT DEFAULT 8.0")
     private Double taxRate = 8.0;
 
-    @jakarta.persistence.Column(name = "tax_amount", columnDefinition = "FLOAT DEFAULT 0.0")
-    private Double taxAmount = 0.0;
+    @Column(name = "tax_amount", precision = 18, scale = 2)
+    private BigDecimal taxAmount = BigDecimal.ZERO;
     
     private Integer quantity;
 

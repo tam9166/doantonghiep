@@ -34,7 +34,7 @@ class AdminProductControllerTest {
         product.setId(1);
         product.setName("Mon thu nghiem");
         Ingredient ingredient = new Ingredient();
-        ingredient.setUnitPrice(0.1);
+        ingredient.setUnitPrice(BigDecimal.valueOf(0.1));
         Recipe recipe = new Recipe();
         recipe.setIngredient(ingredient);
         recipe.setAmountRequired(3.0);

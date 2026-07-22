@@ -1,5 +1,6 @@
 package poly.edu.quanlynhahang.entity;
 
+import java.math.BigDecimal;
 import java.util.Date;
 
 import jakarta.persistence.Column;
@@ -26,8 +27,8 @@ public class Product {
     @Column(columnDefinition = "NVARCHAR(200)", nullable = false)
     private String name;
 
-    @Column(nullable = false)
-    private Double price;
+    @Column(nullable = false, precision = 18, scale = 2)
+    private BigDecimal price;
 
     @Column(name = "tax_rate", columnDefinition = "FLOAT DEFAULT 8.0")
     private Double taxRate = 8.0;
@@ -47,8 +48,8 @@ public class Product {
     @jakarta.persistence.Transient
     private Double averageRating;
 
-    @jakarta.persistence.Transient
-    private Double costPrice;
+    @Column(name = "cost_price", precision = 18, scale = 2)
+    private BigDecimal costPrice = BigDecimal.ZERO;
 
     // Khóa ngoại liên kết với Category
     @ManyToOne

@@ -151,9 +151,9 @@ public class OrderController {
         
         BigDecimal targetSubTotal = money(targetOrder.getSubTotal()).add(transferSub);
         BigDecimal targetTaxAmount = money(targetOrder.getTaxAmount()).add(transferTax);
-        targetOrder.setSubTotal(targetSubTotal.doubleValue());
-        targetOrder.setTaxAmount(targetTaxAmount.doubleValue());
-        targetOrder.setTotalAmount(targetSubTotal.add(targetTaxAmount).doubleValue());
+        targetOrder.setSubTotal(targetSubTotal);
+        targetOrder.setTaxAmount(targetTaxAmount);
+        targetOrder.setTotalAmount(targetSubTotal.add(targetTaxAmount));
         orderRepository.save(targetOrder);
         
         // Há»§y hÃ³a Ä‘Æ¡n cÅ©
@@ -250,16 +250,16 @@ public class OrderController {
         
         BigDecimal sourceSubTotal = money(sourceOrder.getSubTotal()).subtract(moveSub).max(BigDecimal.ZERO);
         BigDecimal sourceTaxAmount = money(sourceOrder.getTaxAmount()).subtract(moveTax).max(BigDecimal.ZERO);
-        sourceOrder.setSubTotal(sourceSubTotal.doubleValue());
-        sourceOrder.setTaxAmount(sourceTaxAmount.doubleValue());
-        sourceOrder.setTotalAmount(sourceSubTotal.add(sourceTaxAmount).doubleValue());
+        sourceOrder.setSubTotal(sourceSubTotal);
+        sourceOrder.setTaxAmount(sourceTaxAmount);
+        sourceOrder.setTotalAmount(sourceSubTotal.add(sourceTaxAmount));
         orderRepository.save(sourceOrder);
         
         BigDecimal finalTargetSubTotal = money(finalTargetOrder.getSubTotal()).add(moveSub);
         BigDecimal finalTargetTaxAmount = money(finalTargetOrder.getTaxAmount()).add(moveTax);
-        finalTargetOrder.setSubTotal(finalTargetSubTotal.doubleValue());
-        finalTargetOrder.setTaxAmount(finalTargetTaxAmount.doubleValue());
-        finalTargetOrder.setTotalAmount(finalTargetSubTotal.add(finalTargetTaxAmount).doubleValue());
+        finalTargetOrder.setSubTotal(finalTargetSubTotal);
+        finalTargetOrder.setTaxAmount(finalTargetTaxAmount);
+        finalTargetOrder.setTotalAmount(finalTargetSubTotal.add(finalTargetTaxAmount));
         orderRepository.save(finalTargetOrder);
 
         // Náº¿u bÃ n nguá»“n khÃ´ng cÃ²n OrderDetail nÃ o, thÃ¬ Há»§y order Ä‘Ã³ vÃ  giáº£i phÃ³ng bÃ n
@@ -336,7 +336,7 @@ public class OrderController {
         return code;
     }
 
-    private static BigDecimal money(Double value) {
-        return BigDecimal.valueOf(value == null ? 0.0 : value).setScale(2, RoundingMode.HALF_UP);
+    private static BigDecimal money(BigDecimal value) {
+        return (value == null ? BigDecimal.ZERO : value).setScale(2, RoundingMode.HALF_UP);
     }
 }

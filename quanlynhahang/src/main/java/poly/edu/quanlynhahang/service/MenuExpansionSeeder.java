@@ -14,6 +14,7 @@ import poly.edu.quanlynhahang.repository.ProductRepository;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
@@ -72,7 +73,7 @@ public class MenuExpansionSeeder implements CommandLineRunner {
                     existingProduct.setDescription(item.description());
                     changed = true;
                 }
-                if (existingProduct.getCostPrice() == null || existingProduct.getCostPrice() <= 0) {
+                if (existingProduct.getCostPrice() == null || existingProduct.getCostPrice().signum() <= 0) {
                     existingProduct.setCostPrice(item.costPrice());
                     changed = true;
                 }
@@ -152,8 +153,8 @@ public class MenuExpansionSeeder implements CommandLineRunner {
     private record MenuExpansionItem(
             String category,
             String name,
-            Double price,
-            Double costPrice,
+            BigDecimal price,
+            BigDecimal costPrice,
             String image,
             String description
     ) {

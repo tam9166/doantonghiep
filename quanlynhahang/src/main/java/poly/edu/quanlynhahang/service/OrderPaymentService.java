@@ -242,8 +242,7 @@ public class OrderPaymentService {
     public Order applyLedgerPayment(Integer orderId, BigDecimal aggregatePaid, PaymentStatus status) {
         Order order = orderRepository.findLockedById(orderId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Đơn hàng không tồn tại"));
-        BigDecimal total = BigDecimal.valueOf(order.getTotalAmount() == null ? 0.0 : order.getTotalAmount())
-                .setScale(0, RoundingMode.HALF_UP);
+        BigDecimal total = money(order.getTotalAmount()).setScale(0, RoundingMode.HALF_UP);
         order.setPaidAmount(aggregatePaid.max(BigDecimal.ZERO));
         order.setRemainingAmount(total.subtract(aggregatePaid).max(BigDecimal.ZERO));
         PaymentStatus effectiveStatus = paymentStatus(aggregatePaid, total);
@@ -260,13 +259,13 @@ public class OrderPaymentService {
 
     private void validatePayableOrder(Order order) {
         if (order == null || order.getId() == null || order.getTotalAmount() == null
-                || order.getTotalAmount() <= 0) {
+                || order.getTotalAmount().signum() <= 0) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Đơn hàng chưa có tổng tiền hợp lệ");
         }
     }
 
     private BigDecimal payableAmount(Order order) {
-        return BigDecimal.valueOf(order.getTotalAmount()).setScale(0, RoundingMode.HALF_UP);
+        return money(order.getTotalAmount()).setScale(0, RoundingMode.HALF_UP);
     }
 
     private PaymentStatus paymentStatus(BigDecimal paidAmount, BigDecimal expectedAmount) {
@@ -275,6 +274,10 @@ public class OrderPaymentService {
         if (comparison < 0) return PaymentStatus.PARTIALLY_PAID;
         if (comparison == 0) return PaymentStatus.PAID;
         return PaymentStatus.OVERPAID;
+    }
+
+    private BigDecimal money(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value.setScale(2, RoundingMode.HALF_UP);
     }
 
     private String normalizeIdempotencyKey(String idempotencyKey) {

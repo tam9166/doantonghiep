@@ -11,8 +11,6 @@ import poly.edu.quanlynhahang.service.NotificationService;
 
 import java.util.*;
 import java.util.stream.Collectors;
-
-@CrossOrigin("*")
 @RestController
 @RequestMapping("/api/admin/purchase-suggestions")
 @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
@@ -106,7 +104,9 @@ public class PurchaseSuggestionController {
                 double suggestedAmount = Math.max(minStock * 2, dailyConsumption * 7) - qty;
                 if (suggestedAmount < 0) suggestedAmount = minStock;
                 suggestion.put("suggestedAmount", Math.round(suggestedAmount * 10.0) / 10.0);
-                suggestion.put("estimatedCost", Math.round(suggestedAmount * (ing.getUnitPrice() != null ? ing.getUnitPrice() : 0)));
+                suggestion.put("estimatedCost", java.math.BigDecimal.valueOf(suggestedAmount)
+                        .multiply(ing.getUnitPrice() == null ? java.math.BigDecimal.ZERO : ing.getUnitPrice())
+                        .setScale(0, java.math.RoundingMode.HALF_UP));
 
                 // Mức độ khẩn cấp
                 if (qty <= 0) {

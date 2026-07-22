@@ -207,34 +207,36 @@ public class DemoDataSeeder implements CommandLineRunner {
             order.setIsPaid(true);
 
             List<OrderDetail> details = new ArrayList<>();
-            double subTotal = 0;
-            double taxAmount = 0;
+            BigDecimal subTotal = BigDecimal.ZERO;
+            BigDecimal taxAmount = BigDecimal.ZERO;
             int itemCount = Math.min(3, products.size());
             for (int i = 0; i < itemCount; i++) {
                 Product product = products.get((day + i) % products.size());
                 int quantity = 1 + ((day + i) % 3);
-                double price = product.getPrice() != null ? product.getPrice() : 0;
+                BigDecimal price = product.getPrice() != null ? product.getPrice() : BigDecimal.ZERO;
                 double taxRate = product.getTaxRate() != null ? product.getTaxRate() : 8.0;
-                double lineTax = price * quantity * taxRate / 100;
+                BigDecimal lineSubtotal = price.multiply(BigDecimal.valueOf(quantity));
+                BigDecimal lineTax = lineSubtotal.multiply(BigDecimal.valueOf(taxRate))
+                        .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
 
                 OrderDetail detail = new OrderDetail();
                 detail.setOrder(order);
                 detail.setProduct(product);
                 detail.setQuantity(quantity);
-                detail.setPrice(price);
+                detail.setPrice(lineSubtotal);
                 detail.setTaxRate(taxRate);
                 detail.setTaxAmount(lineTax);
                 detail.setStatus(2);
                 details.add(detail);
 
-                subTotal += price * quantity;
-                taxAmount += lineTax;
+                subTotal = subTotal.add(lineSubtotal);
+                taxAmount = taxAmount.add(lineTax);
             }
 
             order.setSubTotal(subTotal);
             order.setTaxAmount(taxAmount);
-            order.setTotalAmount(subTotal + taxAmount);
-            order.setDeposit(0.0);
+            order.setTotalAmount(subTotal.add(taxAmount));
+            order.setDeposit(BigDecimal.ZERO);
 
             poly.edu.quanlynhahang.entity.Order savedOrder = orderRepository.save(order);
             details.forEach(detail -> detail.setOrder(savedOrder));

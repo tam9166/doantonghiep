@@ -26,7 +26,7 @@ public record AdminProductResponse(
                 product.getCategory() == null ? null : CategoryResponse.from(product.getCategory()));
     }
 
-    private static BigDecimal money(Double value) {
-        return value == null ? null : BigDecimal.valueOf(value).setScale(2, RoundingMode.HALF_UP);
+    private static BigDecimal money(BigDecimal value) {
+        return value == null ? null : value.setScale(2, RoundingMode.HALF_UP);
     }
 }

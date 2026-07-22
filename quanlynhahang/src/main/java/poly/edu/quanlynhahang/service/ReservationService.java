@@ -703,7 +703,8 @@ public class ReservationService {
         if (Boolean.FALSE.equals(product.getStatus()) || Boolean.FALSE.equals(product.getAvailable())) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Món ăn không còn khả dụng để đặt trước");
         }
-        BigDecimal unitPrice = BigDecimal.valueOf(product.getPrice() == null ? 0 : product.getPrice()).setScale(0, RoundingMode.HALF_UP);
+        BigDecimal unitPrice = (product.getPrice() == null ? BigDecimal.ZERO : product.getPrice())
+                .setScale(0, RoundingMode.HALF_UP);
         ReservationPreorderItem item = new ReservationPreorderItem();
         item.setProductId(product.getId());
         item.setProductName(product.getName());

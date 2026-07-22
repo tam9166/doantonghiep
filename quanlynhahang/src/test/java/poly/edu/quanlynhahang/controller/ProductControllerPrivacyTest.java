@@ -32,13 +32,13 @@ class ProductControllerPrivacyTest {
         Product product = new Product();
         product.setId(10);
         product.setName("Com sen");
-        product.setPrice(125_000.0);
+        product.setPrice(new BigDecimal("125000.00"));
         product.setTaxRate(8.0);
         product.setDescription("Mon an nha hang");
         product.setImage("/uploads/com-sen.jpg");
         product.setStatus(true);
         product.setAvailable(true);
-        product.setCostPrice(45_000.0);
+        product.setCostPrice(new BigDecimal("45000.00"));
         product.setCategory(category);
 
         ReviewRepository.ProductRatingSummary rating = mock(ReviewRepository.ProductRatingSummary.class);

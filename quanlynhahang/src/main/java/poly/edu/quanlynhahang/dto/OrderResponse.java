@@ -24,7 +24,7 @@ public record OrderResponse(Integer id, Date createDate, String address, Integer
                 order.getRemainingAmount());
     }
 
-    private static BigDecimal money(Double value) {
-        return value == null ? null : BigDecimal.valueOf(value).setScale(2, RoundingMode.HALF_UP);
+    private static BigDecimal money(BigDecimal value) {
+        return value == null ? null : value.setScale(2, RoundingMode.HALF_UP);
     }
 }

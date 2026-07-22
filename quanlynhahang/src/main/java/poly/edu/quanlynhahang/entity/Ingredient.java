@@ -1,5 +1,7 @@
 package poly.edu.quanlynhahang.entity;
 
+import java.math.BigDecimal;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -27,8 +29,8 @@ public class Ingredient {
     @Column(name = "min_stock")
     private Double minStock = 5.0;
 
-    @Column(name = "unit_price")
-    private Double unitPrice = 0.0;
+    @Column(name = "unit_price", precision = 18, scale = 2)
+    private BigDecimal unitPrice = BigDecimal.ZERO;
 
     private String image;
 

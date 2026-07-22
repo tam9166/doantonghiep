@@ -63,12 +63,12 @@ public class AdminProductController {
                     .filter(recipe -> recipe.getIngredient() != null
                             && recipe.getIngredient().getUnitPrice() != null
                             && recipe.getAmountRequired() != null)
-                    .map(recipe -> BigDecimal.valueOf(recipe.getIngredient().getUnitPrice())
+                    .map(recipe -> recipe.getIngredient().getUnitPrice()
                             .multiply(BigDecimal.valueOf(recipe.getAmountRequired())))
                     .reduce(BigDecimal.ZERO, BigDecimal::add)
                     .setScale(2, RoundingMode.HALF_UP);
             if (recipeCost.signum() > 0) {
-                product.setCostPrice(recipeCost.doubleValue());
+                product.setCostPrice(recipeCost);
             }
         }
         return products.stream().map(AdminProductResponse::from).toList();

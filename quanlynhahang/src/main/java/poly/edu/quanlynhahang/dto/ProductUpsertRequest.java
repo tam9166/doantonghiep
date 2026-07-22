@@ -1,5 +1,7 @@
 package poly.edu.quanlynhahang.dto;
 
+import java.math.BigDecimal;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
@@ -12,7 +14,7 @@ import jakarta.validation.constraints.Size;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record ProductUpsertRequest(
         @NotBlank @Size(max = 200) String name,
-        @NotNull @DecimalMin("0") Double price,
+        @NotNull @DecimalMin("0") BigDecimal price,
         @DecimalMin("0") @DecimalMax("100") Double taxRate,
         @Size(max = 255) String image,
         @Size(max = 20_000) String description,

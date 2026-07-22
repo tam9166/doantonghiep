@@ -187,8 +187,7 @@ public class AdminOrderController {
             }
             boolean firstPaymentConfirmation = !Boolean.TRUE.equals(order.getIsPaid());
             order.setIsPaid(true);
-            java.math.BigDecimal paid = java.math.BigDecimal.valueOf(
-                    order.getTotalAmount() == null ? 0.0 : order.getTotalAmount()).setScale(0, java.math.RoundingMode.HALF_UP);
+            java.math.BigDecimal paid = money(order.getTotalAmount()).setScale(0, java.math.RoundingMode.HALF_UP);
             order.setPaidAmount(paid);
             order.setRemainingAmount(java.math.BigDecimal.ZERO);
             order.setPaymentStatus(PaymentStatus.PAID);
@@ -260,7 +259,7 @@ public class AdminOrderController {
 
     // 🌟 API MỚI: CHUYỂN BÀN (Cập nhật địa chỉ đơn hàng)
     private BigDecimal orderTotal(Order order) {
-        if (order.getTotalAmount() != null && order.getTotalAmount() > 0) {
+        if (order.getTotalAmount() != null && order.getTotalAmount().signum() > 0) {
             return money(order.getTotalAmount());
         }
         return order.getOrderDetails().stream()
@@ -268,8 +267,8 @@ public class AdminOrderController {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    private BigDecimal money(Double value) {
-        return BigDecimal.valueOf(value == null ? 0.0 : value).setScale(2, RoundingMode.HALF_UP);
+    private BigDecimal money(BigDecimal value) {
+        return (value == null ? BigDecimal.ZERO : value).setScale(2, RoundingMode.HALF_UP);
     }
 
     @PutMapping("/{id}/address")

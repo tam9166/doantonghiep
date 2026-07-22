@@ -1,5 +1,7 @@
 package poly.edu.quanlynhahang.entity;
 
+import java.math.BigDecimal;
+
 import jakarta.persistence.*;
 import lombok.Data;
 import java.util.Date;
@@ -20,8 +22,8 @@ public class ImportInvoice {
     @Column(columnDefinition = "nvarchar(255)")
     private String supplier;
 
-    @Column(name = "total_amount")
-    private Double totalAmount;
+    @Column(name = "total_amount", precision = 18, scale = 2)
+    private BigDecimal totalAmount;
 
     @Column(columnDefinition = "nvarchar(max)")
     private String note;

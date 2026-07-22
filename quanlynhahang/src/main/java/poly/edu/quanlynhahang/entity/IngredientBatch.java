@@ -1,5 +1,7 @@
 package poly.edu.quanlynhahang.entity;
 
+import java.math.BigDecimal;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -43,6 +45,6 @@ public class IngredientBatch {
     @Column(name = "expiration_date")
     private Date expirationDate;
 
-    @Column(name = "unit_price")
-    private Double unitPrice; // Đơn giá lúc nhập
+    @Column(name = "unit_price", precision = 18, scale = 2)
+    private BigDecimal unitPrice; // Đơn giá lúc nhập
 }

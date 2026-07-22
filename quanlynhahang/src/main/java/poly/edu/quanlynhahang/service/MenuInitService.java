@@ -1,5 +1,6 @@
 package poly.edu.quanlynhahang.service;
 
+import java.math.BigDecimal;
 import java.util.Arrays;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,10 +42,10 @@ public class MenuInitService implements CommandLineRunner {
             // 2. Tạo các món ăn thuộc về danh mục tương ứng
             Product p1 = new Product();
             p1.setName("Phở bò Kobe");
-            p1.setPrice(65000.0);
+            p1.setPrice(BigDecimal.valueOf(65000));
             p1.setDescription("Phở bò Kobe thượng hạng nước trong");
             p1.setImage("https://images.unsplash.com/photo-1582878826629-29b7ad1cdc43?auto=format&fit=crop&w=600&q=80");
-            p1.setCostPrice(35000.0);
+            p1.setCostPrice(BigDecimal.valueOf(35000));
             p1.setTaxRate(8.0);
             p1.setAvailable(true);
             p1.setStatus(true);
@@ -52,10 +53,10 @@ public class MenuInitService implements CommandLineRunner {
 
             Product p2 = new Product();
             p2.setName("Cơm rang dưa bò");
-            p2.setPrice(45000.0);
+            p2.setPrice(BigDecimal.valueOf(45000));
             p2.setDescription("Cơm rang hạt giòn, dưa bò xào đậm vị");
             p2.setImage("https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=600&q=80");
-            p2.setCostPrice(23000.0);
+            p2.setCostPrice(BigDecimal.valueOf(23000));
             p2.setTaxRate(8.0);
             p2.setAvailable(true);
             p2.setStatus(true);
@@ -63,10 +64,10 @@ public class MenuInitService implements CommandLineRunner {
 
             Product p3 = new Product();
             p3.setName("Coca Cola");
-            p3.setPrice(15000.0);
+            p3.setPrice(BigDecimal.valueOf(15000));
             p3.setDescription("Nước ngọt có ga lon 330ml");
             p3.setImage("https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=600&q=80");
-            p3.setCostPrice(8000.0);
+            p3.setCostPrice(BigDecimal.valueOf(8000));
             p3.setTaxRate(8.0);
             p3.setAvailable(true);
             p3.setStatus(true);

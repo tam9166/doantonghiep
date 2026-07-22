@@ -20,7 +20,7 @@ class ReviewResponsePrivacyTest {
         account.setTokenVersion(3L);
         Product product = new Product();
         product.setId(7);
-        product.setCostPrice(10_000.0);
+        product.setCostPrice(new java.math.BigDecimal("10000.00"));
         Review review = new Review();
         review.setAccount(account);
         review.setProduct(product);

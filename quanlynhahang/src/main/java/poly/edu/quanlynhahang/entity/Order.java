@@ -45,17 +45,17 @@ public class Order {
     // Trạng thái đơn hàng: 0 - Chờ xác nhận, 1 - Đang làm món, 2 - Đã giao, 3 - Đã hủy
     private Integer status = 0;
 
-    @Column(name = "sub_total")
-    private Double subTotal = 0.0;
+    @Column(name = "sub_total", precision = 18, scale = 2)
+    private BigDecimal subTotal = BigDecimal.ZERO;
 
-    @Column(name = "tax_amount")
-    private Double taxAmount = 0.0;
+    @Column(name = "tax_amount", precision = 18, scale = 2)
+    private BigDecimal taxAmount = BigDecimal.ZERO;
 
-    @Column(name = "total_amount")
-    private Double totalAmount = 0.0;
+    @Column(name = "total_amount", precision = 18, scale = 2)
+    private BigDecimal totalAmount = BigDecimal.ZERO;
 
-    @Column(name = "deposit")
-    private Double deposit = 0.0;
+    @Column(name = "deposit", precision = 18, scale = 2)
+    private BigDecimal deposit = BigDecimal.ZERO;
 
     @Column(name = "table_id")
     private Integer tableId;

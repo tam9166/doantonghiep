@@ -163,8 +163,8 @@ class OrderCheckoutServiceTest {
         Order order = new Order();
         order.setId(22);
         order.setStatus(0);
-        order.setSubTotal(0.0);
-        order.setTaxAmount(0.0);
+        order.setSubTotal(BigDecimal.ZERO);
+        order.setTaxAmount(BigDecimal.ZERO);
         Product product = product(1, 100_000.0);
         Ingredient ingredient = ingredient(10L, "Thit bo");
         Recipe recipe = recipe(product, ingredient, 2.0);
@@ -257,7 +257,7 @@ class OrderCheckoutServiceTest {
         Product product = new Product();
         product.setId(id);
         product.setName("Món test");
-        product.setPrice(price);
+        product.setPrice(BigDecimal.valueOf(price));
         product.setStatus(true);
         product.setAvailable(true);
         return product;

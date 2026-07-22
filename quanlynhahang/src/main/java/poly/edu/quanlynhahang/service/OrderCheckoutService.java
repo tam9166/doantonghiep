@@ -110,7 +110,7 @@ public class OrderCheckoutService {
         order.setCreateDate(new Date());
         order.setStatus(0);
         order.setIsPaid(false);
-        order.setDeposit(0.0);
+        order.setDeposit(BigDecimal.ZERO);
         order.setPaymentOption(paymentOption);
         order.setPaymentStatus(PaymentStatus.UNPAID);
         order.setPaidAmount(BigDecimal.ZERO);
@@ -130,9 +130,9 @@ public class OrderCheckoutService {
             detail.setOrder(savedOrder);
             detail.setProduct(product);
             detail.setQuantity(line.quantity());
-            detail.setPrice(lineSubtotal.doubleValue());
+            detail.setPrice(lineSubtotal);
             detail.setTaxRate(taxRate.doubleValue());
-            detail.setTaxAmount(lineTax.doubleValue());
+            detail.setTaxAmount(lineTax);
             detail.setStatus(0);
             orderDetailRepository.save(detail);
             subTotal = subTotal.add(lineSubtotal);
@@ -140,9 +140,9 @@ public class OrderCheckoutService {
         }
 
         BigDecimal totalAmount = subTotal.add(taxAmount).setScale(2, RoundingMode.HALF_UP);
-        savedOrder.setSubTotal(subTotal.doubleValue());
-        savedOrder.setTaxAmount(taxAmount.doubleValue());
-        savedOrder.setTotalAmount(totalAmount.doubleValue());
+        savedOrder.setSubTotal(subTotal);
+        savedOrder.setTaxAmount(taxAmount);
+        savedOrder.setTotalAmount(totalAmount);
         savedOrder.setRemainingAmount(totalAmount.setScale(0, RoundingMode.HALF_UP));
         consumeInventory(requirements, lockedBatches);
         occupyDineInTable(savedOrder, request.getAddress(), orderCode, dineIn);
@@ -202,9 +202,9 @@ public class OrderCheckoutService {
             detail.setOrder(order);
             detail.setProduct(product);
             detail.setQuantity(line.quantity());
-            detail.setPrice(lineSubtotal.doubleValue());
+            detail.setPrice(lineSubtotal);
             detail.setTaxRate(taxRate.doubleValue());
-            detail.setTaxAmount(lineTax.doubleValue());
+            detail.setTaxAmount(lineTax);
             detail.setStatus(0);
             orderDetailRepository.save(detail);
             subTotal = subTotal.add(lineSubtotal);
@@ -213,9 +213,9 @@ public class OrderCheckoutService {
         }
         consumeInventory(requirements, lockedBatches);
         BigDecimal totalAmount = subTotal.add(taxAmount).setScale(2, RoundingMode.HALF_UP);
-        order.setSubTotal(subTotal.doubleValue());
-        order.setTaxAmount(taxAmount.doubleValue());
-        order.setTotalAmount(totalAmount.doubleValue());
+        order.setSubTotal(subTotal);
+        order.setTaxAmount(taxAmount);
+        order.setTotalAmount(totalAmount);
         orderRepository.save(order);
         OrderItemOperation operation = new OrderItemOperation();
         operation.setOrderId(orderId);
@@ -241,8 +241,8 @@ public class OrderCheckoutService {
         return normalized;
     }
 
-    private BigDecimal money(Double value) {
-        return decimal(value, 0.0).setScale(2, RoundingMode.HALF_UP);
+    private BigDecimal money(BigDecimal value) {
+        return (value == null ? BigDecimal.ZERO : value).setScale(2, RoundingMode.HALF_UP);
     }
 
     private BigDecimal decimal(Double value, double fallback) {
@@ -290,7 +290,7 @@ public class OrderCheckoutService {
             if (!Boolean.TRUE.equals(product.getStatus()) || !Boolean.TRUE.equals(product.getAvailable())) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Món hiện không phục vụ: " + product.getName());
             }
-            if (product.getPrice() == null || product.getPrice() < 0) {
+            if (product.getPrice() == null || product.getPrice().signum() < 0) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Giá món chưa hợp lệ: " + product.getName());
             }
             lines.add(new CheckoutLine(product, entry.getValue()));

@@ -43,14 +43,14 @@ class OrderResponsePrivacyTest {
     @Test
     void monetaryValuesAreExposedAsTwoDecimalBigDecimals() {
         OrderDetail detail = new OrderDetail();
-        detail.setPrice(0.1 + 0.2);
-        detail.setTaxAmount(0.02);
+        detail.setPrice(new BigDecimal("0.30"));
+        detail.setTaxAmount(new BigDecimal("0.02"));
 
         Order order = new Order();
-        order.setSubTotal(0.1 + 0.2);
-        order.setTaxAmount(0.02);
-        order.setTotalAmount(0.32);
-        order.setDeposit(0.15);
+        order.setSubTotal(new BigDecimal("0.30"));
+        order.setTaxAmount(new BigDecimal("0.02"));
+        order.setTotalAmount(new BigDecimal("0.32"));
+        order.setDeposit(new BigDecimal("0.15"));
         order.setOrderDetails(List.of(detail));
 
         OrderResponse response = OrderResponse.from(order);

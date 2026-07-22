@@ -1,5 +1,6 @@
 package poly.edu.quanlynhahang.dto;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import jakarta.validation.Valid;
@@ -17,7 +18,7 @@ public class OrderRequest {
     private String voucherCode;
 
     @Deprecated(forRemoval = false)
-    private Double deposit;
+    private BigDecimal deposit;
 
     private OrderPaymentOption paymentOption;
 
