@@ -8,6 +8,14 @@ describe('captcha action mapping', () => {
     expect(captchaActionForRequest({ method: 'post', url: '/api/auth/signup' })).toBe('auth')
   })
 
+  it('supports Axios relative base URLs', () => {
+    expect(captchaActionForRequest({
+      method: 'post',
+      baseURL: '/',
+      url: '/api/auth/login'
+    })).toBe('auth')
+  })
+
   it('maps public write endpoints protected by backend CAPTCHA', () => {
     expect(captchaActionForRequest({ method: 'post', url: '/api/reservations' })).toBe('reservation-create')
     expect(captchaActionForRequest({ method: 'post', url: '/api/applications/upload' })).toBe('application-upload')

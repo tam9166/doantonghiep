@@ -50,8 +50,10 @@ export async function executeCaptcha(action) {
 
 function requestPath(config) {
   const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost'
-  const base = config.baseURL || origin
-  const url = new URL(config.url || '', base || origin)
+  // Axios accepts relative base URLs such as "/". The URL constructor does
+  // not, so first resolve the configured base against the current origin.
+  const base = new URL(config.baseURL || origin, origin).href
+  const url = new URL(config.url || '', base)
   return url.pathname
 }
 
