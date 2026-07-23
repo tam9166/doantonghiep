@@ -1,44 +1,35 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import Home from '@/views/Home.vue'
-import Login from '@/views/Login.vue'
-import Register from '@/views/Register.vue'
-import StaffLogin from '@/views/StaffLogin.vue'
-import FirstPasswordChange from '@/views/FirstPasswordChange.vue'
-import ProductMenu from '@/views/ProductMenu.vue'
-import OrderHistory from '@/views/OrderHistory.vue'
-import AdminProduct from '@/views/AdminProduct.vue'
-import AdminOrder from '@/views/AdminOrder.vue'
-import Reservation from '@/views/Reservation.vue'
-import AdminCategory from '@/views/AdminCategory.vue'
-import AdminTable from '@/views/AdminTable.vue'
-import DineInOrder from '../views/DineInOrder.vue'
-import Kitchen from '../views/Kitchen.vue'
-import Waiter from '../views/Waiter.vue'
-import AdminAnalytics from '@/views/AdminAnalytics.vue'
-import CustomerProfile from '@/views/CustomerProfile.vue'
+import { routeLoading } from './loadingState'
+import i18n from '@/i18n'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    { path: '/', name: 'home', component: Home },
-    { path: '/login', name: 'login', component: Login },
-    { path: '/register', name: 'register', component: Register },
-    { path: '/staff-login', name: 'staff-login', component: StaffLogin },
-    { path: '/change-password', name: 'change-password', component: FirstPasswordChange },
-    { path: '/menu', name: 'menu', component: ProductMenu },
-    { path: '/history', name: 'history', component: OrderHistory },
-    { path: '/profile', name: 'profile', component: CustomerProfile },
-    { path: '/admin', name: 'admin', component: AdminProduct },
-    { path: '/admin/orders', name: 'admin-orders', component: AdminOrder },
-    { path: '/admin/analytics', name: 'admin-analytics', component: AdminAnalytics },
-    { path: '/reservation', name: 'reservation', component: Reservation },
-    { path: '/admin/categories', name: 'admin-categories', component: AdminCategory },
-    { path: '/admin/tables', name: 'admin-tables', component: AdminTable },
+    { path: '/', name: 'home', component: () => import('@/views/Home.vue') },
+    { path: '/login', name: 'login', component: () => import('@/views/Login.vue') },
+    { path: '/register', name: 'register', component: () => import('@/views/Register.vue') },
+    { path: '/staff-login', name: 'staff-login', component: () => import('@/views/StaffLogin.vue') },
+    { path: '/change-password', name: 'change-password', component: () => import('@/views/FirstPasswordChange.vue') },
+    { path: '/menu', name: 'menu', component: () => import('@/views/ProductMenu.vue') },
+    { path: '/history', name: 'history', component: () => import('@/views/OrderHistory.vue') },
+    { path: '/profile', name: 'profile', component: () => import('@/views/CustomerProfile.vue') },
+    { path: '/admin', name: 'admin', component: () => import('@/views/AdminProduct.vue') },
+    { path: '/admin/orders', name: 'admin-orders', component: () => import('@/views/AdminOrder.vue') },
+    { path: '/admin/reservations', name: 'admin-reservations', component: () => import('@/views/AdminReservation.vue') },
+    { path: '/admin/reservation-reviews', name: 'admin-reservation-reviews', component: () => import('@/views/AdminReservationReview.vue') },
+    { path: '/admin/customer-history', name: 'admin-customer-history', component: () => import('@/views/AdminCustomerHistory.vue') },
+    { path: '/admin/deposit-policies', name: 'admin-deposit-policies', component: () => import('@/views/AdminDepositPolicy.vue') },
+    { path: '/admin/analytics', name: 'admin-analytics', component: () => import('@/views/AdminAnalytics.vue') },
+    { path: '/reservation', name: 'reservation', component: () => import('@/views/Reservation.vue') },
+    { path: '/reservation-lookup', name: 'reservation-lookup', component: () => import('@/views/ReservationLookup.vue') },
+    { path: '/admin/categories', name: 'admin-categories', component: () => import('@/views/AdminCategory.vue') },
+    { path: '/admin/tables', name: 'admin-tables', component: () => import('@/views/AdminTable.vue') },
+    { path: '/admin/table-areas', name: 'admin-table-areas', component: () => import('@/views/AdminTableArea.vue') },
     { path: '/admin/staff', name: 'AdminStaff', component: () => import('../views/AdminStaff.vue') },
     { path: '/admin/posts', name: 'AdminPost', component: () => import('../views/AdminPost.vue') },
-    { path: '/dine-in', name: 'DineInOrder', component: DineInOrder },
-    { path: '/kitchen', name: 'Kitchen', component: Kitchen },
-    { path: '/waiter', name: 'Waiter', component: Waiter },
+    { path: '/dine-in', name: 'DineInOrder', component: () => import('../views/DineInOrder.vue') },
+    { path: '/kitchen', name: 'Kitchen', component: () => import('../views/Kitchen.vue') },
+    { path: '/waiter', name: 'Waiter', component: () => import('../views/Waiter.vue') },
     { path: '/staff', name: 'Staff', component: () => import('../views/Staff.vue') },
     { path: '/admin/ingredients', name: 'AdminIngredient', component: () => import('../views/AdminIngredient.vue') },
     { path: '/admin/activity-log', name: 'AdminActivityLog', component: () => import('../views/AdminActivityLog.vue') },
@@ -51,6 +42,8 @@ const router = createRouter({
 
 // NGƯỜI GÁC CỔNG (Tách biệt Khách hàng và Nhân sự)
 router.beforeEach((to, from) => {
+  routeLoading.value = to.path.startsWith('/admin') && from.path !== to.path
+
   const token = localStorage.getItem('token')
   const storedUser = localStorage.getItem('user')
   let userRoles = []
@@ -61,7 +54,7 @@ router.beforeEach((to, from) => {
       const user = JSON.parse(storedUser)
       userRoles = user.roles || []
       mustChangePassword = Boolean(user.mustChangePassword)
-    } catch (e) {
+    } catch {
       userRoles = []
     }
   }
@@ -78,14 +71,14 @@ router.beforeEach((to, from) => {
   }
 
   // 1. NGĂN NHÂN VIÊN LÀM VIỆC RIÊNG (Chỉ Admin/Manager mới được xem trang khách)
-  const customerRoutes = ['/', '/reservation', '/history', '/profile']
+  const customerRoutes = ['/', '/reservation', '/reservation-lookup', '/history', '/profile']
   if (customerRoutes.includes(to.path)) {
     if (userRoles.includes('ROLE_KITCHEN') && !userRoles.includes('ROLE_ADMIN')) {
-      alert('Bạn là nhân viên Bếp, vui lòng làm việc tại khu vực Bếp!')
+      alert(i18n.global.t('access.kitchenRedirect'))
       return '/kitchen'
     }
     if (userRoles.includes('ROLE_WAITER') && !userRoles.includes('ROLE_ADMIN')) {
-      alert('Bạn là nhân viên Phục vụ, vui lòng làm việc tại khu vực Phục vụ!')
+      alert(i18n.global.t('access.waiterRedirect'))
       return '/waiter'
     }
   }
@@ -97,7 +90,7 @@ router.beforeEach((to, from) => {
         // Chưa đăng nhập → chuyển về trang đăng nhập nhân sự
         return '/staff-login'
       }
-      alert('Cảnh báo: Bạn không có quyền truy cập khu vực Quản trị!')
+      alert(i18n.global.t('access.adminDenied'))
       return '/'
     }
   }
@@ -108,7 +101,7 @@ router.beforeEach((to, from) => {
       if (!token) {
         return '/staff-login'
       }
-      alert('Cảnh báo: Bạn không có quyền truy cập trang Quản lý nguyên liệu!')
+      alert(i18n.global.t('access.ingredientsDenied'))
       return '/'
     }
   }
@@ -119,7 +112,7 @@ router.beforeEach((to, from) => {
       if (!token) {
         return '/staff-login'
       }
-      alert('Khu vực hạn chế: Chỉ dành cho bộ phận Bếp!')
+      alert(i18n.global.t('access.kitchenOnly'))
       return '/'
     }
   }
@@ -130,7 +123,7 @@ router.beforeEach((to, from) => {
       if (!token) {
         return '/staff-login'
       }
-      alert('Khu vực hạn chế: Chỉ dành cho bộ phận Phục vụ!')
+      alert(i18n.global.t('access.waiterOnly'))
       return '/'
     }
   }
@@ -141,7 +134,7 @@ router.beforeEach((to, from) => {
       if (!token) {
         return '/staff-login'
       }
-      alert('Khu vực hạn chế: Chỉ dành cho bộ phận Thu ngân!')
+      alert(i18n.global.t('access.cashierOnly'))
       return '/'
     }
   }
@@ -152,13 +145,23 @@ router.beforeEach((to, from) => {
       if (!token) {
         return '/staff-login'
       }
-      alert('Khu vực hạn chế: Chỉ dành cho nhân viên!')
+      alert(i18n.global.t('access.staffOnly'))
       return '/'
     }
   }
 
   // Nếu qua được hết các trạm kiểm soát thì cho phép đi tiếp
   return true
+})
+
+router.afterEach(() => {
+  window.setTimeout(() => {
+    routeLoading.value = false
+  }, 160)
+})
+
+router.onError(() => {
+  routeLoading.value = false
 })
 
 export default router

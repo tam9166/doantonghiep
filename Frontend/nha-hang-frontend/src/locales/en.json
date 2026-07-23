@@ -39,6 +39,16 @@
   "auth": {
     "logoutConfirm": "Are you sure you want to log out?"
   },
+  "access": {
+    "kitchenRedirect": "You are a kitchen employee. Please work from the Kitchen area.",
+    "waiterRedirect": "You are a service employee. Please work from the Service area.",
+    "adminDenied": "You do not have permission to access the administration area.",
+    "ingredientsDenied": "You do not have permission to manage ingredients.",
+    "kitchenOnly": "This area is restricted to the Kitchen department.",
+    "waiterOnly": "This area is restricted to the Service department.",
+    "cashierOnly": "This area is restricted to the Cashier department.",
+    "staffOnly": "This area is restricted to staff members."
+  },
   "features": {
     "fast_delivery": "Fast Delivery",
     "fast_delivery_desc": "Within 30 minutes",

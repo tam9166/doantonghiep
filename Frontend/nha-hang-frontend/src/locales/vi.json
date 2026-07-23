@@ -39,6 +39,16 @@
   "auth": {
     "logoutConfirm": "Bạn có chắc chắn muốn đăng xuất?"
   },
+  "access": {
+    "kitchenRedirect": "Bạn là nhân viên Bếp, vui lòng làm việc tại khu vực Bếp!",
+    "waiterRedirect": "Bạn là nhân viên Phục vụ, vui lòng làm việc tại khu vực Phục vụ!",
+    "adminDenied": "Bạn không có quyền truy cập khu vực Quản trị!",
+    "ingredientsDenied": "Bạn không có quyền quản lý nguyên liệu!",
+    "kitchenOnly": "Khu vực này chỉ dành cho bộ phận Bếp!",
+    "waiterOnly": "Khu vực này chỉ dành cho bộ phận Phục vụ!",
+    "cashierOnly": "Khu vực này chỉ dành cho bộ phận Thu ngân!",
+    "staffOnly": "Khu vực này chỉ dành cho nhân viên!"
+  },
   "features": {
     "fast_delivery": "Giao Hàng Nhanh",
     "fast_delivery_desc": "Trong vòng 30 phút",
