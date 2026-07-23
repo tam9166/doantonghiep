@@ -1,4 +1,5 @@
 import { createI18n } from 'vue-i18n';
+import { watch } from 'vue';
 import en from './locales/en.json';
 import vi from './locales/vi.json';
 
@@ -12,5 +13,10 @@ const i18n = createI18n({
     vi
   }
 });
+
+watch(i18n.global.locale, value => {
+  localStorage.setItem('lang', value);
+  document.documentElement.lang = value;
+}, { immediate: true });
 
 export default i18n;

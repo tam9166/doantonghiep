@@ -97,7 +97,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { getCurrentUser, hasRole as checkRole, isAuthenticated } from '@/services/api'
@@ -108,7 +108,10 @@ defineProps({
 
 const router = useRouter()
 const { locale, t } = useI18n()
-const currentLang = ref(localStorage.getItem('lang') || 'vi')
+const currentLang = computed({
+  get: () => locale.value,
+  set: value => { locale.value = value }
+})
 const isLoggedIn = ref(false)
 const user = ref(null)
 const isScrolled = ref(false)
@@ -120,13 +123,7 @@ function hasRole(role) {
 
 function changeLanguage() {
   locale.value = currentLang.value
-  localStorage.setItem('lang', currentLang.value)
 }
-
-watch(locale, value => {
-  currentLang.value = value
-  localStorage.setItem('lang', value)
-})
 
 function handleLogout() {
   if (confirm(t('auth.logoutConfirm'))) {

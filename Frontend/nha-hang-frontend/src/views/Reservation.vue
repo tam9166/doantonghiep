@@ -780,7 +780,6 @@ const paymentOptions = computed(() => Object.entries(text.value.paymentOptions).
 
 function toggleLang() {
   locale.value = lang.value === 'vi' ? 'en' : 'vi'
-  localStorage.setItem('lang', locale.value)
 }
 
 const money = formatCurrency
