@@ -3,45 +3,45 @@
     <div class="menu-wrapper">
 
     <main class="menu-content">
-      <h1 class="page-title">Thực Đơn Giao Hàng</h1>
-      <p class="page-subtitle">Chọn món ngon - Giao nóng hổi tận nhà</p>
+      <h1 class="page-title">{{ text.title }}</h1>
+      <p class="page-subtitle">{{ text.subtitle }}</p>
 
       <!-- Món ăn gợi ý -->
       <div v-if="!isLoading && !loadError && suggestedProducts.length > 0" class="suggested-section">
-        <h2 class="section-title"><span style="color: #B98229">🌟</span> Gợi Ý Cho Bạn</h2>
+        <h2 class="section-title"><span style="color: #B98229">🌟</span> {{ text.suggestions }}</h2>
         <div class="suggested-grid">
           <div v-for="product in suggestedProducts" :key="'sugg-'+product.id" class="suggested-card">
             <div class="sugg-badge">HOT</div>
             <img :src="foodImage(product.image)" :alt="productName(product)" loading="lazy" @error="replaceFoodImage" />
             <div class="sugg-info">
               <h3>{{ productName(product) }}</h3>
-              <p class="price">{{ product.price.toLocaleString() }}đ</p>
+              <p class="price">{{ formatCurrency(product.price) }}</p>
             </div>
-            <button v-if="!isAdminOrManager" class="btn-sugg-add" @click="addToCart(product)">Thêm Ngay</button>
+            <button v-if="!isAdminOrManager" class="btn-sugg-add" @click="addToCart(product)">{{ text.addNow }}</button>
           </div>
         </div>
       </div>
 
       <div v-if="!isLoading && !loadError" class="category-filter">
-        <button :class="{'active': selectedCategory === null}" @click="selectedCategory = null">Tất cả món</button>
+        <button :class="{'active': selectedCategory === null}" @click="selectedCategory = null">{{ text.allItems }}</button>
         <button v-for="c in categories" :key="c.id" :class="{'active': selectedCategory === c.id}" @click="selectedCategory = c.id">
           {{ categoryName(c) }}
         </button>
       </div>
 
-      <div v-if="isLoading" class="menu-loading-grid" aria-label="Đang tải thực đơn">
+      <div v-if="isLoading" class="menu-loading-grid" :aria-label="text.loading">
         <SkeletonLoader v-for="item in 6" :key="item" variant="card" />
       </div>
 
       <div v-else-if="loadError" class="menu-state menu-error" role="alert">
-        <strong>Không thể tải thực đơn.</strong>
+        <strong>{{ text.loadFailed }}</strong>
         <span>{{ loadError }}</span>
-        <button class="g-btn-outline" type="button" @click="loadMenu">Thử lại</button>
+        <button class="g-btn-outline" type="button" @click="loadMenu">{{ text.retry }}</button>
       </div>
 
       <div v-else-if="filteredProducts.length === 0" class="menu-state">
-        <strong>Chưa có món ăn phù hợp.</strong>
-        <span>Hãy chọn danh mục khác để tiếp tục.</span>
+        <strong>{{ text.noItems }}</strong>
+        <span>{{ text.noItemsHint }}</span>
       </div>
 
       <div v-else class="product-grid">
@@ -52,67 +52,67 @@
             ⭐ {{ product.averageRating }}
           </div>
           <div class="product-rating" v-else>
-            <span style="color: #55503E; font-size: 0.8rem">Chưa có đánh giá</span>
+            <span style="color: #55503E; font-size: 0.8rem">{{ text.noRatings }}</span>
           </div>
-          <p class="price">{{ product.price.toLocaleString() }} VNĐ</p>
-          <button v-if="!isAdminOrManager" class="btn-add" @click="addToCart(product)">+ Thêm vào giỏ</button>
-          <button v-else class="btn-add btn-disabled" disabled>Chỉ xem (Admin)</button>
+          <p class="price">{{ formatCurrency(product.price) }}</p>
+          <button v-if="!isAdminOrManager" class="btn-add" @click="addToCart(product)">+ {{ text.addToCart }}</button>
+          <button v-else class="btn-add btn-disabled" disabled>{{ text.viewOnly }}</button>
         </div>
       </div>
       
       <!-- Floating Cart Button -->
       <div v-if="cart.length > 0 && !isAdminOrManager" class="floating-cart" @click="showCheckoutModal = true">
         <span class="cart-icon">🛒</span>
-        <span class="cart-count">{{ cart.length }} món</span>
-        <span class="cart-total">{{ cartTotal.toLocaleString() }}đ</span>
-        <span class="cart-checkout">Thanh toán →</span>
+        <span class="cart-count">{{ t('menu.itemCount', { count: cart.length }) }}</span>
+        <span class="cart-total">{{ formatCurrency(cartTotal) }}</span>
+        <span class="cart-checkout">{{ text.checkout }} →</span>
       </div>
     </main>
 
     <div v-if="showCheckoutModal" class="g-modal-overlay" @click.self="showCheckoutModal = false">
       <div class="g-modal-box" style="max-width: 600px;">
-        <h3>Thông Tin Giao Hàng & Thanh Toán</h3>
+        <h3>{{ text.checkoutTitle }}</h3>
         
         <div v-if="!paymentQr" class="checkout-scroll-area" style="max-height: 400px; overflow-y: auto; padding-right: 10px;">
           <div class="form-group mt-3">
-            <label>Họ tên người nhận (*):</label>
-            <input v-model="orderInfo.fullname" type="text" placeholder="Nguyễn Văn A..." class="g-form-control" />
+            <label>{{ text.recipientName }}</label>
+            <input v-model="orderInfo.fullname" type="text" :placeholder="text.recipientNamePlaceholder" class="g-form-control" />
           </div>
           <div class="form-group mt-3">
-            <label>Số điện thoại (*):</label>
+            <label>{{ text.phone }}</label>
             <input v-model="orderInfo.phone" type="text" placeholder="0905..." class="g-form-control" />
           </div>
           <div class="form-group mt-3">
-            <label>Địa chỉ nhận hàng (*):</label>
-            <input v-model="orderInfo.address" type="text" placeholder="Số nhà, tên đường..." class="g-form-control" />
+            <label>{{ text.address }}</label>
+            <input v-model="orderInfo.address" type="text" :placeholder="text.addressPlaceholder" class="g-form-control" />
           </div>
 
           <div class="payment-banking-box mt-4" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); padding: 15px; border-radius: 12px;">
-            <h4 style="color: var(--primary); margin: 0 0 10px 0;">Chuyển khoản qua VietQR</h4>
-            <p style="margin-bottom: 5px;">Tạm tính: <strong>{{ cartSubtotal.toLocaleString() }}đ</strong></p>
-            <p style="margin-bottom: 5px;">Thuế GTGT dự kiến: <strong>{{ cartTax.toLocaleString() }}đ</strong></p>
-            <p>Tổng dự kiến: <strong style="color: #B23B2E; font-size: 1.2rem;">{{ cartTotal.toLocaleString() }}đ</strong></p>
+            <h4 style="color: var(--primary); margin: 0 0 10px 0;">{{ text.bankTransfer }}</h4>
+            <p style="margin-bottom: 5px;">{{ text.subtotal }}: <strong>{{ formatCurrency(cartSubtotal) }}</strong></p>
+            <p style="margin-bottom: 5px;">{{ text.tax }}: <strong>{{ formatCurrency(cartTax) }}</strong></p>
+            <p>{{ text.estimatedTotal }}: <strong style="color: #B23B2E; font-size: 1.2rem;">{{ formatCurrency(cartTotal) }}</strong></p>
             <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 10px;">
-              Mã QR chính xác sẽ được tạo sau khi hệ thống ghi nhận đơn và tính lại giá.
+              {{ text.qrHint }}
             </p>
           </div>
         </div>
 
         <div v-else class="payment-banking-box payment-result">
-          <h4>Quét QR để thanh toán</h4>
-          <img :src="paymentQr.qrUrl" alt="Mã QR thanh toán đơn giao hàng" />
-          <p>Số tiền: <strong>{{ Number(paymentQr.amount).toLocaleString() }}đ</strong></p>
-          <p>Ngân hàng: <strong>{{ paymentQr.bankCode }}</strong></p>
-          <p>Số tài khoản: <strong>{{ paymentQr.accountNumber }}</strong></p>
-          <p>Chủ tài khoản: <strong>{{ paymentQr.accountHolder }}</strong></p>
-          <p>Nội dung: <strong>{{ paymentQr.transferContent }}</strong></p>
-          <small>Đơn chỉ được chuyển xuống bếp sau khi ngân hàng xác nhận đủ tiền.</small>
+          <h4>{{ text.scanQr }}</h4>
+          <img :src="paymentQr.qrUrl" :alt="text.paymentQrAlt" />
+          <p>{{ text.amount }}: <strong>{{ formatCurrency(Number(paymentQr.amount)) }}</strong></p>
+          <p>{{ text.bank }}: <strong>{{ paymentQr.bankCode }}</strong></p>
+          <p>{{ text.accountNumber }}: <strong>{{ paymentQr.accountNumber }}</strong></p>
+          <p>{{ text.accountHolder }}: <strong>{{ paymentQr.accountHolder }}</strong></p>
+          <p>{{ text.transferContent }}: <strong>{{ paymentQr.transferContent }}</strong></p>
+          <small>{{ text.paymentConfirmedHint }}</small>
         </div>
 
         <div class="modal-actions mt-4" style="display: flex; gap: 10px;">
-          <button @click="closeCheckout" class="g-btn-outline" style="flex: 1;">{{ paymentQr ? 'Đã hiểu' : 'Đóng' }}</button>
+          <button @click="closeCheckout" class="g-btn-outline" style="flex: 1;">{{ paymentQr ? text.understood : text.close }}</button>
           <button v-if="cart.length > 0 && !paymentQr" @click="submitShipOrder" :disabled="checkoutSubmitting" class="g-btn-primary" style="flex: 1;">
-            {{ checkoutSubmitting ? 'Đang tạo đơn...' : 'Tạo đơn & lấy mã QR' }}
+            {{ checkoutSubmitting ? text.creatingOrder : text.createOrder }}
           </button>
         </div>
       </div>
@@ -129,13 +129,16 @@ import { useI18n } from 'vue-i18n';
 import CustomerLayout from '@/components/CustomerLayout.vue';
 import SkeletonLoader from '@/components/SkeletonLoader.vue';
 import { foodImage, replaceFoodImage } from '@/utils/imageFallback';
+import { useFormatters } from '@/composables/useFormatters';
 
 const products = ref([]);
 const suggestedProducts = ref([]);
 const categories = ref([]);
 const cart = ref([]);
 const router = useRouter();
-const { locale } = useI18n();
+const { locale, tm, t } = useI18n();
+const { formatCurrency } = useFormatters();
+const text = computed(() => tm('menu'));
 const isLoggedIn = ref(false);
 const userRoles = ref([]);
 const isLoading = ref(true);
@@ -165,12 +168,12 @@ const cartTotal = computed(() => {
 });
 
 const productName = (product) => locale.value === 'en'
-  ? (product.nameEn || product.name)
-  : (product.nameVi || product.name);
+  ? (product.nameEn || product.nameVi || product.name)
+  : (product.nameVi || product.name || product.nameEn);
 
 const categoryName = (category) => locale.value === 'en'
-  ? (category.nameEn || category.name)
-  : (category.nameVi || category.name);
+  ? (category.nameEn || category.nameVi || category.name)
+  : (category.nameVi || category.name || category.nameEn);
 
 const fetchProducts = async () => {
   const response = await api.get('/api/products');
@@ -211,14 +214,14 @@ const addToCart = (product) => {
   } else {
     cart.value.push({ productId: product.id, quantity: 1, name: productName(product), price: product.price, taxRate: product.taxRate || 8 });
   }
-  alert(`Đã thêm ${productName(product)} vào giỏ!`);
+  alert(t('menu.addedToCart', { name: productName(product) }));
 };
 
 const submitShipOrder = async () => {
   const token = localStorage.getItem('token');
   
   if(!orderInfo.value.fullname || !orderInfo.value.phone || !orderInfo.value.address) {
-    alert("Vui lòng điền đầy đủ thông tin nhận hàng!");
+    alert(t('menu.requiredDeliveryInfo'));
     return;
   }
 
@@ -241,7 +244,7 @@ const submitShipOrder = async () => {
     paymentQr.value = response.data.payment;
     cart.value = [];
   } catch (error) {
-    alert("Lỗi: " + (error.response?.data?.message || "Vui lòng thử lại"));
+    alert(error.response?.data?.message || t('menu.checkoutError'));
   } finally {
     checkoutSubmitting.value = false;
   }
@@ -265,7 +268,7 @@ const loadMenu = async () => {
   ]);
 
   if (productsResult.status === 'rejected') {
-    loadError.value = productsResult.reason?.response?.data?.message || 'Vui lòng kiểm tra kết nối rồi thử lại.';
+    loadError.value = productsResult.reason?.response?.data?.message || t('menu.connectionError');
   } else {
     await fetchSuggested();
   }

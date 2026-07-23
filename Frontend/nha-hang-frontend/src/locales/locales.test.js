@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import vi from './vi.json'
 import en from './en.json'
+import productMenuMessages from './productMenuMessages'
 import reservationMessages from './reservationMessages'
 
 function sortedKeys(value) {
@@ -24,5 +25,9 @@ describe('locale dictionaries', () => {
 
   it('keeps reservation translation keys in sync', () => {
     expect(sortedKeys(reservationMessages.en)).toEqual(sortedKeys(reservationMessages.vi))
+  })
+
+  it('keeps product menu translation keys in sync', () => {
+    expect(sortedKeys(productMenuMessages.en)).toEqual(sortedKeys(productMenuMessages.vi))
   })
 })
