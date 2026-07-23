@@ -2,6 +2,7 @@ import { createI18n } from 'vue-i18n';
 import { watch } from 'vue';
 import en from './locales/en.json';
 import vi from './locales/vi.json';
+import reservationMessages from './locales/reservationMessages';
 
 // Cấu hình vue-i18n
 const i18n = createI18n({
@@ -9,8 +10,8 @@ const i18n = createI18n({
   locale: localStorage.getItem('lang') || 'vi', // Mặc định là Tiếng Việt
   fallbackLocale: 'en', // Fallback là Tiếng Anh
   messages: {
-    en,
-    vi
+    en: { ...en, reservation: reservationMessages.en },
+    vi: { ...vi, reservation: reservationMessages.vi }
   }
 });
 
