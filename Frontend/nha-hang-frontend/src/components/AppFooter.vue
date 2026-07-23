@@ -15,11 +15,11 @@
             <span class="footer-brand-icon">🍽️</span>
             <div>
               <h3>NHÀ HÀNG <span>MỘC VỊ</span></h3>
-              <p class="footer-brand-sub">Tinh hoa ẩm thực Việt</p>
+              <p class="footer-brand-sub">{{ $t('footer.tagline') }}</p>
             </div>
           </div>
           <p class="footer-desc">
-            Nhà hàng Mộc Vị — nơi giao thoa giữa hương vị truyền thống và phong cách hiện đại, mang đến trải nghiệm ẩm thực hoàn hảo tại Đà Nẵng.
+            {{ $t('footer.description') }}
           </p>
           <div class="footer-socials">
             <a href="#" class="social-link" title="Facebook">
@@ -36,18 +36,18 @@
 
         <!-- Quick Links -->
         <div class="footer-col">
-          <h4>Khám Phá</h4>
+          <h4>{{ $t('footer.explore') }}</h4>
           <ul>
-            <li><router-link to="/menu">📖 Thực đơn</router-link></li>
-            <li><router-link to="/reservation">📅 Đặt bàn</router-link></li>
-            <li><router-link to="/dine-in">🍽️ Gọi món tại quán</router-link></li>
-            <li><router-link to="/history">📜 Lịch sử đơn hàng</router-link></li>
+            <li><router-link to="/menu">📖 {{ $t('nav.menu') }}</router-link></li>
+            <li><router-link to="/reservation">📅 {{ $t('nav.booking') }}</router-link></li>
+            <li><router-link to="/dine-in">🍽️ {{ $t('footer.dineIn') }}</router-link></li>
+            <li><router-link to="/history">📜 {{ $t('footer.orderHistory') }}</router-link></li>
           </ul>
         </div>
 
         <!-- Contact Info -->
         <div class="footer-col">
-          <h4>Liên Hệ</h4>
+          <h4>{{ $t('footer.contact') }}</h4>
           <ul class="contact-list">
             <li>
               <span class="contact-icon">📍</span>
@@ -63,17 +63,17 @@
             </li>
             <li>
               <span class="contact-icon">🕐</span>
-              <span>T2-T6: 10:00 - 22:00 | T7-CN: 09:00 - 23:00</span>
+              <span>{{ $t('footer.openingHours') }}</span>
             </li>
           </ul>
         </div>
 
         <!-- Newsletter -->
         <div class="footer-col">
-          <h4>Nhận Ưu Đãi</h4>
-          <p class="newsletter-desc">Đăng ký nhận thông tin khuyến mãi và ưu đãi đặc biệt từ Mộc Vị.</p>
+          <h4>{{ $t('footer.newsletter') }}</h4>
+          <p class="newsletter-desc">{{ $t('footer.newsletterHint') }}</p>
           <div class="newsletter-form">
-            <input type="email" placeholder="Email của bạn..." class="newsletter-input" />
+            <input type="email" :placeholder="$t('footer.emailPlaceholder')" class="newsletter-input" />
             <button class="newsletter-btn">→</button>
           </div>
         </div>
@@ -81,10 +81,10 @@
 
       <!-- Bottom Bar -->
       <div class="footer-bottom">
-        <p>© {{ currentYear }} NHÀ HÀNG MỘC VỊ — Đà Nẵng. Đồ án tốt nghiệp FPT Polytechnic.</p>
+        <p>© {{ currentYear }} {{ $t('footer.copyright') }}</p>
         <div class="footer-bottom-links">
-          <a href="#">Chính sách bảo mật</a>
-          <a href="#">Điều khoản sử dụng</a>
+          <a href="#">{{ $t('footer.privacy') }}</a>
+          <a href="#">{{ $t('footer.terms') }}</a>
         </div>
       </div>
     </div>

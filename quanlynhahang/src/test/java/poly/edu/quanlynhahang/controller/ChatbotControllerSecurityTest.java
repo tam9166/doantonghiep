@@ -34,14 +34,20 @@ class ChatbotControllerSecurityTest {
     }
 
     @Test
-    void publicSupportUseCaseCanCallGemini() {
-        when(productRepository.findAll()).thenReturn(List.of());
-        when(geminiClient.generate(anyString(), anyString())).thenReturn("Xin chào");
-
+    void publicSupportOpeningHoursUsesConfiguredResponseWithoutGemini() {
         var response = controller.chatWithAI(new AiRequest("Mấy giờ mở cửa?", "SUPPORT", null, null, null));
 
-        assertEquals("Xin chào", ((java.util.Map<?, ?>) response.getBody()).get("reply"));
-        verify(geminiClient).generate(anyString(), org.mockito.ArgumentMatchers.eq("SUPPORT"));
+        assertEquals("Nhà hàng mở cửa 09:00 - 23:00 hằng ngày.", ((java.util.Map<?, ?>) response.getBody()).get("reply"));
+        verifyNoInteractions(geminiClient);
+    }
+
+    @Test
+    void publicSupportHotlineUsesEnglishWhenRequested() {
+        var response = controller.chatWithAI(new AiRequest(
+                "What is the hotline number?", "SUPPORT", null, null, null, "en"));
+
+        assertEquals("Our hotline is 0347944028.", ((java.util.Map<?, ?>) response.getBody()).get("reply"));
+        verifyNoInteractions(geminiClient);
     }
 
     @Test

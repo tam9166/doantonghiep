@@ -15,7 +15,7 @@
         <router-link to="/" exact-active-class="active">{{ $t('nav.home') }}</router-link>
         <router-link to="/menu" active-class="active">{{ $t('nav.menu') }}</router-link>
         <router-link to="/reservation" active-class="active">{{ $t('nav.booking') }}</router-link>
-        <router-link to="/reservation-lookup" active-class="active">Tra cứu</router-link>
+        <router-link to="/reservation-lookup" active-class="active">{{ $t('nav.lookup') }}</router-link>
         <router-link to="/dine-in" active-class="active">{{ $t('nav.dine_in') }}</router-link>
       </nav>
 
@@ -29,38 +29,38 @@
 
         <template v-if="!isLoggedIn">
           <router-link to="/login" class="nav-btn">{{ $t('nav.login') }}</router-link>
-          <router-link to="/register" class="nav-btn nav-btn-primary">Đăng ký</router-link>
+          <router-link to="/register" class="nav-btn nav-btn-primary">{{ $t('nav.register') }}</router-link>
         </template>
 
         <template v-else>
-          <router-link to="/history" class="nav-btn">📜 Lịch sử</router-link>
-          <router-link to="/profile" class="nav-btn">👤 Hồ sơ</router-link>
+          <router-link to="/history" class="nav-btn">📜 {{ $t('nav.history') }}</router-link>
+          <router-link to="/profile" class="nav-btn">👤 {{ $t('nav.profile') }}</router-link>
           
           <router-link
             v-if="hasRole('ROLE_ADMIN') || hasRole('ROLE_MANAGER')"
             to="/admin"
             class="nav-btn nav-btn-admin"
-          >⚙️ Admin</router-link>
+          >⚙️ {{ $t('nav.admin') }}</router-link>
 
           <router-link
             v-if="hasRole('ROLE_KITCHEN')"
             to="/kitchen"
             class="nav-btn nav-btn-kitchen"
-          >👨‍🍳 Bếp</router-link>
+          >👨‍🍳 {{ $t('nav.kitchen') }}</router-link>
 
           <router-link
             v-if="hasRole('ROLE_WAITER')"
             to="/waiter"
             class="nav-btn nav-btn-waiter"
-          >🏃 Phục vụ</router-link>
+          >🏃 {{ $t('nav.waiter') }}</router-link>
 
           <router-link
             v-if="hasRole('ROLE_CASHIER')"
             to="/cashier"
             class="nav-btn nav-btn-cashier"
-          >💰 Thu ngân</router-link>
+          >💰 {{ $t('nav.cashier') }}</router-link>
 
-          <button @click="handleLogout" class="nav-btn nav-btn-logout">Đăng xuất</button>
+          <button @click="handleLogout" class="nav-btn nav-btn-logout">{{ $t('nav.logout') }}</button>
         </template>
 
         <!-- Mobile hamburger -->
@@ -74,21 +74,21 @@
     <Transition name="mobile-menu">
       <div v-if="mobileMenuOpen" class="mobile-overlay" @click="mobileMenuOpen = false">
         <nav class="mobile-nav" @click.stop>
-          <router-link to="/" @click="mobileMenuOpen = false">🏠 Trang chủ</router-link>
-          <router-link to="/menu" @click="mobileMenuOpen = false">📖 Thực đơn</router-link>
-          <router-link to="/reservation" @click="mobileMenuOpen = false">📅 Đặt bàn</router-link>
-          <router-link to="/reservation-lookup" @click="mobileMenuOpen = false">Tra cứu đặt bàn</router-link>
-          <router-link to="/dine-in" @click="mobileMenuOpen = false">🍽️ Tại quán</router-link>
+          <router-link to="/" @click="mobileMenuOpen = false">🏠 {{ $t('nav.home') }}</router-link>
+          <router-link to="/menu" @click="mobileMenuOpen = false">📖 {{ $t('nav.menu') }}</router-link>
+          <router-link to="/reservation" @click="mobileMenuOpen = false">📅 {{ $t('nav.booking') }}</router-link>
+          <router-link to="/reservation-lookup" @click="mobileMenuOpen = false">{{ $t('nav.lookup') }}</router-link>
+          <router-link to="/dine-in" @click="mobileMenuOpen = false">🍽️ {{ $t('nav.dine_in') }}</router-link>
           <div class="mobile-divider"></div>
           <template v-if="!isLoggedIn">
-            <router-link to="/login" @click="mobileMenuOpen = false">🔑 Đăng nhập</router-link>
-            <router-link to="/register" @click="mobileMenuOpen = false">📝 Đăng ký</router-link>
+            <router-link to="/login" @click="mobileMenuOpen = false">🔑 {{ $t('nav.login') }}</router-link>
+            <router-link to="/register" @click="mobileMenuOpen = false">📝 {{ $t('nav.register') }}</router-link>
           </template>
           <template v-else>
-            <router-link to="/history" @click="mobileMenuOpen = false">📜 Lịch sử</router-link>
-            <router-link to="/profile" @click="mobileMenuOpen = false">👤 Hồ sơ</router-link>
-            <router-link v-if="hasRole('ROLE_ADMIN') || hasRole('ROLE_MANAGER')" to="/admin" @click="mobileMenuOpen = false">⚙️ Quản trị</router-link>
-            <a href="#" @click.prevent="handleLogout" class="mobile-logout">🚪 Đăng xuất</a>
+            <router-link to="/history" @click="mobileMenuOpen = false">📜 {{ $t('nav.history') }}</router-link>
+            <router-link to="/profile" @click="mobileMenuOpen = false">👤 {{ $t('nav.profile') }}</router-link>
+            <router-link v-if="hasRole('ROLE_ADMIN') || hasRole('ROLE_MANAGER')" to="/admin" @click="mobileMenuOpen = false">⚙️ {{ $t('nav.admin') }}</router-link>
+            <a href="#" @click.prevent="handleLogout" class="mobile-logout">🚪 {{ $t('nav.logout') }}</a>
           </template>
         </nav>
       </div>
@@ -97,7 +97,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { getCurrentUser, hasRole as checkRole, isAuthenticated } from '@/services/api'
@@ -107,7 +107,7 @@ defineProps({
 })
 
 const router = useRouter()
-const { locale } = useI18n()
+const { locale, t } = useI18n()
 const currentLang = ref(localStorage.getItem('lang') || 'vi')
 const isLoggedIn = ref(false)
 const user = ref(null)
@@ -123,8 +123,13 @@ function changeLanguage() {
   localStorage.setItem('lang', currentLang.value)
 }
 
+watch(locale, value => {
+  currentLang.value = value
+  localStorage.setItem('lang', value)
+})
+
 function handleLogout() {
-  if (confirm('Bạn có chắc chắn muốn đăng xuất?')) {
+  if (confirm(t('auth.logoutConfirm'))) {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     isLoggedIn.value = false

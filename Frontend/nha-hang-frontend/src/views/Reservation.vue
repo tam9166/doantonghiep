@@ -198,6 +198,41 @@
                 </div>
               </article>
             </div>
+            <section v-if="form.areaId" class="table-preview" aria-live="polite">
+              <div class="panel-row">
+                <div>
+                  <h3>{{ text.tableInfo }}</h3>
+                  <p>{{ selectedAreaName }}</p>
+                </div>
+                <button class="ghost-btn" type="button" :disabled="loadingTables" @click="loadAvailableTables">
+                  {{ loadingTables ? text.loading : text.reload }}
+                </button>
+              </div>
+              <div v-if="loadingTables" class="skeleton-grid">
+                <div v-for="n in 3" :key="n" class="skeleton-card table"></div>
+              </div>
+              <div v-else-if="tableError" class="error-banner">
+                {{ tableError }}
+                <button type="button" @click="loadAvailableTables">{{ text.retry }}</button>
+              </div>
+              <div v-else-if="!availableTables.length" class="empty-state">{{ text.noTables }}</div>
+              <div v-else class="table-preview-grid">
+                <button
+                  v-for="table in availableTables"
+                  :key="table.id"
+                  type="button"
+                  :class="['preview-table', { selected: form.tableId === table.id }]"
+                  :aria-pressed="form.tableId === table.id"
+                  :aria-label="`${text.chooseTable}: ${table.name}`"
+                  @click="selectTable(table)"
+                >
+                  <strong>{{ table.name }}</strong>
+                  <span>{{ text.capacity }}: {{ table.capacity || table.maxCapacity || '-' }}</span>
+                  <span>{{ text.price }}: {{ money(table.reservationPrice) }}</span>
+                  <small>{{ form.tableId === table.id ? text.selected : text.chooseTable }}</small>
+                </button>
+              </div>
+            </section>
           </section>
 
           <section v-show="step === 5" class="panel">
@@ -418,10 +453,14 @@
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import CustomerLayout from '@/components/CustomerLayout.vue'
 import api from '@/services/api'
+import { useFormatters } from '@/composables/useFormatters'
 
-const lang = ref(localStorage.getItem('reservationLang') || localStorage.getItem('lang') || 'vi')
+const { locale } = useI18n()
+const { formatCurrency, formatDateTime } = useFormatters()
+const lang = computed(() => locale.value)
 const step = ref(1)
 const areas = ref([])
 const tables = ref([])
@@ -451,6 +490,7 @@ const quote = ref(null)
 const menuSearch = ref('')
 const menuCategory = ref('')
 const idempotencyKey = ref(crypto.randomUUID())
+let tableRequestSequence = 0
 
 const fallbackAreaImage = 'https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=900&q=80'
 const fallbackTableImage = 'https://images.unsplash.com/photo-1521017432531-fbd92d768814?auto=format&fit=crop&w=900&q=80'
@@ -738,24 +778,12 @@ const filteredMenu = computed(() => {
 })
 const paymentOptions = computed(() => Object.entries(text.value.paymentOptions).map(([key, value]) => ({ key, label: value[0], hint: value[1] })))
 
-watch(lang, value => {
-  localStorage.setItem('reservationLang', value)
-  localStorage.setItem('lang', value)
-})
-
 function toggleLang() {
-  lang.value = lang.value === 'vi' ? 'en' : 'vi'
+  locale.value = lang.value === 'vi' ? 'en' : 'vi'
+  localStorage.setItem('lang', locale.value)
 }
 
-const money = value => new Intl.NumberFormat(lang.value === 'vi' ? 'vi-VN' : 'en-US', {
-  style: 'currency',
-  currency: 'VND',
-  maximumFractionDigits: 0
-}).format(Number(value || 0))
-
-function formatDateTime(value) {
-  return value ? new Date(value).toLocaleString(lang.value === 'vi' ? 'vi-VN' : 'en-US') : '-'
-}
+const money = formatCurrency
 
 function statusLabel(status) {
   return text.value.statusMap[status] || status
@@ -851,6 +879,7 @@ function goTo(target) {
 }
 
 function selectArea(area) {
+  if (form.value.areaId === area.id && tables.value.length) return
   form.value.areaId = area.id
   form.value.tableId = null
   selectedTable.value = null
@@ -899,6 +928,7 @@ async function refreshAreaCounts() {
 
 async function loadAvailableTables() {
   if (!form.value.reservationDate || !form.value.arrivalTime || !form.value.areaId) return
+  const requestSequence = ++tableRequestSequence
   loadingTables.value = true
   tableError.value = ''
   try {
@@ -911,18 +941,45 @@ async function loadAvailableTables() {
         areaId: form.value.areaId
       }
     })
+    if (requestSequence !== tableRequestSequence) return
     tables.value = Array.isArray(res.data) ? res.data : []
     await loadTableSuggestions()
+    if (requestSequence !== tableRequestSequence) return
     if (selectedTable.value && !tables.value.some(table => table.id === selectedTable.value.id && table.availabilityStatus === 'AVAILABLE')) {
       selectedTable.value = null
       form.value.tableId = null
+      serverError.value = lang.value === 'vi'
+        ? 'Bàn đã chọn không còn phù hợp. Vui lòng chọn lại.'
+        : 'The selected table is no longer suitable. Please choose another table.'
     }
   } catch (err) {
+    if (requestSequence !== tableRequestSequence) return
     tableError.value = err.response?.data?.message || (lang.value === 'vi' ? 'Không tải được bàn phù hợp' : 'Could not load matching tables')
   } finally {
-    loadingTables.value = false
+    if (requestSequence === tableRequestSequence) loadingTables.value = false
   }
 }
+
+watch(
+  () => [
+    form.value.reservationDate,
+    form.value.arrivalTime,
+    form.value.expectedDurationMinutes,
+    form.value.guestCount,
+    form.value.areaId
+  ],
+  async (current, previous) => {
+    if (!previous || current.every((value, index) => value === previous[index])) return
+    if (!form.value.areaId || !form.value.reservationDate || !form.value.arrivalTime || !form.value.guestCount) return
+
+    if (current.slice(0, 4).some((value, index) => value !== previous[index])) {
+      form.value.tableId = null
+      selectedTable.value = null
+      quote.value = null
+    }
+    await loadAvailableTables()
+  }
+)
 
 async function loadTableSuggestions() {
   try {
@@ -1739,6 +1796,55 @@ small {
   color: #7A7460;
 }
 
+.table-preview {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #CFC7A8;
+}
+
+.table-preview h3,
+.table-preview p {
+  margin: 0;
+}
+
+.table-preview p {
+  color: #6A6657;
+  margin-top: 4px;
+}
+
+.table-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.preview-table {
+  display: grid;
+  gap: 6px;
+  min-height: 132px;
+  padding: 16px;
+  text-align: left;
+  color: #201D14;
+  background: #FFFFFF;
+  border: 1px solid #CFC7A8;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.preview-table:hover,
+.preview-table:focus-visible,
+.preview-table.selected {
+  border-color: #5A6E45;
+  box-shadow: 0 0 0 3px #E7E3D2;
+  outline: none;
+}
+
+.preview-table span,
+.preview-table small {
+  color: #6A6657;
+}
+
 .qr-card > .secondary-btn {
   grid-column: 1 / -1;
   justify-self: end;
@@ -1835,6 +1941,7 @@ small {
   .danger-btn { min-height: 44px; }
   .area-grid,
   .table-grid,
+  .table-preview-grid,
   .dish-grid,
   .skeleton-grid,
   .choice-grid,

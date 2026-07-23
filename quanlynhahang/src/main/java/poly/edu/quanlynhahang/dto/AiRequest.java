@@ -16,9 +16,16 @@ public record AiRequest(
         String menu,
 
         @Size(max = 12_000, message = "Danh sách món quá dài")
-        String dishes) {
+        String dishes,
+
+        @Size(max = 8, message = "Ngôn ngữ không hợp lệ")
+        String locale) {
+
+    public AiRequest(String message, String type, String history, String menu, String dishes) {
+        this(message, type, history, menu, dishes, null);
+    }
 
     public AiRequest withType(String forcedType) {
-        return new AiRequest(message, forcedType, history, menu, dishes);
+        return new AiRequest(message, forcedType, history, menu, dishes, locale);
     }
 }

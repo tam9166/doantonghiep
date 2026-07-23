@@ -6,13 +6,38 @@
     "dine_in": "Dine in",
     "history": "History",
     "login": "Login",
-    "logout": "Logout"
+    "logout": "Logout",
+    "lookup": "Reservation lookup",
+    "register": "Register",
+    "profile": "Profile",
+    "admin": "Administration",
+    "kitchen": "Kitchen",
+    "waiter": "Service",
+    "cashier": "Cashier"
   },
   "home": {
     "title": "Welcome to FPOLY RESTAURANT",
     "subtitle": "Discover the exquisite culinary flavors in a luxurious space",
     "book_now": "Book a table now",
     "view_menu": "View full menu"
+  },
+  "footer": {
+    "tagline": "Vietnamese culinary essence",
+    "description": "Moc Vi Restaurant brings together traditional flavors and modern hospitality for a complete dining experience in Da Nang.",
+    "explore": "Explore",
+    "contact": "Contact",
+    "newsletter": "Receive offers",
+    "newsletterHint": "Subscribe for promotions and special offers from Moc Vi.",
+    "emailPlaceholder": "Your email...",
+    "dineIn": "Order at the restaurant",
+    "orderHistory": "Order history",
+    "openingHours": "Daily: 09:00 - 23:00",
+    "copyright": "Moc Vi Restaurant - Da Nang. FPT Polytechnic graduation project.",
+    "privacy": "Privacy policy",
+    "terms": "Terms of use"
+  },
+  "auth": {
+    "logoutConfirm": "Are you sure you want to log out?"
   },
   "features": {
     "fast_delivery": "Fast Delivery",

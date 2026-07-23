@@ -6,13 +6,38 @@
     "dine_in": "Tại bàn",
     "history": "Lịch Sử",
     "login": "Đăng Nhập",
-    "logout": "Đăng Xuất"
+    "logout": "Đăng Xuất",
+    "lookup": "Tra cứu đặt bàn",
+    "register": "Đăng ký",
+    "profile": "Hồ sơ",
+    "admin": "Quản trị",
+    "kitchen": "Bếp",
+    "waiter": "Phục vụ",
+    "cashier": "Thu ngân"
   },
   "home": {
     "title": "CHÀO MỪNG ĐẾN VỚI FPOLY RESTAURANT",
     "subtitle": "Khám phá hương vị ẩm thực tinh tế trong không gian sang trọng",
     "book_now": "Đặt bàn ngay",
     "view_menu": "Xem menu đầy đủ"
+  },
+  "footer": {
+    "tagline": "Tinh hoa ẩm thực Việt",
+    "description": "Nhà hàng Mộc Vị giao thoa giữa hương vị truyền thống và phong cách hiện đại, mang đến trải nghiệm ẩm thực trọn vẹn tại Đà Nẵng.",
+    "explore": "Khám phá",
+    "contact": "Liên hệ",
+    "newsletter": "Nhận ưu đãi",
+    "newsletterHint": "Đăng ký nhận thông tin khuyến mãi và ưu đãi đặc biệt từ Mộc Vị.",
+    "emailPlaceholder": "Email của bạn...",
+    "dineIn": "Gọi món tại quán",
+    "orderHistory": "Lịch sử đơn hàng",
+    "openingHours": "Hằng ngày: 09:00 - 23:00",
+    "copyright": "Nhà hàng Mộc Vị - Đà Nẵng. Đồ án tốt nghiệp FPT Polytechnic.",
+    "privacy": "Chính sách bảo mật",
+    "terms": "Điều khoản sử dụng"
+  },
+  "auth": {
+    "logoutConfirm": "Bạn có chắc chắn muốn đăng xuất?"
   },
   "features": {
     "fast_delivery": "Giao Hàng Nhanh",

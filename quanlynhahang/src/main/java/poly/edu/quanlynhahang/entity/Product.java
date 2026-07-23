@@ -27,6 +27,12 @@ public class Product {
     @Column(columnDefinition = "NVARCHAR(200)", nullable = false)
     private String name;
 
+    @Column(name = "name_vi", columnDefinition = "NVARCHAR(200)")
+    private String nameVi;
+
+    @Column(name = "name_en", columnDefinition = "NVARCHAR(200)")
+    private String nameEn;
+
     @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal price;
 
@@ -38,6 +44,12 @@ public class Product {
 
     @Column(columnDefinition = "NVARCHAR(MAX)")
     private String description;
+
+    @Column(name = "description_vi", columnDefinition = "NVARCHAR(MAX)")
+    private String descriptionVi;
+
+    @Column(name = "description_en", columnDefinition = "NVARCHAR(MAX)")
+    private String descriptionEn;
 
     @Temporal(TemporalType.DATE)
     @Column(name = "create_date")

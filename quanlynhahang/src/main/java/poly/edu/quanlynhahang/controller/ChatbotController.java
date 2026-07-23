@@ -1,6 +1,8 @@
 package poly.edu.quanlynhahang.controller;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -8,11 +10,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import poly.edu.quanlynhahang.dto.AiRequest;
 import poly.edu.quanlynhahang.repository.ProductRepository;
+import poly.edu.quanlynhahang.repository.TableAreaRepository;
 import poly.edu.quanlynhahang.service.GeminiClient;
 
 import jakarta.validation.Valid;
 
 import java.util.Map;
+import java.util.Locale;
+import java.text.Normalizer;
 import java.util.Set;
 @RestController
 public class ChatbotController {
@@ -21,10 +26,31 @@ public class ChatbotController {
 
     private final ProductRepository productRepository;
     private final GeminiClient geminiClient;
+    private TableAreaRepository tableAreaRepository;
+
+    @Value("${restaurant.info.name:Moc Vi Restaurant}")
+    private String restaurantName = "Moc Vi Restaurant";
+
+    @Value("${restaurant.info.address:137 Nguyen Thi Thap, Da Nang}")
+    private String restaurantAddress = "137 Nguyen Thi Thap, Da Nang";
+
+    @Value("${restaurant.info.hotline:0347944028}")
+    private String restaurantHotline = "0347944028";
+
+    @Value("${restaurant.info.email:contact@mocvi.vn}")
+    private String restaurantEmail = "contact@mocvi.vn";
+
+    @Value("${restaurant.info.opening-hours:09:00 - 23:00}")
+    private String restaurantOpeningHours = "09:00 - 23:00";
 
     public ChatbotController(ProductRepository productRepository, GeminiClient geminiClient) {
         this.productRepository = productRepository;
         this.geminiClient = geminiClient;
+    }
+
+    @Autowired
+    void setTableAreaRepository(TableAreaRepository tableAreaRepository) {
+        this.tableAreaRepository = tableAreaRepository;
     }
 
     @PostMapping("/api/chatbot/chat")
@@ -64,9 +90,19 @@ public class ChatbotController {
         String userMessage = payload.message();
         String type = payload.type();
         String history = payload.history();
+        boolean english = "en".equalsIgnoreCase(payload.locale());
 
         if (userMessage == null || userMessage.trim().isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("reply", "Bạn cần nhập tin nhắn để chatbot trả lời!"));
+            return ResponseEntity.badRequest().body(Map.of("reply", english
+                    ? "Please enter a message for the chatbot."
+                    : "Bạn cần nhập tin nhắn để chatbot trả lời!"));
+        }
+
+        if ("SUPPORT".equals(type)) {
+            String directReply = directSupportReply(userMessage, english);
+            if (directReply != null) {
+                return ResponseEntity.ok(Map.of("reply", directReply));
+            }
         }
 
         String systemPrompt = "";
@@ -160,7 +196,7 @@ public class ChatbotController {
         } else {
             // Lấy danh sách menu (tối đa 20 món để không quá dài)
             String menuStr = productRepository.findAll().stream()
-                    .filter(p -> p.getStatus() != null && p.getStatus())
+                    .filter(p -> Boolean.TRUE.equals(p.getStatus()) && Boolean.TRUE.equals(p.getAvailable()))
                     .limit(20)
                     .map(p -> p.getName() + " (" + p.getPrice() + "đ)")
                     .reduce((a, b) -> a + ", " + b).orElse("Đang cập nhật");
@@ -207,5 +243,79 @@ public class ChatbotController {
     private String normalizePublicType(String type) {
         if (type == null || type.isBlank()) return "SUPPORT";
         return type.trim().toUpperCase(java.util.Locale.ROOT);
+    }
+
+    private String directSupportReply(String message, boolean english) {
+        String normalized = normalizeText(message);
+        if (containsAny(normalized, "dia chi", "o dau", "address", "located", "location")) {
+            return english
+                    ? restaurantName + " is located at " + restaurantAddress + "."
+                    : restaurantName + " nằm tại " + restaurantAddress + ".";
+        }
+        if (containsAny(normalized, "hotline", "so dien thoai", "so lien he", "phone number", "contact number")) {
+            return english
+                    ? "Our hotline is " + restaurantHotline + "."
+                    : "Hotline của nhà hàng là " + restaurantHotline + ".";
+        }
+        if (containsAny(normalized, "mo cua", "dong cua", "gio hoat dong", "opening hours", "open hours", "what time")) {
+            return english
+                    ? "Our opening hours are " + restaurantOpeningHours + " daily."
+                    : "Nhà hàng mở cửa " + restaurantOpeningHours + " hằng ngày.";
+        }
+        if (containsAny(normalized, "email")) {
+            return english
+                    ? "You can contact us at " + restaurantEmail + "."
+                    : "Email liên hệ của nhà hàng là " + restaurantEmail + ".";
+        }
+        if (containsAny(normalized, "thuc don", "menu")) {
+            return english
+                    ? "You can view the current menu on the Menu page. I only recommend dishes that are currently available."
+                    : "Bạn có thể xem thực đơn hiện tại tại trang Thực đơn. Tôi chỉ tư vấn các món đang phục vụ.";
+        }
+        if (containsAny(normalized, "dat ban", "book a table", "reservation")) {
+            return english
+                    ? "Please open the Reservation page to choose your date, time, area, and available table."
+                    : "Bạn hãy mở trang Đặt bàn để chọn ngày, giờ, khu vực và bàn còn trống.";
+        }
+        if (containsAny(normalized, "du lieu chatbot", "chatbot data", "menu o dau", "menu from")) {
+            return english
+                    ? "Yes. The chatbot uses the restaurant's configured information and current menu data from this system."
+                    : "Có. Chatbot sử dụng thông tin đã cấu hình và dữ liệu thực đơn hiện có trong hệ thống nhà hàng.";
+        }
+        if (containsAny(normalized, "khu vuc", "areas", "area")) {
+            return areaReply(english);
+        }
+        return null;
+    }
+
+    private String areaReply(boolean english) {
+        if (tableAreaRepository == null) {
+            return english
+                    ? "Area information is not currently configured. Please contact our hotline at " + restaurantHotline + "."
+                    : "Thông tin khu vực hiện chưa được cấu hình. Vui lòng liên hệ hotline " + restaurantHotline + " để xác nhận.";
+        }
+        var areas = tableAreaRepository.findByStatusOrderByNameViAsc("ACTIVE");
+        if (areas.isEmpty()) {
+            return english ? "There are no active dining areas at the moment." : "Hiện chưa có khu vực phục vụ nào đang hoạt động.";
+        }
+        String names = areas.stream()
+                .map(area -> english && area.getNameEn() != null && !area.getNameEn().isBlank()
+                        ? area.getNameEn() : area.getNameVi())
+                .reduce((left, right) -> left + ", " + right)
+                .orElse("");
+        return english ? "Our active dining areas are: " + names + "." : "Các khu vực đang phục vụ: " + names + ".";
+    }
+
+    private boolean containsAny(String value, String... candidates) {
+        for (String candidate : candidates) {
+            if (value.contains(candidate)) return true;
+        }
+        return false;
+    }
+
+    private String normalizeText(String value) {
+        return Normalizer.normalize(value, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toLowerCase(Locale.ROOT);
     }
 }

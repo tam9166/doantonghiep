@@ -380,6 +380,7 @@
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n'
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '@/services/api';
@@ -530,6 +531,7 @@ const submitApplication = async () => {
 };
 
 // === SUPPORT CHATBOT ===
+const { locale } = useI18n()
 const showSupportChat = ref(false);
 const supportInput = ref('');
 const supportMessages = ref([
@@ -571,7 +573,8 @@ const sendSupportMessage = async () => {
     const res = await api.post('/api/chatbot/chat', { 
       message: text,
       type: 'SUPPORT',
-      history: historyStr
+      history: historyStr,
+      locale: locale.value
     });
     
     let reply = res.data.reply || '';

@@ -12,9 +12,9 @@
         <div class="suggested-grid">
           <div v-for="product in suggestedProducts" :key="'sugg-'+product.id" class="suggested-card">
             <div class="sugg-badge">HOT</div>
-            <img :src="foodImage(product.image)" :alt="product.name" loading="lazy" @error="replaceFoodImage" />
+            <img :src="foodImage(product.image)" :alt="productName(product)" loading="lazy" @error="replaceFoodImage" />
             <div class="sugg-info">
-              <h3>{{ product.name }}</h3>
+              <h3>{{ productName(product) }}</h3>
               <p class="price">{{ product.price.toLocaleString() }}đ</p>
             </div>
             <button v-if="!isAdminOrManager" class="btn-sugg-add" @click="addToCart(product)">Thêm Ngay</button>
@@ -25,7 +25,7 @@
       <div v-if="!isLoading && !loadError" class="category-filter">
         <button :class="{'active': selectedCategory === null}" @click="selectedCategory = null">Tất cả món</button>
         <button v-for="c in categories" :key="c.id" :class="{'active': selectedCategory === c.id}" @click="selectedCategory = c.id">
-          {{ c.name }}
+          {{ categoryName(c) }}
         </button>
       </div>
 
@@ -46,8 +46,8 @@
 
       <div v-else class="product-grid">
         <div v-for="product in filteredProducts" :key="product.id" class="product-card">
-          <img :src="foodImage(product.image)" :alt="product.name" loading="lazy" @error="replaceFoodImage" />
-          <h3>{{ product.name }}</h3>
+          <img :src="foodImage(product.image)" :alt="productName(product)" loading="lazy" @error="replaceFoodImage" />
+          <h3>{{ productName(product) }}</h3>
           <div class="product-rating" v-if="product.averageRating > 0">
             ⭐ {{ product.averageRating }}
           </div>
@@ -125,6 +125,7 @@
 import { ref, computed, onMounted } from 'vue';
 import api from '@/services/api';
 import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import CustomerLayout from '@/components/CustomerLayout.vue';
 import SkeletonLoader from '@/components/SkeletonLoader.vue';
 import { foodImage, replaceFoodImage } from '@/utils/imageFallback';
@@ -134,6 +135,7 @@ const suggestedProducts = ref([]);
 const categories = ref([]);
 const cart = ref([]);
 const router = useRouter();
+const { locale } = useI18n();
 const isLoggedIn = ref(false);
 const userRoles = ref([]);
 const isLoading = ref(true);
@@ -161,6 +163,14 @@ const cartTax = computed(() => {
 const cartTotal = computed(() => {
   return cartSubtotal.value + cartTax.value;
 });
+
+const productName = (product) => locale.value === 'en'
+  ? (product.nameEn || product.name)
+  : (product.nameVi || product.name);
+
+const categoryName = (category) => locale.value === 'en'
+  ? (category.nameEn || category.name)
+  : (category.nameVi || category.name);
 
 const fetchProducts = async () => {
   const response = await api.get('/api/products');
@@ -199,9 +209,9 @@ const addToCart = (product) => {
   if (existing) {
     existing.quantity++;
   } else {
-    cart.value.push({ productId: product.id, quantity: 1, name: product.name, price: product.price, taxRate: product.taxRate || 8 });
+    cart.value.push({ productId: product.id, quantity: 1, name: productName(product), price: product.price, taxRate: product.taxRate || 8 });
   }
-  alert(`Đã thêm ${product.name} vào giỏ!`);
+  alert(`Đã thêm ${productName(product)} vào giỏ!`);
 };
 
 const submitShipOrder = async () => {

@@ -22,6 +22,12 @@ public class Category {
 
     private String name;
 
+    @jakarta.persistence.Column(name = "name_vi", columnDefinition = "NVARCHAR(200)")
+    private String nameVi;
+
+    @jakarta.persistence.Column(name = "name_en", columnDefinition = "NVARCHAR(200)")
+    private String nameEn;
+
     // Quan hệ 1 Danh mục có nhiều Sản phẩm
     @JsonIgnore
     @OneToMany(mappedBy = "category")
