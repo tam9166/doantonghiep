@@ -157,7 +157,9 @@
 
         <div class="modal-actions mt-4" style="display: flex; gap: 10px;">
           <button @click="showModal = false" class="g-btn-outline" style="flex:1;">Quay lại</button>
-          <button @click="submitOrder" class="g-btn-primary" style="flex:1;">🍳 Gửi Bếp Ngay</button>
+          <button @click="submitOrder" :disabled="isSubmitting" class="g-btn-primary" style="flex:1;">
+            {{ isSubmitting ? 'Đang gửi...' : '🍳 Gửi Bếp Ngay' }}
+          </button>
         </div>
       </div>
     </div>
@@ -185,6 +187,7 @@ const selectedTable = ref("");
 const isTableLocked = ref(false);
 const showModal = ref(false);
 const toastMsg = ref('');
+const isSubmitting = ref(false);
 const userRoles = ref([]);
 
 const isAdminOrManager = computed(() => {
@@ -503,6 +506,8 @@ const startVoiceOrder = () => {
 
 const submitOrder = async () => {
   if (cart.value.length === 0) return alert("Giỏ hàng trống!");
+  if (!selectedTable.value) return alert('Vui lòng chọn bàn trước khi gửi bếp.');
+  if (isSubmitting.value) return;
   
   const token = localStorage.getItem('token') || ''; 
   const today = new Date().toLocaleDateString('en-CA');
@@ -511,6 +516,7 @@ const submitOrder = async () => {
   const formattedItems = cart.value.map(item => ({ productId: item.productId, quantity: item.quantity }));
 
   try {
+    isSubmitting.value = true;
     await api.post('/api/orders/checkout', {
       address: infoFull,
       paymentOption: 'PAY_AT_RESTAURANT',
@@ -522,7 +528,14 @@ const submitOrder = async () => {
     toastMsg.value = 'Đã ghi nhận đơn. Nhân viên sẽ xác nhận trước khi chuyển xuống bếp.';
     setTimeout(() => { toastMsg.value = ''; }, 4000);
   } catch (error) {
-    alert("Lỗi: Vui lòng thử lại!");
+    const payload = error.response?.data;
+    const message = typeof payload === 'string'
+      ? payload
+      : payload?.message || 'Không thể gửi đơn xuống bếp. Vui lòng thử lại.';
+    const reference = payload?.correlationId ? `\nMã hỗ trợ: ${payload.correlationId}` : '';
+    alert(`Lỗi: ${message}${reference}`);
+  } finally {
+    isSubmitting.value = false;
   }
 };
 
