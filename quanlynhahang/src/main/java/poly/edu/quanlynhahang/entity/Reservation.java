@@ -48,7 +48,7 @@ public class Reservation {
     @Column(name = "payment_capability_token_hash", length = 64)
     private String paymentCapabilityTokenHash;
 
-    @Column(name = "payment_capability_scope", length = 30)
+    @Column(name = "payment_capability_scope", length = 80)
     private String paymentCapabilityScope;
 
     @Temporal(TemporalType.TIMESTAMP)
