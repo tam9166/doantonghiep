@@ -1,0 +1,1 @@
+function e(e,t=`Yêu cầu không thể xử lý.`){let n=e?.response?.data;if(typeof n==`string`&&n.trim())return n;if(!n||typeof n!=`object`)return t;let r=Object.values(n.fieldErrors||{}).find(Boolean);return n.message&&r?`${n.message}: ${r}`:n.message||r||t}export{e as t};

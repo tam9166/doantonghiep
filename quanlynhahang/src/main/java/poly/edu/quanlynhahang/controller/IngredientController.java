@@ -18,17 +18,21 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import jakarta.validation.Valid;
 
 import java.util.Date;
 import java.util.Calendar;
 
 import poly.edu.quanlynhahang.entity.Ingredient;
 import poly.edu.quanlynhahang.entity.IngredientBatch;
+import poly.edu.quanlynhahang.dto.IngredientBatchCreateRequest;
+import poly.edu.quanlynhahang.dto.IngredientBatchResponse;
+import poly.edu.quanlynhahang.dto.IngredientResponse;
+import poly.edu.quanlynhahang.dto.IngredientUpsertRequest;
 import poly.edu.quanlynhahang.repository.IngredientRepository;
 import poly.edu.quanlynhahang.repository.IngredientBatchRepository;
 import poly.edu.quanlynhahang.service.ActivityLogService;
-
-@CrossOrigin("*")
+import poly.edu.quanlynhahang.service.MenuAvailabilityService;
 @RestController
 @RequestMapping("/api/admin/ingredients")
 @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_KITCHEN')")
@@ -43,48 +47,58 @@ public class IngredientController {
     @Autowired
     private ActivityLogService activityLogService;
 
+    @Autowired
+    private MenuAvailabilityService menuAvailabilityService;
+
     // 1. Lấy tất cả nguyên liệu
     @GetMapping
     public ResponseEntity<?> getAll() {
         List<Ingredient> list = ingredientRepository.findAll();
-        return ResponseEntity.ok(list);
+        return ResponseEntity.ok(list.stream().map(IngredientResponse::from).toList());
     }
 
     // 2. Thêm nguyên liệu mới
     @PostMapping
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_KITCHEN')")
-    public ResponseEntity<?> create(@RequestBody Ingredient ingredient) {
+    public ResponseEntity<?> create(@Valid @RequestBody IngredientUpsertRequest request) {
+        Ingredient ingredient = new Ingredient();
+        ingredient.setName(request.name().trim());
+        ingredient.setUnit(request.unit().trim());
+        ingredient.setMinStock(request.minStock());
+        ingredient.setUnitPrice(request.unitPrice());
+        ingredient.setImage(request.image());
+        ingredient.setShelfLifeDays(request.shelfLifeDays());
         if (ingredient.getQuantity() == null) ingredient.setQuantity(0.0);
         if (ingredient.getMinStock() == null) ingredient.setMinStock(5.0);
         Ingredient saved = ingredientRepository.save(ingredient);
         activityLogService.log("CREATE", "Ingredient", String.valueOf(saved.getId()),
                 "Thêm nguyên liệu mới: " + saved.getName() + " (" + saved.getUnit() + ")");
-        return ResponseEntity.ok(saved);
+        return ResponseEntity.ok(IngredientResponse.from(saved));
     }
 
     // 3. Cập nhật nguyên liệu
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_KITCHEN')")
-    public ResponseEntity<?> update(@PathVariable Long id, @RequestBody Ingredient details) {
+    public ResponseEntity<?> update(@PathVariable Long id, @Valid @RequestBody IngredientUpsertRequest details) {
         var ingOpt = ingredientRepository.findById(id);
         if (ingOpt.isPresent()) {
             Ingredient ing = ingOpt.get();
             String oldInfo = ing.getName() + " | minStock: " + ing.getMinStock() + " | unitPrice: " + ing.getUnitPrice();
-            ing.setName(details.getName());
-            ing.setUnit(details.getUnit());
-            ing.setMinStock(details.getMinStock());
-            ing.setImage(details.getImage());
-            if (details.getUnitPrice() != null) {
-                ing.setUnitPrice(details.getUnitPrice());
+            ing.setName(details.name().trim());
+            ing.setUnit(details.unit().trim());
+            ing.setMinStock(details.minStock());
+            ing.setImage(details.image());
+            if (details.unitPrice() != null) {
+                ing.setUnitPrice(details.unitPrice());
             }
-            if (details.getShelfLifeDays() != null) {
-                ing.setShelfLifeDays(details.getShelfLifeDays());
+            if (details.shelfLifeDays() != null) {
+                ing.setShelfLifeDays(details.shelfLifeDays());
             }
             Ingredient saved = ingredientRepository.save(ing);
             String newInfo = saved.getName() + " | minStock: " + saved.getMinStock() + " | unitPrice: " + saved.getUnitPrice();
             activityLogService.log("UPDATE", "Ingredient", String.valueOf(id),
                     "Cập nhật nguyên liệu: " + saved.getName(), oldInfo, newInfo);
-            return ResponseEntity.ok(saved);
+            return ResponseEntity.ok(IngredientResponse.from(saved));
         }
         return ResponseEntity.badRequest().body("Không tìm thấy nguyên liệu!");
     }
@@ -92,12 +106,16 @@ public class IngredientController {
     // 4. Nhập thêm hàng (Thêm Lô mới)
     @PostMapping("/{id}/batches")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_KITCHEN')")
-    public ResponseEntity<?> addBatch(@PathVariable Long id, @RequestBody IngredientBatch batch) {
+    public ResponseEntity<?> addBatch(@PathVariable Long id, @Valid @RequestBody IngredientBatchCreateRequest request) {
         var ingOpt = ingredientRepository.findById(id);
         if (ingOpt.isPresent()) {
             Ingredient ing = ingOpt.get();
+            IngredientBatch batch = new IngredientBatch();
             batch.setIngredient(ing);
             batch.setImportDate(new Date());
+            batch.setQuantity(request.quantity());
+            batch.setUnitPrice(request.unitPrice());
+            batch.setExpirationDate(request.expirationDate());
             
             // Tự động tính ngày hết hạn nếu chưa có
             if (batch.getExpirationDate() == null) {
@@ -119,8 +137,9 @@ public class IngredientController {
                 ing.setUnitPrice(batch.getUnitPrice());
             }
             ingredientRepository.save(ing);
+            menuAvailabilityService.refreshForIngredient(ing);
             
-            return ResponseEntity.ok(savedBatch);
+            return ResponseEntity.ok(IngredientBatchResponse.from(savedBatch));
         }
         return ResponseEntity.badRequest().body("Không tìm thấy nguyên liệu!");
     }
@@ -131,7 +150,7 @@ public class IngredientController {
         var ingOpt = ingredientRepository.findById(id);
         if (ingOpt.isPresent()) {
             List<IngredientBatch> batches = ingredientBatchRepository.findByIngredientOrderByImportDateDesc(ingOpt.get());
-            return ResponseEntity.ok(batches);
+            return ResponseEntity.ok(batches.stream().map(IngredientBatchResponse::from).toList());
         }
         return ResponseEntity.badRequest().body("Không tìm thấy nguyên liệu!");
     }
@@ -144,7 +163,7 @@ public class IngredientController {
         Date targetDate = cal.getTime();
         
         List<IngredientBatch> expiring = ingredientBatchRepository.findExpiringBatches(targetDate);
-        return ResponseEntity.ok(expiring);
+        return ResponseEntity.ok(expiring.stream().map(IngredientBatchResponse::from).toList());
     }
 
     // 4.3. Xóa lô hàng
@@ -161,6 +180,7 @@ public class IngredientController {
                     .stream().mapToDouble(IngredientBatch::getQuantity).sum();
             ing.setQuantity(totalQuantity);
             ingredientRepository.save(ing);
+            menuAvailabilityService.refreshForIngredient(ing);
             
             return ResponseEntity.ok("Đã xóa lô hàng");
         }
@@ -175,7 +195,7 @@ public class IngredientController {
         if (ingOpt.isPresent()) {
             Ingredient ing = ingOpt.get();
             ing.setQuantity(quantity);
-            return ResponseEntity.ok(ingredientRepository.save(ing));
+            return ResponseEntity.ok(IngredientResponse.from(ingredientRepository.save(ing)));
         }
         return ResponseEntity.badRequest().body("Không tìm thấy nguyên liệu!");
     }

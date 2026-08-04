@@ -22,6 +22,7 @@ import poly.edu.quanlynhahang.repository.TableAreaRepository;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
@@ -176,9 +177,29 @@ public class TextEncodingRepairSeeder implements CommandLineRunner {
                 product.setName(name);
                 changed = true;
             }
+            String nameVi = fixMojibake(product.getNameVi());
+            if (!Objects.equals(nameVi, product.getNameVi())) {
+                product.setNameVi(nameVi);
+                changed = true;
+            }
+            String nameEn = fixMojibake(product.getNameEn());
+            if (!Objects.equals(nameEn, product.getNameEn())) {
+                product.setNameEn(nameEn);
+                changed = true;
+            }
             String description = fixMojibake(product.getDescription());
             if (!Objects.equals(description, product.getDescription())) {
                 product.setDescription(description);
+                changed = true;
+            }
+            String descriptionVi = fixMojibake(product.getDescriptionVi());
+            if (!Objects.equals(descriptionVi, product.getDescriptionVi())) {
+                product.setDescriptionVi(descriptionVi);
+                changed = true;
+            }
+            String descriptionEn = fixMojibake(product.getDescriptionEn());
+            if (!Objects.equals(descriptionEn, product.getDescriptionEn())) {
+                product.setDescriptionEn(descriptionEn);
                 changed = true;
             }
             if (changed) {
@@ -294,24 +315,37 @@ public class TextEncodingRepairSeeder implements CommandLineRunner {
         String current = value;
 
         for (int i = 0; i < 3; i++) {
-            byte[] bytes = toWindows1252Bytes(current);
-            if (bytes == null) {
+            String candidate = bestDecodedCandidate(current, bestScore);
+            if (candidate == null) {
                 break;
+            }
+            best = candidate;
+            bestScore = mojibakeScore(candidate);
+            current = candidate;
+        }
+        return best;
+    }
+
+    private String bestDecodedCandidate(String value, int currentScore) {
+        String bestCandidate = null;
+        int bestCandidateScore = currentScore;
+
+        byte[][] encodings = {toWindows1252Bytes(value), toWindows1258Bytes(value)};
+        for (byte[] bytes : encodings) {
+            if (bytes == null) {
+                continue;
             }
             String decoded = decodeUtf8Strict(bytes);
             if (decoded == null) {
-                break;
+                continue;
             }
             int decodedScore = mojibakeScore(decoded);
-            if (decodedScore < bestScore) {
-                best = decoded;
-                bestScore = decodedScore;
-                current = decoded;
-            } else {
-                break;
+            if (decodedScore < bestCandidateScore) {
+                bestCandidate = decoded;
+                bestCandidateScore = decodedScore;
             }
         }
-        return best;
+        return bestCandidate;
     }
 
     private boolean looksMojibake(String value) {
@@ -326,6 +360,9 @@ public class TextEncodingRepairSeeder implements CommandLineRunner {
         }
         for (int i = 0; i < value.length(); i++) {
             char ch = value.charAt(i);
+            if (ch == 0x0102 && i + 1 < value.length() && value.charAt(i + 1) >= 0x00A0) {
+                score += 2;
+            }
             if (ch >= 0x80 && ch <= 0x9F) {
                 score += 4;
             }
@@ -366,6 +403,13 @@ public class TextEncodingRepairSeeder implements CommandLineRunner {
             output.write(mapped);
         }
         return output.toByteArray();
+    }
+
+    private byte[] toWindows1258Bytes(String value) {
+        Charset windows1258 = Charset.forName("windows-1258");
+        byte[] bytes = value.getBytes(windows1258);
+        String roundTripped = new String(bytes, windows1258);
+        return roundTripped.equals(value) ? bytes : null;
     }
 
     private Integer windows1252Byte(char ch) {

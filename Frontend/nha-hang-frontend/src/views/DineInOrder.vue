@@ -32,6 +32,7 @@
       </div>
 
       <div class="product-list" v-if="selectedTable">
+        <div class="menu-column">
         <!-- AI Suggestion Section -->
         <div class="ai-suggestion-box">
           <div class="ai-header">
@@ -97,6 +98,24 @@
           <button v-if="!isAdminOrManager" class="btn-add-item" @click="addToCart(product)">Thêm</button>
           <button v-else class="btn-add-item btn-disabled" disabled>Chỉ xem</button>
         </div>
+        </div>
+        <aside v-if="cart.length > 0" class="inline-cart" aria-label="Đơn món đang chọn">
+          <h3>Đơn đang chọn</h3>
+          <div v-for="(item, idx) in cart" :key="item.productId" class="inline-cart-item">
+            <div>
+              <strong>{{ item.name }}</strong>
+              <span>{{ (item.price * item.quantity).toLocaleString() }}đ</span>
+            </div>
+            <div class="inline-cart-controls">
+              <button type="button" aria-label="Giảm số lượng" @click="decreaseQty(idx)">−</button>
+              <b>{{ item.quantity }}</b>
+              <button type="button" aria-label="Tăng số lượng" @click="increaseQty(idx)">+</button>
+              <button type="button" class="inline-remove" aria-label="Xóa món" @click="cart.splice(idx, 1)">×</button>
+            </div>
+          </div>
+          <div class="inline-cart-total">Tạm tính <strong>{{ cartSubtotal.toLocaleString() }}đ</strong></div>
+          <button type="button" class="btn-checkout" @click="showModal = true">Gửi bếp</button>
+        </aside>
       </div>
       <div v-else class="empty-state">
         <p>Vui lòng chọn bàn để xem thực đơn và gọi món nhé!</p>
@@ -138,6 +157,14 @@
             <div class="cart-item-info">
               <span class="cart-item-name">{{ item.name }}</span>
               <span class="cart-item-price">{{ (item.price * item.quantity).toLocaleString() }}đ</span>
+              <label class="dish-note-label">
+                Ghi chú món
+                <input v-model.trim="item.note" maxlength="500" placeholder="Ví dụ: ít cay, không hành" />
+              </label>
+              <label class="dish-note-label allergy-note-label">
+                Dị ứng (nếu có)
+                <input v-model.trim="item.allergyNote" maxlength="500" placeholder="Ví dụ: dị ứng đậu phộng" />
+              </label>
             </div>
             <div class="cart-item-controls">
               <button class="qty-btn qty-minus" @click="decreaseQty(idx)">−</button>
@@ -205,7 +232,7 @@ const userProfile = ref(null);
 const tierDiscount = ref(0);
 const voucherDiscountPercent = ref(0);
 
-const activeProducts = computed(() => products.value.filter(p => p.status !== false));
+const activeProducts = computed(() => products.value.filter(p => p.status !== false && p.available !== false));
 
 // Gom nhóm bàn theo tầng để khách dễ tìm trong thẻ <select>
 const groupedTables = computed(() => {
@@ -400,7 +427,8 @@ const loadData = async () => {
 const addToCart = (product, qty = 1) => {
   const existing = cart.value.find(item => item.productId === product.id);
   if (existing) existing.quantity += qty;
-  else cart.value.push({ productId: product.id, name: product.name, price: product.price, quantity: qty, taxRate: product.taxRate || 8 });
+  else cart.value.push({ productId: product.id, name: product.name, price: product.price, quantity: qty,
+    taxRate: product.taxRate || 8, note: '', allergyNote: '' });
 };
 
 const increaseQty = (idx) => {
@@ -513,15 +541,31 @@ const submitOrder = async () => {
   const today = new Date().toLocaleDateString('en-CA');
   const now = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
   const infoFull = `[TẠI QUÁN] Bàn: ${selectedTable.value} | Lúc: ${now} ngày ${today}`;
-  const formattedItems = cart.value.map(item => ({ productId: item.productId, quantity: item.quantity }));
+  const formattedItems = cart.value.map(item => ({
+    productId: item.productId,
+    quantity: item.quantity,
+    note: item.note || null,
+    allergyNote: item.allergyNote || null
+  }));
 
   try {
     isSubmitting.value = true;
-    await api.post('/api/orders/checkout', {
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+    let existingOrder = null;
+    if (token) {
+      try { existingOrder = (await api.get('/api/orders/open-by-table', { params: { tableName: selectedTable.value }, headers })).data; } catch (lookupError) {
+        if (lookupError.response?.status !== 404) throw lookupError;
+      }
+    }
+    if (existingOrder?.id) {
+      await api.put(`/api/orders/${existingOrder.id}/add-items`, { items: formattedItems }, {
+        headers: { ...headers, 'X-Idempotency-Key': crypto.randomUUID() }
+      });
+    } else await api.post('/api/orders/checkout', {
       address: infoFull,
       paymentOption: 'PAY_AT_RESTAURANT',
       items: formattedItems
-    }, { headers: token ? { 'Authorization': `Bearer ${token}` } : {} });
+    }, { headers });
 
     cart.value = [];
     showModal.value = false;
@@ -570,6 +614,25 @@ onMounted(loadData);
   color: var(--primary);
   font-weight: 700;
 }
+.dish-note-label {
+  display: grid;
+  gap: 4px;
+  margin-top: 7px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.dish-note-label input {
+  width: 100%;
+  min-height: 34px;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+}
+.allergy-note-label { color: #9f2c20; }
 .cart-item-controls {
   display: flex;
   align-items: center;
@@ -655,7 +718,19 @@ onMounted(loadData);
 }
 .btn-nav-dinein:hover { border-color: var(--primary); color: var(--primary); background: rgba(90, 110, 69, 0.1); }
 
-.main-content { padding: 15px; max-width: 600px; margin: 0 auto; }
+.main-content { padding: 15px; max-width: 1120px; margin: 0 auto; }
+.product-list { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 20px; align-items: start; }
+.menu-column { min-width: 0; }
+.inline-cart { position: sticky; top: 16px; background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 8px; padding: 16px; box-shadow: var(--shadow-md); }
+.inline-cart h3 { margin: 0 0 12px; color: var(--text-heading); font-size: 1.1rem; }
+.inline-cart-item { display: flex; justify-content: space-between; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.inline-cart-item strong, .inline-cart-item span { display: block; max-width: 142px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inline-cart-item span { color: var(--primary); font-size: .86rem; margin-top: 3px; }
+.inline-cart-controls { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+.inline-cart-controls button { width: 30px; height: 30px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-root); color: var(--text-primary); font-weight: 700; cursor: pointer; }
+.inline-cart-controls .inline-remove { color: #B23B2E; border-color: rgba(178, 59, 46, .4); }
+.inline-cart-total { display: flex; justify-content: space-between; margin: 14px 0; color: var(--text-heading); }
+.inline-cart .btn-checkout { width: 100%; min-height: 44px; border-radius: 6px; }
 .table-selection-box { background: var(--bg-card); padding: 15px; border-radius: 10px; box-shadow: var(--shadow-md); margin-bottom: 20px; border-left: 4px solid var(--primary); border: 1px solid var(--border-light); }
 .table-selection-box label { font-weight: bold; display: block; margin-bottom: 10px; color: var(--text-heading); }
 .table-select { width: 100%; padding: 12px; border: 1px solid var(--border); background: var(--bg-input); color: var(--text-primary); border-radius: 8px; font-size: 1rem; }
@@ -794,6 +869,8 @@ onMounted(loadData);
   .dinein-navbar { padding: 12px 24px; }
   .nav-links { display: none; }
   .main-content { max-width: 720px; padding: 18px; }
+  .product-list { display: block; }
+  .inline-cart { display: none; }
 }
 
 @media (max-width: 640px) {

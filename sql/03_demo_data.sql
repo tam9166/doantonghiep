@@ -96,7 +96,7 @@ BEGIN
 
     DECLARE @OrderId INT = SCOPE_IDENTITY();
 
-    INSERT INTO dbo.OrderDetails(order_id, product_id, price, unit_price, quantity, line_subtotal, tax_rate, tax_amount, line_total, status, status_name, note)
+    INSERT INTO dbo.order_details(order_id, product_id, price, unit_price, quantity, line_subtotal, tax_rate, tax_amount, line_total, status, status_name, note)
     VALUES
     (@OrderId, @ProductA, @PriceA, @PriceA, @QtyA, @PriceA * @QtyA, 8, ROUND(@PriceA * @QtyA * 0.08, 2),
      ROUND(@PriceA * @QtyA * 1.08, 2), CASE WHEN @StatusName = 'CANCELLED' THEN 4 ELSE @StatusInt END,

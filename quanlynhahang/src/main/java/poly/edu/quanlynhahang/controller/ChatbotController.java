@@ -5,13 +5,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import poly.edu.quanlynhahang.dto.AiRequest;
+import poly.edu.quanlynhahang.dto.AssistantQueryRequest;
+import poly.edu.quanlynhahang.dto.AssistantQueryResponse;
 import poly.edu.quanlynhahang.repository.ProductRepository;
 import poly.edu.quanlynhahang.repository.TableAreaRepository;
 import poly.edu.quanlynhahang.service.GeminiClient;
+import poly.edu.quanlynhahang.service.StaffOperationsAssistantService;
+import poly.edu.quanlynhahang.service.RoleAwareAssistantService;
 
 import jakarta.validation.Valid;
 
@@ -26,6 +31,8 @@ public class ChatbotController {
 
     private final ProductRepository productRepository;
     private final GeminiClient geminiClient;
+    private final StaffOperationsAssistantService staffOperationsAssistantService;
+    private final RoleAwareAssistantService roleAwareAssistantService;
     private TableAreaRepository tableAreaRepository;
 
     @Value("${restaurant.info.name:Moc Vi Restaurant}")
@@ -43,9 +50,13 @@ public class ChatbotController {
     @Value("${restaurant.info.opening-hours:09:00 - 23:00}")
     private String restaurantOpeningHours = "09:00 - 23:00";
 
-    public ChatbotController(ProductRepository productRepository, GeminiClient geminiClient) {
+    public ChatbotController(ProductRepository productRepository, GeminiClient geminiClient,
+                             StaffOperationsAssistantService staffOperationsAssistantService,
+                             RoleAwareAssistantService roleAwareAssistantService) {
         this.productRepository = productRepository;
         this.geminiClient = geminiClient;
+        this.staffOperationsAssistantService = staffOperationsAssistantService;
+        this.roleAwareAssistantService = roleAwareAssistantService;
     }
 
     @Autowired
@@ -84,6 +95,19 @@ public class ChatbotController {
     @PreAuthorize("hasAnyRole('WAITER', 'ADMIN', 'MANAGER')")
     public ResponseEntity<?> waiter(@Valid @RequestBody AiRequest payload) {
         return generateChat(payload.withType("WAITER_UPSELL"));
+    }
+
+    @PostMapping("/api/staff/ai/operations")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'KITCHEN', 'WAITER', 'CASHIER')")
+    public ResponseEntity<?> operations(@Valid @RequestBody AiRequest payload) {
+        return ResponseEntity.ok(Map.of("reply", staffOperationsAssistantService.answer(payload.message())));
+    }
+
+    @PostMapping("/api/staff/assistant/query")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'KITCHEN', 'WAITER', 'CASHIER')")
+    public ResponseEntity<AssistantQueryResponse> staffAssistantQuery(
+            Authentication authentication, @Valid @RequestBody AssistantQueryRequest payload) {
+        return ResponseEntity.ok(roleAwareAssistantService.query(authentication, payload));
     }
 
     private ResponseEntity<?> generateChat(AiRequest payload) {

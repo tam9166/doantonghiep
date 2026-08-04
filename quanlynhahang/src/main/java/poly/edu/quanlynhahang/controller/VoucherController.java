@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import poly.edu.quanlynhahang.dto.VoucherResponse;
 import poly.edu.quanlynhahang.dto.VoucherUpsertRequest;
+import poly.edu.quanlynhahang.dto.VoucherCheckRequest;
 import poly.edu.quanlynhahang.entity.Account;
 import poly.edu.quanlynhahang.entity.Voucher;
 import poly.edu.quanlynhahang.repository.AccountRepository;
@@ -85,8 +86,8 @@ public class VoucherController {
 
     // Check voucher validity
     @PostMapping("/check")
-    public ResponseEntity<?> checkVoucher(@RequestBody Map<String, String> payload) {
-        String code = payload.get("code");
+    public ResponseEntity<?> checkVoucher(@Valid @RequestBody VoucherCheckRequest payload) {
+        String code = payload.code().trim();
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
 
         Optional<Voucher> vOpt = voucherRepository.findByCode(code);

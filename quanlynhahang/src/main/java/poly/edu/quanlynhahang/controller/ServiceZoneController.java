@@ -14,11 +14,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 import poly.edu.quanlynhahang.entity.Account;
 import poly.edu.quanlynhahang.entity.RestaurantTable;
 import poly.edu.quanlynhahang.entity.ServiceZoneAssignment;
 import poly.edu.quanlynhahang.dto.ServiceZoneAssignmentResponse;
+import poly.edu.quanlynhahang.dto.ServiceZoneAssignmentRequest;
 import poly.edu.quanlynhahang.repository.AccountRepository;
 import poly.edu.quanlynhahang.repository.RestaurantTableRepository;
 import poly.edu.quanlynhahang.repository.ServiceZoneAssignmentRepository;
@@ -65,11 +67,11 @@ public class ServiceZoneController {
     // === 3. Admin phân công khu vực ===
     @PostMapping
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
-    public ResponseEntity<?> createZoneAssignment(@RequestBody Map<String, String> request) {
-        String username = request.get("username");
-        String floor = request.get("floor");
-        String shift = request.get("shift");
-        String workDateStr = request.get("workDate");
+    public ResponseEntity<?> createZoneAssignment(@Valid @RequestBody ServiceZoneAssignmentRequest request) {
+        String username = request.username().trim();
+        String floor = request.floor().trim();
+        String shift = request.shift().trim();
+        String workDateStr = request.workDate();
 
         if (username == null || floor == null || shift == null || workDateStr == null) {
             return ResponseEntity.badRequest().body("Vui lòng điền đầy đủ thông tin!");

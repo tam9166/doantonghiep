@@ -26,6 +26,18 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     @Value("${app.rate-limit.enabled:true}")
     private boolean enabled = true;
 
+    @Value("${app.rate-limit.global-limit:120}")
+    private int globalLimit = 120;
+
+    @Value("${app.rate-limit.global-window-seconds:60}")
+    private long globalWindowSeconds = 60;
+
+    @Value("${app.rate-limit.auth-limit:5}")
+    private int authLimit = 5;
+
+    @Value("${app.rate-limit.auth-window-seconds:900}")
+    private long authWindowSeconds = 900;
+
     public RateLimitingFilter(RateLimitService rateLimitService, JwtUtils jwtUtils, ApiErrorWriter apiErrorWriter) {
         this.rateLimitService = rateLimitService;
         this.jwtUtils = jwtUtils;
@@ -65,13 +77,22 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
 
         if ("POST".equals(method) && path.matches("^/api/auth/(login|staff/login|signup)$")) {
-            return new RatePolicy("auth", 10, 60);
+            return new RatePolicy("auth", authLimit, authWindowSeconds);
         }
         if ("POST".equals(method) && path.equals("/api/reservations")) {
             return new RatePolicy("reservation-create", 20, 60);
         }
+        if ("POST".equals(method) && path.equals("/api/reservation-waitlist")) {
+            return new RatePolicy("reservation-waitlist-create", 20, 60);
+        }
         if (path.startsWith("/api/reservations/lookup")) {
             return new RatePolicy("reservation-lookup", 30, 60);
+        }
+        if ("GET".equals(method) && path.matches("^/api/reservations/[^/]+$")) {
+            return new RatePolicy("reservation-lookup", 30, 60);
+        }
+        if ("GET".equals(method) && path.matches("^/api/reservation-waitlist/[^/]+$")) {
+            return new RatePolicy("reservation-waitlist-lookup", 30, 60);
         }
         if ("POST".equals(method) && path.equals("/api/payments/qr")) {
             return new RatePolicy("payment-qr-create", 10, 60);
@@ -90,20 +111,23 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         if ("POST".equals(method) && path.startsWith("/api/reviews")) {
             return new RatePolicy("review-create", 20, 60);
         }
+        if ("POST".equals(method) && path.equals("/api/reservation-reviews")) {
+            return new RatePolicy("reservation-review-create", 20, 60);
+        }
         if ("POST".equals(method) && path.startsWith("/api/webhooks/payments")) {
             return new RatePolicy("payment-webhook", 60, 60);
         }
         if ("POST".equals(method) && path.startsWith("/api/applications")) {
             return new RatePolicy("application-upload", 10, 60);
         }
+        if (path.startsWith("/api/")) {
+            return new RatePolicy("api", globalLimit, globalWindowSeconds);
+        }
         return null;
     }
 
     private String clientIp(HttpServletRequest request) {
-        String forwardedFor = request.getHeader("X-Forwarded-For");
-        if (forwardedFor != null && !forwardedFor.isBlank()) {
-            return forwardedFor.split(",")[0].trim();
-        }
+        // Forwarded headers are attacker-controlled unless a trusted proxy normalizes them.
         return request.getRemoteAddr();
     }
 

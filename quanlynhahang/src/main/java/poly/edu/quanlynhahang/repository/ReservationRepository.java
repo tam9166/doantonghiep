@@ -27,6 +27,8 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 
     Optional<Reservation> findByReservationCodeAndCustomerPhone(String reservationCode, String customerPhone);
 
+    Optional<Reservation> findFirstByCustomerEmailIgnoreCaseOrderByCreatedAtDesc(String customerEmail);
+
     long countByReservationDate(LocalDate reservationDate);
 
     List<Reservation> findByReservationDateAndTableIdAndReservationStatusIn(
@@ -47,6 +49,8 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             @Param("statuses") Collection<ReservationStatus> statuses);
 
     List<Reservation> findAllByOrderByCreatedAtDesc();
+
+    List<Reservation> findByCreatedByOrderByCreatedAtDesc(String createdBy);
 
     List<Reservation> findByCustomerPhoneOrderByCreatedAtDesc(String customerPhone);
 }

@@ -99,7 +99,7 @@
                   </div>
                   <div class="food-tags">
                     <span v-for="detail in order.orderDetails" :key="detail.id" class="food-tag">
-                      <img v-if="detail.product?.image" :src="detail.product.image" class="food-thumb" />
+                      <img v-if="detail.product?.image" :src="foodImage(detail.product.image)" class="food-thumb" @error="replaceFoodImage" />
                       ×{{ detail.quantity }} {{ detail.product?.name }} ({{ detail.price.toLocaleString() }}đ)
                     </span>
                   </div>
@@ -174,7 +174,7 @@
                 <tr v-for="(detail, index) in selectedOrder.orderDetails" :key="detail.id">
                   <td style="text-align:center">{{ index + 1 }}</td>
                   <td>
-                    <img v-if="detail.product?.image" :src="detail.product.image" class="invoice-thumb" />
+                    <img v-if="detail.product?.image" :src="foodImage(detail.product.image)" class="invoice-thumb" @error="replaceFoodImage" />
                     <span v-else class="no-img">🍽️</span>
                   </td>
                   <td><strong>{{ detail.product?.name }}</strong></td>
@@ -223,6 +223,7 @@ import AdminLayout from '@/components/AdminLayout.vue';
 
 import { ref, computed, onMounted } from 'vue';
 import api from '@/services/api';
+import { foodImage, replaceFoodImage } from '@/utils/imageFallback';
 
 const orders = ref([]);
 const searchCode = ref('');
@@ -236,7 +237,7 @@ const configHeader = () => {
 
 const loadData = async () => {
   try {
-    const resOrders = await api.get('http://localhost:8080/api/admin/orders', configHeader());
+    const resOrders = await api.get('/api/admin/orders', configHeader());
     orders.value = resOrders.data;
   } catch (err) { console.error('Lỗi tải dữ liệu', err); }
 };
@@ -244,7 +245,7 @@ const loadData = async () => {
 const approveOrderToKitchen = async (orderId) => {
   if (confirm('Xác nhận chuyển đơn hàng này xuống bếp để chuẩn bị?')) {
     try {
-      await api.put(`http://localhost:8080/api/admin/orders/${orderId}/status?status=1`, {}, configHeader());
+      await api.put(`/api/admin/orders/${orderId}/status?status=1`, {}, configHeader());
       alert('Đã chuyển đơn xuống Bếp thành công!');
       loadData();
     } catch (error) {
@@ -355,7 +356,7 @@ const activateScheduled = async () => {
   try {
     const token = localStorage.getItem('token');
     if (!token || token === 'null' || token === 'undefined') return; // Skip if no valid token
-    await api.put('http://localhost:8080/api/admin/orders/activate-scheduled', {}, configHeader());
+    await api.put('/api/admin/orders/activate-scheduled', {}, configHeader());
     loadData(); // Refresh list
   } catch (err) { /* silent */ }
 };
@@ -390,12 +391,12 @@ onMounted(() => {
   transition: var(--transition);
 }
 .stat-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
-.stat-card.gold { border-left-color: #f1c40f; }
+.stat-card.gold { border-left-color: #B98229; }
 .stat-card.clickable { cursor: pointer; }
-.stat-card.clickable:hover { box-shadow: 0 0 20px rgba(241, 196, 15, 0.4); transform: translateY(-5px) scale(1.02); }
+.stat-card.clickable:hover { box-shadow: 0 0 20px rgba(185, 130, 41, 0.4); transform: translateY(-5px) scale(1.02); }
 .stat-card.teal { border-left-color: var(--primary); }
-.stat-card.blue { border-left-color: #3498db; }
-.stat-card.red  { border-left-color: #e74c3c; }
+.stat-card.blue { border-left-color: #5A6E45; }
+.stat-card.red  { border-left-color: #B23B2E; }
 
 .stat-icon {
   font-size: 2rem;
@@ -420,13 +421,13 @@ onMounted(() => {
 .filter-item.flex-1 { flex: 1; min-width: 280px; }
 .filter-label { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
 .btn-clear {
-  background: rgba(90,122,138,0.15); border: 1px solid var(--border);
+  background: rgba(92,107,101,0.15); border: 1px solid var(--border);
   color: var(--text-muted); padding: 12px 20px;
   border-radius: var(--radius-md); cursor: pointer; font-weight: 600;
   font-family: inherit; font-size: 0.88rem; transition: var(--transition);
   white-space: nowrap;
 }
-.btn-clear:hover { background: rgba(90,122,138,0.3); color: var(--text-secondary); }
+.btn-clear:hover { background: rgba(92,107,101,0.3); color: var(--text-secondary); }
 
 /* Invoice Card */
 .invoice-card { margin-bottom: 28px; }
@@ -462,7 +463,7 @@ onMounted(() => {
   background: var(--primary-glow); color: var(--primary);
   border: 1px solid var(--border);
   padding: 5px 12px; border-radius: 6px;
-  font-family: monospace; font-size: 0.95rem; font-weight: 800;
+  font-family: var(--font-primary); font-size: 0.95rem; font-weight: 800;
 }
 .customer-cell { font-weight: 600; color: var(--text-primary); }
 .address-text {
@@ -493,9 +494,9 @@ onMounted(() => {
   border: 1px solid var(--border);
 }
 .scheduled-badge {
-  background: rgba(155, 89, 182, 0.15);
-  border: 1px solid rgba(155, 89, 182, 0.3);
-  color: #9b59b6;
+  background: rgba(192, 138, 46, 0.15);
+  border: 1px solid rgba(192, 138, 46, 0.3);
+  color: #C08A2E;
   padding: 4px 10px;
   border-radius: 6px;
   font-size: 0.78rem;
@@ -509,26 +510,26 @@ onMounted(() => {
   50% { opacity: 0.6; }
 }
 .g-badge-scheduled {
-  background: rgba(155, 89, 182, 0.15) !important;
-  color: #9b59b6 !important;
-  border-color: rgba(155, 89, 182, 0.3) !important;
+  background: rgba(192, 138, 46, 0.15) !important;
+  color: #C08A2E !important;
+  border-color: rgba(192, 138, 46, 0.3) !important;
 }
 .date-cell { color: var(--text-muted); font-size: 0.88rem; white-space: nowrap; }
 .action-row { display: flex; gap: 6px; }
 .btn-view {
-  background: rgba(0,212,170,0.1); border: 1px solid var(--border);
+  background: rgba(90, 110, 69, 0.1); border: 1px solid var(--border);
   color: var(--primary); padding: 7px 12px;
   border-radius: var(--radius-sm); cursor: pointer; font-size: 0.82rem; font-weight: 600;
   transition: var(--transition);
 }
 .btn-view:hover { background: var(--primary-glow); }
 .btn-approve {
-  background: rgba(241,196,15,0.15); border: 1px solid rgba(241,196,15,0.3);
-  color: #f1c40f; padding: 7px 12px;
+  background: rgba(185,130,41,0.15); border: 1px solid rgba(185,130,41,0.3);
+  color: #B98229; padding: 7px 12px;
   border-radius: var(--radius-sm); cursor: pointer; font-size: 0.82rem; font-weight: 600;
   white-space: nowrap; transition: var(--transition);
 }
-.btn-approve:hover { background: rgba(241,196,15,0.3); }
+.btn-approve:hover { background: rgba(185,130,41,0.3); }
 .empty-row { text-align: center; color: var(--text-muted); padding: 50px; font-style: italic; }
 
 /* ===== MODAL ===== */
@@ -540,7 +541,7 @@ onMounted(() => {
   padding: 20px;
 }
 .invoice-modal {
-  background: white; color: #111;
+  background: #FFFFFF; color: #1A170F;
   width: 100%; max-width: 860px;
   border-radius: var(--radius-lg);
   overflow: hidden;
@@ -549,7 +550,7 @@ onMounted(() => {
 }
 .modal-header {
   display: flex; justify-content: space-between; align-items: center;
-  background: var(--bg-nav); color: white; padding: 16px 24px;
+  background: var(--bg-nav); color: #FFFFFF; padding: 16px 24px;
   border-bottom: 1px solid var(--border);
 }
 .modal-header h2 { margin: 0; color: var(--primary); font-size: 1.1rem; }
@@ -557,52 +558,52 @@ onMounted(() => {
   background: transparent; border: none; color: var(--text-muted);
   font-size: 1.3rem; cursor: pointer; transition: var(--transition);
 }
-.btn-close:hover { color: #e74c3c; transform: scale(1.1); }
+.btn-close:hover { color: #B23B2E; transform: scale(1.1); }
 
 .invoice-content { padding: 40px; }
-.invoice-brand { text-align: center; border-bottom: 2px solid #111; padding-bottom: 20px; margin-bottom: 28px; }
-.invoice-brand h1 { margin: 0; font-size: 2rem; color: #111; letter-spacing: 2px; }
-.invoice-brand h1 span { color: #00b894; }
-.invoice-brand p { margin: 4px 0 0 0; color: #777; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 3px; }
-.brand-address { font-size: 0.82rem; color: #777; margin-top: 10px; }
+.invoice-brand { text-align: center; border-bottom: 2px solid #1A170F; padding-bottom: 20px; margin-bottom: 28px; }
+.invoice-brand h1 { margin: 0; font-size: 2rem; color: #1A170F; letter-spacing: 2px; }
+.invoice-brand h1 span { color: #2F8F5B; }
+.invoice-brand p { margin: 4px 0 0 0; color: #7A7460; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 3px; }
+.brand-address { font-size: 0.82rem; color: #7A7460; margin-top: 10px; }
 
 .invoice-meta { display: flex; justify-content: space-between; margin-bottom: 28px; }
-.meta-left p { margin: 6px 0; color: #444; }
+.meta-left p { margin: 6px 0; color: #55503E; }
 .meta-right { text-align: right; }
-.meta-right h3 { margin: 0 0 10px 0; color: #c0392b; font-size: 1.2rem; }
+.meta-right h3 { margin: 0 0 10px 0; color: #B23B2E; font-size: 1.2rem; }
 .code-badge-lg {
-  background: #111; color: #00b894;
+  background: #1A170F; color: #2F8F5B;
   padding: 6px 14px; border-radius: 4px;
-  font-size: 1.2rem; font-weight: 800; font-family: monospace;
+  font-size: 1.2rem; font-weight: 800; font-family: var(--font-primary);
 }
 
 .print-table { width: 100%; border-collapse: collapse; margin-bottom: 28px; }
-.print-table th { background: #111; color: white; padding: 12px; font-size: 0.88rem; text-transform: uppercase; }
-.print-table td { border-bottom: 1px solid #ddd; padding: 14px 12px; color: #333; vertical-align: middle; }
+.print-table th { background: #1A170F; color: #FFFFFF; padding: 12px; font-size: 0.88rem; text-transform: uppercase; }
+.print-table td { border-bottom: 1px solid #CFC7A8; padding: 14px 12px; color: #201D14; vertical-align: middle; }
 .invoice-thumb {
   width: 45px; height: 45px; border-radius: 6px; object-fit: cover;
-  border: 1px solid #ddd;
+  border: 1px solid #CFC7A8;
 }
 .no-img { font-size: 1.5rem; display: inline-block; }
 
 .invoice-total { margin-top: 20px; display: flex; justify-content: flex-end; }
 .total-table { border-collapse: collapse; min-width: 300px; }
-.total-table td { padding: 6px 10px; color: #444; }
+.total-table td { padding: 6px 10px; color: #55503E; }
 .total-table td:last-child { text-align: right; font-weight: 700; }
-.total-row td { border-top: 2px solid #111; padding-top: 12px; font-size: 1.15rem; color: #c0392b; font-weight: 900; }
+.total-row td { border-top: 2px solid #1A170F; padding-top: 12px; font-size: 1.15rem; color: #B23B2E; font-weight: 900; }
 
-.invoice-footer { text-align: center; margin-top: 40px; border-top: 1px solid #eee; padding-top: 20px; }
-.thanks-msg { color: #00b894; font-size: 1.2rem; font-family: 'Times New Roman', serif; margin: 0 0 6px 0; }
-.system-msg { font-size: 0.78rem; color: #999; margin: 0; }
+.invoice-footer { text-align: center; margin-top: 40px; border-top: 1px solid #E2DCC2; padding-top: 20px; }
+.thanks-msg { color: #2F8F5B; font-size: 1.2rem; font-family: var(--font-primary); margin: 0 0 6px 0; }
+.system-msg { font-size: 0.78rem; color: #7A7460; margin: 0; }
 
-.modal-actions { padding: 20px; background: #f8f9fa; text-align: center; border-top: 1px solid #eee; }
+.modal-actions { padding: 20px; background: #DED8C2; text-align: center; border-top: 1px solid #E2DCC2; }
 .btn-export {
   background: linear-gradient(135deg, var(--primary), var(--primary-dark));
   color: var(--bg-dark); border: none; padding: 13px 32px;
   font-weight: 800; border-radius: var(--radius-md); cursor: pointer;
   font-size: 1rem; font-family: inherit; transition: var(--transition);
 }
-.btn-export:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,212,170,0.4); }
+.btn-export:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(90, 110, 69, 0.4); }
 
 @media print {
   @page {
@@ -622,8 +623,8 @@ onMounted(() => {
     overflow: visible !important;
     box-shadow: none !important;
     border-radius: 0 !important;
-    background: white !important;
-    color: #111 !important;
+    background: #FFFFFF !important;
+    color: #1A170F !important;
     padding: 0 !important;
     z-index: 99999 !important;
   }

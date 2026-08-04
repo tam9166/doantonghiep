@@ -111,7 +111,7 @@
                 <p>📞 {{ app.phone }} | ✉️ {{ app.email || 'Không có email' }}</p>
                 <p class="app-message"><strong>Lời nhắn:</strong> {{ app.message || 'Không có lời nhắn' }}</p>
                 <div v-if="app.cvFile" style="margin-top: 10px;">
-                  <a :href="'http://localhost:8080' + app.cvFile" target="_blank" class="btn-download-cv">📄 Xem / Tải CV</a>
+                  <button type="button" @click="downloadCv(app)" class="btn-download-cv">📄 Xem / Tải CV</button>
                 </div>
               </div>
             </div>
@@ -149,16 +149,31 @@ const configHeader = () => {
 
 const loadPosts = async () => {
   try {
-    const res = await api.get('http://localhost:8080/api/admin/posts', configHeader());
+    const res = await api.get('/api/admin/posts', configHeader());
     posts.value = res.data;
   } catch (err) { console.error('Lỗi tải bài đăng', err); }
 };
 
 const loadApplications = async () => {
   try {
-    const res = await api.get('http://localhost:8080/api/applications', configHeader());
+    const res = await api.get('/api/applications', configHeader());
     applications.value = res.data;
   } catch (err) { console.error('Lỗi tải đơn ứng tuyển', err); }
+};
+
+const downloadCv = async (app) => {
+  try {
+    const res = await api.get(app.cvFile, {
+      ...configHeader(),
+      responseType: 'blob'
+    });
+    const blobUrl = URL.createObjectURL(res.data);
+    window.open(blobUrl, '_blank', 'noopener');
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+  } catch (err) {
+    console.error('Không thể tải CV', err);
+    alert('Không thể tải CV. Vui lòng kiểm tra quyền truy cập.');
+  }
 };
 
 const filteredPosts = computed(() => {
@@ -172,10 +187,10 @@ const submitPost = async () => {
   }
   try {
     if (editingPost.value) {
-      await api.put(`http://localhost:8080/api/admin/posts/${editingPost.value.id}`, form.value, configHeader());
+      await api.put(`/api/admin/posts/${editingPost.value.id}`, form.value, configHeader());
       alert('Cập nhật bài đăng thành công!');
     } else {
-      await api.post('http://localhost:8080/api/admin/posts', form.value, configHeader());
+      await api.post('/api/admin/posts', form.value, configHeader());
       alert('Đăng bài thành công!');
     }
     resetForm();
@@ -200,9 +215,12 @@ const resetForm = () => {
 const deletePost = async (id) => {
   if (!confirm('Bạn có chắc muốn xóa bài đăng này?')) return;
   try {
-    await api.delete(`http://localhost:8080/api/admin/posts/${id}`, configHeader());
+    await api.delete(`/api/admin/posts/${id}`, configHeader());
     loadPosts();
-  } catch (err) { alert('Lỗi xóa bài đăng!'); }
+  } catch (err) {
+    console.error('Lỗi xóa bài đăng', err);
+    alert('Lỗi xóa bài đăng!');
+  }
 };
 
 const formatDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '---';
@@ -245,10 +263,10 @@ onMounted(() => {
   font-weight: 800; font-size: 0.95rem; cursor: pointer; font-family: inherit;
   transition: var(--transition);
 }
-.btn-save:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,212,170,0.4); }
+.btn-save:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(90, 110, 69, 0.4); }
 .btn-cancel {
-  background: rgba(231,76,60,0.15); border: 1px solid rgba(231,76,60,0.3);
-  color: #e74c3c; padding: 13px 20px; border-radius: var(--radius-md);
+  background: rgba(178,59,46,0.15); border: 1px solid rgba(178,59,46,0.3);
+  color: #B23B2E; padding: 13px 20px; border-radius: var(--radius-md);
   font-weight: 700; cursor: pointer; font-family: inherit; transition: var(--transition);
 }
 
@@ -281,8 +299,8 @@ onMounted(() => {
 .btn-download-cv {
   display: inline-block;
   padding: 6px 12px;
-  background: #3498db;
-  color: white;
+  background: #5A6E45;
+  color: #FFFFFF;
   text-decoration: none;
   border-radius: 4px;
   font-weight: bold;
@@ -290,7 +308,7 @@ onMounted(() => {
   transition: 0.2s;
 }
 .btn-download-cv:hover {
-  background: #2980b9;
+  background: #33422A;
   transform: translateY(-2px);
 }
 
@@ -310,10 +328,10 @@ onMounted(() => {
   font-size: 0.72rem; font-weight: 700; padding: 3px 10px;
   border-radius: 12px; letter-spacing: 0.5px;
 }
-.type-news { background: rgba(52,152,219,0.15); color: #3498db; }
-.type-recruit { background: rgba(155,89,182,0.15); color: #9b59b6; }
+.type-news { background: rgba(90, 110, 69, 0.15); color: #5A6E45; }
+.type-recruit { background: rgba(192, 138, 46, 0.15); color: #C08A2E; }
 .post-date { font-size: 0.78rem; color: var(--text-muted); }
-.hidden-badge { font-size: 0.72rem; font-weight: 700; color: #e74c3c; }
+.hidden-badge { font-size: 0.72rem; font-weight: 700; color: #B23B2E; }
 
 .post-info h4 { margin: 0 0 4px 0; font-size: 0.95rem; color: var(--text-heading); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .post-info p { margin: 0; font-size: 0.82rem; color: var(--text-muted); line-height: 1.4; }
@@ -324,13 +342,13 @@ onMounted(() => {
   border: 1px solid var(--border); background: transparent;
   cursor: pointer; font-size: 1rem; transition: var(--transition);
 }
-.btn-edit:hover { background: rgba(0,212,170,0.15); border-color: var(--primary); }
-.btn-delete:hover { background: rgba(231,76,60,0.15); border-color: #e74c3c; }
+.btn-edit:hover { background: rgba(90, 110, 69, 0.15); border-color: var(--primary); }
+.btn-delete:hover { background: rgba(178,59,46,0.15); border-color: #B23B2E; }
 
 .empty-state { text-align: center; padding: 50px 20px; color: var(--text-muted); font-style: italic; }
 
 .app-item { align-items: flex-start; }
 .app-message { background: var(--bg-root); padding: 10px; border-radius: var(--radius-sm); margin-top: 8px !important; font-size: 0.8rem !important; }
-.likes-badge { font-size: 0.72rem; font-weight: 700; color: #e74c3c; background: rgba(231,76,60,0.1); padding: 2px 8px; border-radius: 10px; }
+.likes-badge { font-size: 0.72rem; font-weight: 700; color: #B23B2E; background: rgba(178,59,46,0.1); padding: 2px 8px; border-radius: 10px; }
 </style>
 

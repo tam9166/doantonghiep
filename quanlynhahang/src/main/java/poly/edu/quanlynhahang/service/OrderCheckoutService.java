@@ -15,6 +15,8 @@ import poly.edu.quanlynhahang.entity.Order;
 import poly.edu.quanlynhahang.entity.OrderDetail;
 import poly.edu.quanlynhahang.entity.OrderItemOperation;
 import poly.edu.quanlynhahang.entity.Product;
+import poly.edu.quanlynhahang.entity.Reservation;
+import poly.edu.quanlynhahang.entity.ReservationPreorderItem;
 import poly.edu.quanlynhahang.entity.OrderPaymentOption;
 import poly.edu.quanlynhahang.entity.PaymentStatus;
 import poly.edu.quanlynhahang.entity.Recipe;
@@ -63,6 +65,7 @@ public class OrderCheckoutService {
     private final VoucherRepository voucherRepository;
     private final ActivityLogService activityLogService;
     private final OrderPaymentService orderPaymentService;
+    private final MenuAvailabilityService menuAvailabilityService;
 
     public OrderCheckoutService(OrderRepository orderRepository,
                                 OrderDetailRepository orderDetailRepository,
@@ -75,7 +78,8 @@ public class OrderCheckoutService {
                                 IngredientBatchRepository ingredientBatchRepository,
                                 VoucherRepository voucherRepository,
                                 ActivityLogService activityLogService,
-                                OrderPaymentService orderPaymentService) {
+                                OrderPaymentService orderPaymentService,
+                                MenuAvailabilityService menuAvailabilityService) {
         this.orderRepository = orderRepository;
         this.orderDetailRepository = orderDetailRepository;
         this.orderItemOperationRepository = orderItemOperationRepository;
@@ -88,6 +92,7 @@ public class OrderCheckoutService {
         this.voucherRepository = voucherRepository;
         this.activityLogService = activityLogService;
         this.orderPaymentService = orderPaymentService;
+        this.menuAvailabilityService = menuAvailabilityService;
     }
 
     @Transactional
@@ -97,8 +102,8 @@ public class OrderCheckoutService {
         boolean dineIn = request.getAddress() != null && request.getAddress().contains("[TẠI QUÁN]");
         OrderPaymentOption paymentOption = resolvePaymentOption(request.getPaymentOption(), dineIn);
 
-        Map<Integer, Integer> quantities = normalizeQuantities(request.getItems());
-        List<CheckoutLine> lines = loadProducts(quantities);
+        List<RequestedItem> requestedItems = normalizeItems(request.getItems());
+        List<CheckoutLine> lines = loadProducts(requestedItems);
         double discountRate = calculateDiscount(request.getVoucherCode(), account, dineIn);
         Map<Long, IngredientRequirement> requirements = inventoryRequirements(lines);
         Map<Long, List<IngredientBatch>> lockedBatches = lockAndValidateInventory(requirements);
@@ -134,6 +139,10 @@ public class OrderCheckoutService {
             detail.setTaxRate(taxRate.doubleValue());
             detail.setTaxAmount(lineTax);
             detail.setStatus(0);
+            detail.setNote(line.note());
+            detail.setAllergyNote(line.allergyNote());
+            detail.setPriority(line.priority());
+            detail.setQueuedAt(new Date());
             orderDetailRepository.save(detail);
             subTotal = subTotal.add(lineSubtotal);
             taxAmount = taxAmount.add(lineTax);
@@ -156,6 +165,74 @@ public class OrderCheckoutService {
                 savedOrder.getPaymentOption(), savedOrder.getPaymentStatus(), payment);
     }
 
+    /**
+     * Materializes an approved reservation preorder as one kitchen order. The reservation
+     * stores the returned id, making the operation idempotent at the workflow level.
+     */
+    @Transactional
+    public Integer dispatchReservationPreorder(Reservation reservation,
+                                               List<ReservationPreorderItem> preorderItems) {
+        if (reservation == null || reservation.getTable() == null || preorderItems == null || preorderItems.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Đặt bàn không có món đặt trước để chuyển xuống bếp");
+        }
+
+        List<RequestedItem> requestedItems = preorderItems.stream()
+                .map(item -> new RequestedItem(item.getProductId(), item.getQuantity(),
+                        normalizedText(item.getNote()), "", 0))
+                .toList();
+        List<CheckoutLine> lines = loadProducts(requestedItems);
+        Map<Long, IngredientRequirement> requirements = inventoryRequirements(lines);
+        Map<Long, List<IngredientBatch>> lockedBatches = lockAndValidateInventory(requirements);
+
+        Order order = new Order();
+        order.setAccount(authenticatedAccount(reservation.getCreatedBy()));
+        order.setAddress("ĐẶT BÀN: " + reservation.getReservationCode() + " | Bàn: "
+                + reservation.getTable().getName() + " | [TẠI QUÁN]");
+        order.setTableId(reservation.getTable().getId());
+        order.setCreateDate(new Date());
+        order.setStatus(1);
+        order.setDeposit(money(reservation.getPaidAmount()));
+        order.setPaymentOption(OrderPaymentOption.PAY_AT_RESTAURANT);
+        order.setPaymentStatus(reservation.getPaymentStatus() == null
+                ? PaymentStatus.UNPAID : reservation.getPaymentStatus());
+        order.setPaidAmount(money(reservation.getPaidAmount()).setScale(0, RoundingMode.HALF_UP));
+        order.setIsPaid(PaymentStatus.PAID.equals(order.getPaymentStatus())
+                || PaymentStatus.OVERPAID.equals(order.getPaymentStatus()));
+        Order savedOrder = orderRepository.save(order);
+
+        BigDecimal subTotal = BigDecimal.ZERO;
+        for (int index = 0; index < lines.size(); index++) {
+            CheckoutLine line = lines.get(index);
+            ReservationPreorderItem preorderItem = preorderItems.get(index);
+            BigDecimal lineTotal = money(preorderItem.getLineTotal());
+            OrderDetail detail = new OrderDetail();
+            detail.setOrder(savedOrder);
+            detail.setProduct(line.product());
+            detail.setQuantity(line.quantity());
+            detail.setPrice(lineTotal);
+            detail.setTaxRate(0.0);
+            detail.setTaxAmount(BigDecimal.ZERO);
+            detail.setStatus(0);
+            detail.setNote(line.note());
+            detail.setPriority(0);
+            detail.setQueuedAt(new Date());
+            orderDetailRepository.save(detail);
+            subTotal = subTotal.add(lineTotal);
+        }
+
+        savedOrder.setSubTotal(subTotal);
+        savedOrder.setTaxAmount(BigDecimal.ZERO);
+        savedOrder.setTotalAmount(subTotal);
+        savedOrder.setRemainingAmount(subTotal.subtract(money(reservation.getPaidAmount()))
+                .max(BigDecimal.ZERO).setScale(0, RoundingMode.HALF_UP));
+        consumeInventory(requirements, lockedBatches);
+        orderRepository.save(savedOrder);
+        activityLogService.log("CREATE", "Order", String.valueOf(savedOrder.getId()),
+                "Chuyển món đặt trước " + reservation.getReservationCode() + " xuống bếp");
+        return savedOrder.getId();
+    }
+
     private void validateRequest(OrderRequest request) {
         if (request == null || request.getItems() == null || request.getItems().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Giỏ hàng không được để trống");
@@ -166,10 +243,10 @@ public class OrderCheckoutService {
     public AddItemsResult addItems(Integer orderId, OrderRequest request, String idempotencyKey) {
         validateRequest(request);
         String normalizedIdempotencyKey = normalizeIdempotencyKey(idempotencyKey);
-        Map<Integer, Integer> quantities = normalizeQuantities(request.getItems());
+        List<RequestedItem> requestedItems = normalizeItems(request.getItems());
         Order order = orderRepository.findLockedById(orderId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
-        String requestHash = addItemsRequestHash(orderId, quantities);
+        String requestHash = addItemsRequestHash(orderId, requestedItems);
         var existingOperation = orderItemOperationRepository
                 .findByOrderIdAndIdempotencyKey(orderId, normalizedIdempotencyKey);
         if (existingOperation.isPresent()) {
@@ -186,7 +263,7 @@ public class OrderCheckoutService {
                 || Integer.valueOf(4).equals(order.getStatus())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Order cannot accept more items");
         }
-        List<CheckoutLine> lines = loadProducts(quantities);
+        List<CheckoutLine> lines = loadProducts(requestedItems);
         Map<Long, IngredientRequirement> requirements = inventoryRequirements(lines);
         Map<Long, List<IngredientBatch>> lockedBatches = lockAndValidateInventory(requirements);
         BigDecimal subTotal = money(order.getSubTotal());
@@ -206,6 +283,10 @@ public class OrderCheckoutService {
             detail.setTaxRate(taxRate.doubleValue());
             detail.setTaxAmount(lineTax);
             detail.setStatus(0);
+            detail.setNote(line.note());
+            detail.setAllergyNote(line.allergyNote());
+            detail.setPriority(line.priority());
+            detail.setQueuedAt(new Date());
             orderDetailRepository.save(detail);
             subTotal = subTotal.add(lineSubtotal);
             taxAmount = taxAmount.add(lineTax);
@@ -249,10 +330,14 @@ public class OrderCheckoutService {
         return BigDecimal.valueOf(value == null ? fallback : value);
     }
 
-    private String addItemsRequestHash(Integer orderId, Map<Integer, Integer> quantities) {
-        String payload = quantities.entrySet().stream()
-                .sorted(Map.Entry.comparingByKey())
-                .map(entry -> entry.getKey() + ":" + entry.getValue())
+    private String addItemsRequestHash(Integer orderId, List<RequestedItem> items) {
+        String payload = items.stream()
+                .sorted(Comparator.comparing(RequestedItem::productId)
+                        .thenComparing(RequestedItem::note)
+                        .thenComparing(RequestedItem::allergyNote)
+                        .thenComparing(RequestedItem::priority))
+                .map(item -> item.productId() + ":" + item.quantity() + ":" + item.note()
+                        + ":" + item.allergyNote() + ":" + item.priority())
                 .reduce("ADD_ITEMS|" + orderId, (left, right) -> left + "|" + right);
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
@@ -262,8 +347,9 @@ public class OrderCheckoutService {
         }
     }
 
-    private Map<Integer, Integer> normalizeQuantities(List<OrderDetailRequest> items) {
-        Map<Integer, Integer> quantities = new LinkedHashMap<>();
+    private List<RequestedItem> normalizeItems(List<OrderDetailRequest> items) {
+        Map<Integer, Integer> quantitiesByProduct = new LinkedHashMap<>();
+        List<RequestedItem> normalized = new ArrayList<>();
         for (OrderDetailRequest item : items) {
             if (item == null || item.getProductId() == null) {
                 throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Sản phẩm không được để trống");
@@ -271,31 +357,38 @@ public class OrderCheckoutService {
             if (item.getQuantity() == null || item.getQuantity() <= 0 || item.getQuantity() > 100) {
                 throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Số lượng món phải từ 1 đến 100");
             }
-            int combined = quantities.getOrDefault(item.getProductId(), 0) + item.getQuantity();
+            int combined = quantitiesByProduct.getOrDefault(item.getProductId(), 0) + item.getQuantity();
             if (combined > 100) {
                 throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
                         "Tổng số lượng mỗi món không được vượt quá 100");
             }
-            quantities.put(item.getProductId(), combined);
+            quantitiesByProduct.put(item.getProductId(), combined);
+            normalized.add(new RequestedItem(item.getProductId(), item.getQuantity(),
+                    normalizedText(item.getNote()), normalizedText(item.getAllergyNote()),
+                    item.getPriority() == null ? 0 : item.getPriority()));
         }
-        return quantities;
+        return normalized;
     }
 
-    private List<CheckoutLine> loadProducts(Map<Integer, Integer> quantities) {
+    private List<CheckoutLine> loadProducts(List<RequestedItem> requestedItems) {
         List<CheckoutLine> lines = new ArrayList<>();
-        for (Map.Entry<Integer, Integer> entry : quantities.entrySet()) {
-            Product product = productRepository.findById(entry.getKey())
+        for (RequestedItem item : requestedItems) {
+            Product product = productRepository.findById(item.productId())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
-                            "Sản phẩm không tồn tại: " + entry.getKey()));
+                            "Sản phẩm không tồn tại: " + item.productId()));
             if (!Boolean.TRUE.equals(product.getStatus()) || !Boolean.TRUE.equals(product.getAvailable())) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Món hiện không phục vụ: " + product.getName());
             }
             if (product.getPrice() == null || product.getPrice().signum() < 0) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Giá món chưa hợp lệ: " + product.getName());
             }
-            lines.add(new CheckoutLine(product, entry.getValue()));
+            lines.add(new CheckoutLine(product, item.quantity(), item.note(), item.allergyNote(), item.priority()));
         }
         return lines;
+    }
+
+    private String normalizedText(String value) {
+        return value == null || value.isBlank() ? "" : value.trim();
     }
 
     private Account authenticatedAccount(String username) {
@@ -362,7 +455,12 @@ public class OrderCheckoutService {
     private Map<Long, IngredientRequirement> inventoryRequirements(List<CheckoutLine> lines) {
         Map<Long, IngredientRequirement> requirements = new LinkedHashMap<>();
         for (CheckoutLine line : lines) {
-            for (Recipe recipe : recipeRepository.findByProduct(line.product())) {
+            List<Recipe> recipes = recipeRepository.findByProduct(line.product());
+            if (recipes.isEmpty()) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Món chưa được thiết lập nguyên liệu: " + line.product().getName());
+            }
+            for (Recipe recipe : recipes) {
                 Ingredient ingredient = recipe.getIngredient();
                 if (ingredient == null || ingredient.getId() == null
                         || recipe.getAmountRequired() == null || recipe.getAmountRequired() <= 0) {
@@ -429,14 +527,7 @@ public class OrderCheckoutService {
             ingredient.setQuantity(quantityAfter);
             ingredientRepository.save(ingredient);
 
-            for (Recipe relatedRecipe : recipeRepository.findByIngredient(ingredient)) {
-                if (relatedRecipe.getProduct() != null
-                        && relatedRecipe.getAmountRequired() != null
-                        && quantityAfter + 0.000001 < relatedRecipe.getAmountRequired()) {
-                    relatedRecipe.getProduct().setAvailable(false);
-                    productRepository.save(relatedRecipe.getProduct());
-                }
-            }
+            menuAvailabilityService.refreshForIngredient(ingredient);
         }
     }
 
@@ -467,7 +558,10 @@ public class OrderCheckoutService {
         return address.trim();
     }
 
-    private record CheckoutLine(Product product, int quantity) {
+    private record RequestedItem(int productId, int quantity, String note, String allergyNote, int priority) {
+    }
+
+    private record CheckoutLine(Product product, int quantity, String note, String allergyNote, int priority) {
     }
 
     private record IngredientRequirement(Ingredient ingredient, double amount) {

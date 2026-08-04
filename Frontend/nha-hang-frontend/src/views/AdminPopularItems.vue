@@ -52,11 +52,11 @@
                   <span class="ls-label">Đã bán</span>
                 </div>
                 <div class="ls-item">
-                  <span class="ls-value" style="color: #f1c40f;">{{ formatMoney(item.totalRevenue) }}</span>
+                  <span class="ls-value" style="color: #B98229;">{{ formatMoney(item.totalRevenue) }}</span>
                   <span class="ls-label">Doanh thu</span>
                 </div>
                 <div class="ls-item">
-                  <span class="ls-value" style="color: #3498db;">{{ item.orderCount }}</span>
+                  <span class="ls-value" style="color: #5A6E45;">{{ item.orderCount }}</span>
                   <span class="ls-label">Lần gọi</span>
                 </div>
               </div>
@@ -101,7 +101,7 @@
                 </td>
                 <td style="color: var(--primary); font-weight: 800;">{{ item.totalConsumed?.toFixed(2) }} {{ item.unit }}</td>
                 <td>
-                  <span :style="{ color: item.currentStock <= item.minStock ? '#e74c3c' : '#2ecc71', fontWeight: 'bold' }">
+                  <span :style="{ color: item.currentStock <= item.minStock ? '#B23B2E' : '#2F8F5B', fontWeight: 'bold' }">
                     {{ item.currentStock?.toFixed(2) }} {{ item.unit }}
                   </span>
                 </td>
@@ -140,8 +140,8 @@ const configHeader = () => ({ headers: { 'Authorization': `Bearer ${getToken()}`
 const fetchData = async () => {
   try {
     const [prodRes, ingRes] = await Promise.all([
-      api.get(`http://localhost:8080/api/admin/popular-items/products?period=${period.value}`, configHeader()),
-      api.get(`http://localhost:8080/api/admin/popular-items/ingredients?period=${period.value}`, configHeader())
+      api.get(`/api/admin/popular-items/products?period=${period.value}`, configHeader()),
+      api.get(`/api/admin/popular-items/ingredients?period=${period.value}`, configHeader())
     ]);
     topProducts.value = prodRes.data;
     topIngredients.value = ingRes.data;
@@ -180,18 +180,18 @@ onMounted(fetchData);
 /* Leaderboard Grid */
 .leaderboard-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
 .leader-card { padding: 20px; border-radius: 16px; position: relative; display: flex; gap: 16px; align-items: center; }
-.leader-card.top-1 { border-left: 4px solid #f1c40f; box-shadow: 0 4px 20px rgba(241, 196, 15, 0.15); }
-.leader-card.top-2 { border-left: 4px solid #bdc3c7; }
-.leader-card.top-3 { border-left: 4px solid #cd7f32; }
+.leader-card.top-1 { border-left: 4px solid #B98229; box-shadow: 0 4px 20px rgba(185, 130, 41, 0.15); }
+.leader-card.top-2 { border-left: 4px solid #A6B0AA; }
+.leader-card.top-3 { border-left: 4px solid #C08A2E; }
 
 .leader-rank { position: absolute; top: 10px; right: 14px; }
-.rank-crown { font-size: 1.5rem; filter: drop-shadow(0 0 8px rgba(241, 196, 15, 0.6)); }
+.rank-crown { font-size: 1.5rem; filter: drop-shadow(0 0 8px rgba(185, 130, 41, 0.6)); }
 .rank-medal { font-size: 1.3rem; }
 .rank-number { font-size: 0.85rem; font-weight: 900; color: var(--text-muted); background: rgba(255,255,255,0.05); padding: 3px 8px; border-radius: 6px; }
 
 .leader-img-wrap { flex-shrink: 0; }
 .leader-img { width: 72px; height: 72px; border-radius: 14px; object-fit: cover; border: 2px solid rgba(255,255,255,0.08); }
-.leader-img-placeholder { width: 72px; height: 72px; border-radius: 14px; background: rgba(0, 212, 170, 0.1); display: flex; align-items: center; justify-content: center; font-size: 2rem; }
+.leader-img-placeholder { width: 72px; height: 72px; border-radius: 14px; background: rgba(90, 110, 69, 0.1); display: flex; align-items: center; justify-content: center; font-size: 2rem; }
 
 .leader-info { flex: 1; }
 .leader-name { margin: 0 0 8px; font-size: 1.05rem; font-weight: 800; color: var(--text-heading); }
@@ -201,19 +201,19 @@ onMounted(fetchData);
 .ls-label { font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; }
 
 .leader-bar { height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden; }
-.leader-bar-fill { height: 100%; background: linear-gradient(90deg, #00d4aa, #3498db); border-radius: 3px; transition: width 1s ease-out; }
+.leader-bar-fill { height: 100%; background: linear-gradient(90deg, #33422A, #5A6E45); border-radius: 3px; transition: width 1s ease-out; }
 
 /* Ingredient Table */
 .hover-row { transition: background 0.2s; }
-.hover-row:hover { background: rgba(0, 212, 170, 0.04); }
+.hover-row:hover { background: rgba(90, 110, 69, 0.04); }
 
 .rank-badge-sm { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; font-weight: 900; font-size: 0.75rem; background: rgba(255,255,255,0.05); color: var(--text-muted); }
-.rank-1 { background: #f1c40f; color: #111; box-shadow: 0 0 8px rgba(241,196,15,0.5); }
-.rank-2 { background: #bdc3c7; color: #111; }
-.rank-3 { background: #cd7f32; color: #fff; }
+.rank-1 { background: #B98229; color: #1A170F; box-shadow: 0 0 8px rgba(185,130,41,0.5); }
+.rank-2 { background: #A6B0AA; color: #1A170F; }
+.rank-3 { background: #C08A2E; color: #FFFFFF; }
 
 .consume-bar { height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden; }
-.consume-fill { height: 100%; background: linear-gradient(90deg, #e74c3c, #f1c40f); border-radius: 3px; transition: width 1s ease-out; }
+.consume-fill { height: 100%; background: linear-gradient(90deg, #B23B2E, #B98229); border-radius: 3px; transition: width 1s ease-out; }
 
 @media (max-width: 768px) {
   .leaderboard-grid { grid-template-columns: 1fr; }

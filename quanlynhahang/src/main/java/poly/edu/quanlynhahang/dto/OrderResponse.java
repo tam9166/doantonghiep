@@ -12,7 +12,7 @@ public record OrderResponse(Integer id, Date createDate, String address, Integer
         BigDecimal subTotal, BigDecimal taxAmount, BigDecimal totalAmount, BigDecimal deposit, Integer tableId,
         EmployeeSummaryResponse account, List<OrderDetailResponse> orderDetails, Boolean isPaid,
         OrderPaymentOption paymentOption, PaymentStatus paymentStatus, BigDecimal paidAmount,
-        BigDecimal remainingAmount) {
+        BigDecimal remainingAmount, Boolean invoiceRequested) {
     public static OrderResponse from(Order order) {
         List<OrderDetailResponse> details = order.getOrderDetails() == null ? List.of()
                 : order.getOrderDetails().stream().map(OrderDetailResponse::from).toList();
@@ -21,7 +21,7 @@ public record OrderResponse(Integer id, Date createDate, String address, Integer
                 money(order.getDeposit()), order.getTableId(),
                 order.getAccount() == null ? null : EmployeeSummaryResponse.from(order.getAccount()), details,
                 order.getIsPaid(), order.getPaymentOption(), order.getPaymentStatus(), order.getPaidAmount(),
-                order.getRemainingAmount());
+                order.getRemainingAmount(), Boolean.TRUE.equals(order.getInvoiceRequested()));
     }
 
     private static BigDecimal money(BigDecimal value) {

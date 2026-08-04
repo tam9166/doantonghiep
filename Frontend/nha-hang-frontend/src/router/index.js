@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { routeLoading } from './loadingState'
 import i18n from '@/i18n'
+import { canAccessOperationalWorkspace, customerRouteRedirect } from './roleAccess'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -71,16 +72,18 @@ router.beforeEach((to, from) => {
   }
 
   // 1. NGĂN NHÂN VIÊN LÀM VIỆC RIÊNG (Chỉ Admin/Manager mới được xem trang khách)
-  const customerRoutes = ['/', '/reservation', '/reservation-lookup', '/history', '/profile']
-  if (customerRoutes.includes(to.path)) {
-    if (userRoles.includes('ROLE_KITCHEN') && !userRoles.includes('ROLE_ADMIN')) {
+  const customerRedirect = customerRouteRedirect(to.path, userRoles)
+  if (customerRedirect) {
+    if (customerRedirect === '/kitchen') {
       alert(i18n.global.t('access.kitchenRedirect'))
-      return '/kitchen'
     }
-    if (userRoles.includes('ROLE_WAITER') && !userRoles.includes('ROLE_ADMIN')) {
+    if (customerRedirect === '/waiter') {
       alert(i18n.global.t('access.waiterRedirect'))
-      return '/waiter'
     }
+    if (customerRedirect === '/cashier') {
+      alert(i18n.global.t('access.cashierOnly'))
+    }
+    return customerRedirect
   }
 
   // 2. BẢO VỆ KHU VỰC QUẢN TRỊ CAO CẤP (Chỉ Admin / Manager)
@@ -106,9 +109,9 @@ router.beforeEach((to, from) => {
     }
   }
 
-  // 3. KHU VỰC BẾP (Chỉ cho phép Bếp)
+  // 3. KHU VỰC BẾP (Bếp và cấp giám sát)
   if (to.path.startsWith('/kitchen')) {
-    if (!token || !userRoles.includes('ROLE_KITCHEN')) {
+    if (!token || !canAccessOperationalWorkspace(to.path, userRoles)) {
       if (!token) {
         return '/staff-login'
       }
@@ -117,9 +120,9 @@ router.beforeEach((to, from) => {
     }
   }
 
-  // 4. KHU VỰC PHỤC VỤ (Chỉ cho phép Phục vụ)
+  // 4. KHU VỰC PHỤC VỤ (Phục vụ và cấp giám sát)
   if (to.path.startsWith('/waiter')) {
-    if (!token || !userRoles.includes('ROLE_WAITER')) {
+    if (!token || !canAccessOperationalWorkspace(to.path, userRoles)) {
       if (!token) {
         return '/staff-login'
       }
@@ -128,9 +131,9 @@ router.beforeEach((to, from) => {
     }
   }
 
-  // 5. KHU VỰC THU NGÂN (Chỉ cho phép Thu ngân)
+  // 5. KHU VỰC THU NGÂN (Thu ngân và cấp giám sát)
   if (to.path.startsWith('/cashier')) {
-    if (!token || !userRoles.includes('ROLE_CASHIER')) {
+    if (!token || !canAccessOperationalWorkspace(to.path, userRoles)) {
       if (!token) {
         return '/staff-login'
       }

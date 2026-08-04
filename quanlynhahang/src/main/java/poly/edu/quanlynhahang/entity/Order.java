@@ -92,4 +92,14 @@ public class Order {
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "payment_confirmed_at")
     private Date paymentConfirmedAt;
+
+    @Column(name = "invoice_requested", nullable = false)
+    private Boolean invoiceRequested = false;
+
+    @Temporal(TemporalType.TIMESTAMP)
+    @Column(name = "invoice_requested_at")
+    private Date invoiceRequestedAt;
+
+    @Column(name = "invoice_email", length = 100)
+    private String invoiceEmail;
 }

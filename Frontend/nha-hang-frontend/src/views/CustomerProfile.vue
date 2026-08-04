@@ -106,7 +106,7 @@ const loadProfile = async () => {
     return;
   }
   try {
-    const res = await api.get('http://localhost:8080/api/auth/profile', {
+    const res = await api.get('/api/auth/profile', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     userProfile.value = res.data;
@@ -124,7 +124,7 @@ const saveProfile = async () => {
     return;
   }
   try {
-    await api.put('http://localhost:8080/api/auth/profile', {
+    await api.put('/api/auth/profile', {
       fullname: editProfile.value.fullname,
       email: editProfile.value.email
     }, {
@@ -148,7 +148,7 @@ const changePassword = async () => {
     return;
   }
   try {
-    await api.put('http://localhost:8080/api/auth/password', {
+    await api.put('/api/auth/password', {
       oldPassword: passwordForm.value.oldPassword,
       newPassword: passwordForm.value.newPassword
     }, {
@@ -196,7 +196,7 @@ onMounted(() => {
 
 /* NAVBAR TƯƠNG TỰ HOME VÀ MENU */
 .navbar {
-  background: rgba(13, 27, 42, 0.4);
+  background: rgba(255, 255, 255, 0.72);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
@@ -215,7 +215,7 @@ onMounted(() => {
   font-weight: 600; font-size: 0.95rem; padding: 10px 20px;
   border-radius: 100px; transition: var(--transition);
 }
-.nav-links a:hover { color: var(--primary); background: rgba(0,212,170,0.1); }
+.nav-links a:hover { color: var(--primary); background: rgba(90, 110, 69, 0.1); }
 
 .nav-right { display: flex; gap: 10px; }
 .btn-nav-outline {
@@ -223,19 +223,19 @@ onMounted(() => {
   color: var(--text-secondary); padding: 10px 24px;
   border-radius: 100px; font-weight: 700; cursor: pointer; transition: var(--transition);
 }
-.btn-nav-outline:hover { border-color: var(--primary); color: var(--primary); background: rgba(0,212,170,0.1); }
+.btn-nav-outline:hover { border-color: var(--primary); color: var(--primary); background: rgba(90, 110, 69, 0.1); }
 .btn-cart {
   background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-  color: #040914; border: none; padding: 10px 24px; border-radius: 100px;
+  color: #1A170F; border: none; padding: 10px 24px; border-radius: 100px;
   font-weight: 800; cursor: pointer; transition: var(--transition);
 }
 .btn-logout {
-  background: rgba(231, 76, 60, 0.15);
-  border: 1px solid rgba(231, 76, 60, 0.3);
-  color: #e74c3c; padding: 10px 20px;
+  background: rgba(178, 59, 46, 0.15);
+  border: 1px solid rgba(178, 59, 46, 0.3);
+  color: #B23B2E; padding: 10px 20px;
   border-radius: 100px; font-weight: 700; cursor: pointer; transition: var(--transition);
 }
-.btn-logout:hover { background: rgba(231, 76, 60, 0.3); }
+.btn-logout:hover { background: rgba(178, 59, 46, 0.3); }
 
 /* MAIN CONTENT */
 .profile-content {
@@ -244,7 +244,7 @@ onMounted(() => {
   padding: 0 20px;
 }
 .profile-card {
-  background: rgba(13, 27, 42, 0.6);
+  background: rgba(255, 255, 255, 0.78);
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 20px;
   padding: 40px;
@@ -264,11 +264,11 @@ onMounted(() => {
   width: 80px; height: 80px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-  color: #040914;
+  color: #1A170F;
   font-size: 2.5rem;
   font-weight: 900;
   display: flex; justify-content: center; align-items: center;
-  box-shadow: 0 10px 20px rgba(0,212,170,0.3);
+  box-shadow: 0 10px 20px rgba(90, 110, 69, 0.3);
 }
 .header-info h2 { margin: 0 0 5px 0; font-size: 1.8rem; color: var(--text-heading); }
 .header-info p { margin: 0; color: var(--text-muted); font-size: 1rem; }
@@ -287,10 +287,10 @@ onMounted(() => {
 .tier-points { font-size: 0.85rem; opacity: 0.8; font-weight: 600; }
 
 /* TIER COLORS */
-.tier-diamond .tier-name { color: #00d4aa; text-shadow: 0 0 10px rgba(0,212,170,0.5); }
-.tier-gold .tier-name { color: #f1c40f; text-shadow: 0 0 10px rgba(241,196,15,0.5); }
-.tier-silver .tier-name { color: #bdc3c7; }
-.tier-bronze .tier-name { color: #cd7f32; }
+.tier-diamond .tier-name { color: var(--tier-diamond); text-shadow: 0 0 10px rgba(95,168,201,0.5); }
+.tier-gold .tier-name { color: #B98229; text-shadow: 0 0 10px rgba(185,130,41,0.5); }
+.tier-silver .tier-name { color: #A6B0AA; }
+.tier-bronze .tier-name { color: #C08A2E; }
 
 /* TABS */
 .profile-tabs {
@@ -301,7 +301,7 @@ onMounted(() => {
   color: var(--text-secondary); font-size: 1.1rem; font-weight: 700;
   padding: 10px 20px; cursor: pointer; transition: 0.3s;
 }
-.profile-tabs button:hover { color: white; }
+.profile-tabs button:hover { color: #FFFFFF; }
 .profile-tabs button.active {
   color: var(--primary);
   border-bottom-color: var(--primary);
@@ -318,8 +318,8 @@ onMounted(() => {
   width: 100%; padding: 14px;
   background: rgba(0,0,0,0.2);
   border: 1px solid rgba(255,255,255,0.1);
-  color: white; border-radius: 8px;
+  color: #FFFFFF; border-radius: 8px;
   font-size: 1rem;
 }
-.g-form-control:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 10px rgba(0,212,170,0.2); }
+.g-form-control:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 10px rgba(90, 110, 69, 0.2); }
 </style>

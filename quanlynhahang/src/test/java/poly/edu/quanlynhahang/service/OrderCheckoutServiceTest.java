@@ -35,6 +35,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.mockito.ArgumentCaptor;
 
 class OrderCheckoutServiceTest {
     private final OrderRepository orderRepository = mock(OrderRepository.class);
@@ -49,6 +50,7 @@ class OrderCheckoutServiceTest {
     private final VoucherRepository voucherRepository = mock(VoucherRepository.class);
     private final ActivityLogService activityLogService = mock(ActivityLogService.class);
     private final OrderPaymentService orderPaymentService = mock(OrderPaymentService.class);
+    private final MenuAvailabilityService menuAvailabilityService = mock(MenuAvailabilityService.class);
 
     private final OrderCheckoutService service = new OrderCheckoutService(
             orderRepository,
@@ -62,7 +64,8 @@ class OrderCheckoutServiceTest {
             batchRepository,
             voucherRepository,
             activityLogService,
-            orderPaymentService);
+            orderPaymentService,
+            menuAvailabilityService);
 
     @Test
     void rejectsEmptyCartBeforeWritingAnything() {
@@ -136,26 +139,22 @@ class OrderCheckoutServiceTest {
         assertEquals(6.0, ingredient.getQuantity());
         verify(batchRepository).findAvailableBatchesForUpdate(10L);
         verify(batchRepository).saveAll(List.of(batch));
+        verify(menuAvailabilityService).refreshForIngredient(ingredient);
         verify(orderDetailRepository).save(any(OrderDetail.class));
     }
 
     @Test
-    void roundsDecimalTaxBeforePersistingOrderTotals() {
+    void rejectsProductWithoutRecipeBeforeCreatingOrder() {
         Product product = product(1, 0.10);
         product.setTaxRate(8.0);
         when(productRepository.findById(1)).thenReturn(Optional.of(product));
         when(recipeRepository.findByProduct(product)).thenReturn(List.of());
-        when(orderRepository.save(any())).thenAnswer(invocation -> {
-            Order order = invocation.getArgument(0);
-            order.setId(23);
-            return order;
-        });
 
-        OrderCheckoutService.CheckoutResult result = service.checkout(request(1, 3), "anonymousUser");
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+                () -> service.checkout(request(1, 3), "anonymousUser"));
 
-        assertEquals(new BigDecimal("0.30"), result.subTotal());
-        assertEquals(new BigDecimal("0.02"), result.taxAmount());
-        assertEquals(new BigDecimal("0.32"), result.totalAmount());
+        assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
+        verify(orderRepository, never()).save(any());
     }
 
     @Test
@@ -196,7 +195,7 @@ class OrderCheckoutServiceTest {
         OrderItemOperation operation = new OrderItemOperation();
         operation.setOrderId(22);
         operation.setIdempotencyKey("add-item-key-001");
-        operation.setRequestHash("7acaa2e3bafe499aedd41ea9500f071b2c661bfe50ad8a07ccb3953cf836fcdc");
+        operation.setRequestHash("b7511123b954cc151e43d45de96f31da082a7df3af17050ed283d8e9f52977e9");
         operation.setAddedItems(2);
         operation.setSubTotal(new BigDecimal("200000.00"));
         operation.setTaxAmount(new BigDecimal("16000.00"));
@@ -230,7 +229,7 @@ class OrderCheckoutServiceTest {
         OrderItemOperation operation = new OrderItemOperation();
         operation.setOrderId(22);
         operation.setIdempotencyKey("add-item-key-001");
-        operation.setRequestHash("7acaa2e3bafe499aedd41ea9500f071b2c661bfe50ad8a07ccb3953cf836fcdc");
+        operation.setRequestHash("b7511123b954cc151e43d45de96f31da082a7df3af17050ed283d8e9f52977e9");
         when(orderRepository.findLockedById(22)).thenReturn(Optional.of(order));
         when(orderItemOperationRepository.findByOrderIdAndIdempotencyKey(22, "add-item-key-001"))
                 .thenReturn(Optional.of(operation));
@@ -243,14 +242,54 @@ class OrderCheckoutServiceTest {
         verify(batchRepository, never()).saveAll(any());
     }
 
+    @Test
+    void persistsPerDishNoteAndAllergyWithoutMergingDifferentLines() {
+        Product product = product(1, 100_000.0);
+        Ingredient ingredient = ingredient(10L, "Thit bo");
+        Recipe recipe = recipe(product, ingredient, 1.0);
+        IngredientBatch batch = batch(10.0);
+        when(productRepository.findById(1)).thenReturn(Optional.of(product));
+        when(recipeRepository.findByProduct(product)).thenReturn(List.of(recipe));
+        when(recipeRepository.findByIngredient(ingredient)).thenReturn(List.of(recipe));
+        when(batchRepository.findAvailableBatchesForUpdate(10L)).thenReturn(List.of(batch));
+        when(orderRepository.save(any())).thenAnswer(invocation -> {
+            Order order = invocation.getArgument(0);
+            order.setId(24);
+            return order;
+        });
+
+        OrderDetailRequest first = detail(1, 1, "It cay", "Di ung dau phong", 4);
+        OrderDetailRequest second = detail(1, 1, "Khong hanh", null, 0);
+        OrderRequest request = new OrderRequest();
+        request.setAddress("Giao hang");
+        request.setItems(List.of(first, second));
+
+        service.checkout(request, "anonymousUser");
+
+        ArgumentCaptor<OrderDetail> captor = ArgumentCaptor.forClass(OrderDetail.class);
+        verify(orderDetailRepository, org.mockito.Mockito.times(2)).save(captor.capture());
+        assertEquals("It cay", captor.getAllValues().get(0).getNote());
+        assertEquals("Di ung dau phong", captor.getAllValues().get(0).getAllergyNote());
+        assertEquals("Khong hanh", captor.getAllValues().get(1).getNote());
+        assertEquals(0, captor.getAllValues().get(1).getPriority());
+    }
+
     private OrderRequest request(int productId, int quantity) {
-        OrderDetailRequest detail = new OrderDetailRequest();
-        detail.setProductId(productId);
-        detail.setQuantity(quantity);
+        OrderDetailRequest detail = detail(productId, quantity, null, null, 0);
         OrderRequest request = new OrderRequest();
         request.setAddress("Giao hàng");
         request.setItems(List.of(detail));
         return request;
+    }
+
+    private OrderDetailRequest detail(int productId, int quantity, String note, String allergyNote, int priority) {
+        OrderDetailRequest detail = new OrderDetailRequest();
+        detail.setProductId(productId);
+        detail.setQuantity(quantity);
+        detail.setNote(note);
+        detail.setAllergyNote(allergyNote);
+        detail.setPriority(priority);
+        return detail;
     }
 
     private Product product(int id, double price) {

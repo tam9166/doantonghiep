@@ -48,8 +48,13 @@
               <span :class="order.status === 0 ? 'status-pending' : (order.status === 4 ? 'status-done' : 'status-pending')">
                 {{ order.status === 0 ? 'Đang xử lý' : (order.status === 4 ? 'Đã hoàn thành' : 'Đang thực hiện') }}
               </span>
+              <small class="payment-summary">{{ paymentSummary(order) }}</small>
             </td>
             <td>
+              <button v-if="order.isPaid" @click="selectedInvoice = order" class="btn-review">Xem hóa đơn</button>
+              <button v-if="order.isPaid" @click="requestInvoice(order)" class="btn-review" :disabled="invoiceRequesting === order.id">
+                {{ order.invoiceRequested ? 'Đã yêu cầu xuất hóa đơn' : invoiceRequesting === order.id ? 'Đang gửi yêu cầu...' : 'Yêu cầu xuất hóa đơn' }}
+              </button>
               <button v-if="order.status === 4 && !reviewedOrders.includes(order.id)" @click="openReviewModal(order)" class="btn-review">⭐ Đánh giá (Nhận +2 Điểm)</button>
               <span v-if="order.status === 4 && reviewedOrders.includes(order.id)" class="text-success">✅ Đã đánh giá</span>
             </td>
@@ -57,7 +62,49 @@
         </tbody>
       </table>
     </div>
-    <p v-else class="no-order">Bạn chưa có đơn hàng nào.</p>
+
+    <section v-if="reservations.length > 0" class="reservation-history">
+      <h2>Lịch sử đặt bàn</h2>
+      <table class="history-table">
+        <thead>
+          <tr>
+            <th>Mã đặt bàn</th>
+            <th>Thời gian</th>
+            <th>Bàn</th>
+            <th>Món đặt trước</th>
+            <th>Trạng thái</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="reservation in reservations" :key="reservation.id">
+            <td>{{ reservation.reservationCode }}</td>
+            <td>{{ reservation.reservationDate }} {{ reservation.arrivalTime }}</td>
+            <td>{{ reservation.tableName || '-' }}</td>
+            <td>{{ reservation.preorderItems?.length || 0 }} món</td>
+            <td>{{ reservationStatusText(reservation.reservationStatus) }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <div v-if="selectedInvoice" class="modal-overlay" @click.self="selectedInvoice = null">
+      <div class="review-modal invoice-modal">
+        <h3>Hóa đơn #{{ selectedInvoice.id }}</h3>
+        <p>{{ new Date(selectedInvoice.createDate).toLocaleString('vi-VN') }}</p>
+        <div v-for="detail in selectedInvoice.orderDetails" :key="detail.id" class="invoice-row">
+          <span>{{ detail.product?.name }} x{{ detail.quantity }}</span>
+          <strong>{{ Number(detail.price || 0).toLocaleString('vi-VN') }} đ</strong>
+        </div>
+        <div class="invoice-row invoice-total-row">
+          <span>Tổng thanh toán</span>
+          <strong>{{ Number(selectedInvoice.totalAmount || 0).toLocaleString('vi-VN') }} đ</strong>
+        </div>
+        <p class="text-success">{{ paymentSummary(selectedInvoice) }}</p>
+        <button @click="printInvoice" class="btn-submit-review">In hóa đơn</button>
+        <button @click="selectedInvoice = null" class="btn-close-review">Đóng</button>
+      </div>
+    </div>
+    <p v-if="orders.length === 0 && reservations.length === 0" class="no-order">Bạn chưa có đơn hàng hoặc đặt bàn nào.</p>
     </div>
     
     <!-- Modal Đánh Giá -->
@@ -91,17 +138,50 @@ import api from '@/services/api';
 import CustomerLayout from '@/components/CustomerLayout.vue';
 
 const orders = ref([]);
+const reservations = ref([]);
 const showReview = ref(false);
 const currentReviewOrder = ref(null);
 const reviewData = ref({});
 const reviewedOrders = ref(JSON.parse(localStorage.getItem('reviewedOrders')) || []);
 const userProfile = ref(null);
+const selectedInvoice = ref(null);
+const invoiceRequesting = ref(null);
+
+const paymentSummary = (order) => {
+  if (order.isPaid || order.paymentStatus === 'PAID' || order.paymentStatus === 'OVERPAID') {
+    return 'Đã thanh toán đủ 100%';
+  }
+  const paid = Number(order.paidAmount || order.deposit || 0);
+  if (paid > 0) return `Đã thanh toán trước ${paid.toLocaleString('vi-VN')} đ`;
+  return 'Chưa thanh toán';
+};
+
+const requestInvoice = async (order) => {
+  if (invoiceRequesting.value || order.invoiceRequested) return;
+  invoiceRequesting.value = order.id;
+  try {
+    const token = localStorage.getItem('token');
+    const response = await api.post(`/api/orders/${order.id}/invoice-request`, {}, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    order.invoiceRequested = true;
+    alert(response.data?.message || 'Đã ghi nhận yêu cầu xuất hóa đơn.');
+  } catch (error) {
+    alert(error.response?.data?.message || error.response?.data || 'Không thể gửi yêu cầu xuất hóa đơn.');
+  } finally {
+    invoiceRequesting.value = null;
+  }
+};
+
+const printInvoice = () => {
+  window.print();
+};
 
 const fetchHistory = async () => {
   const token = localStorage.getItem('token');
   if (!token) return;
   try {
-    const res = await api.get('http://localhost:8080/api/orders/history', {
+    const res = await api.get('/api/orders/history', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     orders.value = res.data.sort((a, b) => b.id - a.id);
@@ -110,11 +190,36 @@ const fetchHistory = async () => {
   }
 };
 
+const fetchReservationHistory = async () => {
+  const token = localStorage.getItem('token');
+  if (!token) return;
+  try {
+    const res = await api.get('/api/reservations/history', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    reservations.value = res.data || [];
+  } catch (error) {
+    console.error('Không thể tải lịch sử đặt bàn', error);
+  }
+};
+
+const reservationStatusText = (status) => ({
+  PENDING: 'Chờ xác nhận',
+  CONFIRMED: 'Đã xác nhận',
+  DEPOSIT_REQUIRED: 'Chờ đặt cọc',
+  DEPOSIT_PAID: 'Đã đặt cọc',
+  FULLY_PAID: 'Đã thanh toán',
+  CHECKED_IN: 'Đã nhận bàn',
+  COMPLETED: 'Hoàn thành',
+  CANCELLED: 'Đã hủy',
+  REJECTED: 'Từ chối',
+}[status] || status || '-');
+
 const fetchProfile = async () => {
   const token = localStorage.getItem('token');
   if (!token) return;
   try {
-    const res = await api.get('http://localhost:8080/api/auth/profile', {
+    const res = await api.get('/api/auth/profile', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     userProfile.value = res.data;
@@ -152,7 +257,7 @@ const submitReview = async (productId) => {
   const token = localStorage.getItem('token');
   const data = reviewData.value[productId];
   try {
-    const res = await api.post(`http://localhost:8080/api/reviews/product/${productId}`, {
+    const res = await api.post(`/api/reviews/product/${productId}`, {
       rating: parseInt(data.rating),
       comment: data.comment
     }, {
@@ -175,16 +280,19 @@ const closeReviewModal = () => {
 
 onMounted(() => {
   fetchHistory();
+  fetchReservationHistory();
   fetchProfile();
 });
 </script>
 
 <style scoped>
-.history-wrapper { background: var(--bg-root); min-height: 100vh; font-family: 'Outfit', -apple-system, sans-serif; }
+.history-wrapper { background: var(--bg-root); min-height: 100vh; font-family: var(--font-primary); }
+.reservation-history { margin-top: 28px; }
+.reservation-history h2 { color: var(--text-heading); font-size: 1.25rem; margin-bottom: 12px; }
 
 /* Navbar */
 .history-navbar {
-  background: rgba(13, 27, 42, 0.4);
+  background: rgba(255, 255, 255, 0.72);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
@@ -204,7 +312,7 @@ onMounted(() => {
   border-radius: 100px; transition: var(--transition);
 }
 .nav-links a:hover, .nav-links a.router-link-active, .nav-links a.active {
-  color: var(--primary); background: rgba(0,212,170,0.1);
+  color: var(--primary); background: rgba(90, 110, 69, 0.1);
 }
 
 .nav-right { display: flex; align-items: center; gap: 10px; }
@@ -213,7 +321,7 @@ onMounted(() => {
   color: var(--text-secondary); padding: 10px 24px;
   border-radius: 100px; font-weight: 700; cursor: pointer; transition: var(--transition);
 }
-.nav-badge:hover { border-color: var(--primary); color: var(--primary); background: rgba(0,212,170,0.1); }
+.nav-badge:hover { border-color: var(--primary); color: var(--primary); background: rgba(90, 110, 69, 0.1); }
 
 /* Content */
 .history-container { padding: 40px 20px; max-width: 900px; margin: 0 auto; color: var(--text-primary); }
@@ -223,12 +331,13 @@ h1 { color: var(--primary); border-bottom: 1px solid var(--border); padding-bott
 .history-table th, .history-table td { padding: 15px; border-bottom: 1px solid var(--border); text-align: left; }
 .history-table th { background-color: var(--bg-nav); color: var(--primary); font-weight: bold; }
 .history-table tr:hover { background-color: rgba(255,255,255,0.02); }
-.status-pending { color: #f39c12; font-weight: bold; background: rgba(243, 156, 18, 0.1); padding: 5px 10px; border-radius: 12px; font-size: 0.85rem; }
-.status-done { color: #2ecc71; font-weight: bold; background: rgba(46, 204, 113, 0.1); padding: 5px 10px; border-radius: 12px; font-size: 0.85rem; }
+.status-pending { color: #B98229; font-weight: bold; background: rgba(185, 130, 41, 0.1); padding: 5px 10px; border-radius: 12px; font-size: 0.85rem; }
+.status-done { color: #2F8F5B; font-weight: bold; background: rgba(47, 143, 91, 0.1); padding: 5px 10px; border-radius: 12px; font-size: 0.85rem; }
+.payment-summary { display: block; margin-top: 6px; color: var(--text-secondary); font-weight: 600; }
 .no-order { text-align: center; color: var(--text-muted); margin-top: 50px; font-style: italic; background: var(--bg-card); padding: 30px; border-radius: 8px; border: 1px dashed var(--border); }
-.btn-review { background: var(--primary); color: #000; border: none; padding: 5px 10px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+.btn-review { background: var(--primary); color: #201D14; border: none; padding: 5px 10px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.3s; }
 .btn-review:hover { background: var(--primary-glow); }
-.text-success { color: #2ecc71; font-weight: bold; font-style: italic; font-size: 0.9rem; }
+.text-success { color: #2F8F5B; font-weight: bold; font-style: italic; font-size: 0.9rem; }
 
 /* Modal */
 .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 1000; }
@@ -236,26 +345,29 @@ h1 { color: var(--primary); border-bottom: 1px solid var(--border); padding-bott
 .review-modal h3 { color: var(--primary); margin-top: 0; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
 .review-list { display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px; max-height: 60vh; overflow-y: auto; }
 .review-item { background: var(--bg-input); padding: 10px; border-radius: 6px; border: 1px solid var(--border); }
-.r-select { width: 100%; padding: 5px; margin-bottom: 5px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-card); color: white; }
-.r-input { width: 100%; padding: 8px; margin-bottom: 5px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-card); color: white; box-sizing: border-box; }
-.btn-submit-review { background: #2ecc71; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; }
-.btn-close-review { background: transparent; color: white; border: 1px solid var(--border); padding: 8px; border-radius: 4px; cursor: pointer; width: 100%; }
+.r-select { width: 100%; padding: 5px; margin-bottom: 5px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-card); color: #FFFFFF; }
+.r-input { width: 100%; padding: 8px; margin-bottom: 5px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-card); color: #FFFFFF; box-sizing: border-box; }
+.btn-submit-review { background: #2F8F5B; color: #FFFFFF; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; }
+.btn-close-review { background: transparent; color: #FFFFFF; border: 1px solid var(--border); padding: 8px; border-radius: 4px; cursor: pointer; width: 100%; }
+.invoice-modal { color: var(--text-primary); }
+.invoice-row { display: flex; justify-content: space-between; gap: 16px; padding: 9px 0; border-bottom: 1px dashed var(--border); }
+.invoice-total-row { margin-top: 10px; border-top: 2px solid var(--border); font-size: 1.05rem; }
 
 /* VIP CARD CSS */
 .vip-card-wrapper { display: flex; justify-content: center; margin-bottom: 30px; }
-.vip-card { width: 350px; height: 200px; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 10px 30px rgba(0,0,0,0.3); position: relative; overflow: hidden; color: #fff; font-family: 'Courier New', Courier, monospace; }
+.vip-card { width: 350px; height: 200px; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 10px 30px rgba(0,0,0,0.3); position: relative; overflow: hidden; color: #FFFFFF; font-family: var(--font-primary); }
 .vip-card::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent); transform: rotate(45deg); pointer-events: none; }
 .vip-top { display: flex; justify-content: space-between; align-items: center; font-weight: bold; }
-.vip-logo { font-family: 'Inter', sans-serif; letter-spacing: 1px; }
+.vip-logo { font-family: var(--font-primary); letter-spacing: 1px; }
 .vip-tier { padding: 4px 10px; background: rgba(0,0,0,0.3); border-radius: 12px; font-size: 0.8rem; }
 .vip-chip { font-size: 2rem; }
 .vip-number { font-size: 1.2rem; letter-spacing: 2px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); }
 .vip-bottom { display: flex; justify-content: space-between; align-items: flex-end; }
-.vip-name { font-size: 1.1rem; text-transform: uppercase; font-family: 'Inter', sans-serif; font-weight: bold; }
-.vip-discount { font-size: 0.9rem; font-family: 'Inter', sans-serif; background: rgba(255,255,255,0.2); padding: 4px 8px; border-radius: 6px; }
+.vip-name { font-size: 1.1rem; text-transform: uppercase; font-family: var(--font-primary); font-weight: bold; }
+.vip-discount { font-size: 0.9rem; font-family: var(--font-primary); background: rgba(255,255,255,0.2); padding: 4px 8px; border-radius: 6px; }
 
-.tier-bronze { background: linear-gradient(135deg, #cd7f32, #8b5a2b); }
-.tier-silver { background: linear-gradient(135deg, #bdc3c7, #7f8c8d); color: #2c3e50; }
-.tier-gold { background: linear-gradient(135deg, #f1c40f, #d35400); }
-.tier-diamond { background: linear-gradient(135deg, #00c6ff, #0072ff); }
+.tier-bronze { background: linear-gradient(135deg, #C08A2E, #8A641F); }
+.tier-silver { background: linear-gradient(135deg, #A6B0AA, #7A7460); color: #201D14; }
+.tier-gold { background: linear-gradient(135deg, #B98229, #8A641F); }
+.tier-diamond { background: linear-gradient(135deg, #7FA08F, #5A6E45); }
 </style>

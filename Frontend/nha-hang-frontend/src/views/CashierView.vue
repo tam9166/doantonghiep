@@ -32,7 +32,7 @@
           <div
             v-for="table in tables"
             :key="table.id"
-            :class="['table-box', getTableClass(table.isOccupied), { 'selected-table': selectedOrder && getTableName(selectedOrder.address) === table.name }]"
+            :class="['table-box', getTableClass(table.isOccupied), { 'selected-table': selectedOrder && orderMatchesTable(selectedOrder, table) }]"
             @click="selectOrderForTable(table)"
           >
             <div class="tc-top">
@@ -43,8 +43,8 @@
               <div class="tc-dot"></div>
               <h4>{{ table.name }}</h4>
               <p class="tc-subtitle">
-                <span v-if="table.isOccupied >= 2" style="color:#B98229; font-weight: bold;">
-                  {{ getPendingTotalForTable(table.name).toLocaleString() }}đ
+                <span v-if="getOpenOrderForTable(table)" style="color:#B98229; font-weight: bold;">
+                  {{ getPendingTotalForTable(table).toLocaleString() }}đ
                 </span>
                 <span v-else>
                   {{ table.isOccupied === 0 ? 'Sẵn sàng phục vụ' : table.isOccupied === 1 ? 'Đã được đặt cọc' : table.isOccupied === 3 ? 'Đang dọn dẹp' : 'Khách đang ăn' }}
@@ -110,6 +110,10 @@
             <span>CẦN THANH TOÁN:</span>
             <span class="total-amount">{{ Math.max(0, calculateTotal(selectedOrder) - (selectedOrder.deposit || 0)).toLocaleString() }} VNĐ</span>
           </div>
+          <div class="invoice-total" style="font-size: 1rem; margin-top: 10px; color: var(--text-primary);">
+            <span>TRẠNG THÁI THANH TOÁN:</span>
+            <span class="total-amount">{{ paymentSummary(selectedOrder) }}</span>
+          </div>
           <div v-if="(calculateTotal(selectedOrder) - (selectedOrder.deposit || 0)) < 0" style="text-align: right; color: var(--primary); font-style: italic;">
             (Thu ngân thối lại: {{ Math.abs(calculateTotal(selectedOrder) - (selectedOrder.deposit || 0)).toLocaleString() }} VNĐ)
           </div>
@@ -142,8 +146,8 @@
         <div class="action-buttons">
           <button class="btn-print" @click="printInvoice">🖨️ In Hóa Đơn</button>
           <button v-if="!selectedOrder.isPaid && (selectedOrder.status === 0 || selectedOrder.status === 1 || selectedOrder.status === 5)" class="btn-print" style="background: var(--danger); border-color: var(--danger);" @click="cancelOrderAndRefund(selectedOrder)">❌ Hủy & Hoàn Cọc</button>
-          <button class="btn-pay" @click="payOrder" :disabled="selectedOrder.isPaid || selectedOrder.paymentOption === 'PREPAID_TRANSFER'">
-            {{ selectedOrder.isPaid ? '✅ Đã Thanh Toán' : selectedOrder.paymentOption === 'PREPAID_TRANSFER' ? '⏳ Chờ ngân hàng xác nhận' : '💵 Xác nhận đã thu tiền mặt' }}
+          <button class="btn-pay" @click="payOrder" :disabled="paymentSubmitting || selectedOrder.isPaid || selectedOrder.paymentOption === 'PREPAID_TRANSFER'">
+            {{ paymentSubmitting ? 'Đang xác nhận...' : selectedOrder.isPaid ? '✅ Đã Thanh Toán' : selectedOrder.paymentOption === 'PREPAID_TRANSFER' ? '⏳ Chờ ngân hàng xác nhận' : '💵 Xác nhận thanh toán' }}
           </button>
         </div>
       </div>
@@ -289,10 +293,12 @@
         </div>
       </div>
     </div>
+    <StaffOperationsAssistant />
   </div>
 </template>
 
 <script setup>
+import StaffOperationsAssistant from '@/components/StaffOperationsAssistant.vue'
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import api from '@/services/api';
 import { useRouter } from 'vue-router';
@@ -308,6 +314,7 @@ const selectedOrder = ref(null);
 const paymentQr = ref(null);
 const paymentQrLoading = ref(false);
 const paymentQrError = ref('');
+const paymentSubmitting = ref(false);
 let stompClient = null;
 
 const currentUser = ref(JSON.parse(localStorage.getItem('user')) || null);
@@ -408,8 +415,19 @@ const getTableName = (address) => {
 };
 
 const calculateTotal = (order) => {
-  if (!order || !order.orderDetails) return 0;
-  return order.orderDetails.reduce((sum, item) => sum + item.price, 0);
+  if (!order) return 0;
+  if (Number(order.totalAmount) > 0) return Number(order.totalAmount);
+  if (!order.orderDetails) return 0;
+  return order.orderDetails.reduce((sum, item) => sum + Number(item.price || 0) + Number(item.taxAmount || 0), 0);
+};
+
+const paymentSummary = (order) => {
+  if (order.isPaid || order.paymentStatus === 'PAID' || order.paymentStatus === 'OVERPAID') {
+    return 'Đã thanh toán đủ 100%';
+  }
+  const paid = Number(order.paidAmount || order.deposit || 0);
+  if (paid > 0) return `Đã thanh toán ${paid.toLocaleString('vi-VN')} VNĐ, còn ${Number(order.remainingAmount || 0).toLocaleString('vi-VN')} VNĐ`;
+  return 'Chưa thanh toán';
 };
 
 const tables = ref([]);
@@ -432,7 +450,7 @@ const getTableClass = (status) => {
 
 const selectOrderForTable = (table) => {
   if (table.isOccupied === 0 || table.isOccupied === 1) return;
-  const order = pendingOrders.value.find(o => o.address && getTableName(o.address) === table.name);
+  const order = getOpenOrderForTable(table);
   if (order) {
     selectedOrder.value = order;
     paymentQr.value = null;
@@ -443,8 +461,16 @@ const selectOrderForTable = (table) => {
   }
 };
 
-const getPendingTotalForTable = (tableName) => {
-  const order = pendingOrders.value.find(o => o.address && getTableName(o.address) === tableName);
+const orderMatchesTable = (order, table) => {
+  if (!order || !table) return false;
+  return Number(order.tableId) === Number(table.id)
+    || (order.address && getTableName(order.address) === table.name);
+};
+
+const getOpenOrderForTable = (table) => pendingOrders.value.find(order => orderMatchesTable(order, table));
+
+const getPendingTotalForTable = (table) => {
+  const order = getOpenOrderForTable(table);
   return order ? calculateTotal(order) : 0;
 };
 
@@ -455,7 +481,7 @@ const fetchOrders = async () => {
     // Thu ngân chỉ quan tâm đơn ăn tại quán, chưa thanh toán (hoặc đã giao = cần thanh toán)
     // address chứa "Bàn", isPaid == false hoặc null, status != 3 (Đã hủy)
     pendingOrders.value = res.data.filter(o => 
-      o.address && o.address.includes('Bàn') && 
+      (o.tableId || (o.address && o.address.includes('Bàn'))) &&
       !o.isPaid && 
       Number(o.status) !== 3
     );
@@ -471,19 +497,14 @@ const fetchOrders = async () => {
 };
 
 const payOrder = async () => {
-  if (!selectedOrder.value) return;
+  if (!selectedOrder.value || paymentSubmitting.value) return;
   if (!confirm('Xác nhận khách đã thanh toán tiền cho đơn hàng này?')) return;
-  
-  const token = localStorage.getItem('token');
+  paymentSubmitting.value = true;
   try {
-    // Update order status
     await api.put(`/api/admin/orders/${selectedOrder.value.id}/pay`, {}, configHeader());
-    
-    // Update table status to 3 (Cleaning) if it was a table order
-    const tableName = getTableName(selectedOrder.value.address);
-    const table = tables.value.find(t => t.name === tableName);
+    const table = tables.value.find(t => orderMatchesTable(selectedOrder.value, t));
     if (table) {
-      await api.put(`/api/tables/${table.id}/status?status=3`, {}, { headers: { 'Authorization': `Bearer ${token}` } });
+      await api.put(`/api/tables/${table.id}/status?status=3`, {}, configHeader());
     }
 
     alert('Thanh toán thành công! Bàn đang chờ dọn dẹp.');
@@ -492,7 +513,9 @@ const payOrder = async () => {
     
     fetchOrders();
   } catch (err) {
-    alert('Lỗi khi thanh toán');
+    alert(err.response?.data?.message || err.response?.data || 'Không thể xác nhận thanh toán.');
+  } finally {
+    paymentSubmitting.value = false;
   }
 };
 

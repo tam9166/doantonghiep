@@ -306,6 +306,15 @@ const buildCostMap = () => {
   return costMap;
 };
 
+const lineRevenue = (detail) => Number(detail.price || 0) * Number(detail.quantity || 0);
+
+const lineCost = (detail, costMap) => {
+  const productId = detail.product?.id;
+  const recipeCost = productId ? Number(costMap[productId] || 0) : 0;
+  const fallbackCost = Number(detail.product?.costPrice || 0);
+  return (recipeCost || fallbackCost) * Number(detail.quantity || 0);
+};
+
 const fetchData = async () => {
   isLoading.value = true;
   fetchError.value = '';
@@ -411,13 +420,8 @@ const processData = () => {
     groupedData[key].count += 1;
     if (order.orderDetails) {
       order.orderDetails.forEach(detail => {
-        const rev = detail.price || 0;
-        const qty = detail.quantity || 0;
-        const productId = detail.product?.id;
-        const costPerServing = productId ? (costMap[productId] || 0) : 0;
-
-        groupedData[key].revenue += rev;
-        groupedData[key].cost += costPerServing * qty;
+        groupedData[key].revenue += lineRevenue(detail);
+        groupedData[key].cost += lineCost(detail, costMap);
       });
     }
   });
@@ -504,16 +508,14 @@ const processData = () => {
     if (order.orderDetails) {
       order.orderDetails.forEach(detail => {
         const pName = detail.product?.name || 'Món không tên';
-        const productId = detail.product?.id;
         const qty = detail.quantity || 0;
-        const costPerServing = productId ? (costMap[productId] || 0) : 0;
         
         if (!productMap[pName]) {
           productMap[pName] = { name: pName, quantity: 0, revenue: 0, cost: 0 };
         }
         productMap[pName].quantity += qty;
-        productMap[pName].revenue += detail.price || 0;
-        productMap[pName].cost += costPerServing * qty;
+        productMap[pName].revenue += lineRevenue(detail);
+        productMap[pName].cost += lineCost(detail, costMap);
       });
     }
   });

@@ -124,10 +124,10 @@ onMounted(() => {
   position: fixed;
   bottom: 20px;
   left: 20px;
-  background: white;
+  background: #FFFFFF;
   border-radius: 12px;
   box-shadow: 0 10px 25px rgba(0,0,0,0.15);
-  border: 1px solid #eee;
+  border: 1px solid #E2DCC2;
   width: 250px;
   z-index: 1000;
   overflow: hidden;
@@ -135,8 +135,8 @@ onMounted(() => {
 }
 
 .widget-header {
-  background: #34495e;
-  color: white;
+  background: #55503E;
+  color: #FFFFFF;
   padding: 12px 15px;
   display: flex;
   align-items: center;
@@ -145,23 +145,23 @@ onMounted(() => {
   font-weight: bold;
 }
 .widget-header:hover {
-  background: #2c3e50;
+  background: #201D14;
 }
 .title { flex: 1; margin-left: 10px; }
 
 .widget-body {
   padding: 15px;
-  background: #fff;
+  background: #FFFFFF;
 }
-.date { text-align: center; color: #7f8c8d; font-size: 0.9rem; margin-bottom: 10px; margin-top: 0; border-bottom: 1px dashed #ccc; padding-bottom: 5px; }
+.date { text-align: center; color: #7A7460; font-size: 0.9rem; margin-bottom: 10px; margin-top: 0; border-bottom: 1px dashed #A6B0AA; padding-bottom: 5px; }
 
 .status-container { font-size: 0.95rem; }
 .current-status { margin-bottom: 10px; }
-.text-warning { color: #f39c12; }
-.text-success { color: #27ae60; }
-.text-muted { color: #95a5a6; }
+.text-warning { color: #B98229; }
+.text-success { color: #2F8F5B; }
+.text-muted { color: #7A7460; }
 
-.time-info { margin: 5px 0; color: #34495e; }
+.time-info { margin: 5px 0; color: #55503E; }
 .time-info p { margin: 0; }
 
 .actions { margin-top: 15px; text-align: center; }
@@ -173,18 +173,18 @@ onMounted(() => {
   font-weight: bold;
   cursor: pointer;
   transition: 0.2s;
-  color: white;
+  color: #FFFFFF;
 }
-.btn-checkin { background: #3498db; }
-.btn-checkin:hover { background: #2980b9; }
-.btn-checkout { background: #e67e22; }
-.btn-checkout:hover { background: #d35400; }
+.btn-checkin { background: #5A6E45; }
+.btn-checkin:hover { background: #33422A; }
+.btn-checkout { background: #C08A2E; }
+.btn-checkout:hover { background: #8A641F; }
 
 .done-msg {
-  color: #27ae60;
+  color: #2F8F5B;
   font-weight: bold;
   padding: 10px;
-  background: #eafaf1;
+  background: #EEF5EF;
   border-radius: 6px;
 }
 </style>

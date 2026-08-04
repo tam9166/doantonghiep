@@ -17,11 +17,17 @@ export function captchaActionForRequest(config) {
   if (method === 'POST' && path === '/api/reservations') {
     return 'reservation-create'
   }
+  if (method === 'POST' && path === '/api/reservation-waitlist') {
+    return 'reservation-waitlist-create'
+  }
   if (path.startsWith('/api/chatbot')) {
     return 'chatbot'
   }
   if (method === 'POST' && path.startsWith('/api/reviews')) {
     return 'review-create'
+  }
+  if (method === 'POST' && path === '/api/reservation-reviews') {
+    return 'reservation-review-create'
   }
   if (method === 'POST' && path.startsWith('/api/applications')) {
     return 'application-upload'

@@ -16,6 +16,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -99,6 +100,11 @@ public class SecurityConfig {
         http.cors(cors -> cors.configurationSource(corsConfigurationSource()));
         http.csrf(csrf -> csrf.disable());
         http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+        http.headers(headers -> headers
+                .contentTypeOptions(org.springframework.security.config.Customizer.withDefaults())
+                .frameOptions(frame -> frame.deny())
+                .referrerPolicy(policy -> policy.policy(
+                        ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)));
         http.exceptionHandling(errors -> errors
                 .authenticationEntryPoint((request, response, exception) -> apiErrorWriter.write(
                         request, response, org.springframework.http.HttpStatus.UNAUTHORIZED,
@@ -134,7 +140,6 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.GET, "/api/payments/*").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/webhooks/payments/**").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/applications", "/api/applications/upload").permitAll()
-            .requestMatchers(HttpMethod.PUT, "/api/posts/*/like").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/chatbot/chat").permitAll()
             .requestMatchers("/ws/**").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/orders/guest-booking").permitAll()

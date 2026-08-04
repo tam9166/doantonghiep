@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import jakarta.validation.Valid;
 import poly.edu.quanlynhahang.dto.RestaurantTableUpsertRequest;
 import poly.edu.quanlynhahang.dto.RestaurantTableResponse;
+import poly.edu.quanlynhahang.dto.PublicRestaurantTableResponse;
 
 import poly.edu.quanlynhahang.entity.Order;
 import poly.edu.quanlynhahang.entity.RestaurantTable;
@@ -37,7 +38,7 @@ public class RestaurantTableController {
     @GetMapping
     public ResponseEntity<?> getAllTables() {
         return ResponseEntity.ok(tableRepository.findAll().stream()
-                .map(RestaurantTableResponse::from)
+                .map(PublicRestaurantTableResponse::from)
                 .toList());
     }
 
@@ -77,7 +78,7 @@ public class RestaurantTableController {
     @GetMapping("/check-availability")
     public ResponseEntity<?> checkAvailability(@RequestParam String date, @RequestParam String time) {
         return ResponseEntity.ok(tableRepository.findAll().stream()
-                .map(RestaurantTableResponse::from)
+                .map(PublicRestaurantTableResponse::from)
                 .toList());
     }
 
@@ -93,14 +94,20 @@ public class RestaurantTableController {
                                           @RequestParam Integer status,
                                           @RequestParam(required = false) String time) {
         return tableRepository.findById(id).map(table -> {
+            if ((status == 0 || status == 3)
+                    && orderRepository.existsOpenUnpaidOrderForTable(table.getId(), table.getName())) {
+                return ResponseEntity.status(409).body(
+                        "Bàn còn hóa đơn chưa thanh toán. Thu ngân phải xác nhận thanh toán trước khi chuyển bàn.");
+            }
             table.setIsOccupied(status);
             table.setReservedTime(status == 0 ? null : time);
             tableRepository.save(table);
 
-            if (status == 0 || status == 3) {
+            if (status == 3) {
                 List<Order> activeOrders = orderRepository.findAll().stream()
+                        .filter(o -> table.getId().equals(o.getTableId()))
+                        .filter(o -> Boolean.TRUE.equals(o.getIsPaid()))
                         .filter(o -> o.getStatus() != null && o.getStatus() < 4)
-                        .filter(o -> o.getAddress() != null && o.getAddress().contains(table.getName()))
                         .collect(Collectors.toList());
                 for (Order order : activeOrders) {
                     order.setStatus(4);

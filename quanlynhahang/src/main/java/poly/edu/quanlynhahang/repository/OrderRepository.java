@@ -30,6 +30,12 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
     List<Order> findByAddressAndIsPaidFalse(String address);
 
     @Query("select case when count(o) > 0 then true else false end from Order o "
+            + "where (o.tableId = :tableId or (o.tableId is null and lower(o.address) like lower(concat('%', :tableName, '%')))) "
+            + "and (o.isPaid = false or o.isPaid is null) "
+            + "and (o.status is null or o.status not in (3, 4))")
+    boolean existsOpenUnpaidOrderForTable(@Param("tableId") Integer tableId, @Param("tableName") String tableName);
+
+    @Query("select case when count(o) > 0 then true else false end from Order o "
             + "where o.account.username = :username "
             + "and o.status = :status "
             + "and o.isPaid = :paid "

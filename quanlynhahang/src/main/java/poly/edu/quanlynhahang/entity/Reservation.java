@@ -42,6 +42,10 @@ public class Reservation {
     @Column(name = "request_fingerprint", length = 128)
     private String requestFingerprint;
 
+    /** The single kitchen order created from this reservation's preorder, if any. */
+    @Column(name = "kitchen_order_id", unique = true)
+    private Integer kitchenOrderId;
+
     @Column(name = "created_by", length = 80)
     private String createdBy;
 

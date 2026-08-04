@@ -151,6 +151,11 @@
           <h2 class="page-heading">
             <slot name="title">Quản Trị</slot>
           </h2>
+          <form class="admin-module-search" role="search" @submit.prevent="goToSearchResult">
+            <label class="sr-only" for="admin-module-search">Tìm chức năng quản trị</label>
+            <span aria-hidden="true">⌕</span>
+            <input id="admin-module-search" v-model.trim="moduleSearch" type="search" placeholder="Tìm đơn hàng, món ăn, khách hàng..." @keydown.esc="moduleSearch = ''" />
+          </form>
         </div>
         <div class="topbar-right">
           <!-- 🔔 Notification Bell -->
@@ -200,11 +205,13 @@
       </div>
     </div>
 
+    <StaffOperationsAssistant />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import StaffOperationsAssistant from './StaffOperationsAssistant.vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getCurrentUser } from '@/services/api'
 import api from '@/services/api'
@@ -213,6 +220,26 @@ const router = useRouter()
 const sidebarCollapsed = ref(false)
 const mobileSidebarOpen = ref(false)
 const user = ref(null)
+const moduleSearch = ref('')
+const adminModules = [
+  { keywords: 'sản phẩm món ăn menu', route: '/admin' },
+  { keywords: 'danh mục category', route: '/admin/categories' },
+  { keywords: 'đơn hàng order', route: '/admin/orders' },
+  { keywords: 'đặt bàn reservation booking khách hàng', route: '/admin/reservations' },
+  { keywords: 'bàn khu vực sơ đồ table area', route: '/admin/tables' },
+  { keywords: 'nhân viên staff', route: '/admin/staff' },
+  { keywords: 'nguyên liệu kho inventory', route: '/admin/ingredients' },
+  { keywords: 'thống kê analytics', route: '/admin/analytics' }
+]
+const normalizeSearch = (value) => value
+  .toLocaleLowerCase('vi-VN')
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .replace(/đ/g, 'd')
+const matchingModule = computed(() => {
+  const query = normalizeSearch(moduleSearch.value)
+  return query ? adminModules.find(item => normalizeSearch(item.keywords).includes(query)) : null
+})
 
 // === NOTIFICATIONS ===
 const notifications = ref([])
@@ -311,6 +338,12 @@ const handleEscape = (event) => {
   if (event.key === 'Escape') closeMobileSidebar()
 }
 
+function goToSearchResult() {
+  if (!matchingModule.value) return
+  router.push(matchingModule.value.route)
+  moduleSearch.value = ''
+}
+
 function handleLogout() {
   if (confirm('Bạn có chắc muốn đăng xuất?')) {
     localStorage.removeItem('token')
@@ -364,6 +397,58 @@ onUnmounted(() => {
   overflow-y: auto;
   overflow-x: hidden;
 }
+
+/* GustoPro administration surface: low-contrast pink workspace, red navigation state. */
+.admin-sidebar { width: 280px; background: var(--color-surface-container-high); border-right-color: var(--color-outline-variant); }
+.admin-sidebar.collapsed { width: 72px; }
+.sidebar-header, .sidebar-footer { border-color: var(--color-outline-variant); }
+.sidebar-brand-text h3 { color: var(--primary); }
+.sidebar-brand-text p, .nav-section-title { color: var(--text-muted); }
+.sidebar-toggle { background: var(--bg-card); border-color: var(--border); color: var(--text-secondary); }
+.sidebar-toggle:hover { background: var(--bg-hover); border-color: var(--primary); color: var(--primary); }
+.nav-item { border-radius: var(--radius-md); color: var(--text-secondary); }
+.nav-item:hover { background: var(--color-surface-container); color: var(--primary); }
+.nav-item.active { position: relative; background: #f6cfd0; color: var(--primary); }
+.nav-item.active::before { content: ''; position: absolute; left: -10px; top: 0; bottom: 0; width: 4px; background: var(--primary); }
+.nav-item.active .nav-icon { filter: none; }
+.nav-item-danger { color: var(--danger); }
+.nav-item-danger:hover { background: var(--color-error-container); color: var(--danger); }
+.admin-main { margin-left: 280px; }
+.admin-main.main-expanded { margin-left: 72px; }
+.admin-topbar { min-height: 72px; background: rgba(255, 248, 247, 0.94); border-bottom-color: var(--color-outline-variant); box-shadow: none; }
+.page-heading { font-family: var(--font-display); }
+.admin-module-search { position: relative; display: flex; align-items: center; width: min(34vw, 420px); }
+.admin-module-search > span { position: absolute; left: 12px; color: var(--text-muted); font-size: 1.2rem; pointer-events: none; }
+.admin-module-search input { width: 100%; min-height: 42px; padding: 0 14px 0 38px; border: 1px solid var(--color-outline-variant); border-radius: 999px; background: var(--color-surface-container-low); color: var(--text-primary); font: inherit; }
+.admin-module-search input:focus { outline: 2px solid var(--primary-glow); border-color: var(--primary); }
+.topbar-user { background: var(--color-surface-container-low); border-color: var(--color-outline-variant); }
+.user-avatar { background: var(--primary); color: var(--color-on-primary); }
+.admin-content { background: var(--bg-root); }
+.admin-content :deep(h1),
+.admin-content :deep(h2),
+.admin-content :deep(h3),
+.admin-content :deep(h4),
+.admin-content :deep(th),
+.admin-content :deep(td),
+.admin-content :deep(label),
+.admin-content :deep(.page-title),
+.admin-content :deep(.page-subtitle),
+.admin-content :deep(.toolbar p),
+.admin-content :deep(.section-heading p),
+.admin-content :deep(.form-group label),
+.admin-content :deep(.form-card),
+.admin-content :deep(.table-card),
+.admin-content :deep(.floor-card) { color: #1b1212 !important; }
+.admin-content :deep(input),
+.admin-content :deep(select),
+.admin-content :deep(textarea) { color: #1b1212 !important; }
+.admin-content :deep(input::placeholder),
+.admin-content :deep(textarea::placeholder) { color: #5b403f !important; opacity: 1; }
+.admin-content :deep(.table-wrap td span),
+.admin-content :deep(.table-wrap td small),
+.admin-content :deep(.empty),
+.admin-content :deep(.muted) { color: #3e2c2b !important; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .admin-sidebar.collapsed {
   width: 72px;
 }
@@ -579,6 +664,7 @@ onUnmounted(() => {
   .admin-sidebar { width: 72px; }
   .admin-main { margin-left: 72px; }
   .nav-section-title, .nav-label, .sidebar-brand-text { display: none !important; }
+  .admin-module-search { width: min(42vw, 360px); }
 }
 @media (max-width: 640px) {
   .admin-sidebar,
@@ -625,6 +711,7 @@ onUnmounted(() => {
   .admin-main { margin-left: 0; }
   .admin-content { padding: 16px; }
   .admin-topbar { padding: 12px 16px; }
+  .admin-module-search { display: none; }
   .page-heading { overflow: hidden; font-size: 1.1rem; text-overflow: ellipsis; white-space: nowrap; }
   .topbar-right { gap: 8px; }
   .topbar-user { padding-right: 6px; }
@@ -843,6 +930,35 @@ onUnmounted(() => {
 }
 .nav-item.active {
   transform: translateX(2px);
+}
+
+/* Keep the pink administration sidebar readable in every navigation state. */
+.admin-sidebar .sidebar-brand-text h3,
+.admin-sidebar .sidebar-brand-text p,
+.admin-sidebar .nav-section-title,
+.admin-sidebar .nav-item,
+.admin-sidebar .sidebar-toggle {
+  color: #1b1212;
+}
+
+.admin-sidebar .sidebar-toggle {
+  background: var(--bg-card);
+  border-color: var(--color-outline-variant);
+}
+
+.admin-sidebar .nav-item:hover {
+  background: var(--color-surface-container);
+  color: #1b1212;
+}
+
+.admin-sidebar .nav-item.active {
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.admin-sidebar .nav-item-danger,
+.admin-sidebar .nav-item-danger:hover {
+  color: #1b1212;
 }
 
 </style>

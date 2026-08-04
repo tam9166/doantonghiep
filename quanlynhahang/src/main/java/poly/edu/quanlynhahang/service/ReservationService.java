@@ -2,6 +2,7 @@ package poly.edu.quanlynhahang.service;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -93,9 +94,11 @@ public class ReservationService {
     private final NotificationService notificationService;
     private final ActivityLogService activityLogService;
     private final ReservationRealtimeService realtimeService;
+    private final SimpMessagingTemplate messagingTemplate;
     private final DepositPolicyService depositPolicyService;
     private final ReservationStateMachine stateMachine;
     private final PaymentCapabilityService paymentCapabilityService;
+    private final OrderCheckoutService orderCheckoutService;
     private final BigDecimal depositRate;
     private final long depositExpiryMinutes;
     private final long noShowGraceMinutes;
@@ -112,9 +115,11 @@ public class ReservationService {
                               NotificationService notificationService,
                               ActivityLogService activityLogService,
                               ReservationRealtimeService realtimeService,
+                              SimpMessagingTemplate messagingTemplate,
                               DepositPolicyService depositPolicyService,
                               ReservationStateMachine stateMachine,
                               PaymentCapabilityService paymentCapabilityService,
+                              OrderCheckoutService orderCheckoutService,
                               @Value("${restaurant.reservation.deposit-rate:0.50}") BigDecimal depositRate,
                               @Value("${restaurant.reservation.deposit-expiry-minutes:15}") long depositExpiryMinutes,
                               @Value("${restaurant.reservation.no-show-grace-minutes:30}") long noShowGraceMinutes) {
@@ -130,9 +135,11 @@ public class ReservationService {
         this.notificationService = notificationService;
         this.activityLogService = activityLogService;
         this.realtimeService = realtimeService;
+        this.messagingTemplate = messagingTemplate;
         this.depositPolicyService = depositPolicyService;
         this.stateMachine = stateMachine;
         this.paymentCapabilityService = paymentCapabilityService;
+        this.orderCheckoutService = orderCheckoutService;
         this.depositRate = depositRate;
         this.depositExpiryMinutes = depositExpiryMinutes;
         this.noShowGraceMinutes = noShowGraceMinutes;
@@ -214,12 +221,11 @@ public class ReservationService {
         reservation.setPaymentStatus(PaymentStatus.UNPAID);
         reservation.setDepositStatus(payableNow.signum() > 0 ? DepositStatus.PENDING : DepositStatus.NOT_REQUIRED);
         reservation.setReservationStatus(ReservationStatus.PENDING);
+        reservation.setCreatedBy(currentUsernameOrNull());
 
         String paymentCapabilityToken = null;
         if (payableNow.signum() > 0 && !PaymentOption.PAY_AT_RESTAURANT.equals(paymentOption)) {
             paymentCapabilityToken = paymentCapabilityService.issue(reservation, currentUsernameOrNull());
-        } else {
-            reservation.setCreatedBy(currentUsernameOrNull());
         }
 
         Reservation saved = reservationRepository.save(reservation);
@@ -247,11 +253,34 @@ public class ReservationService {
 
     @Transactional(readOnly = true)
     public PublicReservationResponse getPublicReservation(String code, String phone) {
-        if (phone == null || phone.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Vui lòng nhập số điện thoại để tra cứu đặt bàn");
+        return lookupPublicReservation(code, phone, null);
+    }
+
+    @Transactional(readOnly = true)
+    public PublicReservationResponse lookupPublicReservation(String code, String phone, String email) {
+        String reservationCode = trimToNull(code);
+        String customerPhone = trimToNull(phone);
+        String customerEmail = trimToNull(email);
+
+        Reservation reservation;
+        if (reservationCode != null) {
+            reservation = reservationRepository.findByReservationCode(reservationCode)
+                    .orElseThrow(this::notFound);
+        } else if (customerPhone != null) {
+            reservation = reservationRepository.findByCustomerPhoneOrderByCreatedAtDesc(normalizePhone(customerPhone)).stream()
+                    .findFirst()
+                    .orElseThrow(this::notFound);
+        } else if (customerEmail != null) {
+            if (!EMAIL_PATTERN.matcher(customerEmail).matches()) {
+                throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Email không hợp lệ");
+            }
+            reservation = reservationRepository
+                    .findFirstByCustomerEmailIgnoreCaseOrderByCreatedAtDesc(customerEmail.toLowerCase(Locale.ROOT))
+                    .orElseThrow(this::notFound);
+        } else {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Vui lòng nhập mã đặt bàn, số điện thoại hoặc email để tra cứu");
         }
-        Reservation reservation = reservationRepository.findByReservationCodeAndCustomerPhone(code, normalizePhone(phone))
-                .orElseThrow(() -> notFound());
         return PublicReservationResponse.from(toResponse(reservation, false));
     }
 
@@ -259,6 +288,16 @@ public class ReservationService {
     public List<ReservationResponse> getAdminReservations() {
         return reservationRepository.findAllByOrderByCreatedAtDesc().stream()
                 .map(r -> toResponse(r, true))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ReservationResponse> getReservationsForUser(String username) {
+        if (username == null || username.isBlank() || "anonymousUser".equals(username)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Vui lòng đăng nhập để xem lịch sử đặt bàn");
+        }
+        return reservationRepository.findByCreatedByOrderByCreatedAtDesc(username).stream()
+                .map(reservation -> toResponse(reservation, false))
                 .toList();
     }
 
@@ -393,12 +432,26 @@ public class ReservationService {
         reservation.setManagerNote(trimToNull(request != null ? request.getNote() : null));
         reservation.setUpdatedAt(new Date());
         Reservation saved = reservationRepository.save(reservation);
+        dispatchPreorderIfNeeded(saved);
         addHistory(saved, old, nextStatus, "Quản lý xác nhận đặt bàn");
         notifyReservation(saved, "RESERVATION_CONFIRMED", "Đặt bàn đã được xác nhận", "Yêu cầu " + saved.getReservationCode() + " đã được xác nhận.");
         ReservationResponse response = toResponse(saved, true);
         realtimeService.publish("RESERVATION_CONFIRMED", saved.getReservationCode(), old, nextStatus,
                 "Đặt bàn đã được xác nhận", response);
         return response;
+    }
+
+    private void dispatchPreorderIfNeeded(Reservation reservation) {
+        if (!Boolean.TRUE.equals(reservation.getPreorderEnabled()) || reservation.getKitchenOrderId() != null) {
+            return;
+        }
+        List<ReservationPreorderItem> preorderItems = preorderItemRepository.findByReservationIdOrderByIdAsc(reservation.getId());
+        if (preorderItems.isEmpty()) {
+            return;
+        }
+        reservation.setKitchenOrderId(orderCheckoutService.dispatchReservationPreorder(reservation, preorderItems));
+        reservationRepository.save(reservation);
+        messagingTemplate.convertAndSend("/topic/kitchen", "NEW_ORDER");
     }
 
     @Transactional
@@ -563,17 +616,21 @@ public class ReservationService {
         if (tableId == null) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Vui lòng chọn bàn");
         }
-        validateReservationTime(date, time, duration);
+        validateReservationTime(date, time, duration, Boolean.TRUE.equals(request.getLateDiningConfirmed()));
         return new NormalizedReservation(name, phone, email, date, time, duration, guests, tableId);
     }
 
-    private void validateReservationTime(LocalDate date, LocalTime time, int duration) {
+    private void validateReservationTime(LocalDate date, LocalTime time, int duration, boolean lateDiningConfirmed) {
         LocalDateTime arrival = LocalDateTime.of(date, time);
         if (arrival.isBefore(LocalDateTime.now().plusMinutes(MIN_ADVANCE_MINUTES))) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Cần đặt bàn trước ít nhất 30 phút");
         }
-        if (time.isBefore(OPEN_TIME) || time.plusMinutes(duration).isAfter(CLOSE_TIME)) {
+        if (time.isBefore(OPEN_TIME) || !time.isBefore(CLOSE_TIME)) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Thời gian đặt bàn nằm ngoài giờ hoạt động 09:00-22:00");
+        }
+        if (time.plusMinutes(duration).isAfter(CLOSE_TIME) && !lateDiningConfirmed) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Vui lòng xác nhận dùng bữa sau giờ phục vụ trước khi đặt bàn");
         }
     }
 
@@ -605,13 +662,8 @@ public class ReservationService {
     }
 
     private Price calculatePrice(RestaurantTable table, TableArea area) {
-        BigDecimal tablePrice = table.getReservationPrice() != null ? table.getReservationPrice() : BigDecimal.ZERO;
-        BigDecimal areaPrice = area != null && area.getBasePrice() != null ? area.getBasePrice() : BigDecimal.ZERO;
-        BigDecimal fallback = BigDecimal.valueOf(Math.max(1, table.getMaxCapacity() != null ? table.getMaxCapacity() : 4) * 100000L);
-        BigDecimal total = tablePrice.signum() > 0 ? tablePrice : (areaPrice.signum() > 0 ? areaPrice : fallback);
-        total = total.setScale(0, RoundingMode.HALF_UP);
-        BigDecimal deposit = total.multiply(depositRate).setScale(0, RoundingMode.HALF_UP);
-        return new Price(total, deposit, total.subtract(deposit));
+        // Reserving a table is free. Only preorder items are charged in this flow.
+        return new Price(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
     }
 
     private BigDecimal calculatePayableNow(BigDecimal totalAmount, PaymentOption option, BigDecimal depositAmount) {
@@ -751,6 +803,7 @@ public class ReservationService {
         ReservationResponse response = new ReservationResponse();
         response.setId(reservation.getId());
         response.setReservationCode(reservation.getReservationCode());
+        response.setKitchenOrderId(reservation.getKitchenOrderId());
         response.setCustomerName(reservation.getCustomerName());
         response.setCustomerPhone(includeInternal
                 ? reservation.getCustomerPhone()

@@ -126,12 +126,10 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
 import api from '@/services/api'
 import { getApiErrorMessage } from '@/services/errorMessage'
 import { useToast } from '@/composables/useToast'
 
-const router = useRouter()
 const toast = useToast()
 const form = ref({ username: '', password: '' })
 const isLoading = ref(false)
@@ -140,6 +138,7 @@ const showPassword = ref(false)
 const rememberMe = ref(false)
 
 const handleLogin = async () => {
+  if (isLoading.value) return
   errorMsg.value = ''
   if (!form.value.username || !form.value.password) {
     errorMsg.value = 'Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu!'
@@ -205,9 +204,9 @@ const handleLogin = async () => {
   position: absolute;
   inset: 0;
   background: linear-gradient(135deg, 
-    rgba(4, 9, 20, 0.85) 0%, 
-    rgba(0, 100, 80, 0.4) 50%,
-    rgba(4, 9, 20, 0.9) 100%
+    rgba(20, 28, 15, 0.85) 0%,
+    rgba(90, 110, 69, 0.4) 50%,
+    rgba(20, 28, 15, 0.9) 100%
   );
 }
 .visual-content {
@@ -218,9 +217,9 @@ const handleLogin = async () => {
 }
 .visual-badge {
   display: inline-block;
-  background: rgba(0, 212, 170, 0.15);
-  border: 1px solid rgba(0, 212, 170, 0.3);
-  color: var(--primary);
+  background: rgba(90, 110, 69, 0.15);
+  border: 1px solid rgba(90, 110, 69, 0.3);
+  color: var(--secondary);
   padding: 8px 20px;
   border-radius: 100px;
   font-size: 0.75rem;
@@ -232,11 +231,11 @@ const handleLogin = async () => {
   font-family: var(--font-display);
   font-size: 3.5rem;
   font-weight: 800;
-  color: #fff;
+  color: #FFFFFF;
   line-height: 1.15;
   margin: 0 0 20px 0;
 }
-.visual-content h1 span { color: var(--primary); }
+.visual-content h1 span { color: var(--secondary); }
 .visual-content > p {
   font-size: 1.05rem;
   color: rgba(255, 255, 255, 0.6);
@@ -258,7 +257,7 @@ const handleLogin = async () => {
   max-width: 300px;
 }
 .float-card span { font-size: 1.8rem; flex-shrink: 0; }
-.float-card strong { display: block; color: #fff; font-size: 0.9rem; }
+.float-card strong { display: block; color: #FFFFFF; font-size: 0.9rem; }
 .float-card p { margin: 0; color: rgba(255,255,255,0.5); font-size: 0.78rem; }
 .fc-1 { animation: float 6s ease-in-out infinite; }
 .fc-2 { animation: float 8s ease-in-out infinite 1s; margin-left: 40px; }
@@ -267,11 +266,11 @@ const handleLogin = async () => {
 .deco-circle {
   position: absolute;
   border-radius: 50%;
-  border: 1px solid rgba(0, 212, 170, 0.15);
+  border: 1px solid rgba(90, 110, 69, 0.15);
 }
 .c1 { width: 400px; height: 400px; top: -100px; right: -100px; }
 .c2 { width: 250px; height: 250px; bottom: 50px; left: -80px; }
-.c3 { width: 150px; height: 150px; bottom: -30px; right: 100px; background: rgba(0, 212, 170, 0.05); }
+.c3 { width: 150px; height: 150px; bottom: -30px; right: 100px; background: rgba(90, 110, 69, 0.05); }
 
 @keyframes float {
   0%, 100% { transform: translateY(0); }
@@ -296,7 +295,7 @@ const handleLogin = async () => {
   left: 0;
   bottom: 0;
   width: 1px;
-  background: linear-gradient(180deg, transparent, rgba(0, 212, 170, 0.3), transparent);
+  background: linear-gradient(180deg, transparent, rgba(90, 110, 69, 0.3), transparent);
 }
 
 .form-wrapper {
@@ -356,7 +355,7 @@ const handleLogin = async () => {
 .input-field input {
   width: 100%;
   padding: 14px 48px 14px 48px;
-  background: rgba(10, 25, 41, 0.5);
+  background: rgba(26, 23, 15, 0.5);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   color: var(--text-primary);
@@ -367,8 +366,8 @@ const handleLogin = async () => {
 .input-field input:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(0, 212, 170, 0.15);
-  background: rgba(10, 25, 41, 0.7);
+  box-shadow: 0 0 0 3px rgba(90, 110, 69, 0.15);
+  background: rgba(26, 23, 15, 0.7);
 }
 .input-field input::placeholder { color: var(--text-muted); }
 .toggle-pw {
@@ -451,7 +450,7 @@ const handleLogin = async () => {
 .btn-login:hover::after { left: 100%; }
 .btn-login:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(0, 212, 170, 0.45);
+  box-shadow: 0 8px 30px rgba(90, 110, 69, 0.45);
 }
 .btn-login:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 .btn-login:disabled::after { display: none; }
@@ -465,7 +464,7 @@ const handleLogin = async () => {
 .spinner {
   width: 18px;
   height: 18px;
-  border: 2px solid rgba(4, 9, 20, 0.3);
+  border: 2px solid rgba(26, 23, 15, 0.3);
   border-top-color: var(--bg-dark);
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
@@ -479,13 +478,13 @@ const handleLogin = async () => {
   gap: 10px;
   margin-top: 16px;
   padding: 14px 16px;
-  background: rgba(231, 76, 60, 0.1);
-  border: 1px solid rgba(231, 76, 60, 0.25);
+  background: rgba(178, 59, 46, 0.1);
+  border: 1px solid rgba(178, 59, 46, 0.25);
   border-radius: 12px;
   animation: shakeX 0.4s ease;
 }
 .error-alert span { font-size: 1.1rem; flex-shrink: 0; }
-.error-alert p { margin: 0; color: #e74c3c; font-size: 0.88rem; font-weight: 500; line-height: 1.4; }
+.error-alert p { margin: 0; color: #B23B2E; font-size: 0.88rem; font-weight: 500; line-height: 1.4; }
 
 @keyframes shakeX {
   0%, 100% { transform: translateX(0); }
@@ -542,7 +541,7 @@ const handleLogin = async () => {
     overflow-y: auto;
   }
   .form-wrapper { max-width: 100%; }
-  .mobile-brand { margin-bottom: 24px; }
+  .mobile-brand { margin: 72px 0 24px; }
   .form-header { margin-bottom: 28px; }
   .form-header h2 { font-size: 1.6rem; }
   .input-field input { min-height: 48px; }

@@ -129,12 +129,10 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
 import api from '@/services/api'
 import { getApiErrorMessage } from '@/services/errorMessage'
 import { useToast } from '@/composables/useToast'
 
-const router = useRouter()
 const toast = useToast()
 const form = ref({ username: '', password: '' })
 const isLoading = ref(false)
@@ -142,6 +140,7 @@ const errorMsg = ref('')
 const showPassword = ref(false)
 
 const handleStaffLogin = async () => {
+  if (isLoading.value) return
   errorMsg.value = ''
   if (!form.value.username || !form.value.password) {
     errorMsg.value = 'Vui lòng nhập đầy đủ tài khoản và mật khẩu!'
@@ -207,14 +206,14 @@ const handleStaffLogin = async () => {
 .staff-login-page {
   min-height: 100vh;
   display: flex;
-  background: #0a0e1a;
+  background: #1A170F;
 }
 
 /* ===== LEFT PANEL ===== */
 .staff-visual {
   flex: 1;
   position: relative;
-  background: linear-gradient(145deg, #0a0e1a 0%, #111832 50%, #0d1225 100%);
+  background: linear-gradient(145deg, #1A170F 0%, #1A170F 50%, #1A170F 100%);
   display: flex;
   align-items: center;
   overflow: hidden;
@@ -223,8 +222,8 @@ const handleStaffLogin = async () => {
   position: absolute;
   inset: 0;
   background: 
-    radial-gradient(ellipse at 20% 50%, rgba(99, 102, 241, 0.08) 0%, transparent 60%),
-    radial-gradient(ellipse at 80% 20%, rgba(139, 92, 246, 0.06) 0%, transparent 50%);
+    radial-gradient(ellipse at 20% 50%, rgba(90, 110, 69, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 20%, rgba(192, 138, 46, 0.06) 0%, transparent 50%);
 }
 .visual-content {
   position: relative;
@@ -234,9 +233,9 @@ const handleStaffLogin = async () => {
 }
 .system-badge {
   display: inline-block;
-  background: rgba(99, 102, 241, 0.12);
-  border: 1px solid rgba(99, 102, 241, 0.25);
-  color: #818cf8;
+  background: rgba(90, 110, 69, 0.12);
+  border: 1px solid rgba(90, 110, 69, 0.25);
+  color: #7FA08F;
   padding: 8px 20px;
   border-radius: 100px;
   font-size: 0.72rem;
@@ -246,15 +245,15 @@ const handleStaffLogin = async () => {
   text-transform: uppercase;
 }
 .visual-content h1 {
-  font-family: var(--font-display, 'Inter', sans-serif);
+  font-family: var(--font-display);
   font-size: 3.2rem;
   font-weight: 900;
-  color: #fff;
+  color: #FFFFFF;
   line-height: 1.15;
   margin: 0 0 20px 0;
 }
 .visual-content h1 span {
-  background: linear-gradient(135deg, #818cf8, #a78bfa);
+  background: linear-gradient(135deg, #7FA08F, #C7B58D);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -280,11 +279,11 @@ const handleStaffLogin = async () => {
   transition: all 0.3s ease;
 }
 .role-item:hover {
-  background: rgba(99, 102, 241, 0.06);
-  border-color: rgba(99, 102, 241, 0.2);
+  background: rgba(90, 110, 69, 0.06);
+  border-color: rgba(90, 110, 69, 0.2);
 }
 .role-icon { font-size: 1.6rem; flex-shrink: 0; }
-.role-item strong { display: block; color: #e2e8f0; font-size: 0.88rem; }
+.role-item strong { display: block; color: #E2DCC2; font-size: 0.88rem; }
 .role-item p { margin: 0; color: rgba(255,255,255,0.35); font-size: 0.76rem; }
 
 /* Decorative */
@@ -292,7 +291,7 @@ const handleStaffLogin = async () => {
   position: absolute;
   width: 200px;
   height: 200px;
-  border: 1px solid rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(90, 110, 69, 0.08);
   border-radius: 20px;
   transform: rotate(45deg);
 }
@@ -301,7 +300,7 @@ const handleStaffLogin = async () => {
 .deco-line {
   position: absolute;
   width: 1px;
-  background: linear-gradient(180deg, transparent, rgba(99, 102, 241, 0.15), transparent);
+  background: linear-gradient(180deg, transparent, rgba(90, 110, 69, 0.15), transparent);
 }
 .line-1 { height: 300px; top: 20%; right: 15%; }
 .line-2 { height: 200px; bottom: 10%; right: 30%; }
@@ -319,7 +318,7 @@ const handleStaffLogin = async () => {
   align-items: center;
   justify-content: center;
   padding: 40px;
-  background: #0a0e1a;
+  background: #1A170F;
   position: relative;
 }
 .staff-form-panel::before {
@@ -329,7 +328,7 @@ const handleStaffLogin = async () => {
   left: 0;
   bottom: 0;
   width: 1px;
-  background: linear-gradient(180deg, transparent, rgba(99, 102, 241, 0.25), transparent);
+  background: linear-gradient(180deg, transparent, rgba(90, 110, 69, 0.25), transparent);
 }
 
 .form-wrapper {
@@ -349,8 +348,8 @@ const handleStaffLogin = async () => {
 .logo-icon {
   width: 48px;
   height: 48px;
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.15));
-  border: 1px solid rgba(99, 102, 241, 0.25);
+  background: linear-gradient(135deg, rgba(90, 110, 69, 0.15), rgba(192, 138, 46, 0.15));
+  border: 1px solid rgba(90, 110, 69, 0.25);
   border-radius: 14px;
   display: flex;
   align-items: center;
@@ -361,7 +360,7 @@ const handleStaffLogin = async () => {
   margin: 0;
   font-size: 1.1rem;
   font-weight: 900;
-  color: #818cf8;
+  color: #7FA08F;
   letter-spacing: 2px;
 }
 .logo-sub {
@@ -377,7 +376,7 @@ const handleStaffLogin = async () => {
 .form-header h2 {
   font-size: 1.8rem;
   font-weight: 900;
-  color: #e2e8f0;
+  color: #E2DCC2;
   margin: 0 0 8px 0;
 }
 .form-header p {
@@ -414,19 +413,19 @@ const handleStaffLogin = async () => {
 .input-field input {
   width: 100%;
   padding: 14px 48px 14px 48px;
-  background: rgba(15, 23, 42, 0.8);
-  border: 1px solid rgba(99, 102, 241, 0.15);
+  background: rgba(26, 23, 15, 0.8);
+  border: 1px solid rgba(90, 110, 69, 0.15);
   border-radius: 12px;
-  color: #e2e8f0;
+  color: #E2DCC2;
   font-size: 0.95rem;
   font-family: inherit;
   transition: all 0.3s ease;
 }
 .input-field input:focus {
   outline: none;
-  border-color: #818cf8;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
-  background: rgba(15, 23, 42, 1);
+  border-color: #7FA08F;
+  box-shadow: 0 0 0 3px rgba(90, 110, 69, 0.15);
+  background: rgba(26, 23, 15, 1);
 }
 .input-field input::placeholder { color: rgba(255, 255, 255, 0.25); }
 .toggle-pw {
@@ -443,8 +442,8 @@ const handleStaffLogin = async () => {
 .btn-staff-login {
   width: 100%;
   padding: 16px;
-  background: linear-gradient(135deg, #6366f1, #7c3aed);
-  color: #fff;
+  background: linear-gradient(135deg, #5A6E45, #C08A2E);
+  color: #FFFFFF;
   border: none;
   border-radius: 12px;
   font-size: 1rem;
@@ -470,7 +469,7 @@ const handleStaffLogin = async () => {
 .btn-staff-login:hover::after { left: 100%; }
 .btn-staff-login:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(99, 102, 241, 0.4);
+  box-shadow: 0 8px 30px rgba(90, 110, 69, 0.4);
 }
 .btn-staff-login:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 .btn-staff-login:disabled::after { display: none; }
@@ -485,7 +484,7 @@ const handleStaffLogin = async () => {
   width: 18px;
   height: 18px;
   border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: #fff;
+  border-top-color: #FFFFFF;
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
 }
@@ -504,7 +503,7 @@ const handleStaffLogin = async () => {
   animation: shakeX 0.4s ease;
 }
 .error-alert span { font-size: 1.1rem; flex-shrink: 0; }
-.error-alert p { margin: 0; color: #f87171; font-size: 0.88rem; font-weight: 500; line-height: 1.4; }
+.error-alert p { margin: 0; color: #B23B2E; font-size: 0.88rem; font-weight: 500; line-height: 1.4; }
 
 @keyframes shakeX {
   0%, 100% { transform: translateX(0); }
@@ -520,8 +519,8 @@ const handleStaffLogin = async () => {
   gap: 10px;
   margin-top: 20px;
   padding: 14px 16px;
-  background: rgba(99, 102, 241, 0.06);
-  border: 1px solid rgba(99, 102, 241, 0.12);
+  background: rgba(90, 110, 69, 0.06);
+  border: 1px solid rgba(90, 110, 69, 0.12);
   border-radius: 12px;
 }
 .staff-info span { font-size: 1rem; flex-shrink: 0; }
@@ -539,7 +538,7 @@ const handleStaffLogin = async () => {
   font-weight: 500;
   transition: all 0.3s ease;
 }
-.back-home:hover { color: #818cf8; }
+.back-home:hover { color: #7FA08F; }
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 1024px) {

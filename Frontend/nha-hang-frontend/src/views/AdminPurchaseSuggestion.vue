@@ -79,20 +79,20 @@
                   <strong>{{ item.name }}</strong>
                 </div>
               </td>
-              <td :style="{ color: item.currentStock <= 0 ? '#e74c3c' : item.currentStock <= item.minStock ? '#f1c40f' : '#2ecc71', fontWeight: 'bold' }">
+              <td :style="{ color: item.currentStock <= 0 ? '#B23B2E' : item.currentStock <= item.minStock ? '#B98229' : '#2F8F5B', fontWeight: 'bold' }">
                 {{ item.currentStock }} {{ item.unit }}
               </td>
               <td style="color: var(--text-muted);">{{ item.minStock }} {{ item.unit }}</td>
               <td style="color: var(--primary); font-weight: 700;">{{ item.dailyConsumption }} {{ item.unit }}</td>
               <td>
-                <span :style="{ color: item.daysLeft <= 1 ? '#e74c3c' : item.daysLeft <= 3 ? '#f1c40f' : '#2ecc71', fontWeight: 'bold' }">
+                <span :style="{ color: item.daysLeft <= 1 ? '#B23B2E' : item.daysLeft <= 3 ? '#B98229' : '#2F8F5B', fontWeight: 'bold' }">
                   {{ item.daysLeft >= 999 ? '∞' : item.daysLeft + ' ngày' }}
                 </span>
               </td>
               <td style="font-weight: 900; color: var(--primary); font-size: 1.05rem;">
                 {{ item.suggestedAmount }} {{ item.unit }}
               </td>
-              <td style="color: #e74c3c; font-weight: bold;">{{ formatMoney(item.estimatedCost) }}</td>
+              <td style="color: #B23B2E; font-weight: bold;">{{ formatMoney(item.estimatedCost) }}</td>
               <td>
                 <span class="urgency-badge" :class="'urgency-' + item.urgency">
                   {{ item.urgencyLabel }}
@@ -108,7 +108,7 @@
               <td colspan="9" class="empty-td">
                 <div style="text-align: center; padding: 50px;">
                   <div style="font-size: 3rem; margin-bottom: 10px;">✅</div>
-                  <h3 style="color: #2ecc71;">Kho hàng đầy đủ!</h3>
+                  <h3 style="color: #2F8F5B;">Kho hàng đầy đủ!</h3>
                   <p style="color: var(--text-muted);">Tất cả nguyên liệu đang ở mức an toàn. Không cần nhập thêm.</p>
                 </div>
               </td>
@@ -128,7 +128,7 @@
             <div class="spinner"></div>
             <p style="font-weight: bold; margin-top: 16px;">AI đang phân tích dữ liệu tồn kho...</p>
           </div>
-          <div v-else style="padding: 16px; border-left: 4px solid var(--primary); background: rgba(0,212,170,0.05); border-radius: 0 8px 8px 0; white-space: pre-line; line-height: 1.7; font-size: 0.95rem;">
+          <div v-else style="padding: 16px; border-left: 4px solid var(--primary); background: rgba(90, 110, 69, 0.05); border-radius: 0 8px 8px 0; white-space: pre-line; line-height: 1.7; font-size: 0.95rem;">
             {{ aiResponse }}
           </div>
         </div>
@@ -154,7 +154,7 @@ const configHeader = () => ({ headers: { 'Authorization': `Bearer ${getToken()}`
 
 const fetchSuggestions = async () => {
   try {
-    const res = await api.get('http://localhost:8080/api/admin/purchase-suggestions', configHeader());
+    const res = await api.get('/api/admin/purchase-suggestions', configHeader());
     suggestions.value = (res.data.suggestions || []).map(s => ({ ...s, approved: false }));
     summary.value = {
       totalItems: res.data.totalItems || 0,
@@ -169,7 +169,7 @@ const approveSuggestion = async (item) => {
   if (item.approved) return;
   try {
     await api.post(
-      `http://localhost:8080/api/admin/purchase-suggestions/approve/${item.ingredientId}?quantity=${item.suggestedAmount}`,
+      `/api/admin/purchase-suggestions/approve/${item.ingredientId}?quantity=${item.suggestedAmount}`,
       {}, configHeader()
     );
     item.approved = true;
@@ -246,23 +246,23 @@ onMounted(fetchSuggestions);
 
 .card-total { border-left: 3px solid var(--primary); }
 .card-total .sc-value { color: var(--primary); }
-.card-critical { border-left: 3px solid #e74c3c; }
-.card-critical .sc-value { color: #e74c3c; }
-.card-warning { border-left: 3px solid #f1c40f; }
-.card-warning .sc-value { color: #f1c40f; }
-.card-cost { border-left: 3px solid #3498db; }
-.card-cost .sc-value { color: #3498db; font-size: 1.2rem; }
+.card-critical { border-left: 3px solid #B23B2E; }
+.card-critical .sc-value { color: #B23B2E; }
+.card-warning { border-left: 3px solid #B98229; }
+.card-warning .sc-value { color: #B98229; }
+.card-cost { border-left: 3px solid #5A6E45; }
+.card-cost .sc-value { color: #5A6E45; font-size: 1.2rem; }
 
 .suggestion-row { transition: background 0.2s; }
-.suggestion-row:hover { background: rgba(0, 212, 170, 0.04); }
+.suggestion-row:hover { background: rgba(90, 110, 69, 0.04); }
 
 .urgency-badge { padding: 4px 12px; border-radius: 100px; font-size: 0.75rem; font-weight: 700; display: inline-block; }
 
-.btn-ai { background: linear-gradient(135deg, #9b59b6, #8e44ad); color: white; border: none; padding: 10px 20px; border-radius: 10px; font-weight: bold; cursor: pointer; font-family: inherit; }
+.btn-ai { background: linear-gradient(135deg, #C08A2E, #8A641F); color: #FFFFFF; border: none; padding: 10px 20px; border-radius: 10px; font-weight: bold; cursor: pointer; font-family: inherit; }
 .btn-ai:hover { filter: brightness(1.1); }
 
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-.spinner { width: 40px; height: 40px; border: 4px solid rgba(0, 212, 170, 0.2); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto; }
+.spinner { width: 40px; height: 40px; border: 4px solid rgba(90, 110, 69, 0.2); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 992px) {

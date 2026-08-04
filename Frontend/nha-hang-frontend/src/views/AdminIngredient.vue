@@ -131,10 +131,10 @@
               <tbody>
                 <tr v-for="ing in ingredients" :key="ing.id">
                   <td>
-                    <img :src="ing.image || 'https://placehold.co/40x40/0a1929/00d4aa?text=📦'" class="img-thumb-sm" />
+                    <img :src="ingredientImage(ing.image)" class="img-thumb-sm" @error="replaceIngredientImage" />
                   </td>
                   <td><strong>{{ ing.name }}</strong></td>
-                  <td style="color: #00d4aa; font-weight: bold;">{{ ing.unitPrice?.toLocaleString() || 0 }}đ / {{ ing.unit }}</td>
+                  <td style="color: #33422A; font-weight: bold;">{{ ing.unitPrice?.toLocaleString() || 0 }}đ / {{ ing.unit }}</td>
                   <td class="qty-col">
                     <span class="qty-val">{{ ing.quantity?.toFixed(2) }}</span> {{ ing.unit }}
                   </td>
@@ -171,7 +171,7 @@
                 :class="['product-item', { active: selectedProduct?.id === p.id }]"
                 @click="selectProduct(p)"
               >
-                <img :src="p.image" class="prod-thumb" />
+                <img :src="foodImage(p.image)" class="prod-thumb" @error="replaceFoodImage" />
                 <div>
                   <h4>{{ p.name }}</h4>
                   <span>{{ p.category?.name }}</span>
@@ -287,7 +287,7 @@
                   <td style="font-weight: bold; color: var(--primary);">#{{ inv.id }}</td>
                   <td>{{ new Date(inv.importDate).toLocaleString('vi-VN') }}</td>
                   <td>{{ inv.supplier || '---' }}</td>
-                  <td style="color: #e74c3c; font-weight: bold;">{{ inv.totalAmount?.toLocaleString() || 0 }}đ</td>
+                  <td style="color: #B23B2E; font-weight: bold;">{{ inv.totalAmount?.toLocaleString() || 0 }}đ</td>
                   <td>{{ inv.note || '---' }}</td>
                   <td class="hide-on-print">
                     <button @click="viewInvoiceDetails(inv.id)" class="btn-sm btn-secondary">👀 Chi Tiết</button>
@@ -317,7 +317,7 @@
             <div class="pulse">🤖</div>
             <p>AI đang đọc dữ liệu tồn kho và tính toán dự báo tuần tới...</p>
           </div>
-          <div v-else-if="forecastError" class="error-msg" style="color:#e74c3c; text-align:center;">
+          <div v-else-if="forecastError" class="error-msg" style="color:#B23B2E; text-align:center;">
             <p>{{ forecastError }}</p>
           </div>
           <div v-else-if="forecastResults.length > 0">
@@ -372,7 +372,7 @@
       <div class="table-card" style="max-width: 800px; width: 100%; z-index: 1000; position: relative; max-height: 80vh; overflow-y: auto;">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-light); padding-bottom: 10px; margin-bottom: 20px;">
            <h3 style="margin: 0; border: none; padding: 0;">📦 Danh Sách Lô Hàng</h3>
-           <button @click="showBatchesModal = false" style="background: none; border: none; font-size: 1.5rem; color: #e74c3c; cursor: pointer;">✖</button>
+           <button @click="showBatchesModal = false" style="background: none; border: none; font-size: 1.5rem; color: #B23B2E; cursor: pointer;">✖</button>
         </div>
         <table class="g-table">
           <thead>
@@ -388,13 +388,13 @@
           <tbody>
             <tr v-for="b in selectedBatches" :key="b.id">
               <td>{{ new Date(b.importDate).toLocaleDateString('vi-VN') }}</td>
-              <td :style="{ color: isExpiring(b.expirationDate) ? '#e74c3c' : 'inherit', fontWeight: isExpiring(b.expirationDate) ? 'bold' : 'normal' }">
+              <td :style="{ color: isExpiring(b.expirationDate) ? '#B23B2E' : 'inherit', fontWeight: isExpiring(b.expirationDate) ? 'bold' : 'normal' }">
                 {{ b.expirationDate ? new Date(b.expirationDate).toLocaleDateString('vi-VN') : '---' }}
                 <span v-if="isExpiring(b.expirationDate)">⚠️</span>
               </td>
               <td>{{ b.quantity }}</td>
               <td>{{ b.unitPrice?.toLocaleString() }}đ</td>
-              <td style="color: #e74c3c; font-weight: bold;">{{ (b.quantity * (b.unitPrice || 0)).toLocaleString() }}đ</td>
+              <td style="color: #B23B2E; font-weight: bold;">{{ (b.quantity * (b.unitPrice || 0)).toLocaleString() }}đ</td>
               <td>
                 <button @click="deleteBatch(b.id)" class="btn-sm btn-delete">🗑️ Xóa</button>
               </td>
@@ -415,7 +415,7 @@
           <button @click="showCreateInvoiceModal = false" class="btn-close">✖</button>
         </div>
         <div class="modal-body">
-          <div v-if="ingredients.length === 0" style="padding: 20px; background: rgba(231,76,60,0.1); border: 1px solid #e74c3c; border-radius: 8px; color: #e74c3c; margin-bottom: 20px; text-align: center;">
+          <div v-if="ingredients.length === 0" style="padding: 20px; background: rgba(178,59,46,0.1); border: 1px solid #B23B2E; border-radius: 8px; color: #B23B2E; margin-bottom: 20px; text-align: center;">
             <strong>⚠️ Kho chưa có nguyên liệu nào!</strong><br>
             Vui lòng thêm "Nguyên Liệu Mới" ở tab <strong>Kho Nguyên Liệu</strong> trước khi lập phiếu nhập kho.
           </div>
@@ -457,7 +457,7 @@
                 <td>
                   <input v-model="item.unitPrice" type="number" step="500" class="g-form-control" style="width: 120px;" />
                 </td>
-                <td style="color: #e74c3c; font-weight: bold;">{{ ((item.quantity || 0) * (item.unitPrice || 0)).toLocaleString() }}đ</td>
+                <td style="color: #B23B2E; font-weight: bold;">{{ ((item.quantity || 0) * (item.unitPrice || 0)).toLocaleString() }}đ</td>
                 <td>
                   <input v-model="item.expirationDate" type="date" class="g-form-control" style="width: 140px;" />
                 </td>
@@ -470,7 +470,7 @@
           <button @click="invoiceForm.items.push({ ingredientId: '', quantity: 1, unitPrice: 0, expirationDate: '' })" class="btn-sm btn-secondary" style="margin-bottom: 20px;">➕ Thêm dòng</button>
           
           <div style="text-align: right; font-size: 1.2rem; font-weight: bold; margin-bottom: 20px;">
-            Tổng Tiền: <span style="color: #e74c3c;">{{ calculateInvoiceTotal().toLocaleString() }}đ</span>
+            Tổng Tiền: <span style="color: #B23B2E;">{{ calculateInvoiceTotal().toLocaleString() }}đ</span>
           </div>
 
           <div class="form-actions">
@@ -483,60 +483,60 @@
 
     <!-- View Invoice Details Modal -->
     <div v-if="showInvoiceDetailsModal" class="modal-overlay" @click.self="showInvoiceDetailsModal = false">
-      <div class="modal-content printable-area" style="max-width: 800px; width: 90%; background: #ffffff; color: #111;">
+      <div class="modal-content printable-area" style="max-width: 800px; width: 90%; background: #FFFFFF; color: #1A170F;">
         <div class="modal-header hide-on-print">
           <h3>Chi Tiết Phiếu Nhập Kho #{{ selectedInvoiceId }}</h3>
           <button @click="showInvoiceDetailsModal = false" class="btn-close">✖</button>
         </div>
         <div class="modal-body invoice-content">
-          <div class="invoice-brand" style="text-align: center; border-bottom: 2px solid #111; padding-bottom: 20px; margin-bottom: 28px;">
-             <h1 style="margin: 0; font-size: 2rem; color: #111;">PHIẾU NHẬP KHO</h1>
-             <p style="margin: 4px 0 0 0; color: #777; font-size: 0.9rem;">Hệ Thống Quản Lý Kho Mộc Vị</p>
+          <div class="invoice-brand" style="text-align: center; border-bottom: 2px solid #1A170F; padding-bottom: 20px; margin-bottom: 28px;">
+             <h1 style="margin: 0; font-size: 2rem; color: #1A170F;">PHIẾU NHẬP KHO</h1>
+             <p style="margin: 4px 0 0 0; color: #7A7460; font-size: 0.9rem;">Hệ Thống Quản Lý Kho Mộc Vị</p>
           </div>
           <div class="invoice-meta" style="display: flex; justify-content: space-between; margin-bottom: 28px;">
              <div class="meta-left">
-                <p style="margin: 6px 0; color: #444;"><strong>Mã phiếu:</strong> <span style="background: #111; color: #00b894; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-weight: 800;">#{{ selectedInvoiceId }}</span></p>
-                <p style="margin: 6px 0; color: #444;"><strong>Ngày nhập:</strong> {{ selectedInvoice ? new Date(selectedInvoice.importDate).toLocaleString('vi-VN') : '---' }}</p>
+                <p style="margin: 6px 0; color: #55503E;"><strong>Mã phiếu:</strong> <span style="background: #1A170F; color: #2F8F5B; padding: 4px 10px; border-radius: 4px; font-family: var(--font-primary); font-weight: 800;">#{{ selectedInvoiceId }}</span></p>
+                <p style="margin: 6px 0; color: #55503E;"><strong>Ngày nhập:</strong> {{ selectedInvoice ? new Date(selectedInvoice.importDate).toLocaleString('vi-VN') : '---' }}</p>
              </div>
              <div class="meta-right" style="text-align: right;">
-                <p style="margin: 6px 0; color: #444;"><strong>Nhà cung cấp:</strong> {{ selectedInvoice?.supplier || '---' }}</p>
-                <p style="margin: 6px 0; color: #444;"><strong>Ghi chú:</strong> {{ selectedInvoice?.note || '---' }}</p>
+                <p style="margin: 6px 0; color: #55503E;"><strong>Nhà cung cấp:</strong> {{ selectedInvoice?.supplier || '---' }}</p>
+                <p style="margin: 6px 0; color: #55503E;"><strong>Ghi chú:</strong> {{ selectedInvoice?.note || '---' }}</p>
              </div>
           </div>
           <table class="print-table g-table" style="width: 100%; margin-bottom: 28px; border-collapse: collapse;">
             <thead>
               <tr>
-                <th style="background: #111; color: white; padding: 12px; font-size: 0.88rem; text-transform: uppercase;">Nguyên Liệu</th>
-                <th style="background: #111; color: white; padding: 12px; font-size: 0.88rem; text-transform: uppercase;">Số Lượng</th>
-                <th style="background: #111; color: white; padding: 12px; font-size: 0.88rem; text-transform: uppercase;">Đơn Giá</th>
-                <th style="background: #111; color: white; padding: 12px; font-size: 0.88rem; text-transform: uppercase;">Thành Tiền</th>
-                <th style="background: #111; color: white; padding: 12px; font-size: 0.88rem; text-transform: uppercase;">Hạn SD</th>
+                <th style="background: #1A170F; color: #FFFFFF; padding: 12px; font-size: 0.88rem; text-transform: uppercase;">Nguyên Liệu</th>
+                <th style="background: #1A170F; color: #FFFFFF; padding: 12px; font-size: 0.88rem; text-transform: uppercase;">Số Lượng</th>
+                <th style="background: #1A170F; color: #FFFFFF; padding: 12px; font-size: 0.88rem; text-transform: uppercase;">Đơn Giá</th>
+                <th style="background: #1A170F; color: #FFFFFF; padding: 12px; font-size: 0.88rem; text-transform: uppercase;">Thành Tiền</th>
+                <th style="background: #1A170F; color: #FFFFFF; padding: 12px; font-size: 0.88rem; text-transform: uppercase;">Hạn SD</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="b in invoiceDetails" :key="b.id">
-                <td style="border-bottom: 1px solid #ddd; padding: 14px 12px; color: #333;">{{ b.ingredient?.name }}</td>
-                <td style="border-bottom: 1px solid #ddd; padding: 14px 12px; color: #333;">{{ b.quantity }} {{ b.ingredient?.unit }}</td>
-                <td style="border-bottom: 1px solid #ddd; padding: 14px 12px; color: #333;">{{ b.unitPrice?.toLocaleString() }}đ</td>
-                <td style="border-bottom: 1px solid #ddd; padding: 14px 12px; color: #e74c3c; font-weight: bold;">{{ ((b.quantity || 0) * (b.unitPrice || 0)).toLocaleString() }}đ</td>
-                <td style="border-bottom: 1px solid #ddd; padding: 14px 12px; color: #333;">{{ b.expirationDate ? new Date(b.expirationDate).toLocaleDateString('vi-VN') : '---' }}</td>
+                <td style="border-bottom: 1px solid #CFC7A8; padding: 14px 12px; color: #201D14;">{{ b.ingredient?.name }}</td>
+                <td style="border-bottom: 1px solid #CFC7A8; padding: 14px 12px; color: #201D14;">{{ b.quantity }} {{ b.ingredient?.unit }}</td>
+                <td style="border-bottom: 1px solid #CFC7A8; padding: 14px 12px; color: #201D14;">{{ b.unitPrice?.toLocaleString() }}đ</td>
+                <td style="border-bottom: 1px solid #CFC7A8; padding: 14px 12px; color: #B23B2E; font-weight: bold;">{{ ((b.quantity || 0) * (b.unitPrice || 0)).toLocaleString() }}đ</td>
+                <td style="border-bottom: 1px solid #CFC7A8; padding: 14px 12px; color: #201D14;">{{ b.expirationDate ? new Date(b.expirationDate).toLocaleDateString('vi-VN') : '---' }}</td>
               </tr>
             </tbody>
           </table>
           <div class="invoice-total" style="display: flex; justify-content: flex-end; margin-top: 20px;">
              <table class="total-table" style="min-width: 300px; border-collapse: collapse;">
-                <tr class="total-row" style="border-top: 2px solid #111; font-size: 1.15rem; color: #c0392b; font-weight: 900;">
+                <tr class="total-row" style="border-top: 2px solid #1A170F; font-size: 1.15rem; color: #B23B2E; font-weight: 900;">
                    <td style="padding: 12px 10px;">TỔNG TIỀN:</td>
                    <td style="text-align: right; padding: 12px 10px;">{{ selectedInvoice?.totalAmount?.toLocaleString() || 0 }} đ</td>
                 </tr>
              </table>
           </div>
           
-          <div class="invoice-footer" style="text-align: center; margin-top: 40px; border-top: 1px solid #eee; padding-top: 20px;">
-             <p class="system-msg" style="font-size: 0.8rem; color: #999; margin: 0;">Phiếu nhập kho được tạo tự động bởi hệ thống Quản Lý Nhà Hàng MỘC VỊ</p>
+          <div class="invoice-footer" style="text-align: center; margin-top: 40px; border-top: 1px solid #E2DCC2; padding-top: 20px;">
+             <p class="system-msg" style="font-size: 0.8rem; color: #7A7460; margin: 0;">Phiếu nhập kho được tạo tự động bởi hệ thống Quản Lý Nhà Hàng MỘC VỊ</p>
           </div>
         </div>
-        <div class="modal-actions hide-on-print" style="padding: 20px; background: #f8f9fa; text-align: center; border-top: 1px solid #eee;">
+        <div class="modal-actions hide-on-print" style="padding: 20px; background: #DED8C2; text-align: center; border-top: 1px solid #E2DCC2;">
            <button @click="exportInvoiceToPDF" class="g-btn-primary" style="padding: 12px 24px; font-size: 1rem; font-weight: 800; cursor: pointer; border: none; border-radius: 8px;">📥 In Phiếu Nhập Kho</button>
         </div>
       </div>
@@ -550,6 +550,7 @@ import AdminLayout from '@/components/AdminLayout.vue';
 
 import { ref, computed, onMounted } from 'vue';
 import api from '@/services/api';
+import { foodImage, ingredientImage, replaceFoodImage, replaceIngredientImage } from '@/utils/imageFallback';
 
 // Kiểm tra quyền để hiển thị Navbar phù hợp
 const userRoles = computed(() => {
@@ -664,16 +665,16 @@ const showToast = (msg) => { toastMsg.value = msg; setTimeout(() => toastMsg.val
 
 const loadData = async () => {
   try {
-    const resIng = await api.get('http://localhost:8080/api/admin/ingredients', configHeader());
+    const resIng = await api.get('/api/admin/ingredients', configHeader());
     ingredients.value = resIng.data;
     
-    const resStats = await api.get('http://localhost:8080/api/admin/ingredients/stats', configHeader());
+    const resStats = await api.get('/api/admin/ingredients/stats', configHeader());
     stats.value = resStats.data;
 
-    const resProd = await api.get('http://localhost:8080/api/products');
+    const resProd = await api.get('/api/products');
     products.value = resProd.data;
 
-    const resCat = await api.get('http://localhost:8080/api/categories');
+    const resCat = await api.get('/api/categories');
     categories.value = resCat.data;
     
     await fetchInvoices();
@@ -682,7 +683,7 @@ const loadData = async () => {
 
 const fetchInvoices = async () => {
   try {
-    const res = await api.get('http://localhost:8080/api/admin/import-invoices', configHeader());
+    const res = await api.get('/api/admin/import-invoices', configHeader());
     invoices.value = res.data;
   } catch (err) { console.error('Lỗi lấy danh sách hóa đơn:', err); }
 };
@@ -704,10 +705,10 @@ const saveIngredient = async () => {
   if (!ingForm.value.name || !ingForm.value.unit) return alert('Nhập đủ Tên và Đơn vị!');
   try {
     if (isEditingIng.value) {
-      await api.put(`http://localhost:8080/api/admin/ingredients/${editingIngId.value}`, ingForm.value, configHeader());
+      await api.put(`/api/admin/ingredients/${editingIngId.value}`, ingForm.value, configHeader());
       showToast('✅ Đã cập nhật nguyên liệu!');
     } else {
-      await api.post('http://localhost:8080/api/admin/ingredients', ingForm.value, configHeader());
+      await api.post('/api/admin/ingredients', ingForm.value, configHeader());
       showToast('✅ Đã thêm nguyên liệu mới!');
     }
     cancelEditIng();
@@ -718,23 +719,17 @@ const saveIngredient = async () => {
 const deleteIngredient = async (id) => {
   if (!confirm('Xóa nguyên liệu này?')) return;
   try {
-    await api.delete(`http://localhost:8080/api/admin/ingredients/${id}`, configHeader());
+    await api.delete(`/api/admin/ingredients/${id}`, configHeader());
     showToast('✅ Đã xóa!');
     loadData();
   } catch (err) { alert('Không thể xóa vì nguyên liệu này đang có trong công thức!'); }
-};
-
-const openRestockModal = (ing) => {
-  selectedIngForRestock.value = ing;
-  batchForm.value = { quantity: 0, unitPrice: ing.unitPrice || 0, expirationDate: '' };
-  showRestockModal.value = true;
 };
 
 const submitBatch = async () => {
   if (!batchForm.value.quantity || batchForm.value.quantity <= 0) return alert('Số lượng phải > 0');
   
   try {
-    await api.post(`http://localhost:8080/api/admin/ingredients/${selectedIngForRestock.value.id}/batches`, batchForm.value, configHeader());
+    await api.post(`/api/admin/ingredients/${selectedIngForRestock.value.id}/batches`, batchForm.value, configHeader());
     showToast(`📦 Đã nhập lô mới thành công!`);
     showRestockModal.value = false;
     loadData();
@@ -743,7 +738,7 @@ const submitBatch = async () => {
 
 const viewBatches = async (id) => {
   try {
-    const res = await api.get(`http://localhost:8080/api/admin/ingredients/${id}/batches`, configHeader());
+    const res = await api.get(`/api/admin/ingredients/${id}/batches`, configHeader());
     selectedBatches.value = res.data;
     showBatchesModal.value = true;
   } catch (err) { alert('Lỗi tải danh sách lô hàng'); }
@@ -752,7 +747,7 @@ const viewBatches = async (id) => {
 const deleteBatch = async (batchId) => {
   if (!confirm('Bạn có chắc muốn xóa lô hàng này? (Dùng để loại bỏ các lô đã hết hạn hoặc sai lệch)')) return;
   try {
-    await api.delete(`http://localhost:8080/api/admin/ingredients/batches/${batchId}`, configHeader());
+    await api.delete(`/api/admin/ingredients/batches/${batchId}`, configHeader());
     showToast('🗑️ Đã xóa lô hàng!');
     showBatchesModal.value = false;
     loadData();
@@ -770,7 +765,7 @@ const filteredProducts = computed(() => {
 const selectProduct = async (prod) => {
   selectedProduct.value = prod;
   try {
-    const res = await api.get(`http://localhost:8080/api/admin/recipes/product/${prod.id}`, configHeader());
+    const res = await api.get(`/api/admin/recipes/product/${prod.id}`, configHeader());
     currentRecipes.value = res.data;
   } catch (err) { console.error('Lỗi lấy công thức', err); }
 };
@@ -783,7 +778,7 @@ const addRecipe = async () => {
     amountRequired: parseFloat(newRecipe.value.amount)
   };
   try {
-    await api.post('http://localhost:8080/api/admin/recipes', payload, configHeader());
+    await api.post('/api/admin/recipes', payload, configHeader());
     showToast('🍳 Đã thêm nguyên liệu vào món!');
     newRecipe.value = { ingredientId: '', amount: '' };
     selectProduct(selectedProduct.value); // reload recipes for this product
@@ -793,7 +788,7 @@ const addRecipe = async () => {
 const deleteRecipe = async (recipeId) => {
   if (!confirm('Xóa nguyên liệu này khỏi món?')) return;
   try {
-    await api.delete(`http://localhost:8080/api/admin/recipes/${recipeId}`, configHeader());
+    await api.delete(`/api/admin/recipes/${recipeId}`, configHeader());
     showToast('✅ Đã xóa!');
     selectProduct(selectedProduct.value);
   } catch (err) { alert('Lỗi xóa'); }
@@ -874,12 +869,12 @@ const submitInvoice = async () => {
       }))
     };
     
-    await api.post('http://localhost:8080/api/admin/import-invoices', payload, configHeader());
+    await api.post('/api/admin/import-invoices', payload, configHeader());
     showToast('📦 Đã nhập hàng thành công! Đã tạo phiếu lưu kho.');
     showCreateInvoiceModal.value = false;
     fetchInvoices();
     // Cập nhật lại kho
-    const res = await api.get('http://localhost:8080/api/admin/ingredients', configHeader());
+    const res = await api.get('/api/admin/ingredients', configHeader());
     ingredients.value = res.data;
   } catch (err) {
     alert('Lỗi tạo phiếu nhập kho!');
@@ -890,7 +885,7 @@ const submitInvoice = async () => {
 const viewInvoiceDetails = async (id) => {
   selectedInvoiceId.value = id;
   try {
-    const res = await api.get(`http://localhost:8080/api/admin/import-invoices/${id}`, configHeader());
+    const res = await api.get(`/api/admin/import-invoices/${id}`, configHeader());
     invoiceDetails.value = res.data;
     showInvoiceDetailsModal.value = true;
   } catch (err) { console.error('Lỗi lấy chi tiết HD:', err); }
@@ -914,12 +909,12 @@ onMounted(() => {
   flex: 1; background: var(--bg-card); border: 1px solid var(--border-light);
   border-radius: var(--radius-lg); padding: 20px; display: flex; align-items: center; gap: 16px;
 }
-.stat-warn { border-color: rgba(243,156,18,0.3); }
-.stat-warn .stat-icon { color: #f39c12; background: rgba(243,156,18,0.1); }
-.stat-warn .stat-value { color: #f39c12; }
-.stat-danger { border-color: rgba(231,76,60,0.3); }
-.stat-danger .stat-icon { color: #e74c3c; background: rgba(231,76,60,0.1); }
-.stat-danger .stat-value { color: #e74c3c; }
+.stat-warn { border-color: rgba(185,130,41,0.3); }
+.stat-warn .stat-icon { color: #B98229; background: rgba(185,130,41,0.1); }
+.stat-warn .stat-value { color: #B98229; }
+.stat-danger { border-color: rgba(178,59,46,0.3); }
+.stat-danger .stat-icon { color: #B23B2E; background: rgba(178,59,46,0.1); }
+.stat-danger .stat-value { color: #B23B2E; }
 .stat-icon { font-size: 2rem; width: 60px; height: 60px; border-radius: 12px; background: var(--primary-glow); color: var(--primary); display: flex; align-items: center; justify-content: center; }
 .stat-info { display: flex; flex-direction: column; }
 .stat-value { font-size: 1.8rem; font-weight: 900; line-height: 1.2; }
@@ -945,10 +940,10 @@ onMounted(() => {
 .qty-col { font-weight: 600; color: var(--text-muted); }
 .qty-val { font-size: 1.1rem; color: var(--primary); font-weight: 800; }
 .action-buttons { display: flex; gap: 6px; }
-.btn-edit { background: rgba(52,152,219,0.15); border: 1px solid rgba(52,152,219,0.3); color: #3498db; padding: 6px 10px; border-radius: 4px; cursor: pointer; }
+.btn-edit { background: rgba(90, 110, 69, 0.15); border: 1px solid rgba(90, 110, 69, 0.3); color: #5A6E45; padding: 6px 10px; border-radius: 4px; cursor: pointer; }
 .restock-group { display: flex; gap: 6px; }
-.restock-input { width: 70px; background: var(--bg-input); border: 1px solid var(--border); color: white; padding: 6px; border-radius: 4px; text-align: center; }
-.btn-restock { background: var(--primary); color: #000; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+.restock-input { width: 70px; background: var(--bg-input); border: 1px solid var(--border); color: #FFFFFF; padding: 6px; border-radius: 4px; text-align: center; }
+.btn-restock { background: var(--primary); color: #201D14; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; }
 
 /* Recipes Layout */
 .recipe-layout { display: grid; grid-template-columns: 350px 1fr; gap: 24px; height: 600px; }
@@ -967,24 +962,24 @@ onMounted(() => {
 .recipe-header h2 { margin: 0; font-size: 1.5rem; color: var(--text-heading); }
 .recipe-header h2 span { color: var(--primary); }
 .add-recipe-box { display: flex; gap: 10px; margin-bottom: 24px; background: rgba(0,0,0,0.2); padding: 16px; border-radius: 10px; border: 1px solid var(--border-light); }
-.amount-cell { color: #f39c12; font-weight: bold; font-size: 1.1rem; }
+.amount-cell { color: #B98229; font-weight: bold; font-size: 1.1rem; }
 .est-cell { color: var(--primary); font-weight: bold; font-size: 1.1rem; }
 .empty-selection { display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--bg-card); border: 1px dashed var(--border); border-radius: var(--radius-lg); color: var(--text-muted); }
 .empty-selection .icon { font-size: 4rem; margin-bottom: 16px; }
 
 /* Toast */
-.toast-notification { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--bg-card); color: var(--primary); padding: 14px 28px; border-radius: 30px; border: 1px solid var(--primary); box-shadow: 0 0 30px rgba(0,212,170,0.3); font-weight: 700; z-index: 1000; }
+.toast-notification { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--bg-card); color: var(--primary); padding: 14px 28px; border-radius: 30px; border: 1px solid var(--primary); box-shadow: 0 0 30px rgba(90, 110, 69, 0.3); font-weight: 700; z-index: 1000; }
 
 /* AI Forecast Modal */
-.btn-ai-forecast { background: linear-gradient(135deg, #9b59b6, #8e44ad); color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(155, 89, 182, 0.4); transition: 0.3s; }
-.btn-ai-forecast:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(155, 89, 182, 0.6); }
+.btn-ai-forecast { background: linear-gradient(135deg, #C08A2E, #8A641F); color: #FFFFFF; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(192, 138, 46, 0.4); transition: 0.3s; }
+.btn-ai-forecast:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(192, 138, 46, 0.6); }
 
 .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 999; display: flex; align-items: center; justify-content: center; }
-.forecast-box { background: var(--bg-card); padding: 0; border-radius: 12px; width: 100%; max-width: 700px; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; border: 1px solid #9b59b6; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
-.forecast-header { background: rgba(155,89,182,0.1); padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(155,89,182,0.3); }
-.forecast-header h3 { margin: 0; color: #9b59b6; font-size: 1.3rem; }
+.forecast-box { background: var(--bg-card); padding: 0; border-radius: 12px; width: 100%; max-width: 700px; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; border: 1px solid #C08A2E; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
+.forecast-header { background: rgba(192, 138, 46, 0.1); padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(192, 138, 46, 0.3); }
+.forecast-header h3 { margin: 0; color: #C08A2E; font-size: 1.3rem; }
 .btn-close-modal { background: transparent; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; }
-.btn-close-modal:hover { color: #e74c3c; }
+.btn-close-modal:hover { color: #B23B2E; }
 
 .forecast-body { padding: 24px; overflow-y: auto; }
 .forecasting-loader { text-align: center; padding: 40px; color: var(--text-muted); }
@@ -993,7 +988,7 @@ onMounted(() => {
 .forecast-item { background: var(--bg-input); padding: 18px; border-radius: 10px; margin-bottom: 15px; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 15px; }
 .forecast-info { flex: 1; }
 .forecast-info h4 { margin: 0 0 8px 0; color: var(--text-heading); font-size: 1.1rem; }
-.forecast-reason { font-size: 0.85rem; color: #f39c12; line-height: 1.4; display: block; }
+.forecast-reason { font-size: 0.85rem; color: #B98229; line-height: 1.4; display: block; }
 .forecast-action { text-align: right; min-width: 140px; }
 .forecast-qty { display: block; margin-bottom: 10px; font-size: 0.95rem; color: var(--text-muted); }
 @keyframes pulse-ai { from { transform: scale(1); opacity: 0.7; } to { transform: scale(1.2); opacity: 1; } }
@@ -1022,7 +1017,7 @@ onMounted(() => {
   cursor: pointer;
   transition: 0.3s;
 }
-.btn-close:hover { color: #e74c3c; transform: scale(1.1); }
+.btn-close:hover { color: #B23B2E; transform: scale(1.1); }
 .modal-body {
   padding: 24px;
   overflow-y: auto;
@@ -1047,8 +1042,8 @@ onMounted(() => {
     overflow: visible !important;
     box-shadow: none !important;
     border-radius: 0 !important;
-    background: white !important;
-    color: #111 !important;
+    background: #FFFFFF !important;
+    color: #1A170F !important;
     padding: 0 !important;
     z-index: 99999 !important;
   }

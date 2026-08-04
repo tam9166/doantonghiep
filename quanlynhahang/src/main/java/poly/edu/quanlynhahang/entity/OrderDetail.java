@@ -1,6 +1,7 @@
 package poly.edu.quanlynhahang.entity;
 
 import java.math.BigDecimal;
+import java.util.Date;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -34,6 +35,34 @@ public class OrderDetail {
 
     @jakarta.persistence.Column(columnDefinition = "int default 0")
     private Integer status = 0; // 0: Chờ nấu, 1: Đã nấu xong, 2: Đã phục vụ
+
+    @Column(name = "note", columnDefinition = "nvarchar(500)")
+    private String note;
+
+    @Column(name = "allergy_note", columnDefinition = "nvarchar(500)")
+    private String allergyNote;
+
+    @Column(nullable = false)
+    private Integer priority = 0;
+
+    @jakarta.persistence.Temporal(jakarta.persistence.TemporalType.TIMESTAMP)
+    @Column(name = "queued_at")
+    private Date queuedAt;
+
+    @jakarta.persistence.Temporal(jakarta.persistence.TemporalType.TIMESTAMP)
+    @Column(name = "started_at")
+    private Date startedAt;
+
+    @jakarta.persistence.Temporal(jakarta.persistence.TemporalType.TIMESTAMP)
+    @Column(name = "completed_at")
+    private Date completedAt;
+
+    @jakarta.persistence.Temporal(jakarta.persistence.TemporalType.TIMESTAMP)
+    @Column(name = "cancelled_at")
+    private Date cancelledAt;
+
+    @Column(name = "cancel_reason", columnDefinition = "nvarchar(500)")
+    private String cancelReason;
 
     // Khóa ngoại biết chi tiết này là của món ăn nào
     @ManyToOne

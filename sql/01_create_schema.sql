@@ -27,7 +27,7 @@ DROP TABLE IF EXISTS dbo.ingredient_batches;
 DROP TABLE IF EXISTS dbo.import_invoices;
 DROP TABLE IF EXISTS dbo.timekeeping;
 DROP TABLE IF EXISTS dbo.work_schedules;
-DROP TABLE IF EXISTS dbo.OrderDetails;
+DROP TABLE IF EXISTS dbo.order_details;
 DROP TABLE IF EXISTS dbo.Reviews;
 DROP TABLE IF EXISTS dbo.Orders;
 DROP TABLE IF EXISTS dbo.recipes;
@@ -228,9 +228,9 @@ CREATE TABLE dbo.ingredient_batches (
     id                 BIGINT IDENTITY(1,1) NOT NULL,
     ingredient_id      BIGINT               NOT NULL,
     import_invoice_id  BIGINT               NULL,
-    batch_code         VARCHAR(50)          NOT NULL,
+    batch_code         VARCHAR(50)          NOT NULL CONSTRAINT DF_ingredient_batches_batch_code DEFAULT ('AUTO-' + CONVERT(VARCHAR(36), NEWID())),
     quantity           DECIMAL(18,3)        NOT NULL,
-    remaining_quantity DECIMAL(18,3)        NOT NULL,
+    remaining_quantity DECIMAL(18,3)        NOT NULL CONSTRAINT DF_ingredient_batches_remaining_quantity DEFAULT (0),
     import_date        DATETIME2(0)         NOT NULL CONSTRAINT DF_ingredient_batches_import_date DEFAULT (SYSDATETIME()),
     expiration_date    DATE                 NULL,
     expiry_date        DATE                 NULL,
@@ -246,6 +246,23 @@ CREATE TABLE dbo.ingredient_batches (
     CONSTRAINT CK_ingredient_batches_remaining_lte_quantity CHECK (remaining_quantity <= quantity),
     CONSTRAINT CK_ingredient_batches_unit_price_non_negative CHECK (unit_price >= 0)
 );
+GO
+
+/* Auto-created batches use their received quantity as the initial stock. */
+CREATE TRIGGER dbo.TR_ingredient_batches_initialize_remaining_quantity
+ON dbo.ingredient_batches
+AFTER INSERT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    UPDATE batch
+    SET remaining_quantity = inserted.quantity
+    FROM dbo.ingredient_batches batch
+    INNER JOIN inserted ON inserted.id = batch.id
+    WHERE inserted.batch_code LIKE 'AUTO-%'
+      AND inserted.remaining_quantity = 0;
+END;
 GO
 
 CREATE TABLE dbo.ImportInvoiceDetails (
@@ -266,7 +283,7 @@ CREATE TABLE dbo.ImportInvoiceDetails (
 GO
 
 CREATE TABLE dbo.Orders (
-    id              INT IDENTITY(1,1) NOT NULL,
+    id              BIGINT IDENTITY(1,1) NOT NULL,
     create_date     DATETIME2(0)      NOT NULL CONSTRAINT DF_Orders_create_date DEFAULT (SYSDATETIME()),
     username        VARCHAR(50)       NULL,
     table_id        INT               NULL,
@@ -300,9 +317,9 @@ CREATE TABLE dbo.Orders (
 );
 GO
 
-CREATE TABLE dbo.OrderDetails (
+CREATE TABLE dbo.order_details (
     id            INT IDENTITY(1,1) NOT NULL,
-    order_id      INT               NOT NULL,
+    order_id      BIGINT            NOT NULL,
     product_id    INT               NOT NULL,
     price         DECIMAL(18,2)     NOT NULL CONSTRAINT DF_OrderDetails_price DEFAULT (0),
     unit_price    DECIMAL(18,2)     NOT NULL,
@@ -329,7 +346,7 @@ CREATE TABLE dbo.Reviews (
     id          INT IDENTITY(1,1) NOT NULL,
     username    VARCHAR(50)       NOT NULL,
     product_id  INT               NOT NULL,
-    order_id    INT               NULL,
+    order_id    BIGINT            NULL,
     rating      INT               NOT NULL,
     comment     NVARCHAR(500)     NULL,
     create_date DATETIME2(0)      NOT NULL CONSTRAINT DF_Reviews_create_date DEFAULT (SYSDATETIME()),
@@ -430,9 +447,9 @@ CREATE INDEX IX_Orders_username ON dbo.Orders(username);
 CREATE INDEX IX_Orders_status ON dbo.Orders(status_name);
 CREATE INDEX IX_Orders_create_date ON dbo.Orders(create_date);
 CREATE INDEX IX_Orders_table_id ON dbo.Orders(table_id);
-CREATE INDEX IX_OrderDetails_order_id ON dbo.OrderDetails(order_id);
-CREATE INDEX IX_OrderDetails_product_id ON dbo.OrderDetails(product_id);
-CREATE INDEX IX_OrderDetails_status ON dbo.OrderDetails(status_name);
+CREATE INDEX IX_OrderDetails_order_id ON dbo.order_details(order_id);
+CREATE INDEX IX_OrderDetails_product_id ON dbo.order_details(product_id);
+CREATE INDEX IX_OrderDetails_status ON dbo.order_details(status_name);
 CREATE INDEX IX_Products_category_id ON dbo.Products(category_id);
 CREATE INDEX IX_Reviews_product_id ON dbo.Reviews(product_id);
 CREATE INDEX IX_recipes_product_id ON dbo.recipes(product_id);

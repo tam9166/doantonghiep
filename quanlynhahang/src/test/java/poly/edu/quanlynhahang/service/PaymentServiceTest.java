@@ -123,9 +123,9 @@ class PaymentServiceTest {
         PaymentQrResponse response = service.createQr(request, "capability-token", "create-qr-001");
 
         assertEquals("MB", response.getBankCode());
-        assertEquals("919112006789", response.getAccountNumber());
-        assertEquals("HOANG NGUYEN MINH TAM", response.getAccountHolder());
-        assertTrue(response.getQrUrl().contains("/MB-919112006789-compact2.png"));
+        assertEquals("1234567890", response.getAccountNumber());
+        assertEquals("TEST ACCOUNT HOLDER", response.getAccountHolder());
+        assertTrue(response.getQrUrl().contains("/MB-1234567890-compact2.png"));
     }
 
     @Test
@@ -256,8 +256,8 @@ class PaymentServiceTest {
         intent.setStatus(PaymentStatus.PENDING);
         intent.setAmount(new BigDecimal("100000"));
         intent.setBankCode("MB");
-        intent.setAccountNumber("919112006789");
-        intent.setAccountHolder("Hoang Nguyen Minh Tam");
+        intent.setAccountNumber("1234567890");
+        intent.setAccountHolder("TEST ACCOUNT HOLDER");
         intent.setTransferContent("MV MV-001 PAY-MV-001");
         intent.setQrUrl("https://example.test/qr.png");
         intent.setExpiresAt(Date.from(Instant.now().plusSeconds(300)));
@@ -280,8 +280,8 @@ class PaymentServiceTest {
         PaymentProperties properties = new PaymentProperties();
         properties.setBankCode("MB");
         properties.setBankBin("970422");
-        properties.setAccountNumber("919112006789");
-        properties.setAccountHolder("HOANG NGUYEN MINH TAM");
+        properties.setAccountNumber("1234567890");
+        properties.setAccountHolder("TEST ACCOUNT HOLDER");
         properties.setQrProvider("VIETQR");
         properties.setQrExpirationMinutes(15);
         properties.setDemoMode(false);

@@ -229,7 +229,7 @@ onMounted(() => {
   background-color: var(--bg-root);
   min-height: 100vh;
   color: var(--text-main);
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-primary);
 }
 
 .staff-header {
@@ -323,12 +323,12 @@ onMounted(() => {
 .text-center { text-align: center !important; color: var(--text-muted); }
 
 /* BADGES */
-.shift-badge { background: #3498db; color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.85rem; font-weight: 600; }
+.shift-badge { background: #5A6E45; color: #FFFFFF; padding: 4px 10px; border-radius: 12px; font-size: 0.85rem; font-weight: 600; }
 .status-badge { padding: 5px 10px; border-radius: 15px; font-size: 0.85rem; font-weight: bold; }
-.status-success { background: rgba(39, 174, 96, 0.2); color: #2ecc71; }
-.status-warning { background: rgba(243, 156, 18, 0.2); color: #f1c40f; }
-.status-danger { background: rgba(231, 76, 60, 0.2); color: #e74c3c; }
-.status-secondary { background: rgba(149, 165, 166, 0.2); color: #bdc3c7; }
+.status-success { background: rgba(39, 174, 96, 0.2); color: #2F8F5B; }
+.status-warning { background: rgba(185, 130, 41, 0.2); color: #B98229; }
+.status-danger { background: rgba(178, 59, 46, 0.2); color: #B23B2E; }
+.status-secondary { background: rgba(111, 122, 115, 0.2); color: #A6B0AA; }
 
 /* SALARY CARD */
 .salary-card {
@@ -350,7 +350,7 @@ onMounted(() => {
   margin-top: 15px;
 }
 .text-primary { color: var(--primary); }
-.text-success { color: #2ecc71; }
+.text-success { color: #2F8F5B; }
 .salary-note {
   margin-top: 25px;
   font-size: 0.9rem;

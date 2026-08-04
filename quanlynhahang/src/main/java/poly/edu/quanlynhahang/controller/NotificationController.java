@@ -9,8 +9,6 @@ import poly.edu.quanlynhahang.repository.NotificationRepository;
 import poly.edu.quanlynhahang.service.NotificationService;
 
 import java.util.*;
-
-@CrossOrigin("*")
 @RestController
 @RequestMapping("/api/admin/notifications")
 @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_KITCHEN', 'ROLE_WAITER', 'ROLE_CASHIER')")

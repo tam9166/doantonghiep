@@ -382,6 +382,35 @@ onUnmounted(() => {
   color: #B23B2E !important;
 }
 
+/* Customer-facing GustoPro navigation. */
+.app-navbar,
+.navbar-transparent,
+.app-navbar:not(.navbar-transparent):not(.navbar-scrolled),
+.navbar-scrolled {
+  padding: 8px 32px;
+  background: rgba(255, 248, 247, 0.96);
+  border-bottom: 1px solid var(--color-outline-variant);
+  box-shadow: 0 2px 12px rgba(39, 23, 23, 0.06);
+}
+.navbar-inner { max-width: 1240px; }
+.brand-icon { filter: none; font-size: 1.55rem; }
+.brand-text h2 { color: var(--color-on-surface); font-family: var(--font-display); font-size: 0.95rem; letter-spacing: 0; }
+.brand-text h2 span { color: var(--primary); }
+.brand-text p { color: var(--text-muted); letter-spacing: 0.18em; }
+.navbar-nav a { color: var(--text-secondary); border-radius: 0; font-size: 0.8rem; padding: 10px 13px; }
+.navbar-nav a:hover { color: var(--primary); background: transparent; }
+.navbar-nav a.active { color: var(--primary); background: transparent; box-shadow: inset 0 -2px 0 var(--primary); }
+.lang-select, .nav-btn { background: var(--bg-card); color: var(--text-secondary); border-color: var(--color-outline-variant); border-radius: 999px; }
+.lang-select option { background: var(--bg-card); color: var(--text-primary); }
+.nav-btn:hover, .lang-select:hover { color: var(--primary); border-color: var(--primary); background: var(--color-surface-container-low); }
+.nav-btn-primary { background: var(--primary); color: var(--color-on-primary); border-color: var(--primary); }
+.nav-btn-primary:hover { background: var(--primary-dark); color: var(--color-on-primary); box-shadow: none; transform: none; }
+.hamburger span { background: var(--text-primary); }
+.mobile-overlay { background: rgba(62, 44, 43, 0.38); backdrop-filter: blur(6px); }
+.mobile-nav { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px; }
+.mobile-nav a { background: transparent; border-color: transparent; color: var(--text-primary); }
+.mobile-nav a:hover, .mobile-nav a.router-link-active { background: var(--color-surface-container); border-color: var(--color-outline-variant); color: var(--primary); }
+
 /* Transition */
 .mobile-menu-enter-active { animation: fadeIn 0.3s ease; }
 .mobile-menu-leave-active { animation: fadeIn 0.3s ease reverse; }
@@ -404,5 +433,9 @@ onUnmounted(() => {
   .mobile-overlay { align-items: flex-start; }
   .mobile-nav { width: 100%; }
   .mobile-nav a { min-height: 48px; padding: 13px 18px; font-size: 1.05rem; }
+  .navbar-inner { gap: 10px; }
+  .brand-icon { font-size: 1.35rem; }
+  .brand-text h2 { max-width: 164px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .app-navbar, .navbar-transparent, .navbar-scrolled { padding-right: 12px; padding-left: 12px; }
 }
 </style>

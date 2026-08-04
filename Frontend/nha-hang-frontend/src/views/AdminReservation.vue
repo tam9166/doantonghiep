@@ -1,0 +1,824 @@
+<template>
+  <AdminLayout>
+    <section class="admin-reservation">
+      <div class="toolbar">
+        <div>
+          <h1>Quản lý đặt bàn</h1>
+          <p>Xác nhận yêu cầu, theo dõi tiền cọc và trạng thái khách đến.</p>
+        </div>
+        <button class="primary-btn" type="button" @click="refreshAdminData" :disabled="loading">
+          {{ loading ? 'Đang tải...' : 'Làm mới' }}
+        </button>
+      </div>
+      <div v-if="realtimeMessage" class="realtime-alert">{{ realtimeMessage }}</div>
+
+      <div class="filters">
+        <div class="search-control">
+          <input
+            v-model.trim="keywordInput"
+            type="search"
+            placeholder="Tìm mã, tên khách, số điện thoại, bàn hoặc khu vực..."
+            aria-label="Tìm kiếm đặt bàn"
+            @keydown.esc="clearSearch"
+          />
+          <button v-if="keywordInput" type="button" class="clear-search" aria-label="Xóa từ khóa tìm kiếm" @click="clearSearch">×</button>
+        </div>
+        <select v-model="statusFilter">
+          <option value="">Tất cả trạng thái</option>
+          <option v-for="status in statuses" :key="status" :value="status">{{ statusText(status) }}</option>
+        </select>
+      </div>
+
+      <div class="status-tabs">
+        <button
+          v-for="group in groups"
+          :key="group.key"
+          type="button"
+          :class="{ active: statusFilter === group.key }"
+          @click="statusFilter = statusFilter === group.key ? '' : group.key"
+        >
+          <span>{{ countByStatus(group.key) }}</span>{{ group.label }}
+        </button>
+      </div>
+
+      <div v-if="error" class="error">{{ error }}</div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Mã đặt bàn</th>
+              <th>Khách hàng</th>
+              <th>Thời gian</th>
+              <th>Bàn / khu vực</th>
+              <th>Tiền cọc</th>
+              <th>Trạng thái</th>
+              <th>Thao tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in filteredReservations" :key="item.id">
+              <td>
+                <strong>{{ item.reservationCode }}</strong>
+                <small>{{ formatDateTime(item.createdAt) }}</small>
+              </td>
+              <td>
+                <strong>{{ item.customerName }}</strong>
+                <span>{{ item.customerPhone }}</span>
+                <span v-if="item.customerEmail">{{ item.customerEmail }}</span>
+              </td>
+              <td>
+                <strong>{{ item.reservationDate }}</strong>
+                <span>{{ item.arrivalTime }} · {{ item.expectedDurationMinutes }} phút</span>
+                <span>{{ item.guestCount }} khách</span>
+              </td>
+              <td>
+                <strong>{{ item.tableName }}</strong>
+                <span>{{ item.areaName || item.tableFloor }}</span>
+              </td>
+              <td>
+                <strong>{{ money(item.depositAmount) }}</strong>
+                <span>{{ money(item.totalAmount) }} tổng</span>
+                <span>{{ item.depositStatus }}</span>
+              </td>
+              <td>
+                <span class="status-badge" :class="item.reservationStatus">{{ statusText(item.reservationStatus) }}</span>
+              </td>
+              <td>
+                <div class="row-actions">
+                  <button v-if="item.reservationStatus === 'PENDING'" type="button" @click="confirmReservation(item)">Xác nhận</button>
+                  <button v-if="item.reservationStatus === 'PENDING'" type="button" class="danger" @click="rejectReservation(item)">Từ chối</button>
+                  <button v-if="['DEPOSIT_REQUIRED','DEPOSIT_PENDING'].includes(item.reservationStatus)" type="button" @click="markDeposit(item)">Đã cọc</button>
+                  <button v-if="['CONFIRMED','DEPOSIT_REQUIRED','DEPOSIT_PENDING','DEPOSIT_PAID','FULLY_PAID'].includes(item.reservationStatus)" type="button" @click="checkIn(item)">Check-in</button>
+                  <button v-if="!['CANCELLED','REJECTED','COMPLETED'].includes(item.reservationStatus)" type="button" class="ghost" @click="cancelReservation(item)">Hủy</button>
+                  <button type="button" class="ghost" @click="refreshDetail(item)">Chi tiết</button>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="filteredReservations.length === 0">
+              <td colspan="7" class="empty">Chưa có yêu cầu đặt bàn phù hợp.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <section class="waitlist-panel">
+        <div class="section-heading">
+          <div>
+            <h2>Danh sách chờ</h2>
+            <p>Khách chưa chọn được bàn phù hợp và đang chờ nhà hàng liên hệ.</p>
+          </div>
+          <strong>{{ activeWaitlist.length }} đang chờ</strong>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Mã chờ</th>
+                <th>Khách hàng</th>
+                <th>Khung giờ</th>
+                <th>Khu vực</th>
+                <th>Trạng thái</th>
+                <th>Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in waitlist" :key="item.id">
+                <td>
+                  <strong>{{ item.waitlistCode }}</strong>
+                  <small>{{ formatDateTime(item.createdAt) }}</small>
+                </td>
+                <td>
+                  <strong>{{ item.customerName }}</strong>
+                  <span>{{ item.customerPhone }}</span>
+                  <span v-if="item.customerEmail">{{ item.customerEmail }}</span>
+                </td>
+                <td>
+                  <strong>{{ item.reservationDate }}</strong>
+                  <span>{{ item.preferredStartTime }} - {{ item.preferredEndTime }}</span>
+                  <span>{{ item.guestCount }} khách</span>
+                </td>
+                <td>
+                  <strong>{{ item.areaName || '-' }}</strong>
+                  <span>{{ item.seatingPreference || '-' }}</span>
+                </td>
+                <td>
+                  <span class="status-badge" :class="item.status">{{ waitlistStatusText(item.status) }}</span>
+                </td>
+                <td>
+                  <div class="row-actions">
+                    <button v-if="['WAITING','CONTACTED'].includes(item.status)" type="button" @click="contactWaitlist(item)">Đã liên hệ</button>
+                    <button v-if="['WAITING','CONTACTED'].includes(item.status)" type="button" @click="convertWaitlist(item)">Đã chuyển đặt bàn</button>
+                    <button v-if="['WAITING','CONTACTED'].includes(item.status)" type="button" class="ghost" @click="cancelWaitlist(item)">Hủy</button>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="waitlist.length === 0">
+                <td colspan="6" class="empty">Chưa có khách trong danh sách chờ.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <div v-if="selected" class="modal" @click.self="selected = null">
+        <article class="detail-panel">
+          <header>
+            <h2>{{ selected.reservationCode }}</h2>
+            <button type="button" @click="selected = null">Đóng</button>
+          </header>
+          <div class="detail-grid">
+            <div><span>Khách</span><strong>{{ selected.customerName }}</strong></div>
+            <div><span>SĐT</span><strong>{{ selected.customerPhone }}</strong></div>
+            <div><span>Email</span><strong>{{ selected.customerEmail || '-' }}</strong></div>
+            <div><span>Ngày giờ</span><strong>{{ selected.reservationDate }} {{ selected.arrivalTime }}</strong></div>
+            <div><span>Dịp</span><strong>{{ selected.occasion || '-' }}</strong></div>
+            <div><span>Sở thích vị trí</span><strong>{{ selected.seatingPreference || '-' }}</strong></div>
+            <div><span>Yêu cầu</span><strong>{{ selected.specialRequest || '-' }}</strong></div>
+            <div><span>Hình thức thanh toán</span><strong>{{ paymentOptionText(selected.paymentOption) }}</strong></div>
+            <div><span>Tiền bàn</span><strong>{{ money(selected.tableAmount) }}</strong></div>
+            <div><span>Tiền món</span><strong>{{ money(selected.foodAmount) }}</strong></div>
+            <div><span>Cần thanh toán</span><strong>{{ money(selected.depositAmount) }}</strong></div>
+            <div><span>Còn lại</span><strong>{{ money(selected.remainingAmount) }}</strong></div>
+            <div><span>Trạng thái thanh toán</span><strong>{{ paymentStatusText(selected.paymentStatus) }}</strong></div>
+            <div><span>Lý do từ chối</span><strong>{{ selected.rejectedReason || '-' }}</strong></div>
+            <div><span>Ghi chú nội bộ</span><strong>{{ selected.managerNote || '-' }}</strong></div>
+          </div>
+          <h3>Món đặt trước</h3>
+          <div v-if="selected.preorderItems?.length" class="preorder-list">
+            <div v-for="dish in selected.preorderItems" :key="dish.id" class="preorder-row">
+              <strong>{{ dish.productName }}</strong>
+              <span>{{ dish.quantity }} x {{ money(dish.unitPrice) }}</span>
+              <span>{{ money(dish.lineTotal) }}</span>
+              <small>{{ dish.note || '-' }}</small>
+            </div>
+          </div>
+          <p v-else class="empty-inline">Khách không đặt món trước.</p>
+          <h3>Giao dịch QR</h3>
+          <div v-if="selected.payments?.length" class="preorder-list">
+            <div v-for="payment in selected.payments" :key="payment.paymentCode" class="preorder-row">
+              <strong>{{ payment.paymentCode }}</strong>
+              <span>{{ money(payment.amount) }}</span>
+              <span>{{ payment.status }}</span>
+              <small>{{ payment.transferContent }}</small>
+            </div>
+          </div>
+          <p v-else class="empty-inline">Chưa tạo QR thanh toán.</p>
+          <h3>Lịch sử trạng thái</h3>
+          <ul>
+            <li v-for="entry in selected.history || []" :key="entry">{{ entry }}</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+  </AdminLayout>
+</template>
+
+<script setup>
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { Client } from '@stomp/stompjs'
+import SockJS from 'sockjs-client'
+import AdminLayout from '@/components/AdminLayout.vue'
+import api from '@/services/api'
+
+const reservations = ref([])
+const waitlist = ref([])
+const loading = ref(false)
+const error = ref('')
+const keywordInput = ref('')
+const keyword = ref('')
+const statusFilter = ref('')
+const selected = ref(null)
+const realtimeMessage = ref('')
+let stompClient = null
+let realtimeTimer = null
+let keywordTimer = null
+
+const statuses = ['PENDING', 'CONFIRMED', 'DEPOSIT_REQUIRED', 'DEPOSIT_PENDING', 'DEPOSIT_PAID', 'FULLY_PAID', 'CHECKED_IN', 'IN_SERVICE', 'COMPLETED', 'CANCELLED', 'REJECTED', 'NO_SHOW', 'EXPIRED']
+const groups = [
+  { key: 'PENDING', label: 'Yêu cầu mới' },
+  { key: 'DEPOSIT_REQUIRED', label: 'Cần cọc' },
+  { key: 'DEPOSIT_PAID', label: 'Đã cọc' },
+  { key: 'CHECKED_IN', label: 'Đã đến' },
+  { key: 'CANCELLED', label: 'Đã hủy' },
+  { key: 'REJECTED', label: 'Từ chối' }
+]
+
+const filteredReservations = computed(() => {
+  const q = keyword.value.toLowerCase()
+  return reservations.value.filter(item => {
+    const matchStatus = !statusFilter.value || item.reservationStatus === statusFilter.value
+    const haystack = `${item.reservationCode} ${item.customerName} ${item.customerPhone} ${item.customerEmail || ''} ${item.tableName || ''} ${item.areaName || ''} ${item.tableFloor || ''}`.toLowerCase()
+    return matchStatus && (!q || haystack.includes(q))
+  })
+})
+
+watch(keywordInput, (value) => {
+  if (keywordTimer) clearTimeout(keywordTimer)
+  keywordTimer = setTimeout(() => { keyword.value = value }, 220)
+})
+
+function clearSearch() {
+  if (keywordTimer) clearTimeout(keywordTimer)
+  keywordInput.value = ''
+  keyword.value = ''
+}
+
+const activeWaitlist = computed(() => waitlist.value.filter(item => ['WAITING', 'CONTACTED'].includes(item.status)))
+
+const money = (value) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(Number(value || 0))
+const formatDateTime = (value) => value ? new Date(value).toLocaleString('vi-VN') : ''
+const countByStatus = (status) => reservations.value.filter(item => item.reservationStatus === status).length
+
+function statusText(status) {
+  const map = {
+    PENDING: 'Chờ xác nhận',
+    CONFIRMED: 'Đã xác nhận',
+    DEPOSIT_REQUIRED: 'Cần thanh toán cọc',
+    REJECTED: 'Từ chối',
+    DEPOSIT_PENDING: 'Đang chờ xác nhận cọc',
+    DEPOSIT_PAID: 'Đã cọc',
+    FULLY_PAID: 'Đã thanh toán đủ',
+    CHECKED_IN: 'Đã đến',
+    IN_SERVICE: 'Đang phục vụ',
+    COMPLETED: 'Hoàn thành',
+    CANCELLED: 'Đã hủy',
+    EXPIRED: 'Quá hạn',
+    NO_SHOW: 'Không đến'
+  }
+  return map[status] || status
+}
+
+function paymentOptionText(option) {
+  const map = {
+    DEPOSIT_50: 'Đặt cọc 50%',
+    FULL: 'Thanh toán toàn bộ',
+    PAY_AT_RESTAURANT: 'Thanh toán tại nhà hàng'
+  }
+  return map[option] || option || '-'
+}
+
+function paymentStatusText(status) {
+  const map = {
+    PENDING: 'Chờ thanh toán',
+    PAID: 'Đã thanh toán',
+    EXPIRED: 'Hết hạn',
+    CANCELLED: 'Đã hủy'
+  }
+  return map[status] || status || '-'
+}
+
+function waitlistStatusText(status) {
+  const map = {
+    WAITING: 'Đang chờ',
+    CONTACTED: 'Đã liên hệ',
+    CONVERTED: 'Đã chuyển đặt bàn',
+    CANCELLED: 'Đã hủy',
+    EXPIRED: 'Hết hạn'
+  }
+  return map[status] || status || '-'
+}
+
+async function refreshAdminData() {
+  loading.value = true
+  error.value = ''
+  try {
+    await Promise.all([fetchReservations(), fetchWaitlist()])
+  } finally {
+    loading.value = false
+  }
+}
+
+async function fetchReservations() {
+  try {
+    const res = await api.get('/api/admin/reservations')
+    reservations.value = res.data
+  } catch (err) {
+    error.value = err.response?.data?.message || err.response?.data || 'Không tải được danh sách đặt bàn'
+  }
+}
+
+async function fetchWaitlist() {
+  try {
+    const res = await api.get('/api/admin/reservation-waitlist')
+    waitlist.value = Array.isArray(res.data) ? res.data : []
+  } catch (err) {
+    error.value = err.response?.data?.message || err.response?.data || 'Không tải được danh sách chờ'
+  }
+}
+
+function upsertReservation(item) {
+  if (!item?.id) return
+  const idx = reservations.value.findIndex(r => r.id === item.id)
+  if (idx >= 0) {
+    reservations.value[idx] = { ...reservations.value[idx], ...item }
+  } else {
+    reservations.value.unshift(item)
+    playSoftBeep()
+  }
+}
+
+function handleRealtimeEvent(event) {
+  if (!event) return
+  if (event.reservation) upsertReservation(event.reservation)
+  realtimeMessage.value = event.message || `Cập nhật ${event.reservationCode || ''}`
+  window.clearTimeout(realtimeTimer)
+  realtimeTimer = window.setTimeout(() => {
+    realtimeMessage.value = ''
+  }, 5000)
+}
+
+function connectRealtime() {
+  if (stompClient?.active) return
+  stompClient = new Client({
+    webSocketFactory: () => new SockJS('/ws'),
+    connectHeaders: localStorage.getItem('token')
+      ? { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      : {},
+    reconnectDelay: 5000,
+    onConnect: () => {
+      stompClient.subscribe('/topic/admin/reservations', message => {
+        try {
+          handleRealtimeEvent(JSON.parse(message.body))
+        } catch (err) {
+          console.warn('Không đọc được sự kiện đặt bàn realtime', err)
+        }
+      })
+    }
+  })
+  stompClient.activate()
+}
+
+function playSoftBeep() {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext
+    if (!AudioContext) return
+    const ctx = new AudioContext()
+    const oscillator = ctx.createOscillator()
+    const gain = ctx.createGain()
+    oscillator.frequency.value = 720
+    gain.gain.value = 0.04
+    oscillator.connect(gain)
+    gain.connect(ctx.destination)
+    oscillator.start()
+    oscillator.stop(ctx.currentTime + 0.08)
+  } catch {
+    // Browser may block sound until the user interacts with the page.
+  }
+}
+
+async function refreshDetail(item) {
+  const res = await api.get(`/api/admin/reservations/${item.id}`)
+  const idx = reservations.value.findIndex(r => r.id === item.id)
+  if (idx >= 0) reservations.value[idx] = res.data
+  selected.value = res.data
+}
+
+async function confirmReservation(item) {
+  const note = window.prompt('Ghi chú xác nhận (không bắt buộc):') || ''
+  await api.patch(`/api/admin/reservations/${item.id}/confirm`, { note })
+  await fetchReservations()
+}
+
+async function rejectReservation(item) {
+  const reason = window.prompt('Nhập lý do từ chối:')
+  if (!reason || !reason.trim()) return
+  await api.patch(`/api/admin/reservations/${item.id}/reject`, { reason })
+  await fetchReservations()
+}
+
+async function markDeposit(item) {
+  await api.patch(`/api/admin/reservations/${item.id}/deposit`, { note: 'Đã nhận tiền đặt cọc' })
+  await fetchReservations()
+}
+
+async function checkIn(item) {
+  await api.patch(`/api/admin/reservations/${item.id}/check-in`, { note: 'Khách đã đến' })
+  await fetchReservations()
+}
+
+async function cancelReservation(item) {
+  const note = window.prompt('Lý do/ghi chú hủy đặt bàn:') || ''
+  await api.patch(`/api/admin/reservations/${item.id}/cancel`, { note })
+  await fetchReservations()
+}
+
+async function contactWaitlist(item) {
+  const note = window.prompt('Ghi chú liên hệ khách:', item.managerNote || '') || ''
+  await api.patch(`/api/admin/reservation-waitlist/${item.id}/contact`, { note })
+  await fetchWaitlist()
+}
+
+async function convertWaitlist(item) {
+  const linkedReservationCode = window.prompt('Nhập mã đặt bàn đã tạo cho khách (nếu có):', item.linkedReservationCode || '') || ''
+  const note = window.prompt('Ghi chú chuyển đổi:', item.managerNote || '') || ''
+  await api.patch(`/api/admin/reservation-waitlist/${item.id}/convert`, { linkedReservationCode, note })
+  await fetchWaitlist()
+}
+
+async function cancelWaitlist(item) {
+  const note = window.prompt('Lý do hủy danh sách chờ:', item.managerNote || '') || ''
+  await api.patch(`/api/admin/reservation-waitlist/${item.id}/cancel`, { note })
+  await fetchWaitlist()
+}
+
+onMounted(() => {
+  refreshAdminData()
+  connectRealtime()
+})
+
+onBeforeUnmount(() => {
+  if (keywordTimer) clearTimeout(keywordTimer)
+  window.clearTimeout(realtimeTimer)
+  if (stompClient) stompClient.deactivate()
+})
+</script>
+
+<style scoped>
+.admin-reservation {
+  color: #201D14;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.realtime-alert {
+  border: 1px solid #D7E3ED;
+  background: #EEF3F6;
+  color: #5A6E45;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  font-weight: 800;
+}
+
+h1 {
+  margin: 0 0 6px;
+  color: #22301B;
+}
+
+p {
+  margin: 0;
+  color: #7A7460;
+}
+
+.primary-btn,
+.row-actions button,
+.detail-panel header button {
+  border: 1px solid #33422A;
+  background: #33422A;
+  color: #FFFFFF;
+  border-radius: 8px;
+  min-height: 36px;
+  padding: 0 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) 220px;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.search-control {
+  position: relative;
+}
+
+.search-control::before {
+  content: '⌕';
+  position: absolute;
+  top: 50%;
+  left: 13px;
+  color: var(--text-muted);
+  font-size: 1.25rem;
+  line-height: 1;
+  transform: translateY(-54%);
+  pointer-events: none;
+}
+
+.filters input,
+.filters select {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  min-height: 40px;
+  padding: 0 12px;
+  font: inherit;
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+
+.filters input { padding-left: 40px; padding-right: 42px; }
+.filters input:focus,
+.filters select:focus { outline: 2px solid var(--primary-glow); border-color: var(--primary); }
+.clear-search {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+.clear-search:hover { background: var(--bg-hover); color: var(--primary); }
+
+.status-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.status-tabs button {
+  border: 1px solid #CFC7A8;
+  background: #FFFFFF;
+  border-radius: 8px;
+  min-height: 40px;
+  padding: 0 12px;
+  color: #55503E;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.status-tabs button.active {
+  border-color: #33422A;
+  color: #22301B;
+}
+
+.status-tabs span {
+  display: inline-flex;
+  margin-right: 8px;
+  background: #E7E3D2;
+  color: #33422A;
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.table-wrap {
+  background: #FFFFFF;
+  border: 1px solid #CFC7A8;
+  border-radius: 8px;
+  overflow: auto;
+}
+
+.waitlist-panel {
+  margin-top: 24px;
+}
+
+.section-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-end;
+  margin-bottom: 12px;
+}
+
+.section-heading h2 {
+  margin: 0 0 4px;
+  color: #22301B;
+}
+
+.section-heading strong {
+  white-space: nowrap;
+  color: #33422A;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 980px;
+}
+
+th,
+td {
+  padding: 13px 14px;
+  border-bottom: 1px solid #E2DCC2;
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  position: sticky;
+  top: 0;
+  background: #DED8C2;
+  color: #55503E;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+
+td strong,
+td span,
+td small {
+  display: block;
+}
+
+td span,
+td small {
+  color: #7A7460;
+  margin-top: 4px;
+}
+
+.status-badge {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 5px 10px;
+  background: #E7E3D2;
+  color: #33422A;
+  font-weight: 900;
+  font-size: 0.8rem;
+}
+
+.status-badge.REJECTED,
+.status-badge.CANCELLED {
+  background: #F4E8E5;
+  color: #B23B2E;
+}
+
+.status-badge.DEPOSIT_PENDING,
+.status-badge.DEPOSIT_REQUIRED {
+  background: #F5F0E4;
+  color: #B98229;
+}
+
+.status-badge.FULLY_PAID,
+.status-badge.DEPOSIT_PAID {
+  background: #EEF5EF;
+  color: #33422A;
+}
+
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.row-actions .danger {
+  background: #B23B2E;
+  border-color: #B23B2E;
+}
+
+.row-actions .ghost {
+  background: #FFFFFF;
+  color: #55503E;
+  border-color: #CFC7A8;
+}
+
+.empty,
+.error {
+  text-align: center;
+  color: #7A7460;
+  padding: 28px;
+}
+
+.error {
+  background: #F4E8E5;
+  color: #8F2F25;
+  border: 1px solid #E8C9C4;
+  border-radius: 8px;
+  margin-bottom: 14px;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 23, 15, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 500;
+}
+
+.detail-panel {
+  background: #FFFFFF;
+  border-radius: 8px;
+  width: min(760px, 100%);
+  max-height: 86vh;
+  overflow: auto;
+  padding: 22px;
+}
+
+.detail-panel header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.detail-grid div {
+  border: 1px solid #CFC7A8;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.detail-grid span {
+  display: block;
+  color: #7A7460;
+  margin-bottom: 4px;
+}
+
+.preorder-list {
+  display: grid;
+  gap: 10px;
+  margin: 10px 0 18px;
+}
+
+.preorder-row {
+  display: grid;
+  grid-template-columns: 1.4fr 120px 120px;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid #CFC7A8;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.preorder-row small {
+  grid-column: 1 / -1;
+  color: #7A7460;
+}
+
+.empty-inline {
+  border: 1px dashed #CFC7A8;
+  border-radius: 8px;
+  padding: 12px;
+  margin: 8px 0 18px;
+}
+
+@media (max-width: 780px) {
+  .toolbar,
+  .filters {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+  }
+
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .preorder-row {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

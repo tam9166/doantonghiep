@@ -8,8 +8,6 @@ import poly.edu.quanlynhahang.entity.ActivityLog;
 import poly.edu.quanlynhahang.repository.ActivityLogRepository;
 
 import java.util.*;
-
-@CrossOrigin("*")
 @RestController
 @RequestMapping("/api/admin/activity-logs")
 @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")

@@ -6,6 +6,8 @@ import org.springframework.security.access.AccessDeniedException;
 import poly.edu.quanlynhahang.dto.AiRequest;
 import poly.edu.quanlynhahang.repository.ProductRepository;
 import poly.edu.quanlynhahang.service.GeminiClient;
+import poly.edu.quanlynhahang.service.StaffOperationsAssistantService;
+import poly.edu.quanlynhahang.service.RoleAwareAssistantService;
 
 import java.util.List;
 
@@ -21,7 +23,10 @@ import static org.mockito.Mockito.when;
 class ChatbotControllerSecurityTest {
     private final ProductRepository productRepository = mock(ProductRepository.class);
     private final GeminiClient geminiClient = mock(GeminiClient.class);
-    private final ChatbotController controller = new ChatbotController(productRepository, geminiClient);
+    private final StaffOperationsAssistantService operationsAssistantService = mock(StaffOperationsAssistantService.class);
+    private final RoleAwareAssistantService roleAwareAssistantService = mock(RoleAwareAssistantService.class);
+    private final ChatbotController controller = new ChatbotController(
+            productRepository, geminiClient, operationsAssistantService, roleAwareAssistantService);
 
     @Test
     void publicEndpointRejectsInternalUseCaseBeforeCallingGemini() {

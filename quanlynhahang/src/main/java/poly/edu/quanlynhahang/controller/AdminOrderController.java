@@ -12,6 +12,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +26,8 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.server.ResponseStatusException;
+import jakarta.validation.Valid;
 
 import poly.edu.quanlynhahang.entity.Order;
 import poly.edu.quanlynhahang.dto.OrderResponse;
@@ -139,6 +142,7 @@ public class AdminOrderController {
 
     // 🌟 API MỚI: XỬ LÝ NÚT BẤM "XONG MÓN" HOẶC "ĐÃ BƯNG RA BÀN"
     @PutMapping("/{id}/status")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER') or (hasRole('KITCHEN') and (#status == 2 or #status == 6)) or (hasRole('WAITER') and #status == 7)")
     @Transactional
     public ResponseEntity<?> updateOrderStatus(@PathVariable Integer id, @RequestParam Integer status) {
         if (status == 1) {
@@ -150,6 +154,7 @@ public class AdminOrderController {
             }
         }
         return orderRepository.findById(id).map(order -> {
+            validateOrderStatusTransition(order, status);
             if (status == 4 && order.getStatus() != 4 && Boolean.TRUE.equals(order.getIsPaid())) {
                 awardOrderPoints(order);
             }
@@ -169,6 +174,24 @@ public class AdminOrderController {
             
             return ResponseEntity.ok("Cập nhật trạng thái thành công!");
         }).orElse(ResponseEntity.badRequest().body("Không tìm thấy đơn hàng!"));
+    }
+
+    private void validateOrderStatusTransition(Order order, Integer status) {
+        boolean hasItems = order.getOrderDetails() != null && !order.getOrderDetails().isEmpty();
+        if ((status == 2 || status == 6 || status == 7) && !hasItems) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Đơn chưa có món, không thể chuyển sang trạng thái bếp hoặc phục vụ.");
+        }
+        if (status == 2 && order.getOrderDetails().stream()
+                .anyMatch(detail -> detail.getStatus() == null || detail.getStatus() < 1)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Bếp chỉ được hoàn thành đơn khi tất cả món đã nấu xong.");
+        }
+        if (status == 7 && order.getOrderDetails().stream()
+                .anyMatch(detail -> !Integer.valueOf(2).equals(detail.getStatus()))) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Phục vụ chỉ được hoàn thành khi tất cả món đã được bưng ra bàn.");
+        }
     }
 
     @PutMapping("/{id}/pay")
@@ -272,6 +295,7 @@ public class AdminOrderController {
     }
 
     @PutMapping("/{id}/address")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'WAITER')")
     public ResponseEntity<?> updateOrderAddress(@PathVariable Integer id, @RequestParam String newAddress) {
         return orderRepository.findById(id).map(order -> {
             order.setAddress(newAddress);
@@ -281,8 +305,10 @@ public class AdminOrderController {
     }
 
     @PutMapping("/{id}/cancel")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'CASHIER')")
     @Transactional
-    public ResponseEntity<?> cancelOrder(@PathVariable Integer id, @RequestBody Map<String, String> body) {
+    public ResponseEntity<?> cancelOrder(@PathVariable Integer id,
+                                          @Valid @RequestBody poly.edu.quanlynhahang.dto.OrderCancelRequest body) {
         return orderRepository.findById(id).map(order -> {
             reverseOrderPointsIfAwarded(order, "ORDER_CANCELLED");
             order.setStatus(3);
@@ -292,6 +318,7 @@ public class AdminOrderController {
     }
 
     @PutMapping("/{id}/cancel-with-refund")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'CASHIER')")
     @Transactional
     public ResponseEntity<?> cancelOrderWithRefund(@PathVariable Integer id) {
         return orderRepository.findById(id).map(order -> {
@@ -350,6 +377,7 @@ public class AdminOrderController {
     }
 
     @PutMapping("/activate-scheduled")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     public ResponseEntity<?> activateScheduledOrders() {
         List<Order> scheduledOrders = orderRepository.findAll().stream()
                 .filter(o -> o.getStatus() != null && o.getStatus() == 5)

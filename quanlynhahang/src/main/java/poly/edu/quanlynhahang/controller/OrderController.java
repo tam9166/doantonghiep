@@ -6,6 +6,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -18,13 +19,18 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
 import poly.edu.quanlynhahang.dto.OrderDetailRequest;
+import poly.edu.quanlynhahang.dto.KitchenDishCancelRequest;
 import poly.edu.quanlynhahang.dto.OrderRequest;
 import poly.edu.quanlynhahang.dto.OrderResponse;
+import poly.edu.quanlynhahang.dto.GuestBookingRequest;
+import poly.edu.quanlynhahang.dto.MergeTablesRequest;
+import poly.edu.quanlynhahang.dto.SplitTableRequest;
 import poly.edu.quanlynhahang.entity.Account;
 import poly.edu.quanlynhahang.entity.Order;
 import poly.edu.quanlynhahang.entity.OrderDetail;
@@ -40,6 +46,8 @@ import poly.edu.quanlynhahang.repository.RestaurantTableRepository;
 import poly.edu.quanlynhahang.entity.IngredientBatch;
 import poly.edu.quanlynhahang.entity.Recipe;
 import poly.edu.quanlynhahang.service.OrderCheckoutService;
+import poly.edu.quanlynhahang.service.KitchenOrderDetailService;
+import poly.edu.quanlynhahang.service.CustomerInvoiceEmailService;
 
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 @RestController
@@ -55,6 +63,8 @@ public class OrderController {
     @Autowired private IngredientBatchRepository ingredientBatchRepository;
     @Autowired private SimpMessagingTemplate messagingTemplate;
     @Autowired private OrderCheckoutService orderCheckoutService;
+    @Autowired private KitchenOrderDetailService kitchenOrderDetailService;
+    @Autowired private CustomerInvoiceEmailService customerInvoiceEmailService;
 
     @GetMapping("/history")
     public ResponseEntity<?> getMyOrders() {
@@ -63,22 +73,35 @@ public class OrderController {
                 .map(OrderResponse::from).toList());
     }
 
+    @GetMapping("/open-by-table")
+    @PreAuthorize("hasAnyRole('WAITER', 'CASHIER', 'MANAGER', 'ADMIN')")
+    public ResponseEntity<?> getOpenDineInOrder(@org.springframework.web.bind.annotation.RequestParam String tableName) {
+        String marker = "Bàn: " + tableName.trim();
+        return orderRepository.findAll().stream()
+                .filter(order -> order.getAddress() != null && order.getAddress().contains(marker))
+                .filter(order -> !Boolean.TRUE.equals(order.getIsPaid()))
+                .filter(order -> order.getStatus() == null || (order.getStatus() != 3 && order.getStatus() != 4))
+                .max(java.util.Comparator.comparing(Order::getCreateDate))
+                .map(order -> ResponseEntity.ok(OrderResponse.from(order)))
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
     @PostMapping("/guest-booking")
-    public ResponseEntity<?> guestBooking(@RequestBody java.util.Map<String, String> payload) {
-        String name = payload.get("customerName");
-        String phone = payload.get("phone");
-        String tableName = payload.get("tableName");
-        String time = payload.get("scheduledTime");
+    public ResponseEntity<?> guestBooking(@Valid @RequestBody GuestBookingRequest payload) {
+        String name = payload.customerName().trim();
+        String phone = payload.phone().trim();
+        String tableName = payload.tableName().trim();
+        String time = payload.scheduledTime().trim();
         
         String uniqueOrderCode = generateUnique4DigitCode();
         Order order = new Order();
         order.setAccount(null); // Guest
-        order.setAddress("BÃ n " + tableName + " - KhÃ¡ch: " + name + " - SÄT: " + phone + " - Háº¹n lÃºc: " + time);
+        order.setAddress("Bàn " + tableName + " - Khách: " + name + " - SĐT: " + phone + " - Hẹn lúc: " + time);
         order.setCreateDate(new java.util.Date());
-        order.setStatus(5); // 5 = Äáº·t bÃ n háº¹n trÆ°á»›c
+        order.setStatus(5); // 5 = Đặt bàn hẹn trước
         orderRepository.save(order);
         
-        return ResponseEntity.ok(java.util.Map.of("message", "Äáº·t bÃ n thÃ nh cÃ´ng!", "orderCode", uniqueOrderCode));
+        return ResponseEntity.ok(java.util.Map.of("message", "Đặt bàn thành công!", "orderCode", uniqueOrderCode));
     }
 
     @PostMapping("/checkout")
@@ -96,12 +119,49 @@ public class OrderController {
         return ResponseEntity.ok(orderCheckoutService.addItems(id, orderRequest, idempotencyKey));
     }
 
+    @PostMapping("/{id}/invoice-request")
+    @PreAuthorize("isAuthenticated()")
+    @Transactional
+    public ResponseEntity<?> requestInvoice(@PathVariable Integer id,
+                                             @RequestParam(required = false) String email) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        Order order = orderRepository.findLockedById(id)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Không tìm thấy hóa đơn."));
+        if (order.getAccount() == null || !username.equals(order.getAccount().getUsername())) {
+            return ResponseEntity.status(403).body("Bạn không có quyền yêu cầu hóa đơn này.");
+        }
+        if (!Boolean.TRUE.equals(order.getIsPaid())) {
+            return ResponseEntity.status(409).body("Chỉ có thể yêu cầu xuất hóa đơn sau khi thanh toán đủ.");
+        }
+        String destination = email == null || email.isBlank() ? order.getAccount().getEmail() : email.trim();
+        if (destination == null || !destination.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
+            return ResponseEntity.badRequest().body("Email nhận hóa đơn không hợp lệ.");
+        }
+        order.setInvoiceRequested(true);
+        order.setInvoiceRequestedAt(new Date());
+        order.setInvoiceEmail(destination);
+        orderRepository.save(order);
+        CustomerInvoiceEmailService.DeliveryStatus deliveryStatus =
+                customerInvoiceEmailService.sendPaidInvoiceNotice(order, destination);
+        String message = deliveryStatus == CustomerInvoiceEmailService.DeliveryStatus.SENT
+                ? "Đã gửi xác nhận yêu cầu xuất hóa đơn qua email."
+                : "Đã ghi nhận yêu cầu xuất hóa đơn.";
+        return ResponseEntity.ok(Map.of(
+                "message", message,
+                "email", destination,
+                "emailSent", deliveryStatus == CustomerInvoiceEmailService.DeliveryStatus.SENT));
+    }
+
     @PostMapping("/merge-tables")
     @Transactional
     @PreAuthorize("hasAnyRole('WAITER', 'CASHIER', 'MANAGER', 'ADMIN')")
-    public ResponseEntity<?> mergeTables(@RequestBody java.util.Map<String, String> payload) {
-        String fromTable = payload.get("fromTable");
-        String toTable = payload.get("toTable");
+    public ResponseEntity<?> mergeTables(@Valid @RequestBody MergeTablesRequest payload) {
+        String fromTable = payload.fromTable().trim();
+        String toTable = payload.toTable().trim();
+        if (fromTable.equalsIgnoreCase(toTable)) {
+            return ResponseEntity.badRequest().body("Source and destination tables must differ.");
+        }
 
         Optional<Order> anySourceOrder = orderRepository.findAll().stream()
             .filter(o -> o.getAddress() != null && o.getAddress().contains(fromTable) && o.getStatus() != 3)
@@ -115,7 +175,7 @@ public class OrderController {
             boolean sourcePaid = Boolean.TRUE.equals(anySourceOrder.get().getIsPaid());
             boolean targetPaid = Boolean.TRUE.equals(anyTargetOrder.get().getIsPaid());
             if (sourcePaid != targetPaid) {
-                return ResponseEntity.status(409).body("KhÃ´ng thá»ƒ gá»™p bÃ n Ä‘Ã£ thanh toÃ¡n vá»›i bÃ n chÆ°a thanh toÃ¡n!");
+                return ResponseEntity.status(409).body("Không thể gộp bàn đã thanh toán với bàn chưa thanh toán!");
             }
         }
         
@@ -128,16 +188,16 @@ public class OrderController {
             .findFirst();
             
         if (sourceOrderOpt.isEmpty()) {
-            return ResponseEntity.badRequest().body("BÃ n nguá»“n khÃ´ng cÃ³ hÃ³a Ä‘Æ¡n nÃ o Ä‘ang má»Ÿ!");
+            return ResponseEntity.badRequest().body("Bàn nguồn không có hóa đơn nào đang mở!");
         }
         if (targetOrderOpt.isEmpty()) {
-            return ResponseEntity.badRequest().body("BÃ n Ä‘Ã­ch khÃ´ng cÃ³ hÃ³a Ä‘Æ¡n nÃ o Ä‘ang má»Ÿ! Vui lÃ²ng order mÃ³n cho bÃ n Ä‘Ã­ch trÆ°á»›c.");
+            return ResponseEntity.badRequest().body("Bàn đích không có hóa đơn nào đang mở! Vui lòng order món cho bàn đích trước.");
         }
         
         Order sourceOrder = sourceOrderOpt.get();
         Order targetOrder = targetOrderOpt.get();
         
-        // Chuyá»ƒn toÃ n bá»™ mÃ³n tá»« hÃ³a Ä‘Æ¡n cÅ© sang hÃ³a Ä‘Æ¡n má»›i
+        // Chuyển toàn bộ món từ hóa đơn cũ sang hóa đơn mới
         BigDecimal transferSub = BigDecimal.ZERO;
         BigDecimal transferTax = BigDecimal.ZERO;
         if (sourceOrder.getOrderDetails() != null) {
@@ -156,52 +216,47 @@ public class OrderController {
         targetOrder.setTotalAmount(targetSubTotal.add(targetTaxAmount));
         orderRepository.save(targetOrder);
         
-        // Há»§y hÃ³a Ä‘Æ¡n cÅ©
+        // Hủy hóa đơn cũ
         sourceOrder.setStatus(3);
         orderRepository.save(sourceOrder);
         
-        // ÄÃ¡nh dáº¥u bÃ n cÅ© lÃ  ÄÃ£ GhÃ©p thay vÃ¬ Trá»‘ng
+        // Đánh dấu bàn cũ là Đã Ghép thay vì Trống
         tableRepository.findAll().stream()
             .filter(t -> t.getName().equals(fromTable))
             .findFirst()
             .ifPresent(t -> {
                 t.setIsOccupied(5);
-                t.setReservedTime("[GHÃ‰P Vá»šI: " + toTable + "]");
+                t.setReservedTime("[GHÉP VỚI: " + toTable + "]");
                 tableRepository.save(t);
             });
             
         messagingTemplate.convertAndSend("/topic/orders", "TABLE_MERGED");
         
-        return ResponseEntity.ok(java.util.Map.of("message", "Gá»™p bÃ n thÃ nh cÃ´ng!"));
+        return ResponseEntity.ok(java.util.Map.of("message", "Gộp bàn thành công!"));
     }
 
     @PostMapping("/split-table")
     @Transactional
     @PreAuthorize("hasAnyRole('WAITER', 'CASHIER', 'MANAGER', 'ADMIN')")
-    public ResponseEntity<?> splitTable(@RequestBody java.util.Map<String, Object> payload) {
-        String fromTable = (String) payload.get("fromTable");
-        String toTable = (String) payload.get("toTable");
-        List<?> rawIds = (List<?>) payload.get("detailIds");
-
-        if (fromTable == null || toTable == null || rawIds == null || rawIds.isEmpty()) {
-            return ResponseEntity.badRequest().body("Dá»¯ liá»‡u khÃ´ng há»£p lá»‡!");
+    public ResponseEntity<?> splitTable(@Valid @RequestBody SplitTableRequest payload) {
+        String fromTable = payload.fromTable().trim();
+        String toTable = payload.toTable().trim();
+        if (fromTable.equalsIgnoreCase(toTable)) {
+            return ResponseEntity.badRequest().body("Source and destination tables must differ.");
         }
-        
-        List<Integer> detailIds = rawIds.stream()
-            .map(id -> Integer.parseInt(id.toString()))
-            .collect(java.util.stream.Collectors.toList());
+        List<Integer> detailIds = payload.detailIds();
 
         Optional<Order> sourceOrderOpt = orderRepository.findAll().stream()
             .filter(o -> o.getAddress() != null && o.getAddress().contains(fromTable) && (o.getIsPaid() == null || !o.getIsPaid()) && o.getStatus() != 3)
             .findFirst();
 
         if (sourceOrderOpt.isEmpty()) {
-            return ResponseEntity.badRequest().body("BÃ n nguá»“n khÃ´ng cÃ³ hÃ³a Ä‘Æ¡n nÃ o Ä‘ang má»Ÿ!");
+            return ResponseEntity.badRequest().body("Bàn nguồn không có hóa đơn nào đang mở!");
         }
 
         Order sourceOrder = sourceOrderOpt.get();
         
-        // Cá»‘ gáº¯ng tÃ¬m Order cá»§a bÃ n Ä‘Ã­ch
+        // Cố gắng tìm Order của bàn đích
         Optional<Order> targetOrderOpt = orderRepository.findAll().stream()
             .filter(o -> o.getAddress() != null && o.getAddress().contains(toTable) && (o.getIsPaid() == null || !o.getIsPaid()) && o.getStatus() != 3)
             .findFirst();
@@ -210,23 +265,23 @@ public class OrderController {
         if (targetOrderOpt.isPresent()) {
             targetOrder = targetOrderOpt.get();
         } else {
-            // Táº¡o Order má»›i cho bÃ n Ä‘Ã­ch
+            // Tạo Order mới cho bàn đích
             String uniqueOrderCode = generateUnique4DigitCode();
             targetOrder = new Order();
             targetOrder.setAccount(sourceOrder.getAccount()); // copy account
-            targetOrder.setAddress("MÃƒ ÄÆ N: #" + uniqueOrderCode + " | BÃ n: " + toTable + " | [Táº I QUÃN]");
+            targetOrder.setAddress("MÃ ĐƠN: #" + uniqueOrderCode + " | Bàn: " + toTable + " | [TẠI QUÁN]");
             targetOrder.setCreateDate(new Date());
             targetOrder.setStatus(sourceOrder.getStatus()); // copy status
             targetOrder = orderRepository.save(targetOrder);
             
-            // Cáº­p nháº­t tráº¡ng thÃ¡i bÃ n Ä‘Ã­ch
+            // Cập nhật trạng thái bàn đích
             final String fUniqueOrderCode = uniqueOrderCode;
             tableRepository.findAll().stream()
                 .filter(t -> t.getName().equals(toTable))
                 .findFirst()
                 .ifPresent(t -> {
-                    t.setIsOccupied(2); // CÃ³ khÃ¡ch
-                    t.setReservedTime("ÄÆ¡n: #" + fUniqueOrderCode);
+                    t.setIsOccupied(2); // Có khách
+                    t.setReservedTime("Đơn: #" + fUniqueOrderCode);
                     tableRepository.save(t);
                 });
         }
@@ -234,7 +289,7 @@ public class OrderController {
         final Order finalTargetOrder = targetOrder;
         BigDecimal moveSub = BigDecimal.ZERO;
         BigDecimal moveTax = BigDecimal.ZERO;
-        // Di chuyá»ƒn cÃ¡c order detail
+        // Di chuyển các order detail
         for (Integer detailId : detailIds) {
             Optional<OrderDetail> detailOpt = orderDetailRepository.findById(detailId);
             if (detailOpt.isPresent()) {
@@ -262,13 +317,13 @@ public class OrderController {
         finalTargetOrder.setTotalAmount(finalTargetSubTotal.add(finalTargetTaxAmount));
         orderRepository.save(finalTargetOrder);
 
-        // Náº¿u bÃ n nguá»“n khÃ´ng cÃ²n OrderDetail nÃ o, thÃ¬ Há»§y order Ä‘Ã³ vÃ  giáº£i phÃ³ng bÃ n
+        // Nếu bàn nguồn không còn OrderDetail nào, thì Hủy order đó và giải phóng bàn
         long remainingItems = orderDetailRepository.findAll().stream()
             .filter(d -> d.getOrder().getId().equals(sourceOrder.getId()))
             .count();
             
         if (remainingItems == 0) {
-            sourceOrder.setStatus(3); // Há»§y
+            sourceOrder.setStatus(3); // Hủy
             orderRepository.save(sourceOrder);
             tableRepository.findAll().stream()
                 .filter(t -> t.getName().equals(fromTable))
@@ -282,13 +337,22 @@ public class OrderController {
 
         messagingTemplate.convertAndSend("/topic/orders", "TABLE_SPLIT");
         
-        return ResponseEntity.ok(java.util.Map.of("message", "TÃ¡ch bÃ n thÃ nh cÃ´ng!"));
+        return ResponseEntity.ok(java.util.Map.of("message", "Tách bàn thành công!"));
     }
 
     @org.springframework.web.bind.annotation.PutMapping("/details/{detailId}/status")
-    @PreAuthorize("hasAnyRole('KITCHEN', 'MANAGER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER') or (hasRole('KITCHEN') and #status == 1) or (hasRole('WAITER') and #status == 2)")
     public ResponseEntity<?> updateOrderDetailStatus(@PathVariable Integer detailId, @org.springframework.web.bind.annotation.RequestParam Integer status) {
+        if (status == null || status < 0 || status > 2) {
+            return ResponseEntity.badRequest().body("Invalid dish status.");
+        }
         return orderDetailRepository.findById(detailId).map(detail -> {
+            if (status == 1 && detail.getStartedAt() == null) {
+                return ResponseEntity.status(409).body("Món phải được bếp bắt đầu chế biến trước khi hoàn thành.");
+            }
+            if (status == 2 && (!Integer.valueOf(1).equals(detail.getStatus()) || detail.getCompletedAt() == null)) {
+                return ResponseEntity.status(409).body("Phục vụ chỉ được bưng món đã được bếp hoàn thành.");
+            }
             detail.setStatus(status);
             orderDetailRepository.save(detail);
 
@@ -308,18 +372,18 @@ public class OrderController {
                 }
                 
                 if (allDone && (order.getStatus() == 1 || order.getStatus() == 6)) {
-                    order.setStatus(2); // Cáº£ bÃ n Ä‘Ã£ xong, chá» bÆ°ng
+                    order.setStatus(2); // Cả bàn đã xong, chờ bưng
                     orderRepository.save(order);
                 } else if (anyReady && order.getStatus() == 1) {
-                    order.setStatus(6); // Äang náº¥u (cÃ³ mÃ³n xong trÆ°á»›c)
+                    order.setStatus(6); // Đang nấu (có món xong trước)
                     orderRepository.save(order);
                 }
 
                 messagingTemplate.convertAndSend("/topic/waiter", "DISH_STATUS_CHANGED");
                 messagingTemplate.convertAndSend("/topic/kitchen", "DISH_STATUS_CHANGED");
             }
-            return ResponseEntity.ok("Cáº­p nháº­t mÃ³n thÃ nh cÃ´ng!");
-        }).orElse(ResponseEntity.badRequest().body("Lá»—i khÃ´ng tÃ¬m tháº¥y mÃ³n!"));
+            return ResponseEntity.ok("Cập nhật món thành công!");
+        }).orElse(ResponseEntity.badRequest().body("Lỗi không tìm thấy món!"));
     }
 
     private String generateUnique4DigitCode() {
@@ -334,6 +398,28 @@ public class OrderController {
                 .anyMatch(o -> o.getAddress() != null && o.getAddress().contains(checkCode));
         } while (isDuplicate);
         return code;
+    }
+
+    @PutMapping("/details/{detailId}/kitchen/start")
+    @PreAuthorize("hasAnyRole('KITCHEN', 'MANAGER', 'ADMIN')")
+    public ResponseEntity<?> startKitchenDish(@PathVariable Integer detailId) {
+        return ResponseEntity.ok(poly.edu.quanlynhahang.dto.OrderDetailResponse
+                .from(kitchenOrderDetailService.start(detailId)));
+    }
+
+    @PutMapping("/details/{detailId}/kitchen/complete")
+    @PreAuthorize("hasAnyRole('KITCHEN', 'MANAGER', 'ADMIN')")
+    public ResponseEntity<?> completeKitchenDish(@PathVariable Integer detailId) {
+        return ResponseEntity.ok(poly.edu.quanlynhahang.dto.OrderDetailResponse
+                .from(kitchenOrderDetailService.complete(detailId)));
+    }
+
+    @PutMapping("/details/{detailId}/kitchen/cancel")
+    @PreAuthorize("hasAnyRole('KITCHEN', 'MANAGER', 'ADMIN')")
+    public ResponseEntity<?> cancelKitchenDish(@PathVariable Integer detailId,
+                                                @Valid @RequestBody KitchenDishCancelRequest request) {
+        return ResponseEntity.ok(poly.edu.quanlynhahang.dto.OrderDetailResponse
+                .from(kitchenOrderDetailService.cancel(detailId, request.reason())));
     }
 
     private static BigDecimal money(BigDecimal value) {

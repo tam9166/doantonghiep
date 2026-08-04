@@ -5,6 +5,12 @@
     <main class="menu-content">
       <h1 class="page-title">{{ text.title }}</h1>
       <p class="page-subtitle">{{ text.subtitle }}</p>
+      <div v-if="!isLoading && !loadError" class="menu-search">
+        <label class="sr-only" for="menu-search-input">Tìm món ăn</label>
+        <span aria-hidden="true">⌕</span>
+        <input id="menu-search-input" v-model.trim="menuQuery" type="search" placeholder="Tìm món ăn, mô tả hoặc danh mục..." @keydown.esc="menuQuery = ''" />
+        <button v-if="menuQuery" type="button" aria-label="Xóa tìm kiếm" @click="menuQuery = ''">×</button>
+      </div>
 
       <!-- Món ăn gợi ý -->
       <div v-if="!isLoading && !loadError && suggestedProducts.length > 0" class="suggested-section">
@@ -149,7 +155,8 @@ const isAdminOrManager = computed(() => {
 });
 
 const showCheckoutModal = ref(false);
-const selectedCategory = ref(null); 
+const selectedCategory = ref(null);
+const menuQuery = ref('');
 
 const orderInfo = ref({ fullname: '', phone: '', address: '' });
 const paymentQr = ref(null);
@@ -202,9 +209,21 @@ const fetchSuggested = async () => {
 };
 
 const filteredProducts = computed(() => {
-  const activeProducts = products.value.filter(p => p.status !== false);
-  if (selectedCategory.value === null) return activeProducts;
-  return activeProducts.filter(p => p.category && p.category.id === selectedCategory.value);
+  const activeProducts = products.value.filter(p => p.status !== false && p.available !== false);
+  const byCategory = selectedCategory.value === null
+    ? activeProducts
+    : activeProducts.filter(p => p.category && p.category.id === selectedCategory.value);
+  const query = menuQuery.value.toLocaleLowerCase('vi-VN').trim();
+  if (!query) return byCategory;
+  return byCategory.filter((product) => {
+    const content = [
+      productName(product),
+      product.descriptionVi,
+      product.descriptionEn,
+      product.category && categoryName(product.category)
+    ].filter(Boolean).join(' ').toLocaleLowerCase('vi-VN');
+    return content.includes(query);
+  });
 });
 
 const addToCart = (product) => {
@@ -445,12 +464,59 @@ onMounted(async () => {
 .payment-result p { margin: 6px 0; overflow-wrap: anywhere; }
 .payment-result small { display: block; margin-top: 12px; color: var(--text-secondary); }
 
+/* GustoPro menu composition: simple header, warm cards, clear primary actions. */
+.menu-wrapper { background: var(--color-surface); }
+.menu-content { max-width: 1240px; margin: 0 auto; padding: 58px 24px 90px; text-align: left; }
+.page-title { font-family: var(--font-display); color: var(--text-primary); font-size: 2.5rem; letter-spacing: 0; text-transform: none; margin: 0 0 6px; }
+.page-subtitle { color: var(--text-secondary); font-size: 1rem; font-weight: 400; margin-bottom: 18px; }
+.menu-search { position: relative; width: min(100%, 480px); margin: 0 0 34px; }
+.menu-search > span { position: absolute; top: 50%; left: 14px; color: var(--text-muted); font-size: 1.3rem; transform: translateY(-52%); pointer-events: none; }
+.menu-search input { width: 100%; min-height: 46px; padding: 0 42px 0 42px; border: 1px solid var(--color-outline-variant); border-radius: 999px; background: var(--color-surface-container-low); color: var(--text-primary); font: inherit; }
+.menu-search input:focus { outline: 2px solid var(--primary-glow); border-color: var(--primary); }
+.menu-search button { position: absolute; top: 50%; right: 8px; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--text-muted); font-size: 1.4rem; cursor: pointer; transform: translateY(-50%); }
+.menu-search button:hover { color: var(--primary); background: var(--color-primary-fixed); }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.suggested-section { margin: 0 0 36px; padding: 0; background: transparent; border: 0; border-radius: 0; }
+.suggested-section .section-title { color: var(--text-primary); font-family: var(--font-display); font-size: 1.6rem; margin-bottom: 16px; }
+.suggested-section .section-title span { color: var(--primary) !important; }
+.suggested-grid { gap: 16px; padding-bottom: 6px; }
+.suggested-grid::-webkit-scrollbar-thumb { background: var(--primary); }
+.suggested-card { min-width: 232px; padding: 0; overflow: hidden; background: var(--bg-card); border: 1px solid var(--color-outline-variant); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); }
+.suggested-card:hover { border-color: var(--primary); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.suggested-card img { width: 100%; height: 142px; margin: 0; border-radius: 0; }
+.sugg-info { padding: 14px 14px 4px; }
+.sugg-info h3 { color: var(--text-primary); font-family: var(--font-display); }
+.sugg-info .price { color: var(--primary); font-size: 1rem; }
+.sugg-badge { top: 8px; right: 8px; background: var(--primary); color: var(--color-on-primary); border-radius: 999px; transform: none; box-shadow: none; }
+.btn-sugg-add { width: calc(100% - 28px); margin: 10px 14px 14px; background: var(--color-surface-container); color: var(--primary); border: 1px solid var(--color-outline-variant); border-radius: var(--radius-sm); }
+.btn-sugg-add:hover { background: var(--primary); color: var(--color-on-primary); }
+.category-filter { justify-content: flex-start; gap: 8px; margin-bottom: 30px; }
+.category-filter button { background: var(--bg-card); border-color: var(--color-outline-variant); color: var(--text-secondary); border-radius: 999px; }
+.category-filter button.active { background: var(--primary); color: var(--color-on-primary); border-color: var(--primary); box-shadow: none; }
+.product-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.product-card { display: flex; flex-direction: column; align-items: flex-start; padding: 0 0 14px; background: var(--bg-card); border: 1px solid var(--color-outline-variant); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); text-align: left; }
+.product-card::before { display: none; }
+.product-card:hover { border-color: var(--primary); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.product-card img { width: 100%; height: 170px; margin: 0 0 14px; border: 0; border-radius: 0; box-shadow: none; }
+.product-card:hover img { transform: none; border: 0; }
+.product-card h3, .product-card .product-rating, .product-card .price { margin-right: 14px; margin-left: 14px; }
+.product-card h3 { color: var(--text-primary); font-family: var(--font-display); font-size: 1rem; margin-bottom: 4px; }
+.product-rating { color: var(--warning); margin-bottom: 8px; }
+.price { color: var(--primary); font-size: 1rem; margin-bottom: 14px; }
+.btn-add { width: calc(100% - 28px); margin: auto 14px 0; min-height: 40px; background: var(--color-surface-container); border-color: var(--color-outline-variant); border-radius: var(--radius-sm); color: var(--primary); }
+.btn-add:hover { background: var(--primary); color: var(--color-on-primary); box-shadow: none; }
+.floating-cart { background: var(--primary); color: var(--color-on-primary); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); }
+.cart-count { background: var(--color-on-primary); color: var(--primary); }
+.cart-checkout { background: rgba(255, 255, 255, 0.18); }
+
 @media (max-width: 1024px) {
   .menu-content { margin: 44px auto; }
   .page-title { font-size: 2.4rem; }
   .product-grid,
   .menu-loading-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
   .floating-cart { right: 20px; bottom: 20px; }
+  .menu-content { padding-right: 20px; padding-left: 20px; }
+  .suggested-card { min-width: 220px; }
 }
 
 @media (max-width: 640px) {
@@ -458,6 +524,7 @@ onMounted(async () => {
   .menu-wrapper * { box-sizing: border-box; }
   .menu-wrapper { overflow-x: hidden; }
   .menu-content { margin: 32px auto 96px; padding: 0 16px; }
+  .menu-search { width: 100%; margin-bottom: 24px; }
   .page-title { font-size: 1.85rem; line-height: 1.2; letter-spacing: 0; }
   .page-subtitle { font-size: 1rem; }
   .suggested-section { margin-bottom: 32px; padding: 18px 14px; border-radius: 14px; }
@@ -473,8 +540,10 @@ onMounted(async () => {
   .menu-loading-grid { grid-template-columns: 1fr; gap: 18px; }
   .menu-state { min-height: 180px; padding: 22px 16px; }
   .menu-error .g-btn-outline { min-height: 44px; width: 100%; }
-  .product-card { padding: 24px 16px; }
-  .product-card img { width: 140px; height: 140px; object-fit: cover; }
+  .product-card { padding: 0 0 14px; }
+  .product-card img { width: 100%; height: min(54vw, 210px); object-fit: cover; }
+  .product-card h3 { overflow-wrap: anywhere; }
+  .suggested-section { overflow: hidden; }
   .floating-cart {
     right: 12px;
     bottom: 12px;

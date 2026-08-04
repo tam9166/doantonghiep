@@ -588,10 +588,12 @@
         </div>
       </div>
     </div>
+    <StaffOperationsAssistant />
   </div>
 </template>
 
 <script setup>
+import StaffOperationsAssistant from '@/components/StaffOperationsAssistant.vue'
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import api from '@/services/api';
 import { useRouter } from 'vue-router';

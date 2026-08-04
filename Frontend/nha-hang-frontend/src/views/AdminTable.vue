@@ -5,8 +5,15 @@
 
     <main class="admin-content">
       <div class="page-header">
-        <h1 class="page-title">Sơ Đồ Tình Trạng Bàn</h1>
-        <p class="page-subtitle">Quản lý và theo dõi không gian nhà hàng thời gian thực</p>
+        <div>
+          <h1 class="page-title">Sơ Đồ Tình Trạng Bàn</h1>
+          <p class="page-subtitle">Quản lý và theo dõi không gian nhà hàng thời gian thực</p>
+        </div>
+        <div class="table-search">
+          <label class="sr-only" for="table-search-input">Tìm bàn</label>
+          <input id="table-search-input" v-model.trim="tableSearchInput" type="search" placeholder="Tìm bàn, khu vực, trạng thái..." @keydown.esc="clearTableSearch" />
+          <button v-if="tableSearchInput" type="button" aria-label="Xóa từ khóa tìm bàn" @click="clearTableSearch">×</button>
+        </div>
       </div>
 
       <div class="content-grid">
@@ -28,6 +35,15 @@
             </select>
           </div>
           <div class="form-group">
+            <label>Khu vực phục vụ</label>
+            <select v-model="newTable.areaId" class="g-form-control">
+              <option :value="null">Chưa gán khu vực</option>
+              <option v-for="area in areas" :key="area.id" :value="area.id">
+                {{ area.nameVi }}
+              </option>
+            </select>
+          </div>
+          <div class="form-group">
             <label>Sức chứa (Số người)</label>
             <select v-model="newTable.capacity" class="g-form-control">
               <option value="4">4 Người</option>
@@ -35,6 +51,32 @@
               <option value="8">8 Người</option>
               <option value="10">10 Người</option>
             </select>
+          </div>
+          <div class="form-group">
+            <label>Sức chứa tối đa</label>
+            <input v-model.number="newTable.maxCapacity" type="number" min="1" class="g-form-control" />
+          </div>
+          <div class="form-group">
+            <label>Giá đặt bàn (VNĐ)</label>
+            <input v-model.number="newTable.reservationPrice" type="number" min="0" step="10000" class="g-form-control" />
+          </div>
+          <div class="form-group">
+            <label>Mô tả vị trí</label>
+            <input v-model="newTable.positionDescription" type="text" class="g-form-control" placeholder="Gần cửa sổ, yên tĩnh..." />
+          </div>
+          <div class="table-options">
+            <label class="checkbox-group">
+              <input v-model="newTable.windowSeat" type="checkbox" />
+              Gần cửa sổ
+            </label>
+            <label class="checkbox-group">
+              <input v-model="newTable.privateRoom" type="checkbox" />
+              Phòng riêng
+            </label>
+            <label class="checkbox-group">
+              <input v-model="newTable.childFriendly" type="checkbox" />
+              Phù hợp trẻ em
+            </label>
           </div>
           <div class="form-group" v-if="newTable.floor.includes('Tầng 6')">
             <label>Loại View (Dành cho Sân Thượng)</label>
@@ -57,7 +99,7 @@
               <span class="badge badge-reserved">🟡 Đã Đặt Trước</span>
               <span class="badge badge-occupied">🔴 Đang Phục Vụ</span>
               <span class="badge badge-cleaning">🟣 Chờ Dọn Bàn</span>
-              <span class="badge" style="background: rgba(52,152,219,0.1); color: #2980b9;">🔗 Đã Ghép</span>
+              <span class="badge" style="background: rgba(90, 110, 69, 0.1); color: #33422A;">🔗 Đã Ghép</span>
             </div>
             
             <div style="display: flex; gap: 10px;">
@@ -70,12 +112,39 @@
               <button @click="toggleHeatmap" class="btn-heatmap" :class="{'active': showHeatmap}">
                 🔥 {{ showHeatmap ? 'Tắt Bản Đồ Nhiệt' : 'Bật Bản Đồ Nhiệt' }}
               </button>
+              <button @click="toggleLayoutMode" class="btn-heatmap" :class="{'active': layoutEditMode}" style="border-color: #5A6E45; color: #5A6E45;">
+                🧭 {{ layoutEditMode ? 'Tắt Chỉnh Layout' : 'Chỉnh Layout' }}
+              </button>
+              <button v-if="layoutEditMode" @click="saveLayouts" class="g-btn-primary" style="padding: 8px 16px; border-radius: 20px;">
+                Lưu Layout
+              </button>
             </div>
           </div>
 
           <div v-for="(tables, floorName) in groupedTables" :key="floorName" class="floor-section">
             <h2 class="floor-title">📍 {{ floorName }}</h2>
-            <div :class="[isRealisticView ? getRealisticClass(floorName) : 'table-grid']">
+            <div v-if="layoutEditMode" class="layout-canvas">
+              <div class="layout-hint">Kéo bàn để sắp xếp mặt bằng {{ floorName }}. Bấm "Lưu Layout" sau khi chỉnh.</div>
+              <div
+                v-for="(t, index) in tables"
+                :key="t.id"
+                class="table-box layout-table"
+                :class="[
+                  { 'empty-bg': t.isOccupied === 0, 'reserved-bg': t.isOccupied === 1, 'occupied-bg': t.isOccupied === 2, 'cleaning-bg': t.isOccupied === 3, 'linked-bg': t.isOccupied === 5 }
+                ]"
+                :style="getLayoutStyle(t, index, floorName)"
+                @pointerdown="startDragLayout($event, t, index, floorName)"
+              >
+                <button @click.stop="openEditModal(t)" class="btn-edit" title="Sửa bàn">✎</button>
+                <button @click.stop="openQrModal(t.name)" class="btn-qr" title="Mã QR gọi món">📱</button>
+                <span v-if="t.capacity" class="capacity-tag">👥 {{ t.capacity }}</span>
+                <div class="table-status-dot"></div>
+                <h3 class="t-name">{{ t.name }}</h3>
+                <div class="t-area-text">{{ selectedAreaName(t.areaId) }}</div>
+                <div class="t-status-text">{{ t.reservedTime || 'Sẵn sàng phục vụ' }}</div>
+              </div>
+            </div>
+            <div v-else :class="[isRealisticView ? getRealisticClass(floorName) : 'table-grid']">
               <div
                 v-for="t in tables"
                 :key="t.id"
@@ -87,6 +156,7 @@
               >
                 <button v-if="t.isOccupied !== 5" @click="deleteTable(t.id)" class="btn-del" title="Xóa bàn">✖</button>
                 <button v-if="t.isOccupied === 5" @click="unlinkTable(t.id)" class="btn-unlink" title="Tách bàn">✂️</button>
+                <button @click="openEditModal(t)" class="btn-edit" title="Sửa bàn">✎</button>
                 <button @click="openQrModal(t.name)" class="btn-qr" title="Mã QR gọi món">📱</button>
                 <span v-if="t.viewType" class="view-tag">★ {{ t.viewType }}</span>
                 <span v-if="t.capacity" class="capacity-tag">👥 {{ t.capacity }}</span>
@@ -97,6 +167,7 @@
 
                 <div class="table-status-dot"></div>
                 <h3 class="t-name">{{ t.name }}</h3>
+                <div class="t-area-text">{{ selectedAreaName(t.areaId) }}</div>
                 <div class="t-status-text">{{ t.reservedTime || 'Sẵn sàng phục vụ' }}</div>
 
                 <select :value="t.isOccupied" @change="updateStatus(t.id, $event.target.value)" class="status-dropdown">
@@ -142,15 +213,101 @@
             <option v-for="t in (mergeData.type === 'ORDER' ? activeTables : tablesList)" :key="t.id" :value="t.id" :disabled="t.id === mergeData.fromTable">{{ t.name }} ({{ t.floor }})</option>
           </select>
         </div>
-        <p v-if="mergeData.type === 'ORDER'" style="color: #e74c3c; font-size: 0.85rem; font-style: italic; margin-top: 15px;">
+        <p v-if="mergeData.type === 'ORDER'" style="color: #B23B2E; font-size: 0.85rem; font-style: italic; margin-top: 15px;">
           Lưu ý: Toàn bộ món ăn của bàn nguồn sẽ được chuyển sang bàn đích. Bàn nguồn sẽ trở thành bàn trống.
         </p>
-        <p v-else style="color: #3498db; font-size: 0.85rem; font-style: italic; margin-top: 15px;">
+        <p v-else style="color: #5A6E45; font-size: 0.85rem; font-style: italic; margin-top: 15px;">
           Lưu ý: Bàn nguồn sẽ được đánh dấu là "Đã Ghép" vào bàn đích. Có thể tách ra sau này.
         </p>
         <div style="display:flex; gap:10px; margin-top:20px;">
           <button @click="executeMerge" class="g-btn-primary" style="flex:1; padding: 10px;">Xác Nhận Gộp</button>
           <button @click="showMergeModal = false" class="btn-cancel" style="flex:1;">Hủy Bỏ</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Table Modal -->
+    <div v-if="showEditModal" class="modal-overlay" @click.self="closeEditModal">
+      <div class="qr-box edit-table-box">
+        <h3>Chỉnh Sửa Bàn</h3>
+        <div class="edit-form-grid">
+          <div class="form-group">
+            <label>Tên bàn</label>
+            <input v-model="editTable.name" type="text" class="g-form-control" />
+          </div>
+          <div class="form-group">
+            <label>Khu vực tầng</label>
+            <select v-model="editTable.floor" class="g-form-control">
+              <option value="Tầng 2 (Sảnh Tiệc)">Tầng 2 (Sảnh Tiệc)</option>
+              <option value="Tầng 3 (Phòng VIP)">Tầng 3 (Phòng VIP)</option>
+              <option value="Tầng 4 (Phòng VIP)">Tầng 4 (Phòng VIP)</option>
+              <option value="Tầng 5 (Phòng VIP)">Tầng 5 (Phòng VIP)</option>
+              <option value="Tầng 6 (Sân Thượng)">Tầng 6 (Sân Thượng)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Khu vực phục vụ</label>
+            <select v-model="editTable.areaId" class="g-form-control">
+              <option :value="null">Chưa gán khu vực</option>
+              <option v-for="area in areas" :key="area.id" :value="area.id">
+                {{ area.nameVi }}
+              </option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Sức chứa chuẩn</label>
+            <input v-model.number="editTable.capacity" type="number" min="1" class="g-form-control" />
+          </div>
+          <div class="form-group">
+            <label>Sức chứa tối thiểu</label>
+            <input v-model.number="editTable.minCapacity" type="number" min="1" class="g-form-control" />
+          </div>
+          <div class="form-group">
+            <label>Sức chứa tối đa</label>
+            <input v-model.number="editTable.maxCapacity" type="number" min="1" class="g-form-control" />
+          </div>
+          <div class="form-group">
+            <label>Số ghế</label>
+            <input v-model.number="editTable.seatCount" type="number" min="1" class="g-form-control" />
+          </div>
+          <div class="form-group">
+            <label>Giá đặt bàn</label>
+            <input v-model.number="editTable.reservationPrice" type="number" min="0" step="10000" class="g-form-control" />
+          </div>
+          <div class="form-group">
+            <label>Loại view</label>
+            <input v-model="editTable.viewType" type="text" class="g-form-control" placeholder="View sông, view phố..." />
+          </div>
+          <div class="form-group">
+            <label>Ảnh bàn</label>
+            <input v-model="editTable.imageUrl" type="text" class="g-form-control" placeholder="URL ảnh bàn" />
+          </div>
+          <div class="form-group edit-wide">
+            <label>Mô tả vị trí</label>
+            <input v-model="editTable.positionDescription" type="text" class="g-form-control" />
+          </div>
+        </div>
+        <div class="table-options edit-options">
+          <label class="checkbox-group">
+            <input v-model="editTable.windowSeat" type="checkbox" />
+            Gần cửa sổ
+          </label>
+          <label class="checkbox-group">
+            <input v-model="editTable.privateRoom" type="checkbox" />
+            Phòng riêng
+          </label>
+          <label class="checkbox-group">
+            <input v-model="editTable.childFriendly" type="checkbox" />
+            Phù hợp trẻ em
+          </label>
+          <label class="checkbox-group">
+            <input v-model="editTable.active" type="checkbox" />
+            Đang sử dụng
+          </label>
+        </div>
+        <div style="display:flex; gap:10px; margin-top:20px;">
+          <button @click="submitEditTable" class="g-btn-primary" style="flex:1; padding: 10px;">Lưu Thay Đổi</button>
+          <button @click="closeEditModal" class="btn-cancel" style="flex:1;">Đóng</button>
         </div>
       </div>
     </div>
@@ -177,16 +334,48 @@
 <script setup>
 import AdminLayout from '@/components/AdminLayout.vue';
 
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import api from '@/services/api';
 import QrcodeVue from 'qrcode.vue';
 
 const tablesList = ref([]);
-const newTable = ref({ name: '', floor: 'Tầng 2 (Sảnh Tiệc)', capacity: 4, viewType: '' });
+const areas = ref([]);
+const tableSearchInput = ref('');
+const tableSearch = ref('');
+let tableSearchTimer = null;
+const tableStatusLabels = {
+  0: 'ban trong san sang empty',
+  1: 'da dat truoc reserved',
+  2: 'dang phuc vu occupied',
+  3: 'cho don cleaning',
+  5: 'da ghep linked'
+};
+const defaultNewTable = () => ({
+  name: '',
+  floor: 'Tầng 2 (Sảnh Tiệc)',
+  capacity: 4,
+  minCapacity: 1,
+  maxCapacity: 4,
+  seatCount: 4,
+  reservationPrice: 400000,
+  areaId: null,
+  viewType: '',
+  positionDescription: '',
+  windowSeat: false,
+  privateRoom: false,
+  active: true,
+  childFriendly: true
+});
+const newTable = ref(defaultNewTable());
+const showEditModal = ref(false);
+const editTable = ref(defaultNewTable());
 
 const isRealisticView = ref(false);
 const showMergeModal = ref(false);
 const mergeData = ref({ type: 'PHYSICAL', fromTable: '', toTable: '' });
+const layoutEditMode = ref(false);
+const tableLayouts = ref({});
+const draggingLayout = ref(null);
 
 const activeTables = computed(() => {
   return tablesList.value.filter(t => t.isOccupied === 1 || t.isOccupied === 2 || t.isOccupied === 3);
@@ -207,7 +396,7 @@ const executeMerge = async () => {
     const token = localStorage.getItem('token');
     
     if (mergeData.value.type === 'ORDER') {
-      const res = await api.post('http://localhost:8080/api/orders/merge-tables', {
+      const res = await api.post('/api/orders/merge-tables', {
         fromTable: fromT.name,
         toTable: toT.name
       }, {
@@ -215,7 +404,7 @@ const executeMerge = async () => {
       });
       alert(res.data.message || 'Gộp bàn thành công!');
     } else {
-      const res = await api.put(`http://localhost:8080/api/tables/${fromT.id}/link/${toT.id}`, {}, {
+      const res = await api.put(`/api/tables/${fromT.id}/link/${toT.id}`, {}, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       alert(res.data || 'Ghép bàn vật lý thành công!');
@@ -233,12 +422,12 @@ const unlinkTable = async (id) => {
   if (!confirm('Bạn có chắc chắn muốn tách bàn này ra không?')) return;
   try {
     const token = localStorage.getItem('token');
-    const res = await api.put(`http://localhost:8080/api/tables/${id}/unlink`, {}, {
+    const res = await api.put(`/api/tables/${id}/unlink`, {}, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     alert(res.data || 'Tách bàn thành công!');
     fetchTables();
-  } catch (err) {
+  } catch {
     alert('Lỗi khi tách bàn!');
   }
 };
@@ -253,7 +442,7 @@ const getRealisticClass = (floor) => {
 const showQrModal = ref(false);
 const qrTable = ref('');
 const qrValue = computed(() => {
-  return `http://localhost:3000/dine-in?table=${encodeURIComponent(qrTable.value)}`;
+  return `/dine-in?table=${encodeURIComponent(qrTable.value)}`;
 });
 
 const openQrModal = (tableName) => {
@@ -277,23 +466,215 @@ const downloadQRImage = () => {
 const fetchTables = async () => {
   const token = localStorage.getItem('token');
   try {
-    const res = await api.get('http://localhost:8080/api/tables', {
+    const res = await api.get('/api/tables', {
       headers: token ? { 'Authorization': `Bearer ${token}` } : {}
     });
     tablesList.value = res.data;
   } catch (error) { console.error('Lỗi lấy danh sách bàn', error); }
 };
 
+const fetchAreas = async () => {
+  try {
+    const res = await api.get('/api/areas');
+    areas.value = Array.isArray(res.data) ? res.data : [];
+  } catch (error) {
+    console.error('Lỗi lấy danh sách khu vực', error);
+  }
+};
+
+const fetchLayouts = async () => {
+  try {
+    const res = await api.get('/api/admin/table-layouts', {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    const next = {};
+    (Array.isArray(res.data) ? res.data : []).forEach(layout => {
+      next[layout.tableId] = {
+        tableId: layout.tableId,
+        areaId: layout.areaId ?? null,
+        floorName: layout.floorName || '',
+        xPosition: Number(layout.xPosition || 0),
+        yPosition: Number(layout.yPosition || 0),
+        width: Number(layout.width || 170),
+        height: Number(layout.height || 130),
+        shape: layout.shape || 'RECTANGLE',
+        rotation: Number(layout.rotation || 0)
+      };
+    });
+    tableLayouts.value = next;
+  } catch {
+    alert('Không thể tải layout bàn. Vui lòng đăng nhập bằng Admin/Manager.');
+  }
+};
+
+const defaultLayoutFor = (table, index, floorName) => ({
+  tableId: table.id,
+  areaId: table.areaId ?? null,
+  floorName,
+  xPosition: 24 + (index % 4) * 190,
+  yPosition: 52 + Math.floor(index / 4) * 150,
+  width: 170,
+  height: 130,
+  shape: 'RECTANGLE',
+  rotation: 0
+});
+
+const getLayout = (table, index, floorName) => {
+  if (!tableLayouts.value[table.id]) {
+    tableLayouts.value[table.id] = defaultLayoutFor(table, index, floorName);
+  }
+  return tableLayouts.value[table.id];
+};
+
+const getLayoutStyle = (table, index, floorName) => {
+  const layout = getLayout(table, index, floorName);
+  return {
+    left: `${layout.xPosition}px`,
+    top: `${layout.yPosition}px`,
+    width: `${layout.width}px`,
+    minHeight: `${layout.height}px`,
+    transform: `rotate(${layout.rotation || 0}deg)`
+  };
+};
+
+const toggleLayoutMode = async () => {
+  layoutEditMode.value = !layoutEditMode.value;
+  if (layoutEditMode.value) {
+    isRealisticView.value = false;
+    showHeatmap.value = false;
+    await fetchLayouts();
+  }
+};
+
+const startDragLayout = (event, table, index, floorName) => {
+  if (!layoutEditMode.value || event.button !== 0) return;
+  const canvas = event.currentTarget.closest('.layout-canvas');
+  const canvasRect = canvas.getBoundingClientRect();
+  const layout = getLayout(table, index, floorName);
+  draggingLayout.value = {
+    tableId: table.id,
+    floorName,
+    areaId: table.areaId ?? null,
+    offsetX: event.clientX - canvasRect.left - layout.xPosition,
+    offsetY: event.clientY - canvasRect.top - layout.yPosition,
+    canvas
+  };
+  event.currentTarget.setPointerCapture(event.pointerId);
+  event.preventDefault();
+};
+
+const moveDragLayout = (event) => {
+  const drag = draggingLayout.value;
+  if (!drag) return;
+  const canvasRect = drag.canvas.getBoundingClientRect();
+  const layout = tableLayouts.value[drag.tableId];
+  if (!layout) return;
+  const maxX = Math.max(0, canvasRect.width - layout.width - 12);
+  const maxY = Math.max(0, canvasRect.height - layout.height - 12);
+  layout.xPosition = Math.min(Math.max(12, event.clientX - canvasRect.left - drag.offsetX), maxX);
+  layout.yPosition = Math.min(Math.max(36, event.clientY - canvasRect.top - drag.offsetY), maxY);
+  layout.floorName = drag.floorName;
+  layout.areaId = drag.areaId;
+};
+
+const stopDragLayout = () => {
+  draggingLayout.value = null;
+};
+
+const saveLayouts = async () => {
+  const payload = tablesList.value.map((table, index) => {
+    const layout = getLayout(table, index, table.floor);
+    return {
+      tableId: table.id,
+      areaId: table.areaId ?? null,
+      floorName: table.floor,
+      xPosition: Number(layout.xPosition || 0),
+      yPosition: Number(layout.yPosition || 0),
+      width: Number(layout.width || 170),
+      height: Number(layout.height || 130),
+      shape: layout.shape || 'RECTANGLE',
+      rotation: Number(layout.rotation || 0)
+    };
+  });
+  try {
+    await api.put('/api/admin/table-layouts/bulk', payload, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    alert('Đã lưu layout bàn.');
+    await fetchLayouts();
+  } catch (error) {
+    alert(error.response?.data?.message || 'Không thể lưu layout bàn.');
+  }
+};
+
+const selectedAreaName = (areaId) => {
+  if (!areaId) return 'Chưa gán khu vực';
+  return areas.value.find(area => area.id === areaId)?.nameVi || `Khu vực #${areaId}`;
+};
+
+const normalizeTablePayload = (table) => ({
+  ...table,
+  areaId: table.areaId === '' || table.areaId === undefined ? null : table.areaId,
+  capacity: Number(table.capacity || 4),
+  minCapacity: Number(table.minCapacity || 1),
+  maxCapacity: Number(table.maxCapacity || table.capacity || 4),
+  seatCount: Number(table.seatCount || table.maxCapacity || table.capacity || 4),
+  reservationPrice: Number(table.reservationPrice || 0),
+  hasView: Boolean(table.windowSeat || table.viewType),
+  windowSeat: Boolean(table.windowSeat),
+  privateRoom: Boolean(table.privateRoom),
+  childFriendly: table.childFriendly !== false,
+  active: table.active !== false
+});
+
 const handleAddTable = async () => {
   if (!newTable.value.name) return;
   const token = localStorage.getItem('token');
   try {
-    await api.post('http://localhost:8080/api/tables', newTable.value, {
+    await api.post('/api/tables', normalizeTablePayload(newTable.value), {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    newTable.value.name = '';
+    newTable.value = defaultNewTable();
     fetchTables();
-  } catch (error) { alert('Lỗi thêm bàn!'); }
+  } catch { alert('Lỗi thêm bàn!'); }
+};
+
+const openEditModal = (table) => {
+  editTable.value = {
+    ...defaultNewTable(),
+    ...table,
+    areaId: table.areaId ?? null,
+    minCapacity: table.minCapacity ?? 1,
+    maxCapacity: table.maxCapacity ?? table.capacity ?? 4,
+    seatCount: table.seatCount ?? table.capacity ?? 4,
+    reservationPrice: table.reservationPrice ?? 0,
+    windowSeat: Boolean(table.windowSeat),
+    privateRoom: Boolean(table.privateRoom),
+    childFriendly: table.childFriendly !== false,
+    active: table.active !== false
+  };
+  showEditModal.value = true;
+};
+
+const closeEditModal = () => {
+  showEditModal.value = false;
+  editTable.value = defaultNewTable();
+};
+
+const submitEditTable = async () => {
+  if (!editTable.value.id || !editTable.value.name) {
+    alert('Vui lòng nhập đầy đủ tên bàn.');
+    return;
+  }
+  try {
+    await api.put(`/api/admin/tables/${editTable.value.id}`, normalizeTablePayload(editTable.value), {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    closeEditModal();
+    fetchTables();
+  } catch (error) {
+    alert(error.response?.data || 'Lỗi cập nhật bàn!');
+  }
 };
 
 const updateStatus = async (tableId, newStatus) => {
@@ -302,11 +683,11 @@ const updateStatus = async (tableId, newStatus) => {
   }
   const token = localStorage.getItem('token');
   try {
-    await api.put(`http://localhost:8080/api/tables/${tableId}/status?status=${newStatus}`, {}, {
+    await api.put(`/api/tables/${tableId}/status?status=${newStatus}`, {}, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     fetchTables();
-  } catch (error) { fetchTables(); }
+  } catch { fetchTables(); }
 };
 
 // Heatmap Logic
@@ -317,7 +698,7 @@ const toggleHeatmap = async () => {
   showHeatmap.value = !showHeatmap.value;
   if (showHeatmap.value) {
     try {
-      const res = await api.get('http://localhost:8080/api/orders/history', {
+      const res = await api.get('/api/orders/history', {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
       const orders = res.data;
@@ -354,31 +735,64 @@ const getHeatLevel = (tName) => {
 const deleteTable = async (id) => {
   if (!confirm('Xóa bàn này khỏi hệ thống?')) return;
   try {
-    await api.delete(`http://localhost:8080/api/tables/${id}`, {
+    await api.delete(`/api/admin/tables/${id}`, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     });
     fetchTables();
-  } catch (error) { alert('Không thể xóa bàn đang có dữ liệu hóa đơn!'); }
+  } catch { alert('Không thể xóa bàn đang có dữ liệu hóa đơn!'); }
 };
 
 const groupedTables = computed(() => {
-  return tablesList.value.reduce((groups, table) => {
+  const query = tableSearch.value.toLocaleLowerCase('vi-VN');
+  return tablesList.value.filter((table) => {
+    if (!query) return true;
+    const status = tableStatusLabels[table.isOccupied] || '';
+    return `${table.name || ''} ${table.floor || ''} ${table.areaName || ''} ${table.capacity || ''} ${status}`.toLocaleLowerCase('vi-VN').includes(query);
+  }).reduce((groups, table) => {
     if (!groups[table.floor]) groups[table.floor] = [];
     groups[table.floor].push(table);
     return groups;
   }, {});
 });
 
-onMounted(fetchTables);
+watch(tableSearchInput, (value) => {
+  if (tableSearchTimer) clearTimeout(tableSearchTimer);
+  tableSearchTimer = setTimeout(() => { tableSearch.value = value; }, 220);
+});
+
+const clearTableSearch = () => {
+  if (tableSearchTimer) clearTimeout(tableSearchTimer);
+  tableSearchInput.value = '';
+  tableSearch.value = '';
+};
+
+onMounted(() => {
+  fetchTables();
+  fetchAreas();
+  window.addEventListener('pointermove', moveDragLayout);
+  window.addEventListener('pointerup', stopDragLayout);
+});
+
+onUnmounted(() => {
+  if (tableSearchTimer) clearTimeout(tableSearchTimer);
+  window.removeEventListener('pointermove', moveDragLayout);
+  window.removeEventListener('pointerup', stopDragLayout);
+});
 </script>
 
 <style scoped>
 .admin-wrapper { background: var(--bg-root); min-height: 100vh; }
 .admin-content { max-width: 1400px; margin: 0 auto; padding: 36px 24px; }
 
-.page-header { margin-bottom: 32px; }
+.page-header { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin-bottom: 32px; }
 .page-title { font-size: 2rem; font-weight: 900; color: var(--text-heading); margin: 0 0 6px 0; }
 .page-subtitle { color: var(--text-muted); font-size: 0.95rem; margin: 0; }
+.table-search { position: relative; width: min(100%, 340px); }
+.table-search input { width: 100%; min-height: 42px; padding: 0 42px 0 16px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg-card2); color: var(--text-primary); font: inherit; }
+.table-search input:focus { outline: 2px solid var(--primary-glow); border-color: var(--primary); }
+.table-search button { position: absolute; top: 50%; right: 8px; width: 28px; height: 28px; padding: 0; transform: translateY(-50%); border: 0; border-radius: 50%; background: transparent; color: var(--text-muted); font-size: 1.35rem; cursor: pointer; }
+.table-search button:hover { color: var(--primary); background: var(--bg-hover); }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
 .content-grid { display: grid; grid-template-columns: 300px 1fr; gap: 28px; }
 
@@ -404,6 +818,15 @@ onMounted(fetchTables);
   color: var(--text-secondary); font-size: 0.9rem; font-weight: 500;
 }
 .checkbox-group input { accent-color: var(--primary); width: 16px; height: 16px; }
+.table-options {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--bg-card2);
+  margin-bottom: 16px;
+}
 
 .floor-card {
   background: var(--bg-card);
@@ -420,16 +843,51 @@ onMounted(fetchTables);
   border-bottom: 1px solid var(--border-light);
 }
 .badge { padding: 7px 16px; border-radius: 20px; font-size: 0.82rem; font-weight: 700; }
-.badge-empty { background: rgba(0,212,170,0.1); color: var(--primary); }
-.badge-reserved { background: rgba(241,196,15,0.1); color: #f1c40f; }
-.badge-occupied { background: rgba(231,76,60,0.1); color: #e74c3c; }
-.badge-cleaning { background: rgba(155,89,182,0.1); color: #9b59b6; }
+.badge-empty { background: rgba(90, 110, 69, 0.1); color: var(--primary); }
+.badge-reserved { background: rgba(185,130,41,0.1); color: #B98229; }
+.badge-occupied { background: rgba(178,59,46,0.1); color: #B23B2E; }
+.badge-cleaning { background: rgba(192, 138, 46, 0.1); color: #C08A2E; }
 
 .floor-title {
   font-size: 1rem; font-weight: 700; color: var(--primary);
   margin: 24px 0 16px 0; letter-spacing: 1px; text-transform: uppercase;
 }
 .table-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
+
+.layout-canvas {
+  position: relative;
+  min-height: 680px;
+  border: 1px dashed rgba(90, 110, 69, 0.45);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px),
+    var(--bg-card2);
+  background-size: 32px 32px;
+  overflow: hidden;
+  touch-action: none;
+}
+.layout-hint {
+  position: absolute;
+  top: 10px;
+  left: 14px;
+  right: 14px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  pointer-events: none;
+}
+.layout-table {
+  position: absolute;
+  cursor: grab;
+  user-select: none;
+  z-index: 1;
+}
+.layout-table:active {
+  cursor: grabbing;
+  z-index: 5;
+  box-shadow: 0 14px 34px rgba(0,0,0,0.35);
+}
 
 /* Table Box */
 .table-box {
@@ -449,6 +907,7 @@ onMounted(fetchTables);
 }
 
 .t-name { margin: 0 0 6px 0; font-size: 1.1rem; font-weight: 800; color: var(--text-heading); }
+.t-area-text { font-size: 0.72rem; color: var(--primary); font-weight: 700; min-height: 16px; margin-bottom: 4px; }
 .t-status-text { font-size: 0.78rem; color: var(--text-muted); font-style: italic; margin-bottom: 14px; min-height: 18px; }
 
 .status-dropdown {
@@ -462,34 +921,34 @@ onMounted(fetchTables);
 
 /* Status Variants */
 .empty-bg {
-  border-color: rgba(0,212,170,0.3);
-  background: linear-gradient(135deg, var(--bg-card2), rgba(0,212,170,0.04));
+  border-color: rgba(90, 110, 69, 0.3);
+  background: linear-gradient(135deg, var(--bg-card2), rgba(90, 110, 69, 0.04));
 }
-.empty-bg .table-status-dot { background: var(--primary); box-shadow: 0 0 8px rgba(0,212,170,0.6); }
+.empty-bg .table-status-dot { background: var(--primary); box-shadow: 0 0 8px rgba(90, 110, 69, 0.6); }
 
 .reserved-bg {
-  border-color: rgba(241,196,15,0.3);
-  background: linear-gradient(135deg, var(--bg-card2), rgba(241,196,15,0.04));
+  border-color: rgba(185,130,41,0.3);
+  background: linear-gradient(135deg, var(--bg-card2), rgba(185,130,41,0.04));
 }
-.reserved-bg .table-status-dot { background: #f1c40f; box-shadow: 0 0 8px rgba(241,196,15,0.6); }
+.reserved-bg .table-status-dot { background: #B98229; box-shadow: 0 0 8px rgba(185,130,41,0.6); }
 
 .occupied-bg {
-  border-color: rgba(231,76,60,0.3);
-  background: linear-gradient(135deg, var(--bg-card2), rgba(231,76,60,0.04));
+  border-color: rgba(178,59,46,0.3);
+  background: linear-gradient(135deg, var(--bg-card2), rgba(178,59,46,0.04));
 }
-.occupied-bg .table-status-dot { background: #e74c3c; box-shadow: 0 0 8px rgba(231,76,60,0.6); }
+.occupied-bg .table-status-dot { background: #B23B2E; box-shadow: 0 0 8px rgba(178,59,46,0.6); }
 
 .cleaning-bg {
-  border-color: rgba(155,89,182,0.3);
-  background: linear-gradient(135deg, var(--bg-card2), rgba(155,89,182,0.04));
+  border-color: rgba(192, 138, 46, 0.3);
+  background: linear-gradient(135deg, var(--bg-card2), rgba(192, 138, 46, 0.04));
 }
-.cleaning-bg .table-status-dot { background: #9b59b6; box-shadow: 0 0 8px rgba(155,89,182,0.6); }
+.cleaning-bg .table-status-dot { background: #C08A2E; box-shadow: 0 0 8px rgba(192, 138, 46, 0.6); }
 
 .linked-bg {
-  border-color: rgba(52,152,219,0.3);
-  background: linear-gradient(135deg, var(--bg-card2), rgba(52,152,219,0.04));
+  border-color: rgba(90, 110, 69, 0.3);
+  background: linear-gradient(135deg, var(--bg-card2), rgba(90, 110, 69, 0.04));
 }
-.linked-bg .table-status-dot { background: #2980b9; box-shadow: 0 0 8px rgba(52,152,219,0.6); }
+.linked-bg .table-status-dot { background: #33422A; box-shadow: 0 0 8px rgba(90, 110, 69, 0.6); }
 
 .btn-del {
   position: absolute; top: 8px; left: 8px;
@@ -499,12 +958,12 @@ onMounted(fetchTables);
   cursor: pointer; transition: var(--transition);
   display: flex; align-items: center; justify-content: center;
 }
-.btn-del:hover { background: rgba(231,76,60,0.4); color: #e74c3c; }
+.btn-del:hover { background: rgba(178,59,46,0.4); color: #B23B2E; }
 
 .btn-unlink {
   position: absolute; top: 8px; left: 8px;
   background: rgba(41, 128, 185, 0.2); border: none;
-  color: #2980b9; border-radius: 50%;
+  color: #33422A; border-radius: 50%;
   width: 24px; height: 24px; font-size: 0.9rem;
   cursor: pointer; transition: var(--transition);
   display: flex; align-items: center; justify-content: center;
@@ -513,28 +972,38 @@ onMounted(fetchTables);
 
 .btn-qr {
   position: absolute; top: 8px; right: 8px;
-  background: rgba(46, 204, 113, 0.2); border: none;
-  color: #2ecc71; border-radius: 50%;
+  background: rgba(47, 143, 91, 0.2); border: none;
+  color: #2F8F5B; border-radius: 50%;
   width: 24px; height: 24px; font-size: 0.9rem;
   cursor: pointer; transition: var(--transition);
   display: flex; align-items: center; justify-content: center;
 }
-.btn-qr:hover { background: rgba(46, 204, 113, 0.4); transform: scale(1.1); }
+.btn-qr:hover { background: rgba(47, 143, 91, 0.4); transform: scale(1.1); }
+
+.btn-edit {
+  position: absolute; top: 38px; right: 8px;
+  background: rgba(185, 130, 41, 0.2); border: none;
+  color: #B98229; border-radius: 50%;
+  width: 24px; height: 24px; font-size: 0.9rem;
+  cursor: pointer; transition: var(--transition);
+  display: flex; align-items: center; justify-content: center;
+}
+.btn-edit:hover { background: rgba(185, 130, 41, 0.4); transform: scale(1.1); }
 
 .view-tag {
   position: absolute; top: 8px; right: 38px;
-  background: rgba(142,68,173,0.25); color: #9b59b6;
+  background: rgba(123,96,47,0.25); color: #C08A2E;
   font-size: 0.68rem; padding: 2px 7px;
   border-radius: 10px; font-weight: 700;
-  border: 1px solid rgba(142,68,173,0.3);
+  border: 1px solid rgba(123,96,47,0.3);
 }
 
 .capacity-tag {
   position: absolute; top: 8px; left: 36px;
-  background: rgba(52,152,219,0.25); color: #2980b9;
+  background: rgba(90, 110, 69, 0.25); color: #33422A;
   font-size: 0.68rem; padding: 2px 7px;
   border-radius: 10px; font-weight: 700;
-  border: 1px solid rgba(52,152,219,0.3);
+  border: 1px solid rgba(90, 110, 69, 0.3);
 }
 
 .empty-floor { text-align: center; color: var(--text-muted); padding: 60px; font-style: italic; }
@@ -548,18 +1017,24 @@ onMounted(fetchTables);
 }
 .qr-box h3 { margin-top: 0; color: var(--text-heading); }
 .qr-table-name { font-size: 1.5rem; font-weight: 900; color: var(--primary); margin: 10px 0 20px 0; letter-spacing: 1px;}
-.qr-wrapper { background: #fff; padding: 20px; border-radius: 12px; display: inline-block; margin-bottom: 15px; border: 4px solid var(--primary); }
+.qr-wrapper { background: #FFFFFF; padding: 20px; border-radius: 12px; display: inline-block; margin-bottom: 15px; border: 4px solid var(--primary); }
 .qr-hint { color: var(--text-muted); font-size: 0.85rem; font-style: italic; line-height: 1.5;}
 .btn-cancel { background: transparent; border: 1px solid var(--border-light); color: var(--text-muted); padding: 10px; border-radius: var(--radius-md); font-weight: 600; cursor: pointer; transition: 0.3s;}
 .btn-cancel:hover { background: rgba(255,255,255,0.05); }
 
+.edit-table-box { max-width: 760px; text-align: left; max-height: 90vh; overflow-y: auto; }
+.edit-table-box h3 { text-align: center; color: var(--primary); margin-bottom: 20px; }
+.edit-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; }
+.edit-wide { grid-column: 1 / -1; }
+.edit-options { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 4px; }
+
 /* Heatmap Styles */
 .btn-heatmap {
-  background: transparent; border: 1px solid #e74c3c; color: #e74c3c; padding: 8px 20px; border-radius: 20px; font-weight: bold; cursor: pointer; transition: 0.3s; font-size: 0.9rem;
+  background: transparent; border: 1px solid #B23B2E; color: #B23B2E; padding: 8px 20px; border-radius: 20px; font-weight: bold; cursor: pointer; transition: 0.3s; font-size: 0.9rem;
 }
-.btn-heatmap:hover { background: rgba(231,76,60,0.1); }
+.btn-heatmap:hover { background: rgba(178,59,46,0.1); }
 .btn-heatmap.active {
-  background: #e74c3c; color: #fff; box-shadow: 0 0 15px rgba(231,76,60,0.6);
+  background: #B23B2E; color: #FFFFFF; box-shadow: 0 0 15px rgba(178,59,46,0.6);
 }
 
 .table-box { overflow: hidden; }
@@ -567,42 +1042,42 @@ onMounted(fetchTables);
 .heatmap-overlay {
   position: absolute; top: 0; left: 0; right: 0; bottom: 0;
   display: flex; align-items: center; justify-content: center;
-  font-size: 1.8rem; font-weight: 900; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+  font-size: 1.8rem; font-weight: 900; color: #FFFFFF; text-shadow: 0 2px 10px rgba(0,0,0,0.8);
   z-index: 10; opacity: 0.85; pointer-events: none; transition: 0.5s;
 }
 
-.heat-high { background: linear-gradient(135deg, rgba(231,76,60,0.9), rgba(192,57,43,0.9)); }
-.heat-medium { background: linear-gradient(135deg, rgba(243,156,18,0.9), rgba(211,84,0,0.9)); }
-.heat-low { background: linear-gradient(135deg, rgba(241,196,15,0.8), rgba(243,156,18,0.8)); }
-.heat-none { background: rgba(149,165,166,0.8); color: #ecf0f1; font-size: 1.2rem; }
+.heat-high { background: linear-gradient(135deg, rgba(178,59,46,0.9), rgba(192,57,43,0.9)); }
+.heat-medium { background: linear-gradient(135deg, rgba(185,130,41,0.9), rgba(211,84,0,0.9)); }
+.heat-low { background: linear-gradient(135deg, rgba(185,130,41,0.8), rgba(185,130,41,0.8)); }
+.heat-none { background: rgba(111,122,115,0.8); color: #E2DCC2; font-size: 1.2rem; }
 
 /* Realistic View Styles */
 .realistic-hall {
   display: flex; flex-wrap: wrap; justify-content: center; gap: 30px;
-  background: url('https://www.transparenttextures.com/patterns/wood-pattern.png'), #f8f9fa;
-  padding: 40px; border-radius: 12px; border: 8px solid #bdc3c7;
+  background: url('https://www.transparenttextures.com/patterns/wood-pattern.png'), #DED8C2;
+  padding: 40px; border-radius: 12px; border: 8px solid #A6B0AA;
   box-shadow: inset 0 0 20px rgba(0,0,0,0.1);
 }
 .realistic-vip {
   display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
-  background: #34495e; padding: 20px; border-radius: 8px;
+  background: #55503E; padding: 20px; border-radius: 8px;
 }
 .realistic-vip .table-box {
-  background: #ecf0f1; border: 4px solid #f1c40f; border-radius: 0;
+  background: #E2DCC2; border: 4px solid #B98229; border-radius: 0;
   position: relative; padding: 30px 10px;
 }
 .realistic-vip .table-box::before {
   content: "Cửa vào"; position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%);
-  background: #34495e; color: #fff; padding: 2px 10px; font-size: 0.6rem;
+  background: #55503E; color: #FFFFFF; padding: 2px 10px; font-size: 0.6rem;
 }
 .realistic-rooftop {
   display: flex; flex-wrap: wrap; justify-content: space-around; gap: 40px;
-  background: #a9dfbf; padding: 50px 20px; border-radius: 50px;
-  border: 4px dashed #27ae60; position: relative;
+  background: #B9D8C2; padding: 50px 20px; border-radius: 50px;
+  border: 4px dashed #2F8F5B; position: relative;
 }
 .realistic-rooftop::after {
   content: "🌴 Cây xanh & View Sông 🌊"; position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
-  color: #2c3e50; font-weight: bold; font-size: 1.2rem; opacity: 0.4;
+  color: #201D14; font-weight: bold; font-size: 1.2rem; opacity: 0.4;
 }
 
 .realistic-table {

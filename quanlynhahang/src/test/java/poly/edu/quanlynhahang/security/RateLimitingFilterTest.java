@@ -49,6 +49,105 @@ class RateLimitingFilterTest {
         assertEquals(429, lastResponse.getStatus());
     }
 
+    @Test
+    void forwardedForHeaderCannotBypassUnauthenticatedAuthRateLimit() throws Exception {
+        RateLimitingFilter filter = new RateLimitingFilter(
+                new RateLimitService(), mock(JwtUtils.class), errorWriter());
+        MockHttpServletResponse lastResponse = null;
+
+        for (int index = 0; index < 6; index++) {
+            MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/auth/login");
+            request.setRemoteAddr("198.51.100.10");
+            request.addHeader("X-Forwarded-For", "203.0.113." + index);
+            lastResponse = new MockHttpServletResponse();
+            filter.doFilter(request, lastResponse, new MockFilterChain());
+        }
+
+        assertEquals(429, lastResponse.getStatus());
+    }
+
+    @Test
+    void everyApiEndpointUsesTheGlobalFallbackLimit() throws Exception {
+        RateLimitingFilter filter = new RateLimitingFilter(
+                new RateLimitService(), mock(JwtUtils.class), errorWriter());
+        MockHttpServletResponse lastResponse = null;
+
+        for (int index = 0; index < 121; index++) {
+            MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/unmapped-probe");
+            request.setRemoteAddr("198.51.100.60");
+            lastResponse = new MockHttpServletResponse();
+            filter.doFilter(request, lastResponse, new MockFilterChain());
+        }
+
+        assertEquals(429, lastResponse.getStatus());
+    }
+
+    @Test
+    void legacyReservationCodeLookupIsRateLimited() throws Exception {
+        RateLimitingFilter filter = new RateLimitingFilter(
+                new RateLimitService(), mock(JwtUtils.class), errorWriter());
+        MockHttpServletResponse lastResponse = null;
+
+        for (int index = 0; index < 31; index++) {
+            MockHttpServletRequest request = new MockHttpServletRequest(
+                    "GET", "/api/reservations/MV-20260729-" + index);
+            request.setRemoteAddr("198.51.100.20");
+            lastResponse = new MockHttpServletResponse();
+            filter.doFilter(request, lastResponse, new MockFilterChain());
+        }
+
+        assertEquals(429, lastResponse.getStatus());
+    }
+
+    @Test
+    void reservationReviewCreationIsRateLimited() throws Exception {
+        RateLimitingFilter filter = new RateLimitingFilter(
+                new RateLimitService(), mock(JwtUtils.class), errorWriter());
+        MockHttpServletResponse lastResponse = null;
+
+        for (int index = 0; index < 21; index++) {
+            MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/reservation-reviews");
+            request.setRemoteAddr("198.51.100.30");
+            lastResponse = new MockHttpServletResponse();
+            filter.doFilter(request, lastResponse, new MockFilterChain());
+        }
+
+        assertEquals(429, lastResponse.getStatus());
+    }
+
+    @Test
+    void reservationWaitlistLookupIsRateLimited() throws Exception {
+        RateLimitingFilter filter = new RateLimitingFilter(
+                new RateLimitService(), mock(JwtUtils.class), errorWriter());
+        MockHttpServletResponse lastResponse = null;
+
+        for (int index = 0; index < 31; index++) {
+            MockHttpServletRequest request = new MockHttpServletRequest(
+                    "GET", "/api/reservation-waitlist/WL20260730-" + index);
+            request.setRemoteAddr("198.51.100.40");
+            lastResponse = new MockHttpServletResponse();
+            filter.doFilter(request, lastResponse, new MockFilterChain());
+        }
+
+        assertEquals(429, lastResponse.getStatus());
+    }
+
+    @Test
+    void reservationWaitlistCreationIsRateLimited() throws Exception {
+        RateLimitingFilter filter = new RateLimitingFilter(
+                new RateLimitService(), mock(JwtUtils.class), errorWriter());
+        MockHttpServletResponse lastResponse = null;
+
+        for (int index = 0; index < 21; index++) {
+            MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/reservation-waitlist");
+            request.setRemoteAddr("198.51.100.50");
+            lastResponse = new MockHttpServletResponse();
+            filter.doFilter(request, lastResponse, new MockFilterChain());
+        }
+
+        assertEquals(429, lastResponse.getStatus());
+    }
+
     private ApiErrorWriter errorWriter() {
         return new ApiErrorWriter(new ObjectMapper());
     }

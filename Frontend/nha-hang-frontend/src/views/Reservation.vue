@@ -15,7 +15,7 @@
           <button
             v-for="(label, index) in text.steps"
             :key="label"
-            :class="['step-chip', { active: step === index + 1, done: step > index + 1 }]"
+            :class="['step-chip', { active: step === index + 1, done: step > index + 1 && !(skipPaymentStep && index === 7), skipped: skipPaymentStep && index === 7 }]"
             type="button"
             @click="goTo(index + 1)"
           >
@@ -29,7 +29,17 @@
             <h2>{{ text.doneTitle }}</h2>
             <p>{{ text.doneMessage }}</p>
           </div>
-          <div class="reservation-code">{{ submitResult.reservationCode }}</div>
+          <div class="reservation-code-row">
+            <code class="reservation-code">{{ submitResult.reservationCode }}</code>
+            <button
+              class="code-copy-btn"
+              type="button"
+              :aria-label="copiedCode === submitResult.reservationCode ? 'Đã sao chép mã đặt bàn' : 'Sao chép mã đặt bàn'"
+              @click="copyCode(submitResult.reservationCode)"
+            >
+              {{ copiedCode === submitResult.reservationCode ? 'Đã sao chép' : 'Sao chép' }}
+            </button>
+          </div>
           <div class="summary-grid">
             <span>{{ text.total }}</span><strong>{{ money(submitResult.totalAmount) }}</strong>
             <span>{{ text.payableNow }}</span><strong>{{ money(submitResult.depositAmount) }}</strong>
@@ -70,7 +80,17 @@
             <h2>{{ text.waitlistDoneTitle }}</h2>
             <p>{{ text.waitlistDoneMessage }}</p>
           </div>
-          <div class="reservation-code">{{ waitlistResult.waitlistCode }}</div>
+          <div class="reservation-code-row">
+            <code class="reservation-code">{{ waitlistResult.waitlistCode }}</code>
+            <button
+              class="code-copy-btn"
+              type="button"
+              :aria-label="copiedCode === waitlistResult.waitlistCode ? 'Đã sao chép mã chờ' : 'Sao chép mã chờ'"
+              @click="copyCode(waitlistResult.waitlistCode)"
+            >
+              {{ copiedCode === waitlistResult.waitlistCode ? 'Đã sao chép' : 'Sao chép' }}
+            </button>
+          </div>
           <div class="summary-grid">
             <span>{{ text.date }}</span><strong>{{ waitlistResult.reservationDate }}</strong>
             <span>{{ text.time }}</span><strong>{{ waitlistResult.preferredStartTime }} - {{ waitlistResult.preferredEndTime }}</strong>
@@ -94,13 +114,13 @@
                 <small v-if="errors.customerPhone">{{ errors.customerPhone }}</small>
               </label>
               <label>
-                Email
+                Email (có thể để trống)
                 <input v-model.trim="form.customerEmail" type="email" autocomplete="email" />
                 <small v-if="errors.customerEmail">{{ errors.customerEmail }}</small>
               </label>
               <label>
                 {{ text.contactNote }}
-                <input v-model.trim="form.contactNote" type="text" />
+                <input v-model.trim="form.contactNote" type="text" placeholder="Có thể để trống" />
               </label>
             </div>
           </section>
@@ -115,7 +135,7 @@
               </label>
               <label>
                 {{ text.time }}
-                <input v-model="form.arrivalTime" type="time" min="09:00" max="22:00" />
+                <input v-model="form.arrivalTime" type="time" min="09:00" max="21:59" />
                 <small v-if="errors.arrivalTime">{{ errors.arrivalTime }}</small>
               </label>
               <label>
@@ -126,13 +146,15 @@
                   <option :value="180">180 {{ text.minutes }}</option>
                 </select>
               </label>
+            </div>
+            <div v-if="lateDiningEndTime" class="late-dining-confirmation" role="alert">
+              <strong>Thời gian dùng bữa vượt quá giờ phục vụ</strong>
+              <p>Dự kiến kết thúc lúc {{ lateDiningEndTime }}; nhà hàng phục vụ đến 22:00.</p>
               <label>
-                {{ text.occasion }}
-                <select v-model="form.occasion">
-                  <option value="">{{ text.selectOptional }}</option>
-                  <option v-for="occasion in text.occasions" :key="occasion" :value="occasion">{{ occasion }}</option>
-                </select>
+                <input v-model="lateDiningConfirmed" type="checkbox" />
+                Tôi xác nhận vẫn muốn dùng bữa tại nhà hàng theo thời gian đã chọn.
               </label>
+              <small v-if="errors.lateDiningConfirmed">{{ errors.lateDiningConfirmed }}</small>
             </div>
           </section>
 
@@ -179,7 +201,6 @@
                   <div class="meta-grid">
                     <span>{{ text.capacity }}: {{ area.capacity || '-' }}</span>
                     <span>{{ text.areaType }}: {{ area.code || area.nameEn || '-' }}</span>
-                    <span>{{ text.price }}: {{ money(area.basePrice) }}</span>
                     <span>{{ text.availableTables }}: {{ areaAvailableCount(area.id) }}</span>
                   </div>
                   <div class="amenities">
@@ -198,41 +219,6 @@
                 </div>
               </article>
             </div>
-            <section v-if="form.areaId" class="table-preview" aria-live="polite">
-              <div class="panel-row">
-                <div>
-                  <h3>{{ text.tableInfo }}</h3>
-                  <p>{{ selectedAreaName }}</p>
-                </div>
-                <button class="ghost-btn" type="button" :disabled="loadingTables" @click="loadAvailableTables">
-                  {{ loadingTables ? text.loading : text.reload }}
-                </button>
-              </div>
-              <div v-if="loadingTables" class="skeleton-grid">
-                <div v-for="n in 3" :key="n" class="skeleton-card table"></div>
-              </div>
-              <div v-else-if="tableError" class="error-banner">
-                {{ tableError }}
-                <button type="button" @click="loadAvailableTables">{{ text.retry }}</button>
-              </div>
-              <div v-else-if="!availableTables.length" class="empty-state">{{ text.noTables }}</div>
-              <div v-else class="table-preview-grid">
-                <button
-                  v-for="table in availableTables"
-                  :key="table.id"
-                  type="button"
-                  :class="['preview-table', { selected: form.tableId === table.id }]"
-                  :aria-pressed="form.tableId === table.id"
-                  :aria-label="`${text.chooseTable}: ${table.name}`"
-                  @click="selectTable(table)"
-                >
-                  <strong>{{ table.name }}</strong>
-                  <span>{{ text.capacity }}: {{ table.capacity || table.maxCapacity || '-' }}</span>
-                  <span>{{ text.price }}: {{ money(table.reservationPrice) }}</span>
-                  <small>{{ form.tableId === table.id ? text.selected : text.chooseTable }}</small>
-                </button>
-              </div>
-            </section>
           </section>
 
           <section v-show="step === 5" class="panel">
@@ -304,7 +290,6 @@
                     <span>{{ text.minGuests }}: {{ table.minCapacity || 1 }}</span>
                     <span>{{ text.maxGuests }}: {{ table.maxCapacity || table.capacity }}</span>
                     <span>{{ text.seats }}: {{ table.capacity || table.maxCapacity }}</span>
-                    <span>{{ text.price }}: {{ money(table.reservationPrice) }}</span>
                     <span>{{ text.fit }}: {{ fitLabel(table.fitScore) }}</span>
                     <span v-if="suggestionById[table.id]">{{ text.score }}: {{ suggestionById[table.id].score }}</span>
                   </div>
@@ -349,6 +334,10 @@
                 <button class="ghost-btn" type="button" @click="loadPreorderMenu">{{ text.reloadMenu }}</button>
               </div>
               <div v-if="menuError" class="error-banner">{{ menuError }}</div>
+              <div v-if="cartItems.length" class="preorder-summary" aria-live="polite">
+                <strong>Đã thêm {{ cartItems.length }} món</strong>
+                <span>{{ cartQuantity }} phần đã chọn</span>
+              </div>
               <div class="dish-grid">
                 <article v-for="dish in filteredMenu" :key="dish.id" class="dish-card">
                   <img :src="dish.image || fallbackDishImage" :alt="dishName(dish)" loading="lazy" @error="replaceDishImage" />
@@ -357,6 +346,7 @@
                     <span>{{ dishCategory(dish) }}</span>
                     <p>{{ dishDescription(dish) }}</p>
                     <b>{{ money(dish.price) }}</b>
+                    <small v-if="cartQuantityForDish(dish.id)" class="dish-added">Đã thêm {{ cartQuantityForDish(dish.id) }} phần</small>
                     <button class="primary-btn" type="button" @click="addDish(dish)">{{ text.addDish }}</button>
                   </div>
                 </article>
@@ -381,7 +371,7 @@
           <section v-show="step === 7" class="panel">
             <h2>{{ text.requestInfo }}</h2>
             <div class="preference-grid">
-              <label v-for="item in text.preferences" :key="item">
+              <label v-for="item in visiblePreferences" :key="item">
                 <input v-model="selectedPreferences" type="checkbox" :value="item" />
                 {{ item }}
               </label>
@@ -393,7 +383,7 @@
             </label>
           </section>
 
-          <section v-show="step === 8" class="panel">
+          <section v-show="step === 8 && hasPreorderItems" class="panel">
             <h2>{{ text.paymentTitle }}</h2>
             <div class="choice-grid">
               <button v-for="option in paymentOptions" :key="option.key" type="button" :class="{ selected: form.paymentOption === option.key }" @click="selectPayment(option.key)">
@@ -434,7 +424,6 @@
               <div><span>{{ text.paymentTitle }}</span><strong>{{ paymentOptionLabel(form.paymentOption) }}</strong></div>
               <div><span>{{ text.total }}</span><strong>{{ money(quote?.totalAmount || selectedTable?.reservationPrice || 0) }}</strong></div>
             </div>
-            <p class="review-note">{{ text.backendPriceNote }}</p>
           </section>
 
           <div v-if="serverError" class="error-banner">{{ serverError }}</div>
@@ -480,6 +469,7 @@ const loadingTables = ref(false)
 const submitting = ref(false)
 const submitResult = ref(null)
 const waitlistResult = ref(null)
+const copiedCode = ref('')
 const paymentQr = ref(null)
 const paymentCapabilityToken = ref('')
 const paymentIdempotencyKey = ref(crypto.randomUUID())
@@ -490,6 +480,7 @@ const quote = ref(null)
 const menuSearch = ref('')
 const menuCategory = ref('')
 const idempotencyKey = ref(crypto.randomUUID())
+const lateDiningConfirmed = ref(false)
 let tableRequestSequence = 0
 
 const fallbackAreaImage = 'https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=900&q=80'
@@ -539,6 +530,7 @@ const selectedAreaName = computed(() => {
   return area ? areaName(area) : ''
 })
 const menuCategories = computed(() => [...new Set(menuItems.value.map(dishCategory).filter(Boolean))])
+const visiblePreferences = computed(() => text.value.preferences.filter(item => !/kh\u00f4ng gian ri\u00eang t\u01b0|private space/i.test(item)))
 const filteredMenu = computed(() => {
   const keyword = menuSearch.value.toLowerCase()
   return menuItems.value.filter(item => {
@@ -548,6 +540,24 @@ const filteredMenu = computed(() => {
   })
 })
 const paymentOptions = computed(() => Object.entries(text.value.paymentOptions).map(([key, value]) => ({ key, label: value[0], hint: value[1] })))
+const hasPreorderItems = computed(() => form.value.preorderEnabled && cartItems.value.length > 0)
+const cartQuantity = computed(() => cartItems.value.reduce((total, item) => total + item.quantity, 0))
+const skipPaymentStep = computed(() => !hasPreorderItems.value)
+const lateDiningEndTime = computed(() => {
+  const { arrivalTime, expectedDurationMinutes } = form.value
+  if (!arrivalTime || !expectedDurationMinutes) return ''
+
+  const [hour, minute] = arrivalTime.split(':').map(Number)
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return ''
+
+  const endMinutes = hour * 60 + minute + Number(expectedDurationMinutes)
+  if (endMinutes <= 22 * 60) return ''
+
+  const endHour = Math.floor((endMinutes % (24 * 60)) / 60)
+  const endMinute = endMinutes % 60
+  const endTime = `${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}`
+  return endMinutes >= 24 * 60 ? `${endTime} ngày hôm sau` : endTime
+})
 
 function toggleLang() {
   locale.value = lang.value === 'vi' ? 'en' : 'vi'
@@ -617,6 +627,31 @@ function replaceDishImage(event) {
   event.target.src = fallbackDishImage
 }
 
+function reservationTimeError() {
+  const { reservationDate, arrivalTime } = form.value
+  if (!reservationDate || !arrivalTime) return ''
+
+  if (arrivalTime < '09:00' || arrivalTime >= '22:00') {
+    return lang.value === 'vi'
+      ? 'Vui l\u00f2ng ch\u1ecdn gi\u1edd trong khung ph\u1ee5c v\u1ee5 09:00-22:00.'
+      : 'Please select a time between 09:00 and 22:00.'
+  }
+
+  const selectedTime = new Date(`${reservationDate}T${arrivalTime}:00`)
+  if (reservationDate === today && !Number.isNaN(selectedTime.getTime()) && selectedTime <= new Date()) {
+    return lang.value === 'vi'
+      ? 'Th\u1eddi gian \u0111\u1eb7t b\u00e0n \u0111\u00e3 qua. Vui l\u00f2ng ch\u1ecdn gi\u1edd kh\u00e1c.'
+      : 'The selected reservation time has already passed. Please choose another time.'
+  }
+
+  return ''
+}
+
+function isTimeValidationError(error) {
+  const message = String(error?.response?.data?.message || error?.response?.data || '').toLowerCase()
+  return /ngo\u00e0i gi\u1edd|gi\u1edd ho\u1ea1t \u0111\u1ed9ng|qu\u00e1 kh\u1ee9|past|operating hours|service hours/.test(message)
+}
+
 function validateCurrentStep() {
   errors.value = {}
   serverError.value = ''
@@ -632,6 +667,13 @@ function validateCurrentStep() {
   if (step.value === 3 && (!form.value.guestCount || form.value.guestCount < 1)) errors.value.guestCount = lang.value === 'vi' ? 'Số khách không hợp lệ' : 'Invalid party size'
   if (step.value === 4 && !form.value.areaId) serverError.value = lang.value === 'vi' ? 'Vui lòng chọn khu vực' : 'Please select an area'
   if (step.value === 5 && !form.value.tableId) serverError.value = lang.value === 'vi' ? 'Vui lòng chọn bàn còn trống' : 'Please select an available table'
+  if (step.value === 2 && form.value.arrivalTime) {
+    const timeError = reservationTimeError()
+    if (timeError) errors.value.arrivalTime = timeError
+    if (lateDiningEndTime.value && !lateDiningConfirmed.value) {
+      errors.value.lateDiningConfirmed = 'Vui lòng xác nhận thời gian dùng bữa sau giờ phục vụ.'
+    }
+  }
   return Object.keys(errors.value).length === 0 && !serverError.value
 }
 
@@ -640,11 +682,16 @@ async function nextStep() {
   if (step.value === 3) await refreshAreaCounts()
   if (step.value === 4) await loadAvailableTables()
   if (step.value === 5 && !menuItems.value.length) await loadPreorderMenu()
+  if (step.value === 6 && !hasPreorderItems.value) {
+    step.value = 9
+    return
+  }
   if (step.value === 7 || step.value === 8) await loadQuote()
   step.value = Math.min(9, step.value + 1)
 }
 
 function goTo(target) {
+  if (target === 8 && skipPaymentStep.value) return
   if (target < step.value) step.value = target
 }
 
@@ -723,6 +770,15 @@ async function loadAvailableTables() {
         : 'The selected table is no longer suitable. Please choose another table.'
     }
   } catch (err) {
+    if (isTimeValidationError(err)) {
+      step.value = 2
+      errors.value = {
+        ...errors.value,
+        arrivalTime: String(err.response?.data?.message || err.response?.data || reservationTimeError())
+      }
+      serverError.value = ''
+      return
+    }
     if (requestSequence !== tableRequestSequence) return
     tableError.value = err.response?.data?.message || (lang.value === 'vi' ? 'Không tải được bàn phù hợp' : 'Could not load matching tables')
   } finally {
@@ -746,6 +802,7 @@ watch(
       form.value.tableId = null
       selectedTable.value = null
       quote.value = null
+      lateDiningConfirmed.value = false
     }
     await loadAvailableTables()
   }
@@ -848,6 +905,7 @@ async function submitReservation() {
       ...form.value,
       customerPhone: form.value.customerPhone.replace(/\s/g, ''),
       seatingPreference: selectedPreferences.value.join(', '),
+      lateDiningConfirmed: lateDiningConfirmed.value,
       preorderItems: preorderPayload()
     }
     const res = await api.post('/api/reservations', payload, {
@@ -863,9 +921,48 @@ async function submitReservation() {
       await createPaymentQr()
     }
   } catch (err) {
+    if (isTimeValidationError(err)) {
+      step.value = 2
+      errors.value = {
+        ...errors.value,
+        arrivalTime: String(err.response?.data?.message || err.response?.data || reservationTimeError())
+      }
+      serverError.value = ''
+      return
+    }
     serverError.value = err.response?.data?.message || err.response?.data || (lang.value === 'vi' ? 'Không gửi được yêu cầu đặt bàn' : 'Could not submit reservation')
   } finally {
     submitting.value = false
+  }
+}
+
+function cartQuantityForDish(productId) {
+  return cartItems.value.find(item => item.productId === productId)?.quantity || 0
+}
+
+async function copyCode(code) {
+  if (!code) return
+
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(code)
+    } else {
+      const textarea = document.createElement('textarea')
+      textarea.value = code
+      textarea.setAttribute('readonly', '')
+      textarea.style.position = 'fixed'
+      textarea.style.opacity = '0'
+      document.body.appendChild(textarea)
+      textarea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textarea)
+    }
+    copiedCode.value = code
+    window.setTimeout(() => {
+      if (copiedCode.value === code) copiedCode.value = ''
+    }, 1800)
+  } catch (error) {
+    console.error('Could not copy reservation code', error)
   }
 }
 
@@ -955,6 +1052,8 @@ async function submitWaitlist() {
 function resetForm() {
   submitResult.value = null
   waitlistResult.value = null
+  copiedCode.value = ''
+  lateDiningConfirmed.value = false
   paymentQr.value = null
   paymentCapabilityToken.value = ''
   paymentIdempotencyKey.value = crypto.randomUUID()
@@ -1140,6 +1239,12 @@ small {
   border-color: #5A6E45;
 }
 
+.table-card .primary-btn {
+  width: 100%;
+  white-space: nowrap;
+  margin-top: auto;
+}
+
 .danger-btn {
   background: #FFFFFF;
   color: #B23B2E;
@@ -1168,6 +1273,36 @@ small {
   border-radius: 8px;
   overflow: hidden;
   background: #FFFFFF;
+}
+
+.table-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.table-card > .card-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.dish-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.dish-card > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.dish-card .primary-btn {
+  width: 100%;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .area-card.selected,
@@ -1524,15 +1659,106 @@ small {
   height: 300px;
 }
 
+.reservation-code-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.preorder-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--primary);
+  border-radius: 8px;
+  background: var(--color-surface-container-low);
+  color: var(--text-primary);
+}
+
+.preorder-summary span,
+.dish-added {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.dish-added {
+  display: block;
+  margin-top: 8px;
+}
+
+.late-dining-confirmation {
+  margin-top: 16px;
+  border: 1px solid #D1A13A;
+  border-radius: 8px;
+  background: #FFF8E6;
+  color: #4A3410;
+  padding: 14px;
+}
+
+.late-dining-confirmation p {
+  margin: 6px 0 10px;
+}
+
+.late-dining-confirmation label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.late-dining-confirmation input {
+  width: auto;
+  min-height: auto;
+  margin-top: 3px;
+}
+
+.late-dining-confirmation small {
+  display: block;
+  margin-top: 8px;
+}
+
 .reservation-code {
   display: inline-flex;
-  margin: 16px 0;
+  margin: 0;
   background: #22301B;
   color: #FFFFFF;
   border-radius: 8px;
   padding: 10px 14px;
   font-weight: 900;
   letter-spacing: 1px;
+}
+
+.reservation-code::selection {
+  background: #F7D77B;
+  color: #1B1212;
+}
+
+.reservation-code::-moz-selection {
+  background: #F7D77B;
+  color: #1B1212;
+}
+
+.code-copy-btn {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--primary);
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--primary);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.code-copy-btn:hover,
+.code-copy-btn:focus-visible {
+  background: var(--primary);
+  color: var(--color-on-primary);
 }
 
 .qr-card {
@@ -1731,5 +1957,52 @@ small {
   .qr-card { padding: 14px; }
   .qr-card img { max-width: 260px; margin: 0 auto; }
   .qr-card dl div { gap: 4px; }
+}
+
+/* GustoPro reservation workspace. The wizard logic and API payloads remain unchanged. */
+.reservation-page { background: var(--color-surface); padding: 42px 24px 72px; }
+.reservation-shell { max-width: 1240px; margin: 0 auto; }
+.reservation-header { align-items: flex-start; margin-bottom: 24px; }
+.eyebrow { color: var(--primary); letter-spacing: 0.08em; }
+.reservation-header h1 { font-family: var(--font-display); color: var(--text-primary); font-size: 2.5rem; }
+.reservation-header p { color: var(--text-secondary); }
+.lang-toggle, .ghost-btn { border-color: var(--color-outline-variant); background: var(--bg-card); color: var(--text-primary); }
+.lang-toggle:hover, .ghost-btn:hover { border-color: var(--primary); color: var(--primary); background: var(--color-surface-container-low); }
+.stepper { gap: 8px; margin-bottom: 22px; }
+.step-chip { border-color: var(--color-outline-variant); background: var(--bg-card); border-radius: var(--radius-sm); color: var(--text-secondary); }
+.step-chip span { background: var(--color-surface-container); color: var(--primary); }
+.step-chip.active, .step-chip.done { border-color: var(--primary); color: var(--primary); background: var(--color-surface-container-low); }
+.step-chip.active span, .step-chip.done span { background: var(--primary); color: var(--color-on-primary); }
+.reservation-card, .success-panel { background: var(--bg-card); border-color: var(--color-outline-variant); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); padding: 28px; }
+.panel h2, .success-panel h2 { font-family: var(--font-display); color: var(--text-primary); }
+label { color: var(--text-primary); }
+input, select, textarea { border-color: var(--color-outline-variant); background: var(--color-surface-container-lowest); color: var(--text-primary); }
+input:focus, select:focus, textarea:focus { outline-color: var(--primary-glow); border-color: var(--primary); }
+.primary-btn { background: var(--primary); border-color: var(--primary); color: var(--color-on-primary); }
+.primary-btn:hover:not(:disabled) { background: var(--primary-dark); }
+.area-card, .table-card, .dish-card, .preview-table { border-color: var(--color-outline-variant); background: var(--bg-card); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); }
+.area-card.selected, .table-card.selected, .preview-table.selected { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-glow); }
+.status-pill { background: var(--color-surface-container); color: var(--primary); }
+.table-map { background: var(--color-surface-container-low); border-color: var(--color-outline-variant); }
+.map-seat { border-color: var(--color-outline-variant); background: var(--bg-card); color: var(--text-primary); }
+.map-seat.available { border-color: #8dc6a4; background: #eff9f1; color: #176b3a; }
+.map-seat.reserved { border-color: #f1c46a; background: #fff5db; color: #805300; }
+.map-seat.blocked, .map-seat:disabled { background: var(--color-surface-container); }
+.summary-grid > div, .review-box, .qr-card { border-color: var(--color-outline-variant); background: var(--color-surface-container-low); }
+.reservation-code { background: var(--primary); color: var(--color-on-primary); }
+@media (max-width: 1024px) { .reservation-page { padding: 32px 18px 56px; } }
+@media (max-width: 640px) { .reservation-page { padding: 24px 12px 48px; } .reservation-card, .success-panel { padding: 18px 14px; } .reservation-header h1 { font-size: 2rem; } }
+@media (max-width: 1024px) {
+  .reservation-header, .panel-row { min-width: 0; }
+  .area-grid, .table-grid, .dish-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .stepper { grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: hidden; }
+  .step-chip { font-size: 0.7rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .step-chip span { flex: 0 0 22px; }
+  .area-grid, .table-grid, .dish-grid, .table-preview-grid { grid-template-columns: 1fr; }
+  .area-card, .table-card, .dish-card, .preview-table { min-width: 0; }
+  .card-title-row, .meta-grid, .reason-list, .summary-grid { min-width: 0; overflow-wrap: anywhere; }
+  .qr-card img { width: min(100%, 260px); }
 }
 </style>

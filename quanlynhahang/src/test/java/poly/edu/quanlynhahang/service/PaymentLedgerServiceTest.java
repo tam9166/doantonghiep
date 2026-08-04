@@ -122,7 +122,7 @@ class PaymentLedgerServiceTest {
     void transferContentMismatchGoesToManualReviewWithoutUpdatingBill() {
         PaymentLedgerResult result = service.recordCredit(
                 "bank", "TX-004", "PAY-001", "WRONG CONTENT",
-                new BigDecimal("100000"), "919112006789", "payload-hash");
+                new BigDecimal("100000"), "1234567890", "payload-hash");
 
         assertEquals("PAYMENT_MANUAL_REVIEW", result.code());
         assertEquals(PaymentTransactionStatus.MANUAL_REVIEW, savedTransaction.get().getStatus());
@@ -150,7 +150,7 @@ class PaymentLedgerServiceTest {
     private PaymentLedgerResult record(BigDecimal amount, String transactionId) {
         return service.recordCredit(
                 "bank", transactionId, "PAY-001", "TT MV001 ABC12345",
-                amount, "919112006789", "payload-hash");
+                amount, "1234567890", "payload-hash");
     }
 
     private PaymentIntent intent() {
@@ -175,7 +175,7 @@ class PaymentLedgerServiceTest {
         paymentIntent.setPaidAmount(BigDecimal.ZERO);
         paymentIntent.setRemainingAmount(new BigDecimal("100000"));
         paymentIntent.setStatus(PaymentStatus.PENDING);
-        paymentIntent.setAccountNumber("919112006789");
+        paymentIntent.setAccountNumber("1234567890");
         paymentIntent.setTransferContent("TT MV001 ABC12345");
         return paymentIntent;
     }

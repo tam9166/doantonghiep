@@ -329,6 +329,22 @@ const currentYear = new Date().getFullYear()
 }
 .footer-bottom-links a:hover { color: #000; }
 
+/* GustoPro footer: clear white surface and compact information hierarchy. */
+.app-footer { background: var(--color-surface-container-lowest); border-top: 1px solid var(--color-outline-variant); }
+.footer-wave { display: none; }
+.footer-content { max-width: 1240px; padding: 48px 32px 24px; }
+.footer-grid { gap: 32px; margin-bottom: 36px; }
+.footer-brand-icon { filter: none; }
+.footer-brand h3 { font-family: var(--font-display); color: var(--primary); }
+.footer-col h4 { color: var(--text-primary); font-size: 0.72rem; }
+.footer-col h4::after { background: var(--primary); }
+.social-link { background: var(--color-surface-container-low); border-color: var(--color-outline-variant); color: var(--text-primary); border-radius: 50%; }
+.social-link:hover { background: var(--color-primary-fixed); border-color: var(--primary); color: var(--primary); transform: none; }
+.newsletter-form { border-color: var(--color-outline-variant); border-radius: var(--radius-md); }
+.newsletter-input { background: var(--color-surface-container-lowest); }
+.newsletter-btn, .newsletter-btn:hover { background: var(--primary); color: var(--color-on-primary); }
+.footer-bottom { border-color: var(--color-outline-variant); }
+
 /* Responsive */
 @media (max-width: 1024px) {
   .footer-grid { grid-template-columns: 1fr 1fr; gap: 40px; }
@@ -345,5 +361,7 @@ const currentYear = new Date().getFullYear()
   .footer-bottom { flex-direction: column; text-align: center; }
   .footer-bottom-links { justify-content: center; flex-wrap: wrap; gap: 12px 18px; }
   .footer-bottom-links a { min-height: 44px; display: inline-flex; align-items: center; }
+  .footer-content { padding-right: 16px; padding-left: 16px; }
+  .footer-col, .footer-desc, .newsletter-desc, .contact-list li { min-width: 0; overflow-wrap: anywhere; }
 }
 </style>

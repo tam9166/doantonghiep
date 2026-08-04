@@ -18,22 +18,22 @@ class PaymentPropertiesTest {
     private final Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
 
     @Test
-    void acceptsRequiredProductionMbAccount() {
+    void acceptsAValidProductionPaymentConfiguration() {
         PaymentProperties properties = validProperties();
 
         assertDoesNotThrow(properties::assertProductionReady);
-        assertEquals("9191******6789", properties.maskedAccountNumber());
+        assertEquals("1234******7890", properties.maskedAccountNumber());
     }
 
     @Test
-    void rejectsDemoModeAndWrongProductionAccount() {
+    void rejectsDemoModeAndUnsupportedQrProvider() {
         PaymentProperties demo = validProperties();
         demo.setDemoMode(true);
         assertThrows(IllegalStateException.class, demo::assertProductionReady);
 
-        PaymentProperties wrongAccount = validProperties();
-        wrongAccount.setAccountNumber("12345678");
-        assertThrows(IllegalStateException.class, wrongAccount::assertProductionReady);
+        PaymentProperties unsupportedProvider = validProperties();
+        unsupportedProvider.setQrProvider("UNKNOWN");
+        assertThrows(IllegalStateException.class, unsupportedProvider::assertProductionReady);
     }
 
     @Test
@@ -53,10 +53,10 @@ class PaymentPropertiesTest {
 
     private PaymentProperties validProperties() {
         PaymentProperties properties = new PaymentProperties();
-        properties.setBankCode(PaymentProperties.PRODUCTION_BANK_CODE);
+        properties.setBankCode("MB");
         properties.setBankBin("970422");
-        properties.setAccountNumber(PaymentProperties.PRODUCTION_ACCOUNT_NUMBER);
-        properties.setAccountHolder(PaymentProperties.PRODUCTION_ACCOUNT_HOLDER);
+        properties.setAccountNumber("1234567890");
+        properties.setAccountHolder("TEST ACCOUNT HOLDER");
         properties.setQrProvider("VIETQR");
         properties.setQrExpirationMinutes(15);
         properties.setDemoMode(false);

@@ -59,7 +59,7 @@ class OrderPaymentServiceTest {
 
         assertEquals(new BigDecimal("216000"), response.getAmount());
         assertEquals("MB", response.getBankCode());
-        assertEquals("919112006789", response.getAccountNumber());
+        assertEquals("1234567890", response.getAccountNumber());
         assertTrue(response.getTransferContent().startsWith("TT DH12 "));
         assertTrue(response.getQrUrl().contains("amount=216000"));
         verify(intentRepository).save(any(PaymentIntent.class));
@@ -76,7 +76,7 @@ class OrderPaymentServiceTest {
 
         assertEquals(OrderPaymentOption.PREPAID_TRANSFER, order.getPaymentOption());
         assertEquals(new BigDecimal("216000"), response.getAmount());
-        assertEquals("919112006789", response.getAccountNumber());
+        assertEquals("1234567890", response.getAccountNumber());
         verify(orderRepository).save(order);
         verify(intentRepository).save(any(PaymentIntent.class));
     }
@@ -91,8 +91,8 @@ class OrderPaymentServiceTest {
         active.setStatus(PaymentStatus.PENDING);
         active.setAmount(new BigDecimal("216000"));
         active.setBankCode("MB");
-        active.setAccountNumber("919112006789");
-        active.setAccountHolder("HOANG NGUYEN MINH TAM");
+        active.setAccountNumber("1234567890");
+        active.setAccountHolder("TEST ACCOUNT HOLDER");
         active.setTransferContent("TT DH12 EXISTING");
         active.setExpiresAt(java.util.Date.from(java.time.Instant.now().plusSeconds(300)));
         when(orderRepository.findLockedById(12)).thenReturn(Optional.of(order));
@@ -123,7 +123,7 @@ class OrderPaymentServiceTest {
 
         assertEquals(PaymentStatus.REPLACED, existing.getStatus());
         assertNotEquals("PAY-OLD", response.getPaymentCode());
-        assertEquals("919112006789", response.getAccountNumber());
+        assertEquals("1234567890", response.getAccountNumber());
         verify(intentRepository).saveAndFlush(existing);
         verify(orderRepository, never()).save(any());
     }
@@ -187,8 +187,8 @@ class OrderPaymentServiceTest {
         PaymentProperties properties = new PaymentProperties();
         properties.setBankCode("MB");
         properties.setBankBin("970422");
-        properties.setAccountNumber("919112006789");
-        properties.setAccountHolder("HOANG NGUYEN MINH TAM");
+        properties.setAccountNumber("1234567890");
+        properties.setAccountHolder("TEST ACCOUNT HOLDER");
         properties.setQrProvider("VIETQR");
         properties.setQrExpirationMinutes(15);
         return properties;

@@ -1,0 +1,450 @@
+[
+  {
+    "category": "Khai vị",
+    "name": "Gỏi củ hủ dừa tôm thịt",
+    "price": 89000,
+    "costPrice": 48000,
+    "image": "https://images.unsplash.com/photo-1543353071-10c8ba85a904?auto=format&fit=crop&w=600&q=80",
+    "description": "Củ hủ dừa giòn ngọt trộn tôm thịt, rau răm và nước mắm chua ngọt."
+  },
+  {
+    "category": "Khai vị",
+    "name": "Nem cua bể Hải Phòng",
+    "price": 99000,
+    "costPrice": 56000,
+    "image": "https://images.unsplash.com/photo-1562967914-608f82629710?auto=format&fit=crop&w=600&q=80",
+    "description": "Nem vuông nhân cua bể, thịt băm và miến, chiên vàng giòn."
+  },
+  {
+    "category": "Khai vị",
+    "name": "Chả giò hải sản sốt mayonnaise",
+    "price": 95000,
+    "costPrice": 52000,
+    "image": "https://images.unsplash.com/photo-1625938145744-e3805153995a?auto=format&fit=crop&w=600&q=80",
+    "description": "Chả giò nhân tôm mực béo nhẹ, dùng kèm sốt mayonnaise cay."
+  },
+  {
+    "category": "Khai vị",
+    "name": "Salad bò áp chảo",
+    "price": 119000,
+    "costPrice": 65000,
+    "image": "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?auto=format&fit=crop&w=600&q=80",
+    "description": "Bò áp chảo mềm ăn cùng rau xanh, cà chua bi và sốt mè rang."
+  },
+  {
+    "category": "Khai vị",
+    "name": "Khoai môn lệ phố",
+    "price": 69000,
+    "costPrice": 32000,
+    "image": "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&w=600&q=80",
+    "description": "Khoai môn nghiền nhân thịt thơm béo, chiên giòn bên ngoài."
+  },
+  {
+    "category": "Khai vị",
+    "name": "Súp cua trứng bắc thảo",
+    "price": 79000,
+    "costPrice": 41000,
+    "image": "https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=600&q=80",
+    "description": "Súp cua sánh nhẹ với nấm, trứng cút và trứng bắc thảo."
+  },
+  {
+    "category": "Món chính",
+    "name": "Bò lúc lắc khoai tây",
+    "price": 169000,
+    "costPrice": 92000,
+    "image": "https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=600&q=80",
+    "description": "Bò xào lửa lớn cùng ớt chuông, hành tây và khoai tây chiên."
+  },
+  {
+    "category": "Món chính",
+    "name": "Gà ta hấp lá chanh",
+    "price": 189000,
+    "costPrice": 98000,
+    "image": "https://images.unsplash.com/photo-1598103442097-8b74394b95c6?auto=format&fit=crop&w=600&q=80",
+    "description": "Gà ta hấp giữ vị ngọt tự nhiên, dùng kèm muối tiêu chanh."
+  },
+  {
+    "category": "Món chính",
+    "name": "Vịt quay sốt tiêu đen",
+    "price": 229000,
+    "costPrice": 128000,
+    "image": "https://images.unsplash.com/photo-1518492104633-130d0cc84637?auto=format&fit=crop&w=600&q=80",
+    "description": "Vịt quay da giòn, phủ sốt tiêu đen đậm đà kiểu nhà hàng."
+  },
+  {
+    "category": "Món chính",
+    "name": "Sườn non rim mật ong",
+    "price": 159000,
+    "costPrice": 85000,
+    "image": "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=600&q=80",
+    "description": "Sườn non rim mềm, áo mật ong thơm nhẹ và mè rang."
+  },
+  {
+    "category": "Món chính",
+    "name": "Cá kho tộ làng quê",
+    "price": 139000,
+    "costPrice": 72000,
+    "image": "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?auto=format&fit=crop&w=600&q=80",
+    "description": "Cá kho nước màu, tiêu xanh và tóp mỡ, hợp dùng với cơm nóng."
+  },
+  {
+    "category": "Món chính",
+    "name": "Heo quay giòn bì",
+    "price": 179000,
+    "costPrice": 97000,
+    "image": "https://images.unsplash.com/photo-1529692236671-f1f6cf9683ba?auto=format&fit=crop&w=600&q=80",
+    "description": "Heo quay bì giòn, thịt mềm mọng, dùng cùng dưa chua."
+  },
+  {
+    "category": "Món chính",
+    "name": "Cá lóc nướng trui cuốn bánh tráng",
+    "price": 249000,
+    "costPrice": 138000,
+    "image": "https://images.unsplash.com/photo-1559847844-5315695dadae?auto=format&fit=crop&w=600&q=80",
+    "description": "Cá lóc nướng thơm, cuốn rau sống, bún và chấm mắm nêm."
+  },
+  {
+    "category": "Lẩu",
+    "name": "Lẩu riêu cua bắp bò",
+    "price": 299000,
+    "costPrice": 165000,
+    "image": "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=600&q=80",
+    "description": "Nước lẩu riêu cua chua thanh, ăn cùng bắp bò và rau đồng."
+  },
+  {
+    "category": "Lẩu",
+    "name": "Lẩu gà lá é",
+    "price": 279000,
+    "costPrice": 148000,
+    "image": "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=600&q=80",
+    "description": "Gà ta nấu lá é thơm nồng, nước dùng cay nhẹ kiểu miền Trung."
+  },
+  {
+    "category": "Lẩu",
+    "name": "Lẩu thái hải sản đặc biệt",
+    "price": 329000,
+    "costPrice": 185000,
+    "image": "https://images.unsplash.com/photo-1604909052743-94e838986d24?auto=format&fit=crop&w=600&q=80",
+    "description": "Tôm, mực, nghêu và cá viên trong nước lẩu Thái chua cay."
+  },
+  {
+    "category": "Lẩu",
+    "name": "Lẩu nấm thanh đạm",
+    "price": 239000,
+    "costPrice": 118000,
+    "image": "https://images.unsplash.com/photo-1600891964599-f61ba0e24092?auto=format&fit=crop&w=600&q=80",
+    "description": "Nhiều loại nấm tươi, nước dùng rau củ trong ngọt tự nhiên."
+  },
+  {
+    "category": "Lẩu",
+    "name": "Lẩu cá tầm măng chua",
+    "price": 359000,
+    "costPrice": 205000,
+    "image": "https://images.unsplash.com/photo-1603073163308-9654c3fb70b5?auto=format&fit=crop&w=600&q=80",
+    "description": "Cá tầm tươi nấu măng chua, cà chua và thì là."
+  },
+  {
+    "category": "Lẩu",
+    "name": "Lẩu bò nhúng giấm",
+    "price": 319000,
+    "costPrice": 176000,
+    "image": "https://images.unsplash.com/photo-1600891964092-4316c288032e?auto=format&fit=crop&w=600&q=80",
+    "description": "Bò thái mỏng nhúng nước giấm dừa, cuốn bánh tráng rau sống."
+  },
+  {
+    "category": "Nướng",
+    "name": "Ba chỉ bò Mỹ nướng sốt mè",
+    "price": 199000,
+    "costPrice": 110000,
+    "image": "https://images.unsplash.com/photo-1529692236671-f1f6cf9683ba?auto=format&fit=crop&w=600&q=80",
+    "description": "Ba chỉ bò Mỹ ướp sốt mè thơm, nướng mềm và béo nhẹ."
+  },
+  {
+    "category": "Nướng",
+    "name": "Sườn cây nướng BBQ",
+    "price": 219000,
+    "costPrice": 122000,
+    "image": "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=600&q=80",
+    "description": "Sườn cây nướng chậm, phủ sốt BBQ đậm vị khói."
+  },
+  {
+    "category": "Nướng",
+    "name": "Gà nướng mắc khén",
+    "price": 189000,
+    "costPrice": 96000,
+    "image": "https://images.unsplash.com/photo-1532550907401-a500c9a57435?auto=format&fit=crop&w=600&q=80",
+    "description": "Gà ướp mắc khén Tây Bắc, nướng da vàng thơm."
+  },
+  {
+    "category": "Nướng",
+    "name": "Mực nướng sa tế",
+    "price": 229000,
+    "costPrice": 132000,
+    "image": "https://images.unsplash.com/photo-1553621042-f6e147245754?auto=format&fit=crop&w=600&q=80",
+    "description": "Mực tươi nướng sa tế cay thơm, giữ độ giòn ngọt."
+  },
+  {
+    "category": "Nướng",
+    "name": "Xiên que tổng hợp",
+    "price": 159000,
+    "costPrice": 78000,
+    "image": "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=600&q=80",
+    "description": "Set xiên nướng gồm bò, gà, rau củ và xúc xích."
+  },
+  {
+    "category": "Nướng",
+    "name": "Tôm sú nướng muối ớt",
+    "price": 259000,
+    "costPrice": 152000,
+    "image": "https://images.unsplash.com/photo-1565680018434-b513d5e5fd47?auto=format&fit=crop&w=600&q=80",
+    "description": "Tôm sú tươi nướng muối ớt, thịt chắc và ngọt."
+  },
+  {
+    "category": "Cơm - Mì",
+    "name": "Cơm chiên hải sản",
+    "price": 99000,
+    "costPrice": 52000,
+    "image": "https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=600&q=80",
+    "description": "Cơm chiên tơi hạt với tôm, mực, trứng và rau củ."
+  },
+  {
+    "category": "Cơm - Mì",
+    "name": "Mì xào bò rau cải",
+    "price": 89000,
+    "costPrice": 46000,
+    "image": "https://images.unsplash.com/photo-1612929633738-8fe44f7ec841?auto=format&fit=crop&w=600&q=80",
+    "description": "Mì xào dai mềm cùng bò lát và rau cải xanh."
+  },
+  {
+    "category": "Cơm - Mì",
+    "name": "Bún bò Huế đặc biệt",
+    "price": 95000,
+    "costPrice": 51000,
+    "image": "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=600&q=80",
+    "description": "Bún bò nước dùng sả ớt, kèm chả cua, bò nạm và giò heo."
+  },
+  {
+    "category": "Cơm - Mì",
+    "name": "Cơm gà Hội An",
+    "price": 89000,
+    "costPrice": 45000,
+    "image": "https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=600&q=80",
+    "description": "Cơm vàng nghệ dùng với gà xé, rau răm và nước mạ đậm vị."
+  },
+  {
+    "category": "Cơm - Mì",
+    "name": "Mì Quảng tôm thịt",
+    "price": 92000,
+    "costPrice": 47000,
+    "image": "https://images.unsplash.com/photo-1617196034796-73dfa7b1fd56?auto=format&fit=crop&w=600&q=80",
+    "description": "Mì Quảng nước xâm xấp, tôm thịt, bánh tráng và đậu phộng."
+  },
+  {
+    "category": "Cơm - Mì",
+    "name": "Cơm niêu cá bống kho",
+    "price": 119000,
+    "costPrice": 62000,
+    "image": "https://images.unsplash.com/photo-1512058564366-18510be2db19?auto=format&fit=crop&w=600&q=80",
+    "description": "Cơm niêu nóng giòn dùng với cá bống kho tiêu."
+  },
+  {
+    "category": "Hải sản",
+    "name": "Cua rang me",
+    "price": 329000,
+    "costPrice": 198000,
+    "image": "https://images.unsplash.com/photo-1559737558-2f5a35f4523b?auto=format&fit=crop&w=600&q=80",
+    "description": "Cua thịt rang sốt me chua ngọt, thơm bơ tỏi."
+  },
+  {
+    "category": "Hải sản",
+    "name": "Nghêu hấp sả",
+    "price": 129000,
+    "costPrice": 68000,
+    "image": "https://images.unsplash.com/photo-1565680018434-b513d5e5fd47?auto=format&fit=crop&w=600&q=80",
+    "description": "Nghêu tươi hấp sả ớt, nước hấp ngọt thanh."
+  },
+  {
+    "category": "Hải sản",
+    "name": "Sò điệp nướng mỡ hành",
+    "price": 189000,
+    "costPrice": 108000,
+    "image": "https://images.unsplash.com/photo-1553621042-f6e147245754?auto=format&fit=crop&w=600&q=80",
+    "description": "Sò điệp nướng mỡ hành, đậu phộng rang và hành phi."
+  },
+  {
+    "category": "Hải sản",
+    "name": "Cá hồi áp chảo sốt chanh dây",
+    "price": 259000,
+    "costPrice": 152000,
+    "image": "https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&w=600&q=80",
+    "description": "Cá hồi áp chảo da giòn, sốt chanh dây chua dịu."
+  },
+  {
+    "category": "Hải sản",
+    "name": "Hàu nướng phô mai",
+    "price": 219000,
+    "costPrice": 126000,
+    "image": "https://images.unsplash.com/photo-1606851091851-e8c8c0fca5ba?auto=format&fit=crop&w=600&q=80",
+    "description": "Hàu sữa nướng phô mai béo thơm, dùng nóng tại bàn."
+  },
+  {
+    "category": "Hải sản",
+    "name": "Tôm càng xanh sốt bơ tỏi",
+    "price": 299000,
+    "costPrice": 178000,
+    "image": "https://images.unsplash.com/photo-1565680018434-b513d5e5fd47?auto=format&fit=crop&w=600&q=80",
+    "description": "Tôm càng xanh cháy bơ tỏi, thịt chắc và ngọt."
+  },
+  {
+    "category": "Tráng miệng",
+    "name": "Chè khúc bạch hạnh nhân",
+    "price": 59000,
+    "costPrice": 26000,
+    "image": "https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=600&q=80",
+    "description": "Khúc bạch mềm béo, nhãn ngọt và hạnh nhân lát."
+  },
+  {
+    "category": "Tráng miệng",
+    "name": "Bánh flan caramel",
+    "price": 49000,
+    "costPrice": 21000,
+    "image": "https://images.unsplash.com/photo-1551024506-0bccd828d307?auto=format&fit=crop&w=600&q=80",
+    "description": "Flan trứng sữa mềm mịn, phủ caramel thơm nhẹ."
+  },
+  {
+    "category": "Tráng miệng",
+    "name": "Trái cây nhiệt đới",
+    "price": 69000,
+    "costPrice": 32000,
+    "image": "https://images.unsplash.com/photo-1490474418585-ba9bad8fd0ea?auto=format&fit=crop&w=600&q=80",
+    "description": "Đĩa trái cây theo mùa gồm xoài, dưa, thanh long và nho."
+  },
+  {
+    "category": "Tráng miệng",
+    "name": "Panna cotta xoài",
+    "price": 69000,
+    "costPrice": 31000,
+    "image": "https://images.unsplash.com/photo-1488477304112-4944851de03d?auto=format&fit=crop&w=600&q=80",
+    "description": "Panna cotta sữa tươi mềm mịn, sốt xoài chua ngọt."
+  },
+  {
+    "category": "Tráng miệng",
+    "name": "Kem dừa non",
+    "price": 79000,
+    "costPrice": 36000,
+    "image": "https://images.unsplash.com/photo-1501443762994-82bd5dace89a?auto=format&fit=crop&w=600&q=80",
+    "description": "Kem dừa mát lạnh dùng trong trái dừa non, thêm đậu phộng."
+  },
+  {
+    "category": "Đồ uống",
+    "name": "Trà đào cam sả",
+    "price": 59000,
+    "costPrice": 24000,
+    "image": "https://images.unsplash.com/photo-1556679343-c7306c1976bc?auto=format&fit=crop&w=600&q=80",
+    "description": "Trà đào thơm cam sả, vị ngọt thanh và mát."
+  },
+  {
+    "category": "Đồ uống",
+    "name": "Nước ép dưa hấu",
+    "price": 49000,
+    "costPrice": 19000,
+    "image": "https://images.unsplash.com/photo-1621263764928-df1444c5e859?auto=format&fit=crop&w=600&q=80",
+    "description": "Dưa hấu ép tươi mỗi ly, không dùng siro."
+  },
+  {
+    "category": "Đồ uống",
+    "name": "Sinh tố bơ sữa dừa",
+    "price": 69000,
+    "costPrice": 31000,
+    "image": "https://images.unsplash.com/photo-1502741224143-90386d7f8c82?auto=format&fit=crop&w=600&q=80",
+    "description": "Bơ chín xay cùng sữa dừa, béo thơm và mịn."
+  },
+  {
+    "category": "Đồ uống",
+    "name": "Cà phê sữa đá",
+    "price": 39000,
+    "costPrice": 14000,
+    "image": "https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=600&q=80",
+    "description": "Cà phê phin đậm vị, pha sữa đặc và đá viên."
+  },
+  {
+    "category": "Đồ uống",
+    "name": "Soda chanh bạc hà",
+    "price": 55000,
+    "costPrice": 22000,
+    "image": "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=600&q=80",
+    "description": "Soda mát lạnh với chanh tươi và lá bạc hà."
+  },
+  {
+    "category": "Đồ uống",
+    "name": "Trà sen vàng",
+    "price": 65000,
+    "costPrice": 27000,
+    "image": "https://images.unsplash.com/photo-1544787219-7f47ccb76574?auto=format&fit=crop&w=600&q=80",
+    "description": "Trà sen thơm nhẹ, kem sữa béo và hạt sen bùi."
+  },
+  {
+    "category": "Món chay",
+    "name": "Đậu hũ non sốt nấm đông cô",
+    "price": 89000,
+    "costPrice": 42000,
+    "image": "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=600&q=80",
+    "description": "Đậu hũ non mềm, sốt nấm đông cô thanh đạm."
+  },
+  {
+    "category": "Món chay",
+    "name": "Cơm chiên hạt sen chay",
+    "price": 85000,
+    "costPrice": 39000,
+    "image": "https://images.unsplash.com/photo-1512058564366-18510be2db19?auto=format&fit=crop&w=600&q=80",
+    "description": "Cơm chiên rau củ, hạt sen và nấm, vị nhẹ dễ ăn."
+  },
+  {
+    "category": "Món chay",
+    "name": "Lẩu nấm chay",
+    "price": 239000,
+    "costPrice": 112000,
+    "image": "https://images.unsplash.com/photo-1600891964599-f61ba0e24092?auto=format&fit=crop&w=600&q=80",
+    "description": "Lẩu rau củ và nhiều loại nấm tươi, nước dùng ngọt tự nhiên."
+  },
+  {
+    "category": "Món chay",
+    "name": "Gỏi cuốn ngũ sắc chay",
+    "price": 79000,
+    "costPrice": 34000,
+    "image": "https://images.unsplash.com/photo-1553621042-f6e147245754?auto=format&fit=crop&w=600&q=80",
+    "description": "Gỏi cuốn rau củ, bún, đậu hũ và sốt tương đậu phộng."
+  },
+  {
+    "category": "Combo/Set tiệc",
+    "name": "Combo gia đình 4 người",
+    "price": 699000,
+    "costPrice": 382000,
+    "image": "https://images.unsplash.com/photo-1555244162-803834f70033?auto=format&fit=crop&w=600&q=80",
+    "description": "Set gồm khai vị, món chính, lẩu nhỏ và đồ uống cho 4 khách."
+  },
+  {
+    "category": "Combo/Set tiệc",
+    "name": "Set sinh nhật 6 người",
+    "price": 1199000,
+    "costPrice": 658000,
+    "image": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=600&q=80",
+    "description": "Set tiệc sinh nhật đủ món nóng, món nướng và tráng miệng."
+  },
+  {
+    "category": "Combo/Set tiệc",
+    "name": "Set hải sản cao cấp",
+    "price": 1499000,
+    "costPrice": 862000,
+    "image": "https://images.unsplash.com/photo-1559737558-2f5a35f4523b?auto=format&fit=crop&w=600&q=80",
+    "description": "Tôm càng, cua, hàu, cá hồi và lẩu hải sản cho nhóm khách."
+  },
+  {
+    "category": "Combo/Set tiệc",
+    "name": "Combo văn phòng 10 phần",
+    "price": 899000,
+    "costPrice": 468000,
+    "image": "https://images.unsplash.com/photo-1551218808-94e220e084d2?auto=format&fit=crop&w=600&q=80",
+    "description": "Combo cơm, món mặn, rau và đồ uống phù hợp đặt theo nhóm."
+  }
+]

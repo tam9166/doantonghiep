@@ -13,10 +13,6 @@ import lombok.Data;
 @ConfigurationProperties(prefix = "restaurant.payment")
 public class PaymentProperties {
 
-    public static final String PRODUCTION_BANK_CODE = "MB";
-    public static final String PRODUCTION_ACCOUNT_NUMBER = "919112006789";
-    public static final String PRODUCTION_ACCOUNT_HOLDER = "HOANG NGUYEN MINH TAM";
-
     @NotBlank
     private String bankCode;
 
@@ -43,15 +39,6 @@ public class PaymentProperties {
     public void assertProductionReady() {
         if (demoMode) {
             throw new IllegalStateException("Payment demo mode is forbidden in production.");
-        }
-        if (!PRODUCTION_BANK_CODE.equalsIgnoreCase(bankCode.trim())) {
-            throw new IllegalStateException("Production payment bank code is invalid.");
-        }
-        if (!PRODUCTION_ACCOUNT_NUMBER.equals(accountNumber.trim())) {
-            throw new IllegalStateException("Production payment account number is invalid.");
-        }
-        if (!PRODUCTION_ACCOUNT_HOLDER.equalsIgnoreCase(accountHolder.trim())) {
-            throw new IllegalStateException("Production payment account holder is invalid.");
         }
         if (!"VIETQR".equalsIgnoreCase(qrProvider.trim())) {
             throw new IllegalStateException("Unsupported production QR provider.");

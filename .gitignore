@@ -12,4 +12,6 @@ private-uploads/
 .env
 *.local
 *.class
-
+~$*.docx
+__pycache__/
+*.pyc

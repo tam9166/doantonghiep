@@ -17,6 +17,10 @@
             Số điện thoại
             <input v-model.trim="form.phone" type="tel" autocomplete="tel" placeholder="VD: 0912345678" />
           </label>
+          <label>
+            Email
+            <input v-model.trim="form.email" type="email" autocomplete="email" placeholder="VD: ban@example.com" />
+          </label>
           <button class="primary-btn" type="submit" :disabled="loading">
             {{ loading ? 'Đang tra cứu...' : 'Tra cứu' }}
           </button>
@@ -142,7 +146,7 @@ const loading = ref(false)
 const qrLoading = ref(false)
 const error = ref('')
 const reservation = ref(null)
-const form = ref({ code: '', phone: '' })
+const form = ref({ code: '', phone: '', email: '' })
 const realtimeConnected = ref(false)
 const realtimeMessage = ref('')
 const reviewLoading = ref(false)
@@ -213,17 +217,26 @@ function paymentStatusText(status) {
 async function lookupReservation() {
   error.value = ''
   reservation.value = null
-  if (!form.value.code || !form.value.phone) {
+  if (!form.value.code && !form.value.phone && !form.value.email) {
     error.value = 'Vui lòng nhập cả mã đặt bàn và số điện thoại.'
+    error.value = 'Vui l\u00f2ng nh\u1eadp m\u00e3 \u0111\u1eb7t b\u00e0n, s\u1ed1 \u0111i\u1ec7n tho\u1ea1i ho\u1eb7c email.'
     return
   }
   loading.value = true
   try {
-    const res = await api.get(`/api/reservations/${encodeURIComponent(form.value.code)}`, {
-      params: { phone: form.value.phone.replace(/\s/g, '') }
+    const res = await api.get('/api/reservations/lookup', {
+      params: {
+        code: form.value.code || undefined,
+        phone: form.value.phone.replace(/\s/g, '') || undefined,
+        email: form.value.email || undefined
+      }
     })
     reservation.value = res.data
-    router.replace({ path: '/reservation-lookup', query: { code: form.value.code } })
+    router.replace({ path: '/reservation-lookup', query: {
+      code: form.value.code || undefined,
+      phone: form.value.phone || undefined,
+      email: form.value.email || undefined
+    } })
     connectRealtime(reservation.value.reservationCode)
     await loadMyReview()
   } catch (err) {
@@ -234,10 +247,14 @@ async function lookupReservation() {
 }
 
 async function refreshReservationSilently() {
-  if (!form.value.code || !form.value.phone) return
+  if (!form.value.code && !form.value.phone && !form.value.email) return
   try {
-    const res = await api.get(`/api/reservations/${encodeURIComponent(form.value.code)}`, {
-      params: { phone: form.value.phone.replace(/\s/g, '') }
+    const res = await api.get('/api/reservations/lookup', {
+      params: {
+        code: form.value.code || undefined,
+        phone: form.value.phone.replace(/\s/g, '') || undefined,
+        email: form.value.email || undefined
+      }
     })
     reservation.value = res.data
     if (canReview.value) loadMyReview()
@@ -372,7 +389,8 @@ function paymentRequestHeaders() {
 onMounted(() => {
   form.value.code = String(route.query.code || '')
   form.value.phone = String(route.query.phone || '')
-  if (form.value.code && form.value.phone) lookupReservation()
+  form.value.email = String(route.query.email || '')
+  if (form.value.code || form.value.phone || form.value.email) lookupReservation()
 })
 
 onBeforeUnmount(() => {
@@ -427,7 +445,7 @@ onBeforeUnmount(() => {
 
 .lookup-card {
   display: grid;
-  grid-template-columns: 1fr 1fr auto;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
   gap: 12px;
   align-items: end;
   padding: 18px;

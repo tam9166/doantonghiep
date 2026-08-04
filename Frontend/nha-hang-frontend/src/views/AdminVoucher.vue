@@ -25,7 +25,7 @@
             <tr v-for="v in vouchers" :key="v.id">
               <td>#{{ v.id }}</td>
               <td><span class="code-badge">{{ v.code }}</span></td>
-              <td style="color: #e74c3c; font-weight: bold;">{{ v.discountPercent }}%</td>
+              <td style="color: #B23B2E; font-weight: bold;">{{ v.discountPercent }}%</td>
               <td>{{ v.account ? v.account.username : 'Tất cả khách hàng' }}</td>
               <td>
                 <span class="status-badge" :class="{'used': v.isUsed}">
@@ -81,7 +81,7 @@ const newVoucher = ref({ code: '', discountPercent: 10, accountUsername: '' });
 
 const fetchVouchers = async () => {
   try {
-    const res = await api.get('http://localhost:8080/api/vouchers/admin', {
+    const res = await api.get('/api/vouchers/admin', {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     });
     vouchers.value = res.data;
@@ -98,7 +98,7 @@ const createVoucher = async () => {
       discountPercent: newVoucher.value.discountPercent,
       account: newVoucher.value.accountUsername ? { username: newVoucher.value.accountUsername } : null
     };
-    await api.post('http://localhost:8080/api/vouchers/admin/create', payload, {
+    await api.post('/api/vouchers/admin/create', payload, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     });
     alert('Tạo Voucher thành công!');
@@ -123,9 +123,9 @@ onMounted(fetchVouchers);
 .admin-wrapper { background: var(--bg-root); min-height: 100vh; }
 .admin-content { max-width: 1400px; margin: 0 auto; padding: 36px 24px; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-.code-badge { background: #f1c40f; color: #000; padding: 4px 10px; border-radius: 4px; font-weight: bold; font-family: monospace; letter-spacing: 1px;}
-.status-badge { background: rgba(46, 204, 113, 0.2); color: #2ecc71; padding: 4px 10px; border-radius: 20px; font-weight: bold; font-size: 0.85rem;}
-.status-badge.used { background: rgba(149, 165, 166, 0.2); color: #7f8c8d; }
+.code-badge { background: #B98229; color: #201D14; padding: 4px 10px; border-radius: 4px; font-weight: bold; font-family: var(--font-primary); letter-spacing: 1px;}
+.status-badge { background: rgba(47, 143, 91, 0.2); color: #2F8F5B; padding: 4px 10px; border-radius: 20px; font-weight: bold; font-size: 0.85rem;}
+.status-badge.used { background: rgba(111, 122, 115, 0.2); color: #7A7460; }
 .mt-3 { margin-top: 15px; }
 .mt-4 { margin-top: 20px; }
 </style>

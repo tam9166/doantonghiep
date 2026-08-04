@@ -74,7 +74,7 @@ const editingId = ref(null);
 
 const fetchCategories = async () => {
   try {
-    const res = await api.get('http://localhost:8080/api/categories');
+    const res = await api.get('/api/categories');
     categories.value = res.data;
   } catch (error) { console.error('Lỗi:', error); }
 };
@@ -85,7 +85,7 @@ const handleAdd = async () => {
   }
   const token = localStorage.getItem('token');
   try {
-    await api.post('http://localhost:8080/api/categories', newCategory.value, {
+    await api.post('/api/categories', newCategory.value, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     alert('Thêm thành công!');
@@ -110,7 +110,7 @@ const handleUpdate = async () => {
   if (!newCategory.value.name) return alert('Vui lòng nhập tên danh mục!');
   const token = localStorage.getItem('token');
   try {
-    await api.put(`http://localhost:8080/api/categories/${editingId.value}`, newCategory.value, {
+    await api.put(`/api/categories/${editingId.value}`, newCategory.value, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     alert('Cập nhật thành công!');
@@ -123,7 +123,7 @@ const handleDelete = async (id) => {
   if (!confirm('Xóa danh mục này? Lưu ý: Cần đảm bảo không có món ăn nào đang dùng danh mục này!')) return;
   const token = localStorage.getItem('token');
   try {
-    await api.delete(`http://localhost:8080/api/categories/${id}`, {
+    await api.delete(`/api/categories/${id}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     alert('Đã xóa!');
@@ -182,7 +182,7 @@ onMounted(fetchCategories);
 .id-badge {
   background: var(--bg-input); color: var(--text-muted);
   padding: 3px 10px; border-radius: 6px;
-  font-family: monospace; font-size: 0.9rem; font-weight: 600;
+  font-family: var(--font-primary); font-size: 0.9rem; font-weight: 600;
 }
 .category-name { color: var(--text-primary); font-weight: 600; font-size: 1rem; }
 .empty-row { text-align: center; color: var(--text-muted); padding: 40px; font-style: italic; }

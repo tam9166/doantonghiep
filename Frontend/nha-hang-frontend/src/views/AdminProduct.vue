@@ -84,14 +84,14 @@
               <tbody>
                 <tr v-for="p in products" :key="p.id" :class="{ 'row-disabled': p.status === false }">
                   <td>
-                    <img :src="p.image || 'https://placehold.co/60x60/0d1b2a/00d4aa?text=🍽'" class="img-thumb" />
+                    <img :src="foodImage(p.image)" class="img-thumb" @error="replaceFoodImage" />
                   </td>
                   <td><strong class="product-name">{{ p.name }}</strong></td>
                   <td><span class="category-chip">{{ p.category ? p.category.name : 'Chưa phân loại' }}</span></td>
                   <td class="price-text">{{ p.price.toLocaleString() }}đ</td>
                   <td>{{ p.taxRate !== null && p.taxRate !== undefined ? p.taxRate + '%' : '8%' }}</td>
-                  <td style="color: #e74c3c; font-weight: bold;">{{ p.costPrice > 0 ? p.costPrice.toLocaleString() + 'đ' : 'N/A' }}</td>
-                  <td><strong style="color: #f1c40f;">{{ p.averageRating > 0 ? '⭐ ' + p.averageRating : 'N/A' }}</strong></td>
+                  <td style="color: #B23B2E; font-weight: bold;">{{ p.costPrice > 0 ? p.costPrice.toLocaleString() + 'đ' : 'N/A' }}</td>
+                  <td><strong style="color: #B98229;">{{ p.averageRating > 0 ? '⭐ ' + p.averageRating : 'N/A' }}</strong></td>
                   <td>
                     <span :class="p.status === false ? 'g-badge g-badge-danger' : 'g-badge g-badge-success'">
                       {{ p.status === false ? 'Hết món' : 'Đang bán' }}
@@ -125,6 +125,7 @@ import AdminLayout from '@/components/AdminLayout.vue';
 
 import { ref, onMounted } from 'vue';
 import api from '@/services/api';
+import { foodImage, replaceFoodImage } from '@/utils/imageFallback';
 
 const products = ref([]);
 const categories = ref([]);
@@ -149,7 +150,7 @@ const fetchProducts = async () => {
 
 const fetchCategories = async () => {
   try {
-    const res = await api.get('http://localhost:8080/api/categories');
+    const res = await api.get('/api/categories');
     categories.value = res.data;
   } catch (error) { console.error('Lỗi lấy danh mục', error); }
 };
@@ -192,10 +193,10 @@ const saveProduct = async () => {
 
   try {
     if (isEditing.value) {
-      await api.put(`http://localhost:8080/api/admin/products/${editingId.value}`, payload, getAuthConfig());
+      await api.put(`/api/admin/products/${editingId.value}`, payload, getAuthConfig());
       alert('Cập nhật thành công!');
     } else {
-      await api.post('http://localhost:8080/api/admin/products', payload, getAuthConfig());
+      await api.post('/api/admin/products', payload, getAuthConfig());
       alert('Thêm món thành công!');
     }
     cancelEdit();
@@ -209,7 +210,7 @@ const toggleStatus = async (product) => {
   const newStatus = product.status === false ? true : false;
   const payload = { ...product, status: newStatus, category: product.category ? { id: product.category.id } : null };
   try {
-    await api.put(`http://localhost:8080/api/admin/products/${product.id}`, payload, getAuthConfig());
+    await api.put(`/api/admin/products/${product.id}`, payload, getAuthConfig());
     fetchProducts();
   } catch (error) { alert('Lỗi cập nhật trạng thái!'); }
 };
@@ -217,7 +218,7 @@ const toggleStatus = async (product) => {
 const handleDelete = async (id) => {
   if (!confirm('Chắc chắn muốn xóa?')) return;
   try {
-    await api.delete(`http://localhost:8080/api/admin/products/${id}`, getAuthConfig());
+    await api.delete(`/api/admin/products/${id}`, getAuthConfig());
     alert('Đã xóa!');
     fetchProducts();
   } catch (error) {
@@ -276,7 +277,7 @@ onMounted(() => {
 .form-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 24px; }
 .btn-cancel {
   width: 100%;
-  background: rgba(90,122,138,0.15);
+  background: rgba(92,107,101,0.15);
   border: 1px solid var(--border-light);
   color: var(--text-muted);
   padding: 12px;
@@ -286,7 +287,7 @@ onMounted(() => {
   font-family: inherit;
   transition: var(--transition);
 }
-.btn-cancel:hover { background: rgba(90,122,138,0.3); color: var(--text-secondary); }
+.btn-cancel:hover { background: rgba(92,107,101,0.3); color: var(--text-secondary); }
 
 /* Table Card */
 .table-card {
@@ -340,21 +341,21 @@ onMounted(() => {
 
 .action-buttons { display: flex; gap: 6px; }
 .btn-edit {
-  background: rgba(52,152,219,0.15);
-  border: 1px solid rgba(52,152,219,0.3);
-  color: #3498db;
+  background: rgba(90, 110, 69, 0.15);
+  border: 1px solid rgba(90, 110, 69, 0.3);
+  color: #5A6E45;
   padding: 7px 12px; border-radius: var(--radius-sm);
   cursor: pointer; font-size: 0.88rem; transition: var(--transition);
 }
-.btn-edit:hover { background: rgba(52,152,219,0.3); }
+.btn-edit:hover { background: rgba(90, 110, 69, 0.3); }
 .btn-toggle {
-  background: rgba(241,196,15,0.15);
-  border: 1px solid rgba(241,196,15,0.3);
-  color: #f1c40f;
+  background: rgba(185,130,41,0.15);
+  border: 1px solid rgba(185,130,41,0.3);
+  color: #B98229;
   padding: 7px 12px; border-radius: var(--radius-sm);
   cursor: pointer; font-size: 0.88rem; transition: var(--transition);
 }
-.btn-toggle:hover { background: rgba(241,196,15,0.3); }
+.btn-toggle:hover { background: rgba(185,130,41,0.3); }
 
 .row-disabled td { opacity: 0.5; }
 .empty-row { text-align: center; color: var(--text-muted); padding: 40px; font-style: italic; }

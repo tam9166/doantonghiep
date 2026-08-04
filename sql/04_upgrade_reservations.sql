@@ -47,6 +47,10 @@ BEGIN
         ADD CONSTRAINT FK_restaurant_table_area FOREIGN KEY (area_id) REFERENCES dbo.table_areas(id);
 END;
 
+-- SQL Server compiles a batch before executing ALTER TABLE statements. Split
+-- here so the following update can safely reference the newly added columns.
+GO
+
 IF OBJECT_ID('dbo.reservations', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.reservations (
@@ -81,6 +85,12 @@ BEGIN
         CONSTRAINT FK_reservations_table FOREIGN KEY (table_id) REFERENCES dbo.restaurant_table(id)
     );
 END;
+
+-- Required by the payment ledger migration that runs when Spring Boot starts.
+IF COL_LENGTH('dbo.reservations', 'payment_status') IS NULL
+    ALTER TABLE dbo.reservations ADD payment_status VARCHAR(30) NOT NULL
+        CONSTRAINT df_setup_reservations_payment_status DEFAULT 'UNPAID';
+GO
 
 IF OBJECT_ID('dbo.reservation_images', 'U') IS NULL
 BEGIN

@@ -32,7 +32,7 @@ class PaymentWebhookServiceTest {
             webhookLogRepository,
             paymentLedgerService,
             "webhook-secret",
-            "919112006789",
+            "1234567890",
             300);
 
     @Test
@@ -126,7 +126,7 @@ class PaymentWebhookServiceTest {
         request.setPaymentCode("PAY-MV-001");
         request.setTransferContent("TT MV001 ABC12345");
         request.setAmount(new BigDecimal("100000"));
-        request.setAccountNumber("919112006789");
+        request.setAccountNumber("1234567890");
         return request;
     }
 }

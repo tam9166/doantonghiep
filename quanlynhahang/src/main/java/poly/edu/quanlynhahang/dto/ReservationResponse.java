@@ -14,6 +14,7 @@ import java.util.List;
 public class ReservationResponse {
     private Long id;
     private String reservationCode;
+    private Integer kitchenOrderId;
     private String paymentCapabilityToken;
     private String customerName;
     private String customerPhone;

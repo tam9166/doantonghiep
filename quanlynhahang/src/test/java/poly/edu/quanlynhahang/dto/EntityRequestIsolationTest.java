@@ -4,11 +4,13 @@ import org.junit.jupiter.api.Test;
 import poly.edu.quanlynhahang.controller.AdminPostController;
 import poly.edu.quanlynhahang.controller.AdminProductController;
 import poly.edu.quanlynhahang.controller.AdminTableController;
+import poly.edu.quanlynhahang.controller.ApplicationController;
 import poly.edu.quanlynhahang.controller.CategoryController;
 import poly.edu.quanlynhahang.controller.RestaurantTableController;
 import poly.edu.quanlynhahang.controller.ReviewController;
 import poly.edu.quanlynhahang.controller.VoucherController;
 import poly.edu.quanlynhahang.entity.Category;
+import poly.edu.quanlynhahang.entity.Application;
 import poly.edu.quanlynhahang.entity.Post;
 import poly.edu.quanlynhahang.entity.Product;
 import poly.edu.quanlynhahang.entity.RestaurantTable;
@@ -46,6 +48,8 @@ class EntityRequestIsolationTest {
                 "updateTable", Integer.class, RestaurantTableUpsertRequest.class), RestaurantTable.class);
         assertRequestType(VoucherController.class.getMethod("adminCreateVoucher", VoucherUpsertRequest.class), Voucher.class);
         assertRequestType(ReviewController.class.getMethod("addReview", Integer.class, ReviewCreateRequest.class), Review.class);
+        assertRequestType(ApplicationController.class.getMethod("submitApplication", ApplicationCreateRequest.class),
+                Application.class);
     }
 
     @Test
@@ -77,6 +81,24 @@ class EntityRequestIsolationTest {
         assertFalse(componentNames(RestaurantTableUpsertRequest.class).contains("reservedTime"));
         assertEquals(0, table.toNewEntity().getIsOccupied());
         assertEquals(null, table.toNewEntity().getReservedTime());
+    }
+
+    @Test
+    void applicationRequestDoesNotAllowClientControlledPersistenceFields() throws Exception {
+        ApplicationCreateRequest application = objectMapper.readValue("""
+                {
+                  "id": 99,
+                  "fullname": "Ung vien",
+                  "phone": "0900000000",
+                  "cvFile": "/api/applications/cv/attacker.pdf",
+                  "createDate": "2020-01-01T00:00:00Z"
+                }
+                """, ApplicationCreateRequest.class);
+
+        assertEquals("Ung vien", application.fullname());
+        assertFalse(componentNames(ApplicationCreateRequest.class).contains("id"));
+        assertFalse(componentNames(ApplicationCreateRequest.class).contains("cvFile"));
+        assertFalse(componentNames(ApplicationCreateRequest.class).contains("createDate"));
     }
 
     private void assertRequestType(Method method, Class<?> entityType) {

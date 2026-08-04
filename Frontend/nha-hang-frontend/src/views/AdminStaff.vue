@@ -384,7 +384,7 @@
         <h3>Xem & Cập Nhật Nhân Viên</h3>
         <div class="form-group">
           <label>Tên Đăng Nhập</label>
-          <input type="text" class="g-form-control" v-model="editStaff.username" disabled style="background:#222; color:#aaa; cursor:not-allowed;" />
+          <input type="text" class="g-form-control" v-model="editStaff.username" disabled style="background:#1A170F; color:#A6B0AA; cursor:not-allowed;" />
         </div>
         <div class="form-group">
           <label>Mật Khẩu (Để trống nếu không đổi)</label>
@@ -440,8 +440,8 @@
             🤖 {{ isAnalyzing ? 'Đang phân tích...' : 'AI Phân Tích Khách Hàng' }}
           </button>
         </div>
-        <div v-if="aiCustomerAnalysis" style="margin-top:15px; padding:15px; background:rgba(241, 196, 15, 0.1); border:1px solid rgba(241, 196, 15, 0.4); border-radius:8px;">
-          <h4 style="margin:0 0 10px 0; color:#f1c40f;">🤖 Đánh Giá Từ AI:</h4>
+        <div v-if="aiCustomerAnalysis" style="margin-top:15px; padding:15px; background:rgba(185, 130, 41, 0.1); border:1px solid rgba(185, 130, 41, 0.4); border-radius:8px;">
+          <h4 style="margin:0 0 10px 0; color:#B98229;">🤖 Đánh Giá Từ AI:</h4>
           <p style="margin:0; font-size:0.95rem; line-height:1.6; white-space:pre-wrap;">{{ aiCustomerAnalysis }}</p>
         </div>
         <div style="max-height: 400px; overflow-y: auto;">
@@ -486,14 +486,14 @@
       <div class="g-modal printable-area invoice-modal">
         <div class="modal-header hide-on-print" style="display:flex; justify-content:space-between;">
           <h2 style="color:var(--primary); margin:0;">Chi Tiết Hóa Đơn</h2>
-          <button @click="selectedCustomerOrder = null" style="background:transparent; border:none; font-size:1.5rem; cursor:pointer; color:#aaa;">✖</button>
+          <button @click="selectedCustomerOrder = null" style="background:transparent; border:none; font-size:1.5rem; cursor:pointer; color:#A6B0AA;">✖</button>
         </div>
         
-        <div class="invoice-content" style="padding:20px; color:#111; background:#fff;">
-          <div style="text-align:center; border-bottom:2px solid #111; padding-bottom:15px; margin-bottom:20px;">
-            <h1 style="margin:0; font-size:2rem; letter-spacing:2px;">Mộc Vị <span style="color:#00b894;">RESTAURANT</span></h1>
-            <p style="margin:5px 0 0; color:#555; text-transform:uppercase; font-size:0.8rem;">Luxury Dining Experience</p>
-            <p style="margin:5px 0 0; font-size:0.85rem; color:#777;">137 Nguyễn Thị Thập, Đà Nẵng | Hotline: 0905.XXX.XXX</p>
+        <div class="invoice-content" style="padding:20px; color:#1A170F; background:#FFFFFF;">
+          <div style="text-align:center; border-bottom:2px solid #1A170F; padding-bottom:15px; margin-bottom:20px;">
+            <h1 style="margin:0; font-size:2rem; letter-spacing:2px;">Mộc Vị <span style="color:#2F8F5B;">RESTAURANT</span></h1>
+            <p style="margin:5px 0 0; color:#55503E; text-transform:uppercase; font-size:0.8rem;">Luxury Dining Experience</p>
+            <p style="margin:5px 0 0; font-size:0.85rem; color:#7A7460;">137 Nguyễn Thị Thập, Đà Nẵng | Hotline: 0905.XXX.XXX</p>
           </div>
           
           <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
@@ -502,14 +502,14 @@
               <p style="margin:5px 0;"><strong>Ngày lập:</strong> {{ new Date(selectedCustomerOrder.createDate).toLocaleString('vi-VN') }}</p>
             </div>
             <div style="text-align:right;">
-              <h3 style="margin:0; color:#c0392b;">HÓA ĐƠN THANH TOÁN</h3>
-              <p style="margin:5px 0; font-size:1.2rem; font-weight:bold; font-family:monospace;">#{{ selectedCustomerOrder.id }}</p>
+              <h3 style="margin:0; color:#B23B2E;">HÓA ĐƠN THANH TOÁN</h3>
+              <p style="margin:5px 0; font-size:1.2rem; font-weight:bold; font-family:var(--font-primary);">#{{ selectedCustomerOrder.id }}</p>
             </div>
           </div>
           
           <table style="width:100%; border-collapse:collapse; margin-bottom:20px;">
             <thead>
-              <tr style="background:#111; color:#fff;">
+              <tr style="background:#1A170F; color:#FFFFFF;">
                 <th style="padding:10px; text-align:left;">Tên Món Ăn</th>
                 <th style="padding:10px; text-align:right;">Đơn Giá</th>
                 <th style="padding:10px; text-align:center;">SL</th>
@@ -517,7 +517,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="item in selectedCustomerOrder.orderDetails" :key="item.id" style="border-bottom:1px solid #ddd;">
+              <tr v-for="item in selectedCustomerOrder.orderDetails" :key="item.id" style="border-bottom:1px solid #CFC7A8;">
                 <td style="padding:10px;">{{ item.product?.name }}</td>
                 <td style="padding:10px; text-align:right;">{{ (item.price / item.quantity).toLocaleString() }}đ</td>
                 <td style="padding:10px; text-align:center;">{{ item.quantity }}</td>
@@ -527,19 +527,19 @@
           </table>
           
           <div style="text-align:right; margin-bottom:20px;">
-            <div style="font-size:1.2rem; font-weight:bold; color:#c0392b; border-top:2px solid #111; display:inline-block; padding-top:10px;">
+            <div style="font-size:1.2rem; font-weight:bold; color:#B23B2E; border-top:2px solid #1A170F; display:inline-block; padding-top:10px;">
               TỔNG CỘNG: {{ calculateOrderTotal(selectedCustomerOrder).toLocaleString() }} đ
             </div>
           </div>
           
-          <div style="text-align:center; font-size:0.9rem; color:#777; border-top:1px solid #eee; padding-top:15px;">
-            <p style="margin:0 0 5px; color:#00b894; font-size:1.1rem; font-style:italic;">Cảm ơn quý khách!</p>
+          <div style="text-align:center; font-size:0.9rem; color:#7A7460; border-top:1px solid #E2DCC2; padding-top:15px;">
+            <p style="margin:0 0 5px; color:#2F8F5B; font-size:1.1rem; font-style:italic;">Cảm ơn quý khách!</p>
             <p style="margin:0;">In từ hệ thống Mộc Vị Restaurant</p>
           </div>
         </div>
         
-        <div class="modal-actions hide-on-print" style="padding:15px; background:#f8f9fa; text-align:center;">
-          <button class="g-btn-primary" @click="printInvoice" style="background:#00b894; color:#fff; padding:10px 25px; border:none; font-weight:bold; cursor:pointer;">🖨️ Xuất Hóa Đơn PDF</button>
+        <div class="modal-actions hide-on-print" style="padding:15px; background:#DED8C2; text-align:center;">
+          <button class="g-btn-primary" @click="printInvoice" style="background:#2F8F5B; color:#FFFFFF; padding:10px 25px; border:none; font-weight:bold; cursor:pointer;">🖨️ Xuất Hóa Đơn PDF</button>
         </div>
       </div>
     </div>
@@ -675,7 +675,7 @@ const getStatusClass = (status) => {
 
 const fetchStaff = async () => {
   try {
-    const response = await api.get('http://localhost:8080/api/admin/staff', configHeader());
+    const response = await api.get('/api/admin/staff', configHeader());
     staffList.value = response.data;
   } catch (error) {
     console.error('Lỗi khi tải danh sách nhân viên:', error);
@@ -684,7 +684,7 @@ const fetchStaff = async () => {
 
 const fetchCustomers = async () => {
   try {
-    const response = await api.get('http://localhost:8080/api/admin/staff/customers', configHeader());
+    const response = await api.get('/api/admin/staff/customers', configHeader());
     customerList.value = response.data;
   } catch (error) {
     console.error('Lỗi tải khách hàng:', error);
@@ -696,7 +696,7 @@ const viewCustomerOrders = async (cus) => {
     currentCustomerView.value = cus;
     searchCustomerOrderQuery.value = '';
     aiCustomerAnalysis.value = '';
-    const res = await api.get(`http://localhost:8080/api/admin/staff/customers/${cus.username}/orders`, configHeader());
+    const res = await api.get(`/api/admin/staff/customers/${cus.username}/orders`, configHeader());
     customerOrders.value = res.data;
     showCustomerOrdersModal.value = true;
   } catch (err) {
@@ -749,7 +749,7 @@ const createStaff = async () => {
     const payload = { ...newStaff.value };
     const roleId = payload.role;
     delete payload.role; // Remove role from body since it expects Account only
-    await api.post(`http://localhost:8080/api/admin/staff?roleId=${roleId}`, payload, configHeader());
+    await api.post(`/api/admin/staff?roleId=${roleId}`, payload, configHeader());
     alert('Thêm nhân viên thành công!');
     showAddModal.value = false;
     newStaff.value = { username: '', password: '', fullname: '', email: '', role: 'ROLE_WAITER', shift: '', assignedArea: '' };
@@ -784,7 +784,7 @@ const updateStaff = async () => {
       payload.password = editStaff.value.password;
     }
     
-    await api.put(`http://localhost:8080/api/admin/staff/${editStaff.value.username}?roleId=${editStaff.value.role}`, payload, configHeader());
+    await api.put(`/api/admin/staff/${editStaff.value.username}?roleId=${editStaff.value.role}`, payload, configHeader());
     alert('Cập nhật nhân viên thành công!');
     showEditModal.value = false;
     fetchStaff();
@@ -796,7 +796,7 @@ const updateStaff = async () => {
 const deleteStaff = async (username) => {
   if (!confirm('Bạn có chắc muốn xóa nhân viên ' + username + '?')) return;
   try {
-    await api.delete(`http://localhost:8080/api/admin/staff/${username}`, configHeader());
+    await api.delete(`/api/admin/staff/${username}`, configHeader());
     alert('Xóa thành công!');
     fetchStaff();
   } catch (err) {
@@ -806,7 +806,7 @@ const deleteStaff = async (username) => {
 
 const fetchSchedules = async () => {
   try {
-    const res = await api.get(`http://localhost:8080/api/schedules?startDate=${scheduleStartDate.value}&endDate=${scheduleEndDate.value}`, configHeader());
+    const res = await api.get(`/api/schedules?startDate=${scheduleStartDate.value}&endDate=${scheduleEndDate.value}`, configHeader());
     scheduleList.value = res.data;
   } catch (err) {
     console.error('Lỗi lấy lịch', err);
@@ -826,7 +826,7 @@ const addSchedule = async () => {
       d.setDate(d.getDate() + i);
       const dateStr = d.toISOString().split('T')[0];
       const payload = { ...newSchedule.value, workDate: dateStr };
-      requests.push(api.post('http://localhost:8080/api/schedules', payload, configHeader()));
+      requests.push(api.post('/api/schedules', payload, configHeader()));
     }
     
     await Promise.all(requests);
@@ -843,7 +843,7 @@ const addSchedule = async () => {
 const deleteSchedule = async (id) => {
   if (!confirm('Hủy ca làm này?')) return;
   try {
-    await api.delete(`http://localhost:8080/api/schedules/${id}`, configHeader());
+    await api.delete(`/api/schedules/${id}`, configHeader());
     fetchSchedules();
   } catch (err) {
     alert('Lỗi hủy lịch');
@@ -852,24 +852,10 @@ const deleteSchedule = async (id) => {
 
 const fetchTimekeeping = async () => {
   try {
-    const res = await api.get(`http://localhost:8080/api/timekeeping?startDate=${timekeepingStartDate.value}&endDate=${timekeepingEndDate.value}`, configHeader());
+    const res = await api.get(`/api/timekeeping?startDate=${timekeepingStartDate.value}&endDate=${timekeepingEndDate.value}`, configHeader());
     timekeepingList.value = res.data;
   } catch (err) {
     console.error('Lỗi lấy báo cáo chấm công', err);
-  }
-};
-
-const generateDemoSalary = async () => {
-  if (!confirm('Bạn có chắc muốn tạo dữ liệu lương mẫu cho tháng 05/2026? Dữ liệu cũ của tháng này sẽ bị xóa!')) return;
-  try {
-    const res = await api.post('http://localhost:8080/api/admin/staff/demo-salary', {}, configHeader());
-    alert(res.data.message || 'Thành công!');
-    salaryMonth.value = '2026-05';
-    fetchSalary();
-    fetchTimekeeping();
-    fetchSchedules();
-  } catch (err) {
-    alert('Lỗi tạo dữ liệu: ' + (err.response?.data || err.message));
   }
 };
 
@@ -882,8 +868,8 @@ const fetchSalary = async () => {
     const endDate = `${year}-${month}-${lastDay}`;
     
     const [resSched, resTk] = await Promise.all([
-      api.get(`http://localhost:8080/api/schedules?startDate=${startDate}&endDate=${endDate}`, configHeader()),
-      api.get(`http://localhost:8080/api/timekeeping?startDate=${startDate}&endDate=${endDate}`, configHeader())
+      api.get(`/api/schedules?startDate=${startDate}&endDate=${endDate}`, configHeader()),
+      api.get(`/api/timekeeping?startDate=${startDate}&endDate=${endDate}`, configHeader())
     ]);
     
     const schedules = resSched.data;
@@ -938,7 +924,7 @@ const waiterList = computed(() => {
 
 const fetchFloors = async () => {
   try {
-    const res = await api.get('http://localhost:8080/api/service-zones/floors', configHeader());
+    const res = await api.get('/api/service-zones/floors', configHeader());
     floorList.value = res.data;
   } catch (err) {
     console.error('Lỗi lấy danh sách tầng', err);
@@ -947,7 +933,7 @@ const fetchFloors = async () => {
 
 const fetchZones = async () => {
   try {
-    const res = await api.get(`http://localhost:8080/api/service-zones?date=${zoneDate.value}`, configHeader());
+    const res = await api.get(`/api/service-zones?date=${zoneDate.value}`, configHeader());
     zoneList.value = res.data;
     fetchZoneMap();
   } catch (err) {
@@ -957,7 +943,7 @@ const fetchZones = async () => {
 
 const fetchZoneMap = async () => {
   try {
-    let url = `http://localhost:8080/api/service-zones/map?date=${zoneDate.value}`;
+    let url = `/api/service-zones/map?date=${zoneDate.value}`;
     if (zoneMapShift.value) url += `&shift=${encodeURIComponent(zoneMapShift.value)}`;
     const res = await api.get(url, configHeader());
     zoneMap.value = res.data;
@@ -979,7 +965,7 @@ const addZoneAssignment = async () => {
       d.setDate(d.getDate() + i);
       const dateStr = d.toISOString().split('T')[0];
       requests.push(
-        api.post('http://localhost:8080/api/service-zones', {
+        api.post('/api/service-zones', {
           username: newZone.value.username,
           floor: newZone.value.floor,
           shift: newZone.value.shift,
@@ -1003,7 +989,7 @@ const addZoneAssignment = async () => {
 const deleteZoneAssignment = async (id) => {
   if (!confirm('Xóa phân công khu vực này?')) return;
   try {
-    await api.delete(`http://localhost:8080/api/service-zones/${id}`, configHeader());
+    await api.delete(`/api/service-zones/${id}`, configHeader());
     fetchZones();
   } catch (err) {
     alert('Lỗi xóa phân công');
@@ -1034,8 +1020,8 @@ onMounted(() => {
     overflow: visible !important;
     box-shadow: none !important;
     border-radius: 0 !important;
-    background: white !important;
-    color: #111 !important;
+    background: #FFFFFF !important;
+    color: #1A170F !important;
     padding: 0 !important;
     z-index: 99999 !important;
   }
@@ -1078,21 +1064,21 @@ onMounted(() => {
 
 .data-table { width: 100%; border-collapse: collapse; color: var(--text-heading); }
 .data-table th, .data-table td { padding: 12px 15px; text-align: left; border-bottom: 1px solid var(--border); }
-.data-table th { background: rgba(0, 212, 170, 0.1); font-weight: bold; color: var(--primary); }
+.data-table th { background: rgba(90, 110, 69, 0.1); font-weight: bold; color: var(--primary); }
 .data-table tr:hover { background: rgba(255, 255, 255, 0.02); }
 
-.role-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: bold; color: white; }
-.role-badge.ROLE_ADMIN { background: #e74c3c; }
-.role-badge.ROLE_MANAGER { background: #8e44ad; }
-.role-badge.ROLE_KITCHEN { background: #e67e22; }
-.role-badge.ROLE_WAITER { background: #3498db; }
-.role-badge.ROLE_CASHIER { background: #2ecc71; }
+.role-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: bold; color: #FFFFFF; }
+.role-badge.ROLE_ADMIN { background: #B23B2E; }
+.role-badge.ROLE_MANAGER { background: #8A641F; }
+.role-badge.ROLE_KITCHEN { background: #C08A2E; }
+.role-badge.ROLE_WAITER { background: #5A6E45; }
+.role-badge.ROLE_CASHIER { background: #2F8F5B; }
 
-.status-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: bold; color: white; }
-.status-warning { background: #f39c12; }
-.status-success { background: #27ae60; }
-.status-danger { background: #e74c3c; }
-.status-default { background: #95a5a6; }
+.status-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: bold; color: #FFFFFF; }
+.status-warning { background: #B98229; }
+.status-success { background: #2F8F5B; }
+.status-danger { background: #B23B2E; }
+.status-default { background: #7A7460; }
 
 .schedule-form { display: flex; gap: 15px; background: rgba(0, 0, 0, 0.2); padding: 15px; border-radius: 8px; align-items: center; border: 1px solid var(--border); }
 .mt-20 { margin-top: 20px; }
@@ -1110,8 +1096,8 @@ onMounted(() => {
 .zone-map-section {
   margin: 20px 0;
   padding: 20px;
-  background: rgba(0, 212, 170, 0.03);
-  border: 1px solid rgba(0, 212, 170, 0.15);
+  background: rgba(90, 110, 69, 0.03);
+  border: 1px solid rgba(90, 110, 69, 0.15);
   border-radius: 12px;
 }
 
@@ -1130,13 +1116,13 @@ onMounted(() => {
 }
 .zone-map-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(0, 212, 170, 0.15);
-  border-color: rgba(0, 212, 170, 0.3);
+  box-shadow: 0 4px 15px rgba(90, 110, 69, 0.15);
+  border-color: rgba(90, 110, 69, 0.3);
 }
 
 .zone-map-floor {
   padding: 12px 16px;
-  background: rgba(0, 212, 170, 0.1);
+  background: rgba(90, 110, 69, 0.1);
   font-weight: 800;
   font-size: 0.95rem;
   color: var(--primary);
@@ -1155,13 +1141,13 @@ onMounted(() => {
   align-items: center;
   gap: 10px;
   padding: 8px 12px;
-  background: rgba(52, 152, 219, 0.08);
-  border: 1px solid rgba(52, 152, 219, 0.15);
+  background: rgba(90, 110, 69, 0.08);
+  border: 1px solid rgba(90, 110, 69, 0.15);
   border-radius: 8px;
   transition: 0.2s;
 }
 .zone-staff-chip:hover {
-  background: rgba(52, 152, 219, 0.15);
+  background: rgba(90, 110, 69, 0.15);
 }
 
 .zone-chip-avatar {
@@ -1171,7 +1157,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(52, 152, 219, 0.15);
+  background: rgba(90, 110, 69, 0.15);
   border-radius: 50%;
 }
 
@@ -1192,9 +1178,9 @@ onMounted(() => {
   border-radius: 12px;
   font-size: 0.82rem;
   font-weight: 700;
-  color: white;
+  color: #FFFFFF;
 }
-.shift-badge.shift-Sáng { background: #f39c12; }
-.shift-badge.shift-Chiều { background: #e67e22; }
-.shift-badge.shift-Tối { background: #8e44ad; }
+.shift-badge.shift-Sáng { background: #B98229; }
+.shift-badge.shift-Chiều { background: #C08A2E; }
+.shift-badge.shift-Tối { background: #8A641F; }
 </style>

@@ -4,59 +4,15 @@
    ============================================================ */
 
 :root {
-  /* Reu Nui & Hoang Dong palette */
-  --primary:        #33422A;
-  --primary-dark:   #22301B;
-  --primary-dim:    #E7E3D2;
-  --primary-glow:   rgba(90, 110, 69, 0.18);
-  --primary-glow2:  rgba(90, 110, 69, 0.08);
-
-  --secondary:      #C08A2E;
-  --secondary-glow: rgba(192, 138, 46, 0.22);
-
-  --bg-root:        #DED8C2;
-  --bg-dark:        #CFC7A8;
-  --bg-card:        #F7F3E6;
-  --bg-card2:       #F7F3E6;
-  --bg-nav:         #F7F3E6;
-  --bg-input:       #FFFFFF;
-  --bg-hover:       #E7E3D2;
-
-  --text-primary:   #201D14;
-  --text-secondary: #55503E;
-  --text-muted:     #7A7460;
-  --text-heading:   #1A170F;
-
-  --border:         #CFC7A8;
-  --border-light:   #E2DCC2;
-  --border-focus:   rgba(51, 66, 42, 0.5);
-
-  --success:        #2F8F5B;
-  --warning:        #B98229;
-  --danger:         #B23B2E;
-  --info:           #3B6EA5;
-
-  --shadow-sm:      0 4px 12px rgba(26, 23, 15, 0.10);
-  --shadow-md:      0 8px 24px rgba(26, 23, 15, 0.12);
-  --shadow-lg:      0 20px 48px rgba(26, 23, 15, 0.16);
-  --shadow-glow:    0 0 0 3px rgba(51, 66, 42, 0.16);
-
-  --overlay-dark:   rgba(34, 48, 27, 0.6);
-  --overlay-darker: rgba(20, 28, 15, 0.8);
-  --tier-diamond:   #5FA8C9;
-
   /* Radius */
-  --radius-sm:  8px;
-  --radius-md:  14px;
-  --radius-lg:  20px;
-  --radius-xl:  28px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
 
   /* Transitions */
   --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 
-  /* Font families */
-  --font-primary: "Times New Roman", Times, "Liberation Serif", serif;
-  --font-display: "Times New Roman", Times, "Liberation Serif", serif;
 }
 
 /* ===== GLOBAL RESET ===== */
@@ -489,4 +445,16 @@ table,
 }
 @media (max-width: 640px) {
   .grid-4, .grid-3, .grid-2 { grid-template-columns: 1fr; }
+}
+
+/* Layout guardrails: prevents viewport overflow when content or API data is long. */
+html, body, #app { width: 100%; max-width: 100%; overflow-x: clip; }
+img, svg, canvas, video { max-width: 100%; }
+input, select, textarea { min-width: 0; }
+@media (max-width: 1024px) {
+  .grid-responsive { gap: 16px; }
+}
+@media (max-width: 640px) {
+  .grid-responsive { gap: 12px; }
+  button, input, select, textarea { min-height: 44px; }
 }

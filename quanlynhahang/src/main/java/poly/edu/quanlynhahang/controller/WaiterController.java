@@ -11,8 +11,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import poly.edu.quanlynhahang.repository.OrderRepository;
-
-@CrossOrigin("*")
 @RestController
 @RequestMapping("/api/waiter")
 @PreAuthorize("hasAnyAuthority('ROLE_WAITER', 'ROLE_ADMIN', 'ROLE_MANAGER')")
@@ -33,7 +31,7 @@ public class WaiterController {
     @PutMapping("/orders/{id}/serve")
     public ResponseEntity<?> confirmServed(@PathVariable Integer id) {
         return orderRepository.findById(id).map(order -> {
-            order.setStatus(3);
+            order.setStatus(7);
             orderRepository.save(order);
             return ResponseEntity.ok("Đã bưng ra bàn, khách bắt đầu dùng bữa!");
         }).orElse(ResponseEntity.notFound().build());

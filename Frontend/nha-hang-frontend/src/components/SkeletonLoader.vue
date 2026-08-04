@@ -68,7 +68,7 @@ defineProps({
   border-radius: var(--radius-lg, 20px);
   border: 1px solid rgba(255, 255, 255, 0.04);
   overflow: hidden;
-  background: rgba(13, 27, 42, 0.4);
+  background: rgba(255, 255, 255, 0.72);
 }
 .sk-img {
   height: 200px;

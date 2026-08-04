@@ -227,4 +227,6 @@ const reservationMessages = {
   }
 }
 
+reservationMessages.vi.occasion = 'Dịch vụ sử dụng'
+
 export default reservationMessages
