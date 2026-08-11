@@ -169,14 +169,16 @@ public class ReservationService {
         if (request.durationHours() < area.getMinBookingHours()) throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Thời lượng thuê chưa đạt mức tối thiểu");
         LocalDate date = parseDate(request.reservationDate()); LocalTime time = parseTime(request.arrivalTime());
         validateReservationTime(date, time, request.durationHours() * 60, false);
-        BigDecimal total = area.getHourlyRate().multiply(BigDecimal.valueOf(request.durationHours())).add(area.getPackagePrice()).setScale(0, RoundingMode.HALF_UP);
+        List<ReservationPreorderItem> preorderItems = buildPreorderItems(request.preorderItems());
+        BigDecimal foodAmount = preorderItems.stream().map(ReservationPreorderItem::getLineTotal).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal total = area.getHourlyRate().multiply(BigDecimal.valueOf(request.durationHours())).add(area.getPackagePrice()).add(foodAmount).setScale(0, RoundingMode.HALF_UP);
         DepositPolicyService.DepositCalculation deposit = depositPolicyService.calculate(total, request.guestCount(), date, time, area.getId(), null, new BigDecimal("0.70"));
         Reservation reservation = new Reservation();
         reservation.setReservationCode(generateReservationCode(date)); reservation.setCustomerName(request.customerName().trim()); reservation.setCustomerPhone(normalizePhone(request.customerPhone())); reservation.setCustomerEmail(trimToNull(request.customerEmail()));
         reservation.setReservationDate(date); reservation.setArrivalTime(time); reservation.setExpectedDurationMinutes(request.durationHours() * 60); reservation.setGuestCount(request.guestCount()); reservation.setArea(area);
         reservation.setEventType(request.eventType()); reservation.setEventDecorationRequired(Boolean.TRUE.equals(request.decorationRequired())); reservation.setEventMcRequired(Boolean.TRUE.equals(request.mcRequired())); reservation.setEventNote(trimToNull(request.eventNote()));
-        reservation.setPaymentOption(PaymentOption.DEPOSIT_50); reservation.setTotalAmount(total); reservation.setTableAmount(total); reservation.setFoodAmount(BigDecimal.ZERO); reservation.setDepositAmount(deposit.amount()); reservation.setDepositRate(deposit.rate()); reservation.setDepositPolicyCode(deposit.policy().getPolicyCode()); reservation.setDepositPolicySnapshot(deposit.policy().getExplanation()); reservation.setRemainingAmount(total); reservation.setPaymentStatus(PaymentStatus.UNPAID); reservation.setDepositStatus(DepositStatus.PENDING); reservation.setReservationStatus(ReservationStatus.PENDING);
-        Reservation saved = reservationRepository.save(reservation); addHistory(saved, null, ReservationStatus.PENDING, "Khách gửi yêu cầu đặt sảnh sự kiện"); return toResponse(saved, false);
+        reservation.setPreorderEnabled(Boolean.TRUE.equals(request.preorderEnabled()) && !preorderItems.isEmpty()); reservation.setPaymentOption(PaymentOption.DEPOSIT_50); reservation.setTotalAmount(total); reservation.setTableAmount(total.subtract(foodAmount)); reservation.setFoodAmount(foodAmount); reservation.setDepositAmount(deposit.amount()); reservation.setDepositRate(deposit.rate()); reservation.setDepositPolicyCode(deposit.policy().getPolicyCode()); reservation.setDepositPolicySnapshot(deposit.policy().getExplanation()); reservation.setRemainingAmount(total); reservation.setPaymentStatus(PaymentStatus.UNPAID); reservation.setDepositStatus(DepositStatus.PENDING); reservation.setReservationStatus(ReservationStatus.PENDING);
+        Reservation saved = reservationRepository.save(reservation); for (ReservationPreorderItem item : preorderItems) { item.setReservation(saved); preorderItemRepository.save(item); } addHistory(saved, null, ReservationStatus.PENDING, "Khách gửi yêu cầu đặt sảnh sự kiện"); return toResponse(saved, false);
     }
 
     @Transactional
