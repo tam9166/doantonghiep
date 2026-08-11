@@ -6,7 +6,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doThrow;
 
 import java.util.List;
 import java.util.Map;
@@ -26,6 +28,7 @@ import poly.edu.quanlynhahang.repository.OrderDetailRepository;
 import poly.edu.quanlynhahang.repository.OrderRepository;
 import poly.edu.quanlynhahang.repository.RestaurantTableRepository;
 import poly.edu.quanlynhahang.service.CustomerInvoiceEmailService;
+import poly.edu.quanlynhahang.service.OrderCheckoutService;
 import poly.edu.quanlynhahang.dto.GuestBookingRequest;
 
 class OrderWorkflowGuardTest {
@@ -73,6 +76,77 @@ class OrderWorkflowGuardTest {
     }
 
     @Test
+    void servingTheWholeTableMarksEveryReadyDishAsServed() {
+        AdminOrderController controller = new AdminOrderController();
+        OrderRepository orderRepository = mock(OrderRepository.class);
+        OrderDetail first = new OrderDetail();
+        first.setStatus(1);
+        OrderDetail second = new OrderDetail();
+        second.setStatus(2);
+        Order order = new Order();
+        order.setId(22);
+        order.setStatus(2);
+        order.setOrderDetails(List.of(first, second));
+        when(orderRepository.findById(22)).thenReturn(Optional.of(order));
+        ReflectionTestUtils.setField(controller, "orderRepository", orderRepository);
+        ReflectionTestUtils.setField(controller, "activityLogService",
+                mock(poly.edu.quanlynhahang.service.ActivityLogService.class));
+        ReflectionTestUtils.setField(controller, "messagingTemplate",
+                mock(org.springframework.messaging.simp.SimpMessagingTemplate.class));
+
+        var response = controller.updateOrderStatus(22, 7);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(2, first.getStatus());
+        assertEquals(2, second.getStatus());
+        assertEquals(7, order.getStatus());
+        verify(orderRepository).save(order);
+    }
+
+    @Test
+    void findsAnOpenOrderByItsTableIdWhenTheAddressFormatDiffers() {
+        OrderController controller = new OrderController();
+        OrderRepository orderRepository = mock(OrderRepository.class);
+        RestaurantTableRepository tableRepository = mock(RestaurantTableRepository.class);
+        RestaurantTable table = new RestaurantTable();
+        table.setId(5);
+        table.setName("B05");
+        Order order = new Order();
+        order.setId(23);
+        order.setTableId(5);
+        order.setAddress("Định dạng địa chỉ cũ");
+        order.setStatus(7);
+        order.setIsPaid(false);
+        when(tableRepository.findByName("B05")).thenReturn(Optional.of(table));
+        when(orderRepository.findOpenDineInOrdersWithDetails(5, "B05")).thenReturn(List.of(order));
+        ReflectionTestUtils.setField(controller, "tableRepository", tableRepository);
+        ReflectionTestUtils.setField(controller, "orderRepository", orderRepository);
+
+        assertEquals(HttpStatus.OK, controller.getOpenDineInOrder("B05").getStatusCode());
+    }
+
+    @Test
+    void addingItemsStillSucceedsWhenWebSocketBroadcastFails() {
+        OrderController controller = new OrderController();
+        OrderCheckoutService checkoutService = mock(OrderCheckoutService.class);
+        org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate =
+                mock(org.springframework.messaging.simp.SimpMessagingTemplate.class);
+        doThrow(new RuntimeException("broker unavailable"))
+                .when(messagingTemplate).convertAndSend("/topic/kitchen", "NEW_ORDER");
+        when(checkoutService.addItems(org.mockito.ArgumentMatchers.eq(18), any(), org.mockito.ArgumentMatchers.eq("key-18")))
+                .thenReturn(new OrderCheckoutService.AddItemsResult(18, 1,
+                        java.math.BigDecimal.TEN, java.math.BigDecimal.ONE, java.math.BigDecimal.valueOf(11)));
+        ReflectionTestUtils.setField(controller, "orderCheckoutService", checkoutService);
+        ReflectionTestUtils.setField(controller, "messagingTemplate", messagingTemplate);
+
+        var response = controller.addItemsToOrder(18, new poly.edu.quanlynhahang.dto.OrderRequest(), "key-18");
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        verify(messagingTemplate).convertAndSend("/topic/kitchen", "NEW_ORDER");
+        verify(messagingTemplate).convertAndSend("/topic/waiter", "DISH_STATUS_CHANGED");
+    }
+
+    @Test
     void rejectsServingADishThatTheKitchenHasNotCompleted() {
         OrderController controller = new OrderController();
         OrderDetailRepository detailRepository = mock(OrderDetailRepository.class);
@@ -103,6 +177,51 @@ class OrderWorkflowGuardTest {
 
         assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
         verify(tableRepository, never()).save(any(RestaurantTable.class));
+    }
+
+    @Test
+    void rejectsMarkingATableForCleaningWhileItHasAnUnpaidOrder() {
+        RestaurantTableController controller = new RestaurantTableController();
+        RestaurantTableRepository tableRepository = mock(RestaurantTableRepository.class);
+        OrderRepository orderRepository = mock(OrderRepository.class);
+        RestaurantTable table = new RestaurantTable();
+        table.setId(9);
+        table.setName("B09");
+        table.setIsOccupied(2);
+        when(tableRepository.findById(9)).thenReturn(Optional.of(table));
+        when(orderRepository.existsOpenUnpaidOrderForTable(9, "B09")).thenReturn(true);
+        ReflectionTestUtils.setField(controller, "tableRepository", tableRepository);
+        ReflectionTestUtils.setField(controller, "orderRepository", orderRepository);
+
+        var response = controller.updateStatus(9, 3, null);
+
+        assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+        assertEquals(2, table.getIsOccupied());
+        verify(tableRepository, never()).save(any(RestaurantTable.class));
+    }
+
+    @Test
+    void allowsPaidTableToMoveFromOccupiedToCleaningAndThenEmpty() {
+        RestaurantTableController controller = new RestaurantTableController();
+        RestaurantTableRepository tableRepository = mock(RestaurantTableRepository.class);
+        OrderRepository orderRepository = mock(OrderRepository.class);
+        RestaurantTable table = new RestaurantTable();
+        table.setId(10);
+        table.setName("B10");
+        table.setIsOccupied(2);
+        when(tableRepository.findById(10)).thenReturn(Optional.of(table));
+        when(orderRepository.existsOpenUnpaidOrderForTable(10, "B10")).thenReturn(false);
+        ReflectionTestUtils.setField(controller, "tableRepository", tableRepository);
+        ReflectionTestUtils.setField(controller, "orderRepository", orderRepository);
+
+        var cleaningResponse = controller.updateStatus(10, 3, null);
+        assertEquals(HttpStatus.OK, cleaningResponse.getStatusCode());
+        assertEquals(3, table.getIsOccupied());
+
+        var emptyResponse = controller.updateStatus(10, 0, null);
+        assertEquals(HttpStatus.OK, emptyResponse.getStatusCode());
+        assertEquals(0, table.getIsOccupied());
+        verify(tableRepository, times(2)).save(table);
     }
 
     @Test

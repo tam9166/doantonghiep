@@ -50,9 +50,12 @@ import poly.edu.quanlynhahang.service.KitchenOrderDetailService;
 import poly.edu.quanlynhahang.service.CustomerInvoiceEmailService;
 
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 @RestController
 @RequestMapping("/api/orders")
 public class OrderController {
+    private static final Logger log = LoggerFactory.getLogger(OrderController.class);
     @Autowired private OrderRepository orderRepository;
     @Autowired private OrderDetailRepository orderDetailRepository;
     @Autowired private ProductRepository productRepository;
@@ -76,12 +79,12 @@ public class OrderController {
     @GetMapping("/open-by-table")
     @PreAuthorize("hasAnyRole('WAITER', 'CASHIER', 'MANAGER', 'ADMIN')")
     public ResponseEntity<?> getOpenDineInOrder(@org.springframework.web.bind.annotation.RequestParam String tableName) {
-        String marker = "Bàn: " + tableName.trim();
-        return orderRepository.findAll().stream()
-                .filter(order -> order.getAddress() != null && order.getAddress().contains(marker))
-                .filter(order -> !Boolean.TRUE.equals(order.getIsPaid()))
-                .filter(order -> order.getStatus() == null || (order.getStatus() != 3 && order.getStatus() != 4))
-                .max(java.util.Comparator.comparing(Order::getCreateDate))
+        String normalizedTableName = tableName.trim();
+        Integer tableId = tableRepository.findByName(normalizedTableName)
+                .map(RestaurantTable::getId)
+                .orElse(null);
+        return orderRepository.findOpenDineInOrdersWithDetails(tableId, normalizedTableName).stream()
+                .findFirst()
                 .map(order -> ResponseEntity.ok(OrderResponse.from(order)))
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
@@ -116,7 +119,19 @@ public class OrderController {
     @PreAuthorize("hasAnyRole('WAITER', 'CASHIER', 'MANAGER', 'ADMIN')")
     public ResponseEntity<?> addItemsToOrder(@PathVariable Integer id, @Valid @RequestBody OrderRequest orderRequest,
                                               @RequestHeader("X-Idempotency-Key") String idempotencyKey) {
-        return ResponseEntity.ok(orderCheckoutService.addItems(id, orderRequest, idempotencyKey));
+        var result = orderCheckoutService.addItems(id, orderRequest, idempotencyKey);
+        publishSafely("/topic/kitchen", "NEW_ORDER");
+        publishSafely("/topic/waiter", "DISH_STATUS_CHANGED");
+        return ResponseEntity.ok(result);
+    }
+
+    private void publishSafely(String destination, String event) {
+        try {
+            messagingTemplate.convertAndSend(destination, event);
+        } catch (Exception exception) {
+            log.warn("Order update succeeded but WebSocket broadcast to {} failed: {}", destination,
+                    exception.getMessage(), exception);
+        }
     }
 
     @PostMapping("/{id}/invoice-request")
