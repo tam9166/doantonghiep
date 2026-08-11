@@ -665,6 +665,11 @@ public class ReservationService {
         reservation.setReservationStatus(nextStatus);
         reservation.setUpdatedAt(new Date());
         if (nextStatus == ReservationStatus.NO_SHOW) {
+            if (reservation.getDepositStatus() == DepositStatus.PAID) {
+                BigDecimal forfeitedAmount = depositPolicyService.calculateNoShowForfeiture(reservation);
+                reservation.setDepositStatus(DepositStatus.FORFEITED);
+                note = note + ". Tiền cọc bị giữ lại: " + forfeitedAmount.toPlainString() + " VND";
+            }
             for (RestaurantTable table : assignedTables(reservation)) {
                 table.setIsOccupied(0);
                 table.setReservedTime(null);

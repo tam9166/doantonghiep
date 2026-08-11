@@ -131,6 +131,20 @@ class PaymentLedgerServiceTest {
     }
 
     @Test
+    void latePaymentForNoShowStaysInManualReviewAndDoesNotOverwriteForfeitedDeposit() {
+        intent.getReservation().setReservationStatus(ReservationStatus.NO_SHOW);
+        intent.getReservation().setDepositStatus(DepositStatus.FORFEITED);
+
+        PaymentLedgerResult result = record(new BigDecimal("100000"), "TX-NOSHOW");
+
+        assertEquals("PAYMENT_MANUAL_REVIEW", result.code());
+        assertEquals(PaymentTransactionStatus.MANUAL_REVIEW, savedTransaction.get().getStatus());
+        assertEquals(DepositStatus.FORFEITED, intent.getReservation().getDepositStatus());
+        verify(intentRepository, never()).save(any());
+        verify(reservationRepository, never()).save(any());
+    }
+
+    @Test
     void orderCreditUpdatesOrderAggregateInsteadOfReservation() {
         intent.setReservation(null);
         intent.setAggregateType("ORDER");

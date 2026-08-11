@@ -88,7 +88,9 @@ public class PaymentLedgerService {
         if (!matchesSnapshot(intent, transferContent, receiverAccount)
                 || PaymentStatus.REPLACED.equals(intent.getStatus())
                 || PaymentStatus.EXPIRED.equals(intent.getStatus())
-                || PaymentStatus.CANCELLED.equals(intent.getStatus())) {
+                || PaymentStatus.CANCELLED.equals(intent.getStatus())
+                || (intent.getReservation() != null
+                        && ReservationStatus.NO_SHOW.equals(intent.getReservation().getReservationStatus()))) {
             transaction.setStatus(PaymentTransactionStatus.MANUAL_REVIEW);
             transactionRepository.save(transaction);
             activityLogService.log(

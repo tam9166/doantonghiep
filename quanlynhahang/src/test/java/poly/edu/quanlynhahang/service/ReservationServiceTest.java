@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Date;
 import java.util.List;
@@ -42,6 +43,7 @@ class ReservationServiceTest {
     private final RestaurantTableRepository tableRepository = mock(RestaurantTableRepository.class);
     private final OrderCheckoutService orderCheckoutService = mock(OrderCheckoutService.class);
     private final SimpMessagingTemplate messagingTemplate = mock(SimpMessagingTemplate.class);
+    private final DepositPolicyService depositPolicyService = mock(DepositPolicyService.class);
     private ReservationService service;
 
     @BeforeEach
@@ -60,11 +62,11 @@ class ReservationServiceTest {
                 mock(ActivityLogService.class),
                 mock(ReservationRealtimeService.class),
                 messagingTemplate,
-                mock(DepositPolicyService.class),
+                depositPolicyService,
                 new ReservationStateMachine(),
                 mock(PaymentCapabilityService.class),
                 orderCheckoutService,
-                new BigDecimal("0.50"), 15, 30);
+                new BigDecimal("0.50"), 15, 15);
     }
 
     @Test
@@ -195,11 +197,61 @@ class ReservationServiceTest {
         assertEquals(PaymentStatus.PAID, reservation.getPaymentStatus());
     }
 
+    @Test
+    void noShowWithPaidDepositForfeitsThePolicyDepositAndReleasesTheTable() {
+        Reservation reservation = noShowReservation(DepositStatus.PAID);
+        reservation.setDepositAmount(BigDecimal.valueOf(500_000));
+        reservation.setPaidAmount(BigDecimal.valueOf(500_000));
+        when(reservationRepository.findAllByOrderByCreatedAtDesc()).thenReturn(List.of(reservation));
+        when(depositPolicyService.calculateNoShowForfeiture(reservation)).thenReturn(BigDecimal.valueOf(500_000));
+        when(reservationRepository.save(reservation)).thenReturn(reservation);
+
+        service.expireStaleReservations();
+
+        assertEquals(ReservationStatus.NO_SHOW, reservation.getReservationStatus());
+        assertEquals(DepositStatus.FORFEITED, reservation.getDepositStatus());
+        assertEquals(0, reservation.getTable().getIsOccupied());
+        verify(depositPolicyService).calculateNoShowForfeiture(reservation);
+        verify(reservationRepository).save(reservation);
+    }
+
+    @Test
+    void noShowWithoutPaidDepositDoesNotForfeitAnythingAndReleasesTheTable() {
+        Reservation reservation = noShowReservation(DepositStatus.PENDING);
+        when(reservationRepository.findAllByOrderByCreatedAtDesc()).thenReturn(List.of(reservation));
+        when(reservationRepository.save(reservation)).thenReturn(reservation);
+
+        service.expireStaleReservations();
+
+        assertEquals(ReservationStatus.NO_SHOW, reservation.getReservationStatus());
+        assertEquals(DepositStatus.PENDING, reservation.getDepositStatus());
+        assertEquals(0, reservation.getTable().getIsOccupied());
+        verify(depositPolicyService, never()).calculateNoShowForfeiture(reservation);
+        verify(reservationRepository).save(reservation);
+    }
+
     private Reservation reservationForDepositPayment(BigDecimal depositAmount, BigDecimal totalAmount) {
         Reservation reservation = new Reservation();
         reservation.setReservationStatus(ReservationStatus.PENDING);
         reservation.setDepositAmount(depositAmount);
         reservation.setTotalAmount(totalAmount);
+        return reservation;
+    }
+
+    private Reservation noShowReservation(DepositStatus depositStatus) {
+        RestaurantTable table = new RestaurantTable();
+        table.setId(44);
+        table.setIsOccupied(2);
+        table.setReservedTime("MV-TEST-NOSHOW");
+        Reservation reservation = new Reservation();
+        reservation.setId(44L);
+        reservation.setReservationCode("MV-TEST-NOSHOW");
+        reservation.setReservationStatus(ReservationStatus.DEPOSIT_PAID);
+        reservation.setDepositStatus(depositStatus);
+        LocalDateTime overdueArrival = LocalDateTime.now().minusMinutes(16);
+        reservation.setReservationDate(overdueArrival.toLocalDate());
+        reservation.setArrivalTime(overdueArrival.toLocalTime());
+        reservation.setTable(table);
         return reservation;
     }
 }

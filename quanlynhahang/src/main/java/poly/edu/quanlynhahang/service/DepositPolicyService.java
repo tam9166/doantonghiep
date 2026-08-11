@@ -6,6 +6,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import poly.edu.quanlynhahang.dto.DepositPolicyResponse;
 import poly.edu.quanlynhahang.entity.DepositPolicy;
+import poly.edu.quanlynhahang.entity.Reservation;
 import poly.edu.quanlynhahang.entity.RestaurantTable;
 import poly.edu.quanlynhahang.repository.DepositPolicyRepository;
 
@@ -115,6 +116,29 @@ public class DepositPolicyService {
         response.setFormula(formula(policy));
         response.setExplanation("Áp dụng chính sách " + policy.getNameVi() + " theo priority " + policy.getPriority() + ".");
         return new DepositCalculation(amount, rate, response);
+    }
+
+    /**
+     * Returns the deposit that may be retained for a no-show.  The reservation's
+     * deposit amount is the immutable result of the policy that was selected when
+     * the booking was made; recalculating against today's active policies could
+     * retroactively change the guest's agreed deposit.  A no-show can therefore
+     * never retain more than that recorded policy amount or the amount actually
+     * paid for the deposit.
+     */
+    @Transactional(readOnly = true)
+    public BigDecimal calculateNoShowForfeiture(Reservation reservation) {
+        if (reservation == null) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal policyDeposit = nvl(reservation.getDepositAmount());
+        BigDecimal paidAmount = nvl(reservation.getPaidAmount());
+        // Older paid reservations may predate paid_amount. Their PAID status is
+        // authoritative, so use the recorded policy deposit in that case.
+        if (paidAmount.signum() <= 0) {
+            paidAmount = policyDeposit;
+        }
+        return policyDeposit.min(paidAmount).max(BigDecimal.ZERO).setScale(0, RoundingMode.HALF_UP);
     }
 
     private boolean matches(DepositPolicy p, BigDecimal total, int guests, LocalDate date, LocalTime time,
