@@ -17,6 +17,8 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
 
     Optional<Product> findByNameIgnoreCase(String name);
 
+    List<Product> findByAvailableTrueAndStatusTrue();
+
     @Query(value = "SELECT TOP (:limit) od.product_id FROM OrderDetails od "
             + "JOIN Orders o ON o.id = od.order_id "
             + "WHERE od.product_id IS NOT NULL AND (o.is_paid = 1 OR o.payment_status = 'PAID') "

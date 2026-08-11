@@ -73,7 +73,7 @@
       </div>
       
       <!-- Floating Cart Button -->
-      <div v-if="cart.length > 0 && !isAdminOrManager" class="floating-cart" @click="showCheckoutModal = true">
+      <div v-if="cart.length > 0 && !isAdminOrManager" class="floating-cart" @click="openCheckout">
         <span class="cart-icon">🛒</span>
         <span class="cart-count">{{ t('menu.itemCount', { count: cart.length }) }}</span>
         <span class="cart-total">{{ formatCurrency(cartTotal) }}</span>
@@ -86,6 +86,34 @@
         <h3>{{ text.checkoutTitle }}</h3>
         
         <div v-if="!paymentQr" class="checkout-scroll-area" style="max-height: 400px; overflow-y: auto; padding-right: 10px;">
+          <section v-if="cart.length > 0" class="cart-recommendations" aria-live="polite">
+            <div class="recommendation-heading">
+              <h4>✨ {{ text.cartRecommendations }}</h4>
+              <button type="button" class="recommendation-retry" :disabled="recommendationLoading" @click="loadCartRecommendations">
+                ↻
+              </button>
+            </div>
+            <p v-if="recommendationLoading" class="recommendation-copy">{{ text.recommendationLoading }}</p>
+            <template v-else-if="cartRecommendations.length">
+              <p class="recommendation-copy">{{ recommendationMessage || text.recommendationFallback }}</p>
+              <div class="recommendation-list">
+                <article v-for="item in cartRecommendations" :key="item.productId" class="recommendation-item">
+                  <img :src="foodImage(item.image)" :alt="item.name" @error="replaceFoodImage" />
+                  <div>
+                    <strong>{{ item.name }}</strong>
+                    <small>{{ text.recommendationReason?.[item.reasonCode] || item.reasonCode }}</small>
+                    <span>{{ formatCurrency(item.price) }}</span>
+                  </div>
+                  <button type="button" @click="addRecommendedItem(item)">{{ text.recommendationAdd }}</button>
+                </article>
+              </div>
+            </template>
+            <p v-else-if="recommendationError" class="recommendation-error">
+              {{ recommendationError }}
+              <button type="button" @click="loadCartRecommendations">{{ text.recommendationRetry }}</button>
+            </p>
+          </section>
+
           <div class="form-group mt-3">
             <label>{{ text.recipientName }}</label>
             <input v-model="orderInfo.fullname" type="text" :placeholder="text.recipientNamePlaceholder" class="g-form-control" />
@@ -134,7 +162,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import api from '@/services/api';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
@@ -167,6 +195,11 @@ const menuQuery = ref('');
 const orderInfo = ref({ fullname: '', phone: '', address: '' });
 const paymentQr = ref(null);
 const checkoutSubmitting = ref(false);
+const cartRecommendations = ref([]);
+const recommendationMessage = ref('');
+const recommendationLoading = ref(false);
+const recommendationError = ref('');
+let recommendationRequestId = 0;
 
 const cartSubtotal = computed(() => {
   return cart.value.reduce((total, item) => total + (item.price * item.quantity), 0);
@@ -179,6 +212,11 @@ const cartTax = computed(() => {
 const cartTotal = computed(() => {
   return cartSubtotal.value + cartTax.value;
 });
+
+const cartRecommendationKey = computed(() => cart.value
+  .map(item => `${item.productId}:${item.quantity}`)
+  .sort()
+  .join('|'));
 
 const productName = (product) => locale.value === 'en'
   ? (product.nameEn || product.nameVi || product.name)
@@ -241,6 +279,47 @@ const addToCart = (product) => {
   }
   alert(t('menu.addedToCart', { name: productName(product) }));
 };
+
+const addRecommendedItem = (item) => {
+  const product = products.value.find(candidate => candidate.id === item.productId);
+  if (product) addToCart(product);
+};
+
+const loadCartRecommendations = async () => {
+  const requestId = ++recommendationRequestId;
+  const productIds = cart.value.map(item => item.productId);
+  if (!productIds.length) {
+    cartRecommendations.value = [];
+    recommendationMessage.value = '';
+    recommendationError.value = '';
+    return;
+  }
+
+  recommendationLoading.value = true;
+  recommendationError.value = '';
+  try {
+    const response = await api.post('/api/customer/ai/menu-suggestion', { productIds });
+    if (requestId !== recommendationRequestId) return;
+    cartRecommendations.value = response.data?.suggestions || [];
+    recommendationMessage.value = response.data?.message || '';
+  } catch (error) {
+    if (requestId !== recommendationRequestId) return;
+    cartRecommendations.value = [];
+    recommendationMessage.value = '';
+    recommendationError.value = error.response?.data?.message || text.value.connectionError;
+  } finally {
+    if (requestId === recommendationRequestId) recommendationLoading.value = false;
+  }
+};
+
+const openCheckout = () => {
+  showCheckoutModal.value = true;
+  loadCartRecommendations();
+};
+
+watch(cartRecommendationKey, () => {
+  loadCartRecommendations();
+});
 
 const submitShipOrder = async () => {
   const token = localStorage.getItem('token');
@@ -472,6 +551,22 @@ onMounted(async () => {
 .payment-result img { display: block; width: min(220px, 100%); margin: 0 auto 14px; }
 .payment-result p { margin: 6px 0; overflow-wrap: anywhere; }
 .payment-result small { display: block; margin-top: 12px; color: var(--text-secondary); }
+.cart-recommendations { margin: 4px 0 20px; padding: 14px; border: 1px solid var(--color-outline-variant); border-radius: var(--radius-md); background: var(--color-surface-container-low); }
+.recommendation-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.recommendation-heading h4 { margin: 0; color: var(--text-primary); font-family: var(--font-display); }
+.recommendation-retry { border: 0; background: transparent; color: var(--primary); cursor: pointer; font-size: 1.15rem; }
+.recommendation-retry:disabled { cursor: wait; opacity: 0.6; }
+.recommendation-copy { margin: 8px 0 12px; color: var(--text-secondary); font-size: 0.9rem; }
+.recommendation-list { display: grid; gap: 8px; }
+.recommendation-item { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px; border-radius: var(--radius-sm); background: var(--bg-card); }
+.recommendation-item img { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; }
+.recommendation-item div { min-width: 0; display: grid; gap: 2px; }
+.recommendation-item strong { color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recommendation-item small { color: var(--text-secondary); }
+.recommendation-item span { color: var(--primary); font-size: 0.84rem; font-weight: 700; }
+.recommendation-item button, .recommendation-error button { border: 1px solid var(--color-outline-variant); border-radius: var(--radius-sm); background: var(--color-surface-container); color: var(--primary); cursor: pointer; font: inherit; font-size: 0.82rem; font-weight: 700; padding: 7px 10px; }
+.recommendation-error { margin: 8px 0 0; color: var(--danger); font-size: 0.88rem; }
+.recommendation-error button { margin-left: 8px; }
 
 /* GustoPro menu composition: simple header, warm cards, clear primary actions. */
 .menu-wrapper { background: var(--color-surface); }
@@ -567,6 +662,8 @@ onMounted(async () => {
   .payment-banking-box > div { flex-direction: column; align-items: stretch !important; }
   .payment-banking-box img { display: block; width: min(180px, 100%) !important; margin: 0 auto; }
   .modal-actions { flex-direction: column; }
+  .recommendation-item { grid-template-columns: 44px minmax(0, 1fr); }
+  .recommendation-item button { grid-column: 1 / -1; width: 100%; }
   .g-modal-box { width: calc(100vw - 24px); max-height: calc(100vh - 24px); overflow-y: auto; }
 }
 </style>

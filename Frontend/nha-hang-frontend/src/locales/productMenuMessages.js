@@ -15,6 +15,16 @@ const productMenuMessages = {
     viewOnly: 'Chỉ xem (Quản trị)',
     itemCount: '{count} món',
     checkout: 'Thanh toán',
+    cartRecommendations: 'Gợi ý cho bàn ăn của bạn',
+    recommendationLoading: 'Đang tìm món phù hợp...',
+    recommendationFallback: 'Các món này phù hợp để bàn ăn cân bằng hơn.',
+    recommendationRetry: 'Tải lại gợi ý',
+    recommendationAdd: 'Thêm vào giỏ',
+    recommendationReason: {
+      BALANCE_HEAVY_MEAL: 'Cân bằng vị giác',
+      VEGETARIAN_COMPLEMENT: 'Phù hợp thực đơn chay',
+      SIGNATURE_DISH: 'Món đặc trưng của nhà hàng'
+    },
     checkoutTitle: 'Thông tin giao hàng và thanh toán',
     recipientName: 'Họ tên người nhận (*)',
     recipientNamePlaceholder: 'Nguyễn Văn A...',
@@ -59,6 +69,16 @@ const productMenuMessages = {
     viewOnly: 'View only (Administrator)',
     itemCount: '{count} items',
     checkout: 'Checkout',
+    cartRecommendations: 'Suggestions for your meal',
+    recommendationLoading: 'Finding suitable dishes...',
+    recommendationFallback: 'These dishes can make your meal more balanced.',
+    recommendationRetry: 'Reload suggestions',
+    recommendationAdd: 'Add to cart',
+    recommendationReason: {
+      BALANCE_HEAVY_MEAL: 'Balance the meal',
+      VEGETARIAN_COMPLEMENT: 'Matches a vegetarian meal',
+      SIGNATURE_DISH: 'Restaurant signature dish'
+    },
     checkoutTitle: 'Delivery and payment details',
     recipientName: 'Recipient name (*)',
     recipientNamePlaceholder: 'Jane Doe...',

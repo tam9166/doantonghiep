@@ -141,6 +141,7 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.POST, "/api/webhooks/payments/**").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/applications", "/api/applications/upload").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/chatbot/chat").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/customer/ai/menu-suggestion").permitAll()
             .requestMatchers("/ws/**").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/orders/guest-booking").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/orders/checkout").permitAll()
