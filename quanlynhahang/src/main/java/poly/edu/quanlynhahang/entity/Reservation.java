@@ -10,6 +10,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.Temporal;
 import jakarta.persistence.TemporalType;
@@ -20,6 +21,8 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Date;
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 @Entity
@@ -105,6 +108,10 @@ public class Reservation {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "table_id")
     private RestaurantTable table;
+
+    /** table remains the primary table for legacy callers; this collection contains every combined table. */
+    @OneToMany(mappedBy = "reservation", cascade = jakarta.persistence.CascadeType.ALL, orphanRemoval = true)
+    private List<ReservationTableAssignment> tableAssignments = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)
     @Column(name = "reservation_status", length = 30, nullable = false)

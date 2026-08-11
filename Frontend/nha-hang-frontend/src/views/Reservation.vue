@@ -218,7 +218,25 @@
             <div v-if="loadingTables" class="skeleton-grid">
               <div v-for="n in 4" :key="n" class="skeleton-card table"></div>
             </div>
-            <div v-if="!loadingTables && tables.length" class="table-map">
+            <div v-if="!loadingTables && requiresTableCombination" class="combo-suggestion">
+              <strong>Nhóm {{ form.guestCount }} khách cần ghép bàn</strong>
+              <p v-if="tableCombo?.available">
+                {{ tableCombo.reasons?.join(' ') }}
+              </p>
+              <template v-if="tableCombo?.available">
+                <div class="combo-table-list">
+                  <span v-for="table in tableCombo.tables" :key="table.tableId">
+                    {{ table.tableName }} ({{ table.capacity }} chỗ)
+                  </span>
+                </div>
+                <button class="primary-btn" type="button" @click="acceptTableCombination">
+                  {{ form.tableIds.length ? 'Đã chọn tổ hợp bàn' : 'Chấp nhận ghép bàn' }}
+                </button>
+              </template>
+              <span v-else>{{ tableCombo?.reasons?.[0] || 'Không tìm được tổ hợp bàn phù hợp.' }}</span>
+              <button class="secondary-btn" type="button" @click="step = 4">Đổi khu vực</button>
+            </div>
+            <div v-if="!loadingTables && tables.length && !requiresTableCombination" class="table-map">
               <div class="table-map-header">
                 <div>
                   <h3>{{ text.tableMap }}</h3>
@@ -255,14 +273,14 @@
                 </section>
               </div>
             </div>
-            <div v-if="!loadingTables && !availableTables.length" class="empty-state waitlist-offer">
+            <div v-if="!loadingTables && !availableTables.length && !tableCombo?.available" class="empty-state waitlist-offer">
               <strong>{{ text.noTables }}</strong>
               <span>{{ text.waitlistOffer }}</span>
               <button class="primary-btn" type="button" @click="submitWaitlist" :disabled="submitting">
                 {{ submitting ? text.submitting : text.joinWaitlist }}
               </button>
             </div>
-            <div v-if="!loadingTables && availableTables.length" class="table-grid">
+            <div v-if="!loadingTables && availableTables.length && !requiresTableCombination" class="table-grid">
               <article
                 v-for="table in availableTables"
                 :key="table.id"
@@ -444,6 +462,7 @@ const step = ref(1)
 const areas = ref([])
 const tables = ref([])
 const suggestedTables = ref([])
+const tableCombo = ref(null)
 const menuItems = ref([])
 const cartItems = ref([])
 const areaCounts = ref({})
@@ -491,6 +510,7 @@ const form = ref({
   specialRequest: '',
   areaId: null,
   tableId: null,
+  tableIds: [],
   preorderEnabled: false,
   paymentOption: 'DEPOSIT_50',
   voucherCode: ''
@@ -501,7 +521,12 @@ const activeAreas = computed(() => areas.value.filter(area => (area.status || 'A
 const suggestionById = computed(() => Object.fromEntries(suggestedTables.value.map(item => [item.tableId, item])))
 const availableTables = computed(() => tables.value
   .filter(table => table.availabilityStatus === 'AVAILABLE')
-  .sort((a, b) => (suggestionById.value[b.id]?.score || 0) - (suggestionById.value[a.id]?.score || 0)))
+    .sort((a, b) => (suggestionById.value[b.id]?.score || 0) - (suggestionById.value[a.id]?.score || 0)))
+const requiresTableCombination = computed(() => {
+  const hasSingleFit = tables.value.some(table => table.availabilityStatus === 'AVAILABLE'
+    && Number(table.maxCapacity || table.capacity || 0) >= Number(form.value.guestCount || 0))
+  return !hasSingleFit && (tableCombo.value?.combinationRequired || Boolean(tableCombo.value?.available))
+})
 const tableMapGroups = computed(() => {
   const groups = new Map()
   tables.value.forEach(table => {
@@ -684,15 +709,27 @@ function selectArea(area) {
   if (form.value.areaId === area.id && tables.value.length) return
   form.value.areaId = area.id
   form.value.tableId = null
+  form.value.tableIds = []
   selectedTable.value = null
   tables.value = []
   suggestedTables.value = []
+  tableCombo.value = null
   quote.value = null
 }
 
 function selectTable(table) {
   selectedTable.value = table
   form.value.tableId = table.id
+  form.value.tableIds = [table.id]
+  quote.value = null
+}
+
+function acceptTableCombination() {
+  const selected = tableCombo.value?.tables || []
+  if (!selected.length) return
+  form.value.tableIds = selected.map(table => table.tableId)
+  form.value.tableId = selected.find(table => table.primary)?.tableId || selected[0].tableId
+  selectedTable.value = tables.value.find(table => table.id === form.value.tableId) || null
   quote.value = null
 }
 
@@ -746,10 +783,12 @@ async function loadAvailableTables() {
     if (requestSequence !== tableRequestSequence) return
     tables.value = Array.isArray(res.data) ? res.data : []
     await loadTableSuggestions()
+    await loadTableCombination()
     if (requestSequence !== tableRequestSequence) return
     if (selectedTable.value && !tables.value.some(table => table.id === selectedTable.value.id && table.availabilityStatus === 'AVAILABLE')) {
       selectedTable.value = null
       form.value.tableId = null
+      form.value.tableIds = []
       serverError.value = lang.value === 'vi'
         ? 'Bàn đã chọn không còn phù hợp. Vui lòng chọn lại.'
         : 'The selected table is no longer suitable. Please choose another table.'
@@ -785,7 +824,9 @@ watch(
 
     if (current.slice(0, 4).some((value, index) => value !== previous[index])) {
       form.value.tableId = null
+      form.value.tableIds = []
       selectedTable.value = null
+      tableCombo.value = null
       quote.value = null
       lateDiningConfirmed.value = false
     }
@@ -807,6 +848,27 @@ async function loadTableSuggestions() {
     suggestedTables.value = Array.isArray(res.data) ? res.data : []
   } catch {
     suggestedTables.value = []
+  }
+}
+
+async function loadTableCombination() {
+  tableCombo.value = null
+  const hasSingleFit = tables.value.some(table => table.availabilityStatus === 'AVAILABLE'
+    && Number(table.maxCapacity || table.capacity || 0) >= Number(form.value.guestCount || 0))
+  if (hasSingleFit) return
+  try {
+    const res = await api.post('/api/reservations/table-combinations', {
+      reservationDate: form.value.reservationDate,
+      arrivalTime: form.value.arrivalTime,
+      durationMinutes: form.value.expectedDurationMinutes,
+      guestCount: form.value.guestCount,
+      areaId: form.value.areaId,
+      seatingPreference: selectedPreferences.value.join(', '),
+      customerPhone: form.value.customerPhone
+    })
+    tableCombo.value = res.data || null
+  } catch {
+    tableCombo.value = { available: false, combinationRequired: false, reasons: [] }
   }
 }
 
@@ -1047,6 +1109,8 @@ function resetForm() {
   quote.value = null
   step.value = 1
   form.value.tableId = null
+  form.value.tableIds = []
+  tableCombo.value = null
   selectedTable.value = null
   selectedPreferences.value = []
   cartItems.value = []
@@ -1143,6 +1207,31 @@ onMounted(async () => {
   border-radius: 8px;
   box-shadow: 0 18px 40px rgba(35, 48, 43, 0.08);
   padding: 24px;
+}
+
+.combo-suggestion {
+  display: grid;
+  gap: 12px;
+  max-width: 620px;
+  margin: 20px auto;
+  padding: 22px;
+  border: 1px solid #5A6E45;
+  border-radius: 10px;
+  background: #F5F4E9;
+  color: #22301B;
+}
+
+.combo-table-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.combo-table-list span {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #FFFFFF;
+  border: 1px solid #CFC7A8;
 }
 
 .panel h2,

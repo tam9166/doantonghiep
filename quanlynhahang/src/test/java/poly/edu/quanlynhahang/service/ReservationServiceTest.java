@@ -39,6 +39,7 @@ import poly.edu.quanlynhahang.repository.VoucherRepository;
 class ReservationServiceTest {
     private final ReservationRepository reservationRepository = mock(ReservationRepository.class);
     private final ReservationPreorderItemRepository preorderItemRepository = mock(ReservationPreorderItemRepository.class);
+    private final RestaurantTableRepository tableRepository = mock(RestaurantTableRepository.class);
     private final OrderCheckoutService orderCheckoutService = mock(OrderCheckoutService.class);
     private final SimpMessagingTemplate messagingTemplate = mock(SimpMessagingTemplate.class);
     private ReservationService service;
@@ -50,7 +51,7 @@ class ReservationServiceTest {
                 preorderItemRepository,
                 mock(PaymentIntentRepository.class),
                 mock(ReservationStatusHistoryRepository.class),
-                mock(RestaurantTableRepository.class),
+                tableRepository,
                 mock(TableAreaRepository.class),
                 mock(ProductRepository.class),
                 mock(VoucherRepository.class),
@@ -138,6 +139,7 @@ class ReservationServiceTest {
         when(reservationRepository.findLockedByReservationDateAndTableIdAndReservationStatusIn(
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
                 .thenReturn(List.of());
+        when(tableRepository.findLockedByIdIn(List.of(9))).thenReturn(List.of(table));
         when(preorderItemRepository.findByReservationIdOrderByIdAsc(24L)).thenReturn(List.of(preorder));
         when(orderCheckoutService.dispatchReservationPreorder(reservation, List.of(preorder))).thenReturn(91);
         when(reservationRepository.save(org.mockito.ArgumentMatchers.any(Reservation.class)))

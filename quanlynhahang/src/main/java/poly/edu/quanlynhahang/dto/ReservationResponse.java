@@ -32,6 +32,7 @@ public class ReservationResponse {
     private Integer tableId;
     private String tableName;
     private String tableFloor;
+    private List<ReservationTableResponse> tables;
     private ReservationStatus reservationStatus;
     private BigDecimal originalTotalAmount;
     private String voucherCode;

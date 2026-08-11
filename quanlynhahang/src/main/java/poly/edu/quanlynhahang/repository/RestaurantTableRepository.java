@@ -10,6 +10,8 @@ import org.springframework.stereotype.Repository;
 import poly.edu.quanlynhahang.entity.RestaurantTable;
 
 import java.util.Optional;
+import java.util.Collection;
+import java.util.List;
 
 @Repository
 public interface RestaurantTableRepository extends JpaRepository<RestaurantTable, Integer> {
@@ -18,4 +20,8 @@ public interface RestaurantTableRepository extends JpaRepository<RestaurantTable
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select t from RestaurantTable t where t.id = :id")
     Optional<RestaurantTable> findLockedById(@Param("id") Integer id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select t from RestaurantTable t where t.id in :ids order by t.id")
+    List<RestaurantTable> findLockedByIdIn(@Param("ids") Collection<Integer> ids);
 }

@@ -40,7 +40,10 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     @Query("""
             select r from Reservation r
             where r.reservationDate = :reservationDate
-              and r.table.id = :tableId
+              and (r.table.id = :tableId or exists (
+                    select assignment.id from ReservationTableAssignment assignment
+                    where assignment.reservation = r and assignment.table.id = :tableId
+              ))
               and r.reservationStatus in :statuses
             """)
     List<Reservation> findLockedByReservationDateAndTableIdAndReservationStatusIn(

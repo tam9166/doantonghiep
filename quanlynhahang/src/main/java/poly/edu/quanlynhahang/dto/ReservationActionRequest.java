@@ -3,6 +3,8 @@ package poly.edu.quanlynhahang.dto;
 import lombok.Data;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.NotNull;
+import java.util.List;
 
 @Data
 public class ReservationActionRequest {
@@ -12,6 +14,8 @@ public class ReservationActionRequest {
     private String reason;
     @Positive
     private Integer tableId;
+    @Size(max = 4)
+    private List<@NotNull @Positive Integer> tableIds;
     @Positive
     private Integer areaId;
 }

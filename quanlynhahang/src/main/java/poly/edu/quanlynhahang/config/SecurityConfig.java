@@ -131,6 +131,7 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.POST, "/api/reservations").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/reservations/quote").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/reservations/table-suggestions").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/reservations/table-combinations").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/reservations/**").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/reservation-waitlist").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/reservation-waitlist/**").permitAll()

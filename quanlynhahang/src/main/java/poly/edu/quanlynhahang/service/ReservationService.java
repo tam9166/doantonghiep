@@ -18,7 +18,9 @@ import poly.edu.quanlynhahang.dto.ReservationQuoteRequest;
 import poly.edu.quanlynhahang.dto.ReservationQuoteResponse;
 import poly.edu.quanlynhahang.dto.ReservationRequest;
 import poly.edu.quanlynhahang.dto.ReservationResponse;
+import poly.edu.quanlynhahang.dto.ReservationTableResponse;
 import poly.edu.quanlynhahang.dto.PublicReservationResponse;
+import poly.edu.quanlynhahang.dto.TableCombinationResponse;
 import poly.edu.quanlynhahang.dto.TableSuggestionRequest;
 import poly.edu.quanlynhahang.dto.TableSuggestionResponse;
 import poly.edu.quanlynhahang.entity.DepositStatus;
@@ -29,6 +31,7 @@ import poly.edu.quanlynhahang.entity.Reservation;
 import poly.edu.quanlynhahang.entity.ReservationPreorderItem;
 import poly.edu.quanlynhahang.entity.ReservationStatus;
 import poly.edu.quanlynhahang.entity.ReservationStatusHistory;
+import poly.edu.quanlynhahang.entity.ReservationTableAssignment;
 import poly.edu.quanlynhahang.entity.ReservationVoucherUsage;
 import poly.edu.quanlynhahang.entity.RestaurantTable;
 import poly.edu.quanlynhahang.entity.TableArea;
@@ -53,12 +56,15 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.EnumSet;
 import java.util.HexFormat;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 @Service
@@ -71,6 +77,7 @@ public class ReservationService {
     private static final int MIN_ADVANCE_MINUTES = 30;
     private static final LocalTime OPEN_TIME = LocalTime.of(9, 0);
     private static final LocalTime CLOSE_TIME = LocalTime.of(22, 0);
+    private static final int MAX_COMBINED_TABLES = 4;
     private static final EnumSet<ReservationStatus> BLOCKING_STATUSES = EnumSet.of(
             ReservationStatus.PENDING,
             ReservationStatus.CONFIRMED,
@@ -102,6 +109,7 @@ public class ReservationService {
     private final BigDecimal depositRate;
     private final long depositExpiryMinutes;
     private final long noShowGraceMinutes;
+    private final TableCombinationPlanner tableCombinationPlanner = new TableCombinationPlanner();
 
     public ReservationService(ReservationRepository reservationRepository,
                               ReservationPreorderItemRepository preorderItemRepository,
@@ -166,13 +174,12 @@ public class ReservationService {
             }
         }
 
-        RestaurantTable table = tableRepository.findLockedById(normalized.tableId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy bàn"));
-
-        validateTableForGuests(table, normalized.guestCount());
-        if (hasConflict(table.getId(), normalized.date(), normalized.time(), normalized.durationMinutes(), null)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Bàn đã có lượt đặt trùng khung giờ");
-        }
+        List<RestaurantTable> assignedTables = lockAndValidateTables(normalized.tableIds(), normalized.guestCount(),
+                normalized.date(), normalized.time(), normalized.durationMinutes(), null, request.getAreaId());
+        RestaurantTable table = assignedTables.stream()
+                .filter(candidate -> candidate.getId().equals(normalized.tableId()))
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy bàn chính"));
 
         Reservation reservation = new Reservation();
         reservation.setReservationCode(generateReservationCode(normalized.date()));
@@ -190,6 +197,7 @@ public class ReservationService {
         reservation.setSpecialRequest(limit(trimToNull(request.getSpecialRequest()), 500));
         reservation.setSeatingPreference(trimToNull(request.getSeatingPreference()));
         reservation.setTable(table);
+        setTableAssignments(reservation, assignedTables, table.getId());
 
         TableArea area = resolveArea(request.getAreaId(), table);
         reservation.setArea(area);
@@ -394,16 +402,68 @@ public class ReservationService {
         return suggestions;
     }
 
+    @Transactional(readOnly = true)
+    public TableCombinationResponse suggestTableCombo(TableSuggestionRequest request) {
+        if (request == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Dữ liệu gợi ý ghép bàn không hợp lệ");
+        }
+        LocalDate date = parseDate(request.getReservationDate());
+        LocalTime time = parseTime(request.getArrivalTime());
+        int duration = request.getDurationMinutes() == null ? DEFAULT_DURATION_MINUTES : request.getDurationMinutes();
+        int guests = request.getGuestCount() == null ? 1 : Math.max(1, request.getGuestCount());
+        List<RestaurantTable> available = tableRepository.findAll().stream()
+                .filter(t -> Boolean.TRUE.equals(t.getActive()) || t.getActive() == null)
+                .filter(t -> t.getIsOccupied() == null || t.getIsOccupied() == 0)
+                .filter(t -> request.getAreaId() == null || request.getAreaId().equals(t.getAreaId()))
+                .filter(t -> !hasConflict(t.getId(), date, time, duration, null))
+                .toList();
+
+        TableCombinationResponse response = new TableCombinationResponse();
+        response.setTotalReservationPrice(BigDecimal.ZERO);
+        if (available.stream().anyMatch(table -> maxCapacity(table) >= guests)) {
+            response.setAvailable(true);
+            response.setCombinationRequired(false);
+            response.setTables(List.of());
+            response.setTotalCapacity(0);
+            response.setReasons(List.of("Đã có bàn đơn phù hợp, không cần ghép bàn."));
+            return response;
+        }
+
+        Optional<List<RestaurantTable>> combination = tableCombinationPlanner.findBestCombination(available, guests);
+        if (combination.isEmpty()) {
+            response.setAvailable(false);
+            response.setCombinationRequired(false);
+            response.setTables(List.of());
+            response.setTotalCapacity(0);
+            response.setReasons(List.of("Không có tổ hợp tối đa 4 bàn đủ sức chứa trong khung giờ này."));
+            return response;
+        }
+        List<RestaurantTable> selected = combination.get();
+        int totalCapacity = selected.stream().mapToInt(this::maxCapacity).sum();
+        response.setAvailable(true);
+        response.setCombinationRequired(true);
+        response.setTables(selected.stream().map(table -> toReservationTableResponse(table, table.equals(selected.getFirst()))).toList());
+        response.setTotalCapacity(totalCapacity);
+        response.setReasons(List.of("Ghép " + selected.size() + " bàn còn trống gần nhau.",
+                "Tổng sức chứa " + totalCapacity + " chỗ cho nhóm " + guests + " khách."));
+        return response;
+    }
+
     @Transactional
     public ReservationResponse confirm(Long id, ReservationActionRequest request) {
         Reservation reservation = findReservation(id);
-        Integer newTableId = request != null ? request.getTableId() : null;
-        if (newTableId != null && !newTableId.equals(reservation.getTable().getId())) {
-            RestaurantTable newTable = tableRepository.findLockedById(newTableId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy bàn mới"));
-            validateTableForGuests(newTable, reservation.getGuestCount());
+        List<Integer> requestedTableIds = requestedTableIds(request, reservation);
+        Integer primaryTableId = request != null && request.getTableId() != null ? request.getTableId() : requestedTableIds.getFirst();
+        boolean changingTables = !assignedTableIds(reservation).equals(new LinkedHashSet<>(requestedTableIds));
+        if (changingTables) {
+            List<RestaurantTable> assignedTables = lockAndValidateTables(requestedTableIds, reservation.getGuestCount(),
+                    reservation.getReservationDate(), reservation.getArrivalTime(), reservation.getExpectedDurationMinutes(),
+                    reservation.getId(), request == null ? null : request.getAreaId());
+            RestaurantTable newTable = assignedTables.stream().filter(table -> table.getId().equals(primaryTableId)).findFirst()
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy bàn chính"));
             reservation.setTable(newTable);
-            reservation.setArea(resolveArea(request.getAreaId(), newTable));
+            setTableAssignments(reservation, assignedTables, primaryTableId);
+            reservation.setArea(resolveArea(request == null ? null : request.getAreaId(), newTable));
             Price price = calculatePrice(newTable, reservation.getArea());
             BigDecimal foodAmount = reservation.getFoodAmount() == null ? BigDecimal.ZERO : reservation.getFoodAmount();
             BigDecimal totalAmount = price.total().add(foodAmount).setScale(0, RoundingMode.HALF_UP);
@@ -413,11 +473,10 @@ public class ReservationService {
             reservation.setTotalAmount(totalAmount);
             reservation.setDepositAmount(payableNow);
             reservation.setRemainingAmount(totalAmount.subtract(payableNow));
-        }
-
-        if (hasConflict(reservation.getTable().getId(), reservation.getReservationDate(), reservation.getArrivalTime(),
-                reservation.getExpectedDurationMinutes(), reservation.getId())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Bàn không còn khả dụng trong khung giờ này");
+        } else {
+            lockAndValidateTables(requestedTableIds, reservation.getGuestCount(), reservation.getReservationDate(),
+                    reservation.getArrivalTime(), reservation.getExpectedDurationMinutes(), reservation.getId(),
+                    request == null ? null : request.getAreaId());
         }
 
         ReservationStatus old = reservation.getReservationStatus();
@@ -523,10 +582,11 @@ public class ReservationService {
         stateMachine.assertCanTransition(old, ReservationStatus.CHECKED_IN);
         reservation.setReservationStatus(ReservationStatus.CHECKED_IN);
         reservation.setUpdatedAt(new Date());
-        RestaurantTable table = reservation.getTable();
-        table.setIsOccupied(2);
-        table.setReservedTime("Khách đã đến: " + reservation.getReservationCode());
-        tableRepository.save(table);
+        for (RestaurantTable table : assignedTables(reservation)) {
+            table.setIsOccupied(2);
+            table.setReservedTime("Khách đã đến: " + reservation.getReservationCode());
+            tableRepository.save(table);
+        }
         Reservation saved = reservationRepository.save(reservation);
         addHistory(saved, old, ReservationStatus.CHECKED_IN, trimToNull(request != null ? request.getNote() : null));
         ReservationResponse response = toResponse(saved, true);
@@ -597,6 +657,9 @@ public class ReservationService {
         LocalTime time = parseTime(request.getArrivalTime());
         int duration = request.getExpectedDurationMinutes() == null ? DEFAULT_DURATION_MINUTES : request.getExpectedDurationMinutes();
         Integer tableId = request.getTableId();
+        List<Integer> tableIds = request.getTableIds() == null || request.getTableIds().isEmpty()
+                ? (tableId == null ? List.of() : List.of(tableId))
+                : new ArrayList<>(request.getTableIds());
         Integer guests = request.getGuestCount();
 
         validateSafeText(name, "Họ tên");
@@ -623,8 +686,14 @@ public class ReservationService {
         if (tableId == null) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Vui lòng chọn bàn");
         }
+        if (!tableIds.contains(tableId)) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Bàn chính phải nằm trong danh sách bàn ghép");
+        }
+        if (tableIds.size() > MAX_COMBINED_TABLES || new LinkedHashSet<>(tableIds).size() != tableIds.size()) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Danh sách bàn ghép không hợp lệ");
+        }
         validateReservationTime(date, time, duration, Boolean.TRUE.equals(request.getLateDiningConfirmed()));
-        return new NormalizedReservation(name, phone, email, date, time, duration, guests, tableId);
+        return new NormalizedReservation(name, phone, email, date, time, duration, guests, tableId, List.copyOf(tableIds));
     }
 
     private void validateReservationTime(LocalDate date, LocalTime time, int duration, boolean lateDiningConfirmed) {
@@ -654,18 +723,85 @@ public class ReservationService {
                 });
     }
 
-    private void validateTableForGuests(RestaurantTable table, int guestCount) {
+    private void validateTableAvailable(RestaurantTable table) {
         if (Boolean.FALSE.equals(table.getActive())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Bàn đang tạm ngưng");
         }
         if (table.getIsOccupied() != null && table.getIsOccupied() != 0) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Bàn không ở trạng thái trống");
         }
-        int max = table.getMaxCapacity() != null ? table.getMaxCapacity() :
-                (table.getCapacity() != null ? table.getCapacity() : 0);
-        if (max < guestCount) {
-            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Sức chứa bàn nhỏ hơn số lượng khách");
+    }
+
+    private List<RestaurantTable> lockAndValidateTables(List<Integer> requestedIds, int guestCount,
+                                                          LocalDate date, LocalTime time, int duration,
+                                                          Long currentReservationId, Integer requiredAreaId) {
+        if (requestedIds == null || requestedIds.isEmpty() || requestedIds.size() > MAX_COMBINED_TABLES) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Cần chọn từ 1 đến 4 bàn");
         }
+        LinkedHashSet<Integer> uniqueIds = new LinkedHashSet<>(requestedIds);
+        if (uniqueIds.size() != requestedIds.size()) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Danh sách bàn ghép bị trùng");
+        }
+        List<Integer> orderedIds = uniqueIds.stream().sorted().toList();
+        List<RestaurantTable> locked = tableRepository.findLockedByIdIn(orderedIds);
+        if (locked.size() != orderedIds.size()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Có bàn không tồn tại");
+        }
+        for (RestaurantTable table : locked) {
+            validateTableAvailable(table);
+            if (requiredAreaId != null && !requiredAreaId.equals(table.getAreaId())) {
+                throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Mọi bàn ghép phải thuộc khu vực đã chọn");
+            }
+            if (hasConflict(table.getId(), date, time, duration, currentReservationId)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Một trong các bàn ghép đã có lượt đặt trùng khung giờ");
+            }
+        }
+        int totalCapacity = locked.stream().mapToInt(this::maxCapacity).sum();
+        if (totalCapacity < guestCount) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Tổng sức chứa các bàn chưa đủ cho số lượng khách");
+        }
+        return locked;
+    }
+
+    private void setTableAssignments(Reservation reservation, List<RestaurantTable> tables, Integer primaryTableId) {
+        reservation.getTableAssignments().clear();
+        for (RestaurantTable table : tables) {
+            ReservationTableAssignment assignment = new ReservationTableAssignment();
+            assignment.setReservation(reservation);
+            assignment.setTable(table);
+            assignment.setPrimary(table.getId().equals(primaryTableId));
+            reservation.getTableAssignments().add(assignment);
+        }
+    }
+
+    private List<RestaurantTable> assignedTables(Reservation reservation) {
+        if (reservation.getTableAssignments() != null && !reservation.getTableAssignments().isEmpty()) {
+            return reservation.getTableAssignments().stream()
+                    .map(ReservationTableAssignment::getTable)
+                    .sorted(Comparator.comparing(RestaurantTable::getId))
+                    .toList();
+        }
+        return reservation.getTable() == null ? List.of() : List.of(reservation.getTable());
+    }
+
+    private Set<Integer> assignedTableIds(Reservation reservation) {
+        return assignedTables(reservation).stream().map(RestaurantTable::getId)
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    private List<Integer> requestedTableIds(ReservationActionRequest request, Reservation reservation) {
+        if (request != null && request.getTableIds() != null && !request.getTableIds().isEmpty()) {
+            List<Integer> ids = new ArrayList<>(request.getTableIds());
+            if (request.getTableId() != null && !ids.contains(request.getTableId())) ids.addFirst(request.getTableId());
+            return ids;
+        }
+        if (request != null && request.getTableId() != null) return List.of(request.getTableId());
+        return new ArrayList<>(assignedTableIds(reservation));
+    }
+
+    private int maxCapacity(RestaurantTable table) {
+        return table.getMaxCapacity() != null ? table.getMaxCapacity()
+                : (table.getCapacity() == null ? 0 : table.getCapacity());
     }
 
     private Price calculatePrice(RestaurantTable table, TableArea area) {
@@ -865,12 +1001,26 @@ public class ReservationService {
             response.setTableName(reservation.getTable().getName());
             response.setTableFloor(reservation.getTable().getFloor());
         }
+        response.setTables(assignedTables(reservation).stream()
+                .map(table -> toReservationTableResponse(table, reservation.getTable() != null
+                        && table.getId().equals(reservation.getTable().getId())))
+                .toList());
         if (includeInternal) {
             response.setManagerNote(reservation.getManagerNote());
             response.setHistory(historyRepository.findByReservationIdOrderByChangedAtAsc(reservation.getId()).stream()
                     .map(h -> h.getChangedAt() + " - " + h.getNewStatus() + " - " + (h.getNote() == null ? "" : h.getNote()))
                     .toList());
         }
+        return response;
+    }
+
+    private ReservationTableResponse toReservationTableResponse(RestaurantTable table, boolean primary) {
+        ReservationTableResponse response = new ReservationTableResponse();
+        response.setTableId(table.getId());
+        response.setTableName(table.getName());
+        response.setFloor(table.getFloor());
+        response.setCapacity(maxCapacity(table));
+        response.setPrimary(primary);
         return response;
     }
 
@@ -1057,7 +1207,7 @@ public class ReservationService {
                 normalized.time().toString(),
                 String.valueOf(normalized.durationMinutes()),
                 String.valueOf(normalized.guestCount()),
-                String.valueOf(normalized.tableId()),
+                normalized.tableIds().stream().map(String::valueOf).sorted().reduce((a, b) -> a + "," + b).orElse(""),
                 String.valueOf(request.getAreaId()),
                 String.valueOf(request.getPaymentOption()),
                 String.valueOf(trimToNull(request.getVoucherCode())),
@@ -1118,7 +1268,7 @@ public class ReservationService {
 
     private record NormalizedReservation(String customerName, String customerPhone, String customerEmail,
                                          LocalDate date, LocalTime time, int durationMinutes,
-                                         int guestCount, Integer tableId) {
+                                         int guestCount, Integer tableId, List<Integer> tableIds) {
     }
 
     private record Price(BigDecimal total, BigDecimal deposit, BigDecimal remaining) {

@@ -43,6 +43,11 @@ public class ReservationController {
         return ResponseEntity.ok(reservationService.suggestTables(request));
     }
 
+    @PostMapping("/api/reservations/table-combinations")
+    public ResponseEntity<?> tableCombinations(@Valid @RequestBody TableSuggestionRequest request) {
+        return ResponseEntity.ok(reservationService.suggestTableCombo(request));
+    }
+
     @GetMapping("/api/reservations/{code}")
     public ResponseEntity<?> getPublic(@PathVariable String code,
                                        @RequestParam(required = false) String phone) {

@@ -43,6 +43,8 @@ public class ReservationRequest {
     private Integer areaId;
     @NotNull @Positive
     private Integer tableId;
+    @Size(max = 4)
+    private List<@NotNull @Positive Integer> tableIds;
     private Boolean preorderEnabled;
     @Valid @Size(max = 30)
     private List<PreorderItemRequest> preorderItems;

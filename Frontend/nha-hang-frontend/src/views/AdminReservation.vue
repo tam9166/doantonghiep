@@ -73,7 +73,7 @@
                 <span>{{ item.guestCount }} khách</span>
               </td>
               <td>
-                <strong>{{ item.tableName }}</strong>
+                <strong>{{ tableNames(item) }}</strong>
                 <span>{{ item.areaName || item.tableFloor }}</span>
               </td>
               <td>
@@ -248,10 +248,15 @@ const filteredReservations = computed(() => {
   const q = keyword.value.toLowerCase()
   return reservations.value.filter(item => {
     const matchStatus = !statusFilter.value || item.reservationStatus === statusFilter.value
-    const haystack = `${item.reservationCode} ${item.customerName} ${item.customerPhone} ${item.customerEmail || ''} ${item.tableName || ''} ${item.areaName || ''} ${item.tableFloor || ''}`.toLowerCase()
+    const haystack = `${item.reservationCode} ${item.customerName} ${item.customerPhone} ${item.customerEmail || ''} ${tableNames(item)} ${item.areaName || ''} ${item.tableFloor || ''}`.toLowerCase()
     return matchStatus && (!q || haystack.includes(q))
   })
 })
+
+function tableNames(reservation) {
+  const names = (reservation.tables || []).map(table => table.tableName).filter(Boolean)
+  return names.length ? names.join(' + ') : (reservation.tableName || 'Chưa xếp bàn')
+}
 
 watch(keywordInput, (value) => {
   if (keywordTimer) clearTimeout(keywordTimer)
