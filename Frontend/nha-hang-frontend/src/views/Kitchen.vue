@@ -48,7 +48,18 @@
       </div>
     </div>
 
-    <main class="kitchen-main">
+    <div v-if="isLoading" class="kitchen-main empty-state">
+      <div class="empty-icon">⏳</div>
+      <h2>Đang tải dữ liệu bếp...</h2>
+    </div>
+
+    <main v-else class="kitchen-main">
+      <div v-if="loadError" class="empty-state">
+        <div class="empty-icon">⚠️</div>
+        <h2>Không thể tải dữ liệu bếp</h2>
+        <p>{{ loadError }}</p>
+        <button class="btn-refresh" @click="fetchOrders">Thử lại</button>
+      </div>
       <!-- ========== TAB 1: ĐƠN HÀNG ========== -->
       <div v-if="activeTab === 'orders'">
         <div v-if="pendingOrders.length === 0" class="empty-state">
@@ -93,7 +104,13 @@
               <span class="dish-count">{{ getDishCount(order) }} món</span>
               <div style="display: flex; gap: 8px;">
                 <button v-if="order.status === 1" @click="startCooking(order.id)" class="btn-start">🔥 Bắt đầu làm</button>
-                <button v-if="order.status === 6" @click="markReady(order.id)" class="btn-done">✅ Hoàn thành toàn bộ</button>
+                <button
+                  v-if="order.status === 6"
+                  @click="markReady(order.id)"
+                  class="btn-done"
+                  :disabled="!canCompleteOrder(order)"
+                  :title="completionTitle(order)"
+                >{{ canCompleteOrder(order) ? '✅ Hoàn thành toàn bộ' : `⏳ Còn ${unfinishedDishCount(order)} món chưa xong` }}</button>
               </div>
             </div>
           </div>
@@ -305,10 +322,13 @@ const allOrders = ref([]);
 const ingredients = ref([]);
 const expiringBatches = ref([]);
 const products = ref([]);
+const isLoading = ref(true);
+const loadError = ref('');
 const toastMsg = ref('');
 const now = ref(new Date());
 const activeTab = ref('orders');
 let timerInterval = null;
+let syncInterval = null;
 let previousPendingIds = [];
 let stompClient = null;
 
@@ -321,7 +341,7 @@ const showRecipeModal = ref(false);
 const selectedProductForRecipe = ref(null);
 const currentProductRecipes = ref([]);
 
-const getToken = () => localStorage.getItem('token');
+const getToken = () => localStorage.getItem('staff_token');
 const configHeader = () => ({ headers: { 'Authorization': `Bearer ${getToken()}` } });
 
 // === AUDIO NOTIFICATION ===
@@ -346,9 +366,13 @@ const playNotificationSound = () => {
 // === FETCH DATA ===
 const fetchOrders = async () => {
   try {
+    loadError.value = '';
     const res = await api.get('/api/admin/orders', configHeader());
-    allOrders.value = res.data;
-    const newPending = res.data.filter(o => o.status === 1 || o.status === 6);
+    const normalizedOrders = Array.isArray(res.data)
+      ? res.data.map(order => ({ ...order, orderDetails: Array.isArray(order.orderDetails) ? order.orderDetails : [] }))
+      : [];
+    allOrders.value = normalizedOrders;
+    const newPending = normalizedOrders.filter(o => o.status === 1 || o.status === 6);
     const newIds = newPending.map(o => o.id);
     const hasNewOrder = newIds.some(id => !previousPendingIds.includes(id));
     if (hasNewOrder && previousPendingIds.length > 0) {
@@ -357,9 +381,17 @@ const fetchOrders = async () => {
       setTimeout(() => { toastMsg.value = ''; }, 3000);
     }
     previousPendingIds = newIds;
-    orders.value = res.data;
+    orders.value = normalizedOrders;
     pendingOrders.value = newPending;
-  } catch (err) { console.error('Lỗi lấy đơn bếp:', err); }
+  } catch (err) {
+    console.error('Kitchen orders request failed:', err);
+    loadError.value = err.response?.data?.message || 'Không thể tải dữ liệu bếp. Vui lòng thử lại.';
+    allOrders.value = [];
+    orders.value = [];
+    pendingOrders.value = [];
+  } finally {
+    isLoading.value = false;
+  }
 };
 
 const fetchIngredients = async () => {
@@ -383,7 +415,8 @@ products.value = res.data;
 // === COMPUTED ===
 const totalDishes = computed(() => {
   return pendingOrders.value.reduce((total, order) => {
-    return total + order.orderDetails.filter(d => !d.status || d.status === 0).reduce((sum, d) => sum + d.quantity, 0);
+    return total + (order.orderDetails || []).filter(d => !d.status || d.status === 0)
+      .reduce((sum, d) => sum + (d.quantity || 0), 0);
   }, 0);
 });
 const sortedOrders = computed(() => [...pendingOrders.value].sort((a, b) => new Date(a.createDate) - new Date(b.createDate)));
@@ -399,6 +432,18 @@ const todayDishes = computed(() => todayOrders.value.filter(o => o.status >= 2).
 // === HELPERS ===
 const showToast = (msg) => { toastMsg.value = msg; setTimeout(() => { toastMsg.value = ''; }, 3000); };
 const getDishCount = (order) => order.orderDetails?.reduce((s, d) => s + d.quantity, 0) || 0;
+const unfinishedDishCount = (order) => (order.orderDetails || [])
+  .filter(detail => Number(detail.status) < 1 || detail.status == null)
+  .length;
+const canCompleteOrder = (order) => unfinishedDishCount(order) === 0;
+const completionTitle = (order) => canCompleteOrder(order)
+  ? 'Báo phục vụ khi tất cả món đã nấu xong'
+  : `Còn ${unfinishedDishCount(order)} món chưa nấu xong`;
+const apiErrorMessage = (err, fallback) => {
+  const body = err.response?.data;
+  const message = typeof body === 'string' ? body : body?.message;
+  return message || fallback;
+};
 
 const getElapsedTime = (createDate) => {
   if (!createDate) return '';
@@ -444,27 +489,27 @@ const getStockBarClass = (ing) => {
 // === ACTIONS ===
 const markReady = async (id) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('staff_token');
     await api.put(`/api/admin/orders/${id}/status?status=2`, {}, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     fetchOrders();
     showToast('✅ Đã báo phục vụ: Bàn #' + id);
   } catch (err) {
-    alert('Lỗi cập nhật!');
+    alert(apiErrorMessage(err, 'Không thể hoàn thành đơn lúc này.'));
   }
 };
 
 const markDishReady = async (detailId) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('staff_token');
     await api.put(`/api/orders/details/${detailId}/kitchen/complete`, {}, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     fetchOrders();
     showToast('✅ Món đã xong, báo phục vụ bưng!');
   } catch (err) {
-    alert('Lỗi cập nhật món!');
+    alert(apiErrorMessage(err, 'Không thể cập nhật món lúc này.'));
   }
 };
 
@@ -493,7 +538,7 @@ const cancelDish = async (detailId) => {
 const aggregatedDishes = computed(() => {
   const groups = {};
   pendingOrders.value.forEach(order => {
-    order.orderDetails.forEach(detail => {
+    (order.orderDetails || []).forEach(detail => {
       if (!detail.status || detail.status === 0) {
         const prodName = detail.product?.name || 'Món ăn';
         if (!groups[prodName]) {
@@ -520,7 +565,7 @@ const analyzeDishes = async () => {
   
   aiLoading.value = true;
   try {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('staff_token');
     const res = await api.post('/api/staff/ai/kitchen', { dishes }, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
@@ -583,14 +628,14 @@ const viewRecipeDetails = async (product) => {
   }
 };
 
-const handleLogout = () => { localStorage.removeItem('token'); localStorage.removeItem('user'); router.push('/staff-login'); };
+const handleLogout = () => { localStorage.removeItem('staff_token'); localStorage.removeItem('staff_user'); router.push('/staff-login'); };
 
 // === WEBSOCKET ===
 const connectWebSocket = () => {
   const socket = new SockJS('/ws');
   stompClient = Stomp.over(socket);
   stompClient.debug = () => {}; // Tắt log debug
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('staff_token');
   stompClient.connect(token ? { Authorization: `Bearer ${token}` } : {}, () => {
     stompClient.subscribe('/topic/kitchen', (message) => {
       if (message.body === 'NEW_ORDER') {
@@ -611,11 +656,18 @@ onMounted(() => {
   fetchProducts();
   connectWebSocket();
   timerInterval = setInterval(() => { now.value = new Date(); }, 1000);
+  // Refresh from SQL Server when Kitchen runs on a separate local port.
+  syncInterval = setInterval(() => {
+    fetchOrders();
+    fetchIngredients();
+    fetchProducts();
+  }, 5000);
 });
 
 onUnmounted(() => {
   disconnectWebSocket();
   if (timerInterval) clearInterval(timerInterval);
+  if (syncInterval) clearInterval(syncInterval);
 });
 </script>
 
@@ -734,6 +786,7 @@ onUnmounted(() => {
 .dish-count { font-size: 0.82rem; font-weight: 700; color: var(--text-muted); background: var(--bg-card); padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border-light); }
 .btn-done { padding: 10px 15px; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: var(--bg-dark); border: none; border-radius: 10px; font-weight: 800; font-size: 0.85rem; cursor: pointer; font-family: inherit; transition: 0.3s; }
 .btn-done:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(90, 110, 69, 0.4); }
+.btn-done:disabled { cursor: not-allowed; opacity: 0.55; transform: none; box-shadow: none; }
 .btn-start { padding: 10px 15px; background: rgba(185,130,41,0.15); color: #B98229; border: 1px solid rgba(185,130,41,0.3); border-radius: 10px; font-weight: 800; font-size: 0.85rem; cursor: pointer; transition: 0.3s; font-family: inherit; }
 .btn-start:hover { background: #B98229; color: #FFFFFF; }
 .order-card.cooking { border-left-color: #B98229; box-shadow: 0 0 15px rgba(185,130,41,0.15); animation: pulse-cooking 2s infinite; }
