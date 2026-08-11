@@ -402,8 +402,8 @@ onBeforeUnmount(() => {
 <style scoped>
 .lookup-page {
   min-height: 100vh;
-  background: #DED8C2;
-  color: #201D14;
+  background: var(--color-background);
+  color: var(--color-on-surface);
   padding: 32px 16px 56px;
 }
 
@@ -418,7 +418,7 @@ onBeforeUnmount(() => {
 
 .eyebrow {
   margin: 0 0 6px;
-  color: #5A6E45;
+  color: var(--color-primary);
   font-weight: 900;
   text-transform: uppercase;
   font-size: 0.78rem;
@@ -427,20 +427,20 @@ onBeforeUnmount(() => {
 .lookup-header h1,
 .result-head h2 {
   margin: 0;
-  color: #22301B;
+  color: var(--color-on-background);
 }
 
 .lookup-header p {
   max-width: 720px;
-  color: #7A7460;
+  color: var(--color-on-surface-variant);
 }
 
 .lookup-card,
 .result-card {
-  background: #FFFFFF;
-  border: 1px solid #CFC7A8;
+  background: var(--color-surface-container-lowest);
+  border: 1px solid var(--color-outline-variant);
   border-radius: 8px;
-  box-shadow: 0 18px 40px rgba(35, 48, 43, 0.08);
+  box-shadow: var(--shadow-lg);
 }
 
 .lookup-card {
@@ -455,13 +455,13 @@ onBeforeUnmount(() => {
 label {
   display: grid;
   gap: 7px;
-  color: #55503E;
+  color: var(--color-on-surface);
   font-weight: 800;
 }
 
 input {
   width: 100%;
-  border: 1px solid #CFC7A8;
+  border: 1px solid var(--color-outline-variant);
   border-radius: 8px;
   padding: 11px 12px;
   font: inherit;
@@ -470,11 +470,11 @@ input {
 select,
 textarea {
   width: 100%;
-  border: 1px solid #CFC7A8;
+  border: 1px solid var(--color-outline-variant);
   border-radius: 8px;
   padding: 11px 12px;
   font: inherit;
-  background: #FFFFFF;
+  background: var(--color-surface-container-lowest);
 }
 
 .primary-btn,
@@ -487,15 +487,15 @@ textarea {
 }
 
 .primary-btn {
-  border: 1px solid #5A6E45;
-  background: #5A6E45;
-  color: #FFFFFF;
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
 }
 
 .ghost-btn {
-  border: 1px solid #CFC7A8;
-  background: #FFFFFF;
-  color: #201D14;
+  border: 1px solid var(--color-outline-variant);
+  background: var(--color-surface-container-lowest);
+  color: var(--color-on-surface);
   margin-top: 12px;
 }
 
@@ -506,9 +506,9 @@ textarea {
 }
 
 .error-box {
-  background: #F4E8E5;
-  color: #8F2F25;
-  border: 1px solid #E8C9C4;
+  background: var(--color-error-container);
+  color: var(--color-on-error-container);
+  border: 1px solid #ffb4ab;
   border-radius: 8px;
   padding: 12px;
   margin-bottom: 16px;
@@ -523,9 +523,9 @@ textarea {
   justify-content: space-between;
   gap: 12px;
   align-items: center;
-  border: 1px solid #E7D5B8;
-  background: #F5F0E4;
-  color: #8A641F;
+  border: 1px solid var(--color-secondary-fixed-dim);
+  background: var(--color-secondary-fixed);
+  color: var(--color-on-secondary-fixed);
   border-radius: 8px;
   padding: 10px 12px;
   margin-bottom: 14px;
@@ -533,9 +533,9 @@ textarea {
 }
 
 .realtime-box.connected {
-  border-color: #D8EADC;
-  background: #F3F7F0;
-  color: #22301B;
+  border-color: #a9e3bd;
+  background: #e0f5e5;
+  color: #005326;
 }
 
 .realtime-box strong {
@@ -554,8 +554,8 @@ textarea {
 .status-badge {
   border-radius: 999px;
   padding: 6px 12px;
-  background: #E7E3D2;
-  color: #33422A;
+  background: var(--color-primary-fixed);
+  color: var(--color-on-primary-fixed);
   font-weight: 900;
   white-space: nowrap;
 }
@@ -564,8 +564,8 @@ textarea {
 .status-badge.REJECTED,
 .status-badge.EXPIRED,
 .status-badge.NO_SHOW {
-  background: #F4E8E5;
-  color: #B23B2E;
+  background: var(--color-error-container);
+  color: var(--color-on-error-container);
 }
 
 .summary-grid {
@@ -577,7 +577,7 @@ textarea {
 .summary-grid > div {
   display: grid;
   gap: 4px;
-  background: #DED8C2;
+  background: var(--color-surface-container-low);
   border-radius: 8px;
   padding: 12px;
 }
@@ -585,7 +585,7 @@ textarea {
 .summary-grid span,
 .qr-card dt,
 .payment-action p {
-  color: #7A7460;
+  color: var(--color-on-surface-variant);
 }
 
 .qr-card {
@@ -594,7 +594,7 @@ textarea {
   gap: 18px;
   margin-top: 18px;
   padding: 18px;
-  border: 1px solid #CFC7A8;
+  border: 1px solid var(--color-outline-variant);
   border-radius: 8px;
 }
 
@@ -622,7 +622,7 @@ textarea {
   gap: 14px;
   align-items: center;
   margin-top: 18px;
-  border: 1px dashed #CFC7A8;
+  border: 1px dashed var(--color-outline-variant);
   border-radius: 8px;
   padding: 16px;
 }
@@ -635,7 +635,7 @@ textarea {
   display: grid;
   grid-template-columns: 1fr 140px 140px;
   gap: 10px;
-  border: 1px solid #CFC7A8;
+  border: 1px solid var(--color-outline-variant);
   border-radius: 8px;
   padding: 10px;
   margin-top: 8px;
@@ -643,10 +643,10 @@ textarea {
 
 .review-box {
   margin-top: 18px;
-  border: 1px solid #CFC7A8;
+  border: 1px solid var(--color-outline-variant);
   border-radius: 8px;
   padding: 18px;
-  background: #DED8C2;
+  background: var(--color-surface-container-low);
 }
 
 .review-head {
@@ -663,14 +663,14 @@ textarea {
 }
 
 .review-head p {
-  color: #7A7460;
+  color: var(--color-on-surface-variant);
   margin-top: 4px;
 }
 
 .review-done {
   border-radius: 999px;
-  background: #E7E3D2;
-  color: #22301B;
+  background: var(--color-primary-fixed);
+  color: var(--color-on-primary-fixed);
   padding: 6px 10px;
   font-weight: 900;
   white-space: nowrap;
@@ -695,19 +695,19 @@ textarea {
 }
 
 .submitted-review {
-  background: #FFFFFF;
-  border: 1px solid #CFC7A8;
+  background: var(--color-surface-container-lowest);
+  border: 1px solid var(--color-outline-variant);
   border-radius: 8px;
   padding: 14px;
 }
 
 .submitted-review p {
-  color: #55503E;
+  color: var(--color-on-surface);
 }
 
 .submitted-review small {
   display: block;
-  color: #22301B;
+  color: var(--color-on-surface);
   font-weight: 800;
 }
 

@@ -206,14 +206,13 @@ const handleStaffLogin = async () => {
 .staff-login-page {
   min-height: 100vh;
   display: flex;
-  background: #1A170F;
+  background: var(--color-background);
 }
 
-/* ===== LEFT PANEL ===== */
 .staff-visual {
   flex: 1;
   position: relative;
-  background: linear-gradient(145deg, #1A170F 0%, #1A170F 50%, #1A170F 100%);
+  background: linear-gradient(145deg, var(--color-primary) 0%, #7c1025 52%, var(--color-secondary) 100%);
   display: flex;
   align-items: center;
   overflow: hidden;
@@ -221,9 +220,9 @@ const handleStaffLogin = async () => {
 .visual-overlay {
   position: absolute;
   inset: 0;
-  background: 
-    radial-gradient(ellipse at 20% 50%, rgba(90, 110, 69, 0.08) 0%, transparent 60%),
-    radial-gradient(ellipse at 80% 20%, rgba(192, 138, 46, 0.06) 0%, transparent 50%);
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(255, 218, 216, 0.25) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 20%, rgba(213, 227, 255, 0.22) 0%, transparent 50%);
 }
 .visual-content {
   position: relative;
@@ -233,9 +232,9 @@ const handleStaffLogin = async () => {
 }
 .system-badge {
   display: inline-block;
-  background: rgba(90, 110, 69, 0.12);
-  border: 1px solid rgba(90, 110, 69, 0.25);
-  color: #7FA08F;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: #ffffff;
   padding: 8px 20px;
   border-radius: 100px;
   font-size: 0.72rem;
@@ -248,50 +247,48 @@ const handleStaffLogin = async () => {
   font-family: var(--font-display);
   font-size: 3.2rem;
   font-weight: 900;
-  color: #FFFFFF;
+  color: #ffffff;
   line-height: 1.15;
   margin: 0 0 20px 0;
 }
 .visual-content h1 span {
-  background: linear-gradient(135deg, #7FA08F, #C7B58D);
+  background: linear-gradient(135deg, #ffdad8, #d5e3ff);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 .visual-content > p {
   font-size: 1rem;
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(255, 255, 255, 0.84);
   line-height: 1.7;
   margin: 0 0 40px 0;
 }
 
-/* Role List */
 .role-list { display: flex; flex-direction: column; gap: 12px; }
 .role-item {
   display: flex;
   align-items: center;
   gap: 14px;
   padding: 14px 18px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: 14px;
   max-width: 320px;
   transition: all 0.3s ease;
 }
 .role-item:hover {
-  background: rgba(90, 110, 69, 0.06);
-  border-color: rgba(90, 110, 69, 0.2);
+  background: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.55);
 }
 .role-icon { font-size: 1.6rem; flex-shrink: 0; }
-.role-item strong { display: block; color: #E2DCC2; font-size: 0.88rem; }
-.role-item p { margin: 0; color: rgba(255,255,255,0.35); font-size: 0.76rem; }
+.role-item strong { display: block; color: #ffffff; font-size: 0.88rem; }
+.role-item p { margin: 0; color: rgba(255,255,255,0.78); font-size: 0.76rem; }
 
-/* Decorative */
 .deco-hex {
   position: absolute;
   width: 200px;
   height: 200px;
-  border: 1px solid rgba(90, 110, 69, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 20px;
   transform: rotate(45deg);
 }
@@ -300,7 +297,7 @@ const handleStaffLogin = async () => {
 .deco-line {
   position: absolute;
   width: 1px;
-  background: linear-gradient(180deg, transparent, rgba(90, 110, 69, 0.15), transparent);
+  background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.35), transparent);
 }
 .line-1 { height: 300px; top: 20%; right: 15%; }
 .line-2 { height: 200px; bottom: 10%; right: 30%; }
@@ -310,7 +307,6 @@ const handleStaffLogin = async () => {
   50% { transform: rotate(45deg) translateY(-15px); }
 }
 
-/* ===== RIGHT PANEL ===== */
 .staff-form-panel {
   width: 520px;
   flex-shrink: 0;
@@ -318,7 +314,7 @@ const handleStaffLogin = async () => {
   align-items: center;
   justify-content: center;
   padding: 40px;
-  background: #1A170F;
+  background: var(--color-surface-container-lowest);
   position: relative;
 }
 .staff-form-panel::before {
@@ -328,7 +324,7 @@ const handleStaffLogin = async () => {
   left: 0;
   bottom: 0;
   width: 1px;
-  background: linear-gradient(180deg, transparent, rgba(90, 110, 69, 0.25), transparent);
+  background: linear-gradient(180deg, transparent, var(--color-outline-variant), transparent);
 }
 
 .form-wrapper {
@@ -336,20 +332,19 @@ const handleStaffLogin = async () => {
   max-width: 380px;
 }
 
-/* System Logo */
 .system-logo {
   display: flex;
   align-items: center;
   gap: 14px;
   margin-bottom: 40px;
   padding-bottom: 24px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--color-outline-variant);
 }
 .logo-icon {
   width: 48px;
   height: 48px;
-  background: linear-gradient(135deg, rgba(90, 110, 69, 0.15), rgba(192, 138, 46, 0.15));
-  border: 1px solid rgba(90, 110, 69, 0.25);
+  background: linear-gradient(135deg, var(--color-primary-fixed), var(--color-secondary-fixed));
+  border: 1px solid var(--color-outline-variant);
   border-radius: 14px;
   display: flex;
   align-items: center;
@@ -360,32 +355,30 @@ const handleStaffLogin = async () => {
   margin: 0;
   font-size: 1.1rem;
   font-weight: 900;
-  color: #7FA08F;
+  color: var(--color-primary);
   letter-spacing: 2px;
 }
 .logo-sub {
   margin: 2px 0 0 0;
   font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--color-on-surface-variant);
 }
 
-/* Form Header */
 .form-header {
   margin-bottom: 32px;
 }
 .form-header h2 {
   font-size: 1.8rem;
   font-weight: 900;
-  color: #E2DCC2;
+  color: var(--color-on-background);
   margin: 0 0 8px 0;
 }
 .form-header p {
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--color-on-surface-variant);
   font-size: 0.9rem;
   margin: 0;
 }
 
-/* Input Groups */
 .input-group {
   margin-bottom: 22px;
 }
@@ -393,7 +386,7 @@ const handleStaffLogin = async () => {
   display: block;
   font-size: 0.82rem;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--color-on-surface-variant);
   margin-bottom: 8px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -413,21 +406,21 @@ const handleStaffLogin = async () => {
 .input-field input {
   width: 100%;
   padding: 14px 48px 14px 48px;
-  background: rgba(26, 23, 15, 0.8);
-  border: 1px solid rgba(90, 110, 69, 0.15);
+  background: var(--color-surface-container-low);
+  border: 1px solid var(--color-outline-variant);
   border-radius: 12px;
-  color: #E2DCC2;
+  color: var(--color-on-surface);
   font-size: 0.95rem;
   font-family: inherit;
   transition: all 0.3s ease;
 }
 .input-field input:focus {
   outline: none;
-  border-color: #7FA08F;
-  box-shadow: 0 0 0 3px rgba(90, 110, 69, 0.15);
-  background: rgba(26, 23, 15, 1);
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-glow);
+  background: var(--color-surface-container-lowest);
 }
-.input-field input::placeholder { color: rgba(255, 255, 255, 0.25); }
+.input-field input::placeholder { color: var(--text-muted); }
 .toggle-pw {
   position: absolute;
   right: 14px;
@@ -438,12 +431,11 @@ const handleStaffLogin = async () => {
   padding: 4px;
 }
 
-/* Login Button */
 .btn-staff-login {
   width: 100%;
   padding: 16px;
-  background: linear-gradient(135deg, #5A6E45, #C08A2E);
-  color: #FFFFFF;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-container));
+  color: var(--color-on-primary);
   border: none;
   border-radius: 12px;
   font-size: 1rem;
@@ -469,7 +461,7 @@ const handleStaffLogin = async () => {
 .btn-staff-login:hover::after { left: 100%; }
 .btn-staff-login:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(90, 110, 69, 0.4);
+  box-shadow: 0 10px 28px rgba(183, 16, 42, 0.3);
 }
 .btn-staff-login:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 .btn-staff-login:disabled::after { display: none; }
@@ -490,20 +482,19 @@ const handleStaffLogin = async () => {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Error */
 .error-alert {
   display: flex;
   align-items: flex-start;
   gap: 10px;
   margin-top: 16px;
   padding: 14px 16px;
-  background: rgba(239, 68, 68, 0.08);
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  background: var(--color-error-container);
+  border: 1px solid #ffb4ab;
   border-radius: 12px;
   animation: shakeX 0.4s ease;
 }
 .error-alert span { font-size: 1.1rem; flex-shrink: 0; }
-.error-alert p { margin: 0; color: #B23B2E; font-size: 0.88rem; font-weight: 500; line-height: 1.4; }
+.error-alert p { margin: 0; color: var(--color-on-error-container); font-size: 0.88rem; font-weight: 500; line-height: 1.4; }
 
 @keyframes shakeX {
   0%, 100% { transform: translateX(0); }
@@ -512,35 +503,32 @@ const handleStaffLogin = async () => {
 }
 .shake-enter-active { animation: shakeX 0.4s ease; }
 
-/* Staff Info */
 .staff-info {
   display: flex;
   align-items: flex-start;
   gap: 10px;
   margin-top: 20px;
   padding: 14px 16px;
-  background: rgba(90, 110, 69, 0.06);
-  border: 1px solid rgba(90, 110, 69, 0.12);
+  background: var(--color-secondary-fixed);
+  border: 1px solid var(--color-secondary-fixed-dim);
   border-radius: 12px;
 }
 .staff-info span { font-size: 1rem; flex-shrink: 0; }
-.staff-info p { margin: 0; color: rgba(255,255,255,0.4); font-size: 0.82rem; line-height: 1.5; }
+.staff-info p { margin: 0; color: var(--color-on-secondary-fixed); font-size: 0.82rem; line-height: 1.5; }
 
-/* Footer */
 .form-footer {
   margin-top: 32px;
   text-align: center;
 }
 .back-home {
   font-size: 0.85rem;
-  color: rgba(255,255,255,0.35);
+  color: var(--color-on-surface-variant);
   text-decoration: none;
   font-weight: 500;
   transition: all 0.3s ease;
 }
-.back-home:hover { color: #7FA08F; }
+.back-home:hover { color: var(--color-primary); }
 
-/* ===== RESPONSIVE ===== */
 @media (max-width: 1024px) {
   .staff-visual { display: none; }
   .staff-form-panel {
