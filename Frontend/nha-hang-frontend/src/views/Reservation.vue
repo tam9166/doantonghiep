@@ -456,6 +456,13 @@ import { useI18n } from 'vue-i18n'
 import CustomerLayout from '@/components/CustomerLayout.vue'
 import api from '@/services/api'
 import { useFormatters } from '@/composables/useFormatters'
+import {
+  createEventBookingDraft,
+  earlyGroupWarning as groupWarningFor,
+  hasAvailableSingleTable,
+  shouldRedirectToEventBooking,
+  waitlistOverflowReason
+} from '@/utils/reservationOverflow'
 
 const { locale, tm } = useI18n()
 const { formatCurrency, formatDateTime } = useFormatters()
@@ -526,12 +533,10 @@ const availableTables = computed(() => tables.value
   .filter(table => table.availabilityStatus === 'AVAILABLE')
     .sort((a, b) => (suggestionById.value[b.id]?.score || 0) - (suggestionById.value[a.id]?.score || 0)))
 const requiresTableCombination = computed(() => {
-  const hasSingleFit = tables.value.some(table => table.availabilityStatus === 'AVAILABLE'
-    && Number(table.maxCapacity || table.capacity || 0) >= Number(form.value.guestCount || 0))
+  const hasSingleFit = hasAvailableSingleTable(tables.value, form.value.guestCount)
   return !hasSingleFit && (tableCombo.value?.combinationRequired || Boolean(tableCombo.value?.available))
 })
-const earlyGroupWarning = computed(() => Number(form.value.guestCount || 0) > 20
-  ? 'Nhóm đông: hệ thống sẽ thử ghép bàn; nếu không đủ sẽ chuyển sang đặt sảnh sự kiện.' : '')
+const earlyGroupWarning = computed(() => groupWarningFor(form.value.guestCount))
 const tableMapGroups = computed(() => {
   const groups = new Map()
   tables.value.forEach(table => {
@@ -858,8 +863,7 @@ async function loadTableSuggestions() {
 
 async function loadTableCombination() {
   tableCombo.value = null
-  const hasSingleFit = tables.value.some(table => table.availabilityStatus === 'AVAILABLE'
-    && Number(table.maxCapacity || table.capacity || 0) >= Number(form.value.guestCount || 0))
+  const hasSingleFit = hasAvailableSingleTable(tables.value, form.value.guestCount)
   if (hasSingleFit) return
   try {
     const res = await api.post('/api/reservations/table-combinations', {
@@ -872,18 +876,15 @@ async function loadTableCombination() {
       customerPhone: form.value.customerPhone
     })
     tableCombo.value = res.data || null
-    if (!tableCombo.value?.available && Number(form.value.guestCount || 0) > 20) redirectToEventBooking()
+    if (shouldRedirectToEventBooking(tableCombo.value, form.value.guestCount)) redirectToEventBooking()
   } catch {
     tableCombo.value = { available: false, combinationRequired: false, reasons: [] }
-    if (Number(form.value.guestCount || 0) > 20) redirectToEventBooking()
+    if (shouldRedirectToEventBooking(tableCombo.value, form.value.guestCount)) redirectToEventBooking()
   }
 }
 
 function redirectToEventBooking() {
-  sessionStorage.setItem('event-booking-draft', JSON.stringify({
-    customerName: form.value.customerName, customerPhone: form.value.customerPhone, customerEmail: form.value.customerEmail,
-    reservationDate: form.value.reservationDate, arrivalTime: form.value.arrivalTime, guestCount: form.value.guestCount
-  }))
+  sessionStorage.setItem('event-booking-draft', JSON.stringify(createEventBookingDraft(form.value)))
   router.push('/dat-su-kien')
 }
 
@@ -1102,7 +1103,7 @@ async function submitWaitlist() {
       areaId: form.value.areaId,
       seatingPreference: selectedPreferences.value.join(', '),
       specialRequest: form.value.specialRequest,
-      overflowReason: Number(form.value.guestCount || 0) > 20 ? 'GROUP_TOO_LARGE' : null
+      overflowReason: waitlistOverflowReason(form.value.guestCount)
     })
     waitlistResult.value = res.data
   } catch (err) {

@@ -21,6 +21,7 @@ import poly.edu.quanlynhahang.repository.TableAreaRepository;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
 class ReservationWaitlistServiceTest {
 
@@ -77,5 +78,30 @@ class ReservationWaitlistServiceTest {
     void publicLookupRequiresMatchingPhoneNumber() {
         assertThrows(ResponseStatusException.class, () -> service.getPublic("WL20260704-001", " "));
         org.mockito.Mockito.verifyNoInteractions(waitlistRepository);
+    }
+
+    @Test
+    void storesGroupTooLargeReasonWhenEventHallHasNoCapacity() {
+        WaitlistRequest request = new WaitlistRequest();
+        request.setCustomerName("Nguyen Van A");
+        request.setCustomerPhone("0912345678");
+        request.setReservationDate(LocalDate.now().plusDays(1).toString());
+        request.setPreferredStartTime("18:00");
+        request.setPreferredEndTime("20:00");
+        request.setGuestCount(25);
+        request.setOverflowReason("GROUP_TOO_LARGE");
+        AtomicReference<ReservationWaitlist> savedEntry = new AtomicReference<>();
+
+        when(waitlistRepository.countByReservationDate(any())).thenReturn(0L);
+        when(waitlistRepository.save(any())).thenAnswer(invocation -> {
+            ReservationWaitlist entry = invocation.getArgument(0);
+            entry.setId(11L);
+            savedEntry.set(entry);
+            return entry;
+        });
+
+        service.create(request);
+
+        assertEquals("GROUP_TOO_LARGE", savedEntry.get().getOverflowReason());
     }
 }
