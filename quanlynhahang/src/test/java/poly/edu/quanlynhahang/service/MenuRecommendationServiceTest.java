@@ -74,6 +74,47 @@ class MenuRecommendationServiceTest {
                 && "SIGNATURE_DISH".equals(item.reasonCode())));
     }
 
+    @Test
+    void pairsGrilledDishWithAvailableBeerOrRedWine() {
+        Product grilledMeat = product(1, DietType.MAN, CookingMethod.NUONG, false, true);
+        Product beer = product(2, DietType.MAN, CookingMethod.KHAC, false, true);
+        beer.setName("Bia tươi");
+        Product whiteWine = product(3, DietType.MAN, CookingMethod.KHAC, false, true);
+        whiteWine.setName("Rượu vang trắng");
+        when(productRepository.findByAvailableTrueAndStatusTrue()).thenReturn(List.of(grilledMeat, beer, whiteWine));
+
+        var result = service.recommend(List.of(1));
+
+        assertTrue(result.stream().anyMatch(item -> item.productId().equals(2)
+                && "PAIRING_GRILLED_OR_FRIED".equals(item.reasonCode())));
+    }
+
+    @Test
+    void pairsSteamedDishWithAvailableWhiteWine() {
+        Product steamedFish = product(1, DietType.MAN, CookingMethod.HAP, false, true);
+        Product whiteWine = product(2, DietType.MAN, CookingMethod.KHAC, false, true);
+        whiteWine.setName("Rượu vang trắng");
+        when(productRepository.findByAvailableTrueAndStatusTrue()).thenReturn(List.of(steamedFish, whiteWine));
+
+        var result = service.recommend(List.of(1));
+
+        assertTrue(result.stream().anyMatch(item -> item.productId().equals(2)
+                && "PAIRING_SEAFOOD_OR_STEAMED".equals(item.reasonCode())));
+    }
+
+    @Test
+    void pairsVegetarianDishWithAvailableTeaOrJuice() {
+        Product vegetarianDish = product(1, DietType.CHAY, CookingMethod.XAO, false, true);
+        Product juice = product(2, DietType.MAN, CookingMethod.KHAC, false, true);
+        juice.setName("Nước ép dưa hấu");
+        when(productRepository.findByAvailableTrueAndStatusTrue()).thenReturn(List.of(vegetarianDish, juice));
+
+        var result = service.recommend(List.of(1));
+
+        assertTrue(result.stream().anyMatch(item -> item.productId().equals(2)
+                && "PAIRING_VEGETARIAN".equals(item.reasonCode())));
+    }
+
     private Product product(int id, DietType dietType, CookingMethod cookingMethod,
                             boolean signature, boolean available) {
         Product product = new Product();

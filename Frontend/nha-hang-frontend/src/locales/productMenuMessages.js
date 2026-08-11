@@ -23,7 +23,10 @@ const productMenuMessages = {
     recommendationReason: {
       BALANCE_HEAVY_MEAL: 'Cân bằng vị giác',
       VEGETARIAN_COMPLEMENT: 'Phù hợp thực đơn chay',
-      SIGNATURE_DISH: 'Món đặc trưng của nhà hàng'
+      SIGNATURE_DISH: 'Món đặc trưng của nhà hàng',
+      PAIRING_GRILLED_OR_FRIED: 'Hợp với món nướng hoặc chiên',
+      PAIRING_SEAFOOD_OR_STEAMED: 'Hợp với hải sản hoặc món hấp',
+      PAIRING_VEGETARIAN: 'Hợp với món chay'
     },
     checkoutTitle: 'Thông tin giao hàng và thanh toán',
     recipientName: 'Họ tên người nhận (*)',
@@ -77,7 +80,10 @@ const productMenuMessages = {
     recommendationReason: {
       BALANCE_HEAVY_MEAL: 'Balance the meal',
       VEGETARIAN_COMPLEMENT: 'Matches a vegetarian meal',
-      SIGNATURE_DISH: 'Restaurant signature dish'
+      SIGNATURE_DISH: 'Restaurant signature dish',
+      PAIRING_GRILLED_OR_FRIED: 'Pairs with grilled or fried dishes',
+      PAIRING_SEAFOOD_OR_STEAMED: 'Pairs with seafood or steamed dishes',
+      PAIRING_VEGETARIAN: 'Pairs with vegetarian dishes'
     },
     checkoutTitle: 'Delivery and payment details',
     recipientName: 'Recipient name (*)',
