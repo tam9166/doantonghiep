@@ -18,6 +18,7 @@ import poly.edu.quanlynhahang.dto.ReservationActionRequest;
 import poly.edu.quanlynhahang.dto.ReservationQuoteRequest;
 import poly.edu.quanlynhahang.dto.ReservationRequest;
 import poly.edu.quanlynhahang.dto.TableSuggestionRequest;
+import poly.edu.quanlynhahang.dto.EventBookingRequest;
 import poly.edu.quanlynhahang.service.ReservationService;
 @RestController
 public class ReservationController {
@@ -32,6 +33,8 @@ public class ReservationController {
                                     @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey) {
         return ResponseEntity.status(HttpStatus.CREATED).body(reservationService.createReservation(request, idempotencyKey));
     }
+    @PostMapping("/api/event-bookings")
+    public ResponseEntity<?> createEvent(@Valid @RequestBody EventBookingRequest request) { return ResponseEntity.status(HttpStatus.CREATED).body(reservationService.createEventBooking(request)); }
 
     @PostMapping("/api/reservations/quote")
     public ResponseEntity<?> quote(@Valid @RequestBody ReservationQuoteRequest request) {

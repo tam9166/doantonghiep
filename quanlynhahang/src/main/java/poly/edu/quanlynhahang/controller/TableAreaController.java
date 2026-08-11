@@ -85,5 +85,11 @@ public class TableAreaController {
         area.setBasePrice(request.basePrice() == null ? java.math.BigDecimal.ZERO : request.basePrice());
         area.setCapacity(request.capacity() == null ? 0 : request.capacity());
         area.setStatus(request.status() == null || request.status().isBlank() ? "ACTIVE" : request.status());
+        area.setAreaType(request.areaType() == null ? poly.edu.quanlynhahang.entity.AreaType.DINING : request.areaType());
+        area.setMinGuestCount(request.minGuestCount() == null ? 1 : request.minGuestCount());
+        area.setMaxGuestCount(request.maxGuestCount() == null ? 1000 : request.maxGuestCount());
+        area.setMinBookingHours(request.minBookingHours() == null ? 2 : request.minBookingHours());
+        area.setHourlyRate(request.hourlyRate() == null ? java.math.BigDecimal.ZERO : request.hourlyRate());
+        area.setPackagePrice(request.packagePrice() == null ? java.math.BigDecimal.ZERO : request.packagePrice());
     }
 }

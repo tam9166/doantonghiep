@@ -98,6 +98,16 @@ public class Reservation {
     @Column(name = "seating_preference", columnDefinition = "nvarchar(255)")
     private String seatingPreference;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "event_type", length = 30)
+    private EventType eventType;
+    @Column(name = "event_decoration_required")
+    private Boolean eventDecorationRequired = false;
+    @Column(name = "event_mc_required")
+    private Boolean eventMcRequired = false;
+    @Column(name = "event_note", columnDefinition = "nvarchar(500)")
+    private String eventNote;
+
     @Column(name = "preorder_enabled", nullable = false)
     private Boolean preorderEnabled = false;
 

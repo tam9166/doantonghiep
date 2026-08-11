@@ -22,6 +22,7 @@ const router = createRouter({
     { path: '/admin/deposit-policies', name: 'admin-deposit-policies', component: () => import('@/views/AdminDepositPolicy.vue') },
     { path: '/admin/analytics', name: 'admin-analytics', component: () => import('@/views/AdminAnalytics.vue') },
     { path: '/reservation', name: 'reservation', component: () => import('@/views/Reservation.vue') },
+    { path: '/dat-su-kien', name: 'event-booking', component: () => import('@/views/EventBooking.vue') },
     { path: '/reservation-lookup', name: 'reservation-lookup', component: () => import('@/views/ReservationLookup.vue') },
     { path: '/admin/categories', name: 'admin-categories', component: () => import('@/views/AdminCategory.vue') },
     { path: '/admin/tables', name: 'admin-tables', component: () => import('@/views/AdminTable.vue') },

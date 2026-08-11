@@ -3,6 +3,7 @@ package poly.edu.quanlynhahang.dto;
 import java.math.BigDecimal;
 
 import poly.edu.quanlynhahang.entity.TableArea;
+import poly.edu.quanlynhahang.entity.AreaType;
 
 /** Stable API projection for table areas. */
 public record TableAreaResponse(
@@ -14,11 +15,18 @@ public record TableAreaResponse(
         String imageUrl,
         BigDecimal basePrice,
         Integer capacity,
-        String status) {
+        String status,
+        AreaType areaType,
+        Integer minGuestCount,
+        Integer maxGuestCount,
+        Integer minBookingHours,
+        BigDecimal hourlyRate,
+        BigDecimal packagePrice) {
 
     public static TableAreaResponse from(TableArea area) {
         return new TableAreaResponse(
                 area.getId(), area.getNameVi(), area.getNameEn(), area.getDescriptionVi(), area.getDescriptionEn(),
-                area.getImageUrl(), area.getBasePrice(), area.getCapacity(), area.getStatus());
+                area.getImageUrl(), area.getBasePrice(), area.getCapacity(), area.getStatus(), area.getAreaType(),
+                area.getMinGuestCount(), area.getMaxGuestCount(), area.getMinBookingHours(), area.getHourlyRate(), area.getPackagePrice());
     }
 }

@@ -18,12 +18,14 @@ import poly.edu.quanlynhahang.dto.ReservationQuoteRequest;
 import poly.edu.quanlynhahang.dto.ReservationQuoteResponse;
 import poly.edu.quanlynhahang.dto.ReservationRequest;
 import poly.edu.quanlynhahang.dto.ReservationResponse;
+import poly.edu.quanlynhahang.dto.EventBookingRequest;
 import poly.edu.quanlynhahang.dto.ReservationTableResponse;
 import poly.edu.quanlynhahang.dto.PublicReservationResponse;
 import poly.edu.quanlynhahang.dto.TableCombinationResponse;
 import poly.edu.quanlynhahang.dto.TableSuggestionRequest;
 import poly.edu.quanlynhahang.dto.TableSuggestionResponse;
 import poly.edu.quanlynhahang.entity.DepositStatus;
+import poly.edu.quanlynhahang.entity.AreaType;
 import poly.edu.quanlynhahang.entity.PaymentIntent;
 import poly.edu.quanlynhahang.entity.PaymentOption;
 import poly.edu.quanlynhahang.entity.PaymentStatus;
@@ -156,6 +158,25 @@ public class ReservationService {
     @Transactional
     public ReservationResponse createReservation(ReservationRequest request) {
         return createReservation(request, null);
+    }
+
+    @Transactional
+    public ReservationResponse createEventBooking(EventBookingRequest request) {
+        TableArea area = areaRepository.findById(request.areaId()).orElseThrow(this::notFound);
+        if (area.getAreaType() != AreaType.EVENT_HALL) throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Khu vực không phải sảnh sự kiện");
+        if (!"ACTIVE".equals(area.getStatus())) throw new ResponseStatusException(HttpStatus.CONFLICT, "Sảnh sự kiện đang tạm ngưng");
+        if (request.guestCount() < area.getMinGuestCount() || request.guestCount() > area.getMaxGuestCount()) throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Số khách không nằm trong sức chứa sảnh");
+        if (request.durationHours() < area.getMinBookingHours()) throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Thời lượng thuê chưa đạt mức tối thiểu");
+        LocalDate date = parseDate(request.reservationDate()); LocalTime time = parseTime(request.arrivalTime());
+        validateReservationTime(date, time, request.durationHours() * 60, false);
+        BigDecimal total = area.getHourlyRate().multiply(BigDecimal.valueOf(request.durationHours())).add(area.getPackagePrice()).setScale(0, RoundingMode.HALF_UP);
+        DepositPolicyService.DepositCalculation deposit = depositPolicyService.calculate(total, request.guestCount(), date, time, area.getId(), null, new BigDecimal("0.70"));
+        Reservation reservation = new Reservation();
+        reservation.setReservationCode(generateReservationCode(date)); reservation.setCustomerName(request.customerName().trim()); reservation.setCustomerPhone(normalizePhone(request.customerPhone())); reservation.setCustomerEmail(trimToNull(request.customerEmail()));
+        reservation.setReservationDate(date); reservation.setArrivalTime(time); reservation.setExpectedDurationMinutes(request.durationHours() * 60); reservation.setGuestCount(request.guestCount()); reservation.setArea(area);
+        reservation.setEventType(request.eventType()); reservation.setEventDecorationRequired(Boolean.TRUE.equals(request.decorationRequired())); reservation.setEventMcRequired(Boolean.TRUE.equals(request.mcRequired())); reservation.setEventNote(trimToNull(request.eventNote()));
+        reservation.setPaymentOption(PaymentOption.DEPOSIT_50); reservation.setTotalAmount(total); reservation.setTableAmount(total); reservation.setFoodAmount(BigDecimal.ZERO); reservation.setDepositAmount(deposit.amount()); reservation.setDepositRate(deposit.rate()); reservation.setDepositPolicyCode(deposit.policy().getPolicyCode()); reservation.setDepositPolicySnapshot(deposit.policy().getExplanation()); reservation.setRemainingAmount(total); reservation.setPaymentStatus(PaymentStatus.UNPAID); reservation.setDepositStatus(DepositStatus.PENDING); reservation.setReservationStatus(ReservationStatus.PENDING);
+        Reservation saved = reservationRepository.save(reservation); addHistory(saved, null, ReservationStatus.PENDING, "Khách gửi yêu cầu đặt sảnh sự kiện"); return toResponse(saved, false);
     }
 
     @Transactional

@@ -129,6 +129,7 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.POST, "/api/vouchers/admin/create").hasAnyRole("ADMIN", "MANAGER")
             .requestMatchers(HttpMethod.GET, "/api/menu-items/preorder").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/reservations").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/event-bookings").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/reservations/quote").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/reservations/table-suggestions").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/reservations/table-combinations").permitAll()
