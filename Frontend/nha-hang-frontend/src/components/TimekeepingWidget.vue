@@ -57,7 +57,7 @@ const checkInTime = ref(null);
 const checkOutTime = ref(null);
 
 const configHeader = () => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('staff_token') || localStorage.getItem('token');
   return { headers: { Authorization: 'Bearer ' + token } };
 };
 

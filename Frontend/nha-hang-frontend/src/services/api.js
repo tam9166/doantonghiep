@@ -47,13 +47,31 @@ function isInternalRequest(config) {
   }
 }
 
+function isStaffRequest(config) {
+  if (config.authType === 'staff') return true
+  if (config.authType === 'customer') return false
+
+  const requestUrl = config.url || ''
+  if (/^\/api\/(admin|staff|schedules|timekeeping|cashier|waiter|kitchen)(\/|$)/.test(requestUrl)) {
+    return true
+  }
+
+  const currentPath = router.currentRoute.value.path
+  return currentPath.startsWith('/admin')
+    || currentPath.startsWith('/kitchen')
+    || currentPath.startsWith('/waiter')
+    || currentPath.startsWith('/cashier')
+    || currentPath === '/staff'
+    || (currentPath === '/change-password' && Boolean(localStorage.getItem('staff_token')))
+}
+
 async function attachAuthAndCaptcha(config) {
   config.headers = config.headers || {}
   if (!isInternalRequest(config)) {
     return config
   }
 
-  const token = localStorage.getItem('token')
+  const token = localStorage.getItem(isStaffRequest(config) ? 'staff_token' : 'token')
   if (token && !config.headers.Authorization) {
     config.headers.Authorization = `Bearer ${token}`
   }
@@ -85,19 +103,14 @@ api.interceptors.response.use(
 
       // Token hết hạn hoặc không hợp lệ
       if (status === 401) {
-        // Kiểm tra role trước khi xóa để redirect đúng trang
-        const storedUser = localStorage.getItem('user')
-        let isStaff = false
-        if (storedUser) {
-          try {
-            const staffRoles = ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_KITCHEN', 'ROLE_WAITER', 'ROLE_CASHIER']
-            const roles = JSON.parse(storedUser).roles || []
-            isStaff = roles.some(r => staffRoles.includes(r))
-          } catch (e) { /* ignore */ }
+        const isStaff = isStaffRequest(error.config || {})
+        if (isStaff) {
+          localStorage.removeItem('staff_token')
+          localStorage.removeItem('staff_user')
+        } else {
+          localStorage.removeItem('token')
+          localStorage.removeItem('user')
         }
-
-        localStorage.removeItem('token')
-        localStorage.removeItem('user')
 
         // Redirect về đúng trang đăng nhập
         const currentPath = router.currentRoute.value.path

@@ -46,8 +46,15 @@ const router = createRouter({
 router.beforeEach((to, from) => {
   routeLoading.value = to.path.startsWith('/admin') && from.path !== to.path
 
-  const token = localStorage.getItem('token')
-  const storedUser = localStorage.getItem('user')
+  const hasStaffSession = Boolean(localStorage.getItem('staff_token'))
+  const isStaffWorkspace = to.path.startsWith('/admin')
+    || to.path.startsWith('/kitchen')
+    || to.path.startsWith('/waiter')
+    || to.path.startsWith('/cashier')
+    || to.path === '/staff'
+    || (to.path === '/change-password' && hasStaffSession)
+  const token = localStorage.getItem(isStaffWorkspace ? 'staff_token' : 'token')
+  const storedUser = localStorage.getItem(isStaffWorkspace ? 'staff_user' : 'user')
   let userRoles = []
   let mustChangePassword = false
 

@@ -152,8 +152,10 @@ const handleStaffLogin = async () => {
     // Gọi endpoint riêng dành cho nhân sự
     const res = await api.post('/api/auth/staff/login', form.value)
 
-    localStorage.setItem('token', res.data.token)
-    localStorage.setItem('user', JSON.stringify({
+    // Phiên nhân viên tách biệt với phiên khách hàng đang có trong cùng trình duyệt.
+    // Kitchen, Waiter và Cashier đều đọc đúng hai khóa này.
+    localStorage.setItem('staff_token', res.data.token)
+    localStorage.setItem('staff_user', JSON.stringify({
       username: res.data.username,
       roles: res.data.roles,
       assignedArea: res.data.assignedArea,

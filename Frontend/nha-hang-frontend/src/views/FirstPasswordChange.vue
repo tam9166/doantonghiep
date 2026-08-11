@@ -54,9 +54,12 @@ const form = reactive({ oldPassword: '', newPassword: '', confirmPassword: '' })
 const submitting = ref(false)
 const errorMessage = ref('')
 
+const isStaffSession = () => Boolean(localStorage.getItem('staff_token'))
+
 const loginPath = () => {
   try {
-    const roles = JSON.parse(localStorage.getItem('user') || '{}').roles || []
+    const userKey = isStaffSession() ? 'staff_user' : 'user'
+    const roles = JSON.parse(localStorage.getItem(userKey) || '{}').roles || []
     return roles.some(role => ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_KITCHEN', 'ROLE_WAITER', 'ROLE_CASHIER'].includes(role))
       ? '/staff-login'
       : '/login'
@@ -83,8 +86,13 @@ const submitPasswordChange = async () => {
       newPassword: form.newPassword
     })
     const destination = loginPath()
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
+    if (isStaffSession()) {
+      localStorage.removeItem('staff_token')
+      localStorage.removeItem('staff_user')
+    } else {
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+    }
     window.location.href = destination
   } catch (error) {
     const payload = error.response?.data
