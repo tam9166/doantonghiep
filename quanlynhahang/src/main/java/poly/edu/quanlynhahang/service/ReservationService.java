@@ -132,7 +132,7 @@ public class ReservationService {
                               OrderCheckoutService orderCheckoutService,
                               @Value("${restaurant.reservation.deposit-rate:0.50}") BigDecimal depositRate,
                               @Value("${restaurant.reservation.deposit-expiry-minutes:15}") long depositExpiryMinutes,
-                              @Value("${restaurant.reservation.no-show-grace-minutes:30}") long noShowGraceMinutes) {
+                              @Value("${restaurant.reservation.no-show-grace-minutes:15}") long noShowGraceMinutes) {
         this.reservationRepository = reservationRepository;
         this.preorderItemRepository = preorderItemRepository;
         this.paymentIntentRepository = paymentIntentRepository;
@@ -662,6 +662,13 @@ public class ReservationService {
         stateMachine.assertCanTransition(old, nextStatus);
         reservation.setReservationStatus(nextStatus);
         reservation.setUpdatedAt(new Date());
+        if (nextStatus == ReservationStatus.NO_SHOW) {
+            for (RestaurantTable table : assignedTables(reservation)) {
+                table.setIsOccupied(0);
+                table.setReservedTime(null);
+                tableRepository.save(table);
+            }
+        }
         Reservation saved = reservationRepository.save(reservation);
         addHistory(saved, old, nextStatus, note);
         ReservationResponse response = toResponse(saved, true);
