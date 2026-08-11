@@ -14,4 +14,5 @@ public class WaitlistRequest {
     private Integer areaId;
     private String seatingPreference;
     private String specialRequest;
+    private String overflowReason;
 }

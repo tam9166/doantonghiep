@@ -60,6 +60,8 @@ public class ReservationWaitlist {
 
     @Column(name = "special_request", columnDefinition = "nvarchar(500)")
     private String specialRequest;
+    @Column(name = "overflow_reason", length = 40)
+    private String overflowReason;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 30, nullable = false)

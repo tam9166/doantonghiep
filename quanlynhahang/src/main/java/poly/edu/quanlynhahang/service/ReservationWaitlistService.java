@@ -59,6 +59,7 @@ public class ReservationWaitlistService {
         entry.setArea(normalized.area());
         entry.setSeatingPreference(trimToNull(request.getSeatingPreference()));
         entry.setSpecialRequest(limit(trimToNull(request.getSpecialRequest()), 500));
+        entry.setOverflowReason("GROUP_TOO_LARGE".equals(request.getOverflowReason()) ? "GROUP_TOO_LARGE" : null);
         entry.setStatus(WaitlistStatus.WAITING);
 
         ReservationWaitlist saved = waitlistRepository.save(entry);

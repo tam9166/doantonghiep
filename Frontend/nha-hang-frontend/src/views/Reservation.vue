@@ -163,8 +163,9 @@
             <div class="form-grid compact">
               <label>
                 {{ text.guests }}
-                <input v-model.number="form.guestCount" type="number" min="1" max="30" />
+                <input v-model.number="form.guestCount" type="number" min="1" max="10000" />
                 <small v-if="errors.guestCount">{{ errors.guestCount }}</small>
+                <small v-if="earlyGroupWarning" class="group-warning">{{ earlyGroupWarning }}</small>
               </label>
             </div>
             <p class="review-note">{{ text.guestHint }}</p>
@@ -450,6 +451,7 @@
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import CustomerLayout from '@/components/CustomerLayout.vue'
 import api from '@/services/api'
@@ -459,6 +461,7 @@ const { locale, tm } = useI18n()
 const { formatCurrency, formatDateTime } = useFormatters()
 const lang = computed(() => locale.value)
 const step = ref(1)
+const router = useRouter()
 const areas = ref([])
 const tables = ref([])
 const suggestedTables = ref([])
@@ -527,6 +530,8 @@ const requiresTableCombination = computed(() => {
     && Number(table.maxCapacity || table.capacity || 0) >= Number(form.value.guestCount || 0))
   return !hasSingleFit && (tableCombo.value?.combinationRequired || Boolean(tableCombo.value?.available))
 })
+const earlyGroupWarning = computed(() => Number(form.value.guestCount || 0) > 20
+  ? 'Nhóm đông: hệ thống sẽ thử ghép bàn; nếu không đủ sẽ chuyển sang đặt sảnh sự kiện.' : '')
 const tableMapGroups = computed(() => {
   const groups = new Map()
   tables.value.forEach(table => {
@@ -867,9 +872,19 @@ async function loadTableCombination() {
       customerPhone: form.value.customerPhone
     })
     tableCombo.value = res.data || null
+    if (!tableCombo.value?.available && Number(form.value.guestCount || 0) > 20) redirectToEventBooking()
   } catch {
     tableCombo.value = { available: false, combinationRequired: false, reasons: [] }
+    if (Number(form.value.guestCount || 0) > 20) redirectToEventBooking()
   }
+}
+
+function redirectToEventBooking() {
+  sessionStorage.setItem('event-booking-draft', JSON.stringify({
+    customerName: form.value.customerName, customerPhone: form.value.customerPhone, customerEmail: form.value.customerEmail,
+    reservationDate: form.value.reservationDate, arrivalTime: form.value.arrivalTime, guestCount: form.value.guestCount
+  }))
+  router.push('/dat-su-kien')
 }
 
 async function loadPreorderMenu() {
@@ -1086,7 +1101,8 @@ async function submitWaitlist() {
       guestCount: form.value.guestCount,
       areaId: form.value.areaId,
       seatingPreference: selectedPreferences.value.join(', '),
-      specialRequest: form.value.specialRequest
+      specialRequest: form.value.specialRequest,
+      overflowReason: Number(form.value.guestCount || 0) > 20 ? 'GROUP_TOO_LARGE' : null
     })
     waitlistResult.value = res.data
   } catch (err) {
