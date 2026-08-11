@@ -185,39 +185,22 @@
               <div v-for="n in 3" :key="n" class="skeleton-card"></div>
             </div>
             <div v-else-if="!activeAreas.length" class="empty-state">{{ text.noAreas }}</div>
-            <div v-else class="area-grid">
-              <article
+            <div v-else class="area-chip-grid">
+              <button
                 v-for="area in activeAreas"
                 :key="area.id"
-                :class="['area-card', { selected: form.areaId === area.id }]"
+                type="button"
+                :class="['area-chip', { selected: form.areaId === area.id }]"
+                :aria-pressed="form.areaId === area.id"
+                @click="selectArea(area)"
               >
-                <img :src="area.imageUrl || fallbackAreaImage" :alt="areaName(area)" loading="lazy" @error="replaceImage" />
-                <div class="card-body">
-                  <div class="card-title-row">
-                    <strong>{{ areaName(area) }}</strong>
-                    <span class="status-pill">{{ text.active }}</span>
-                  </div>
-                  <p>{{ areaDescription(area) }}</p>
-                  <div class="meta-grid">
-                    <span>{{ text.capacity }}: {{ area.capacity || '-' }}</span>
-                    <span>{{ text.areaType }}: {{ area.code || area.nameEn || '-' }}</span>
-                    <span>{{ text.availableTables }}: {{ areaAvailableCount(area.id) }}</span>
-                  </div>
-                  <div class="amenities">
-                    <span>{{ text.family }}</span>
-                    <span>{{ text.quiet }}</span>
-                    <span>{{ text.photoReady }}</span>
-                  </div>
-                  <div class="card-actions">
-                    <button class="primary-btn" type="button" @click="selectArea(area)">
-                      {{ form.areaId === area.id ? text.selected : text.chooseArea }}
-                    </button>
-                    <a class="ghost-link" :href="area.imageUrl || fallbackAreaImage" target="_blank" rel="noreferrer">
-                      {{ text.viewImage }}
-                    </a>
-                  </div>
-                </div>
-              </article>
+                <span class="area-chip-title">{{ areaName(area) }}</span>
+                <span class="area-chip-description">{{ areaDescription(area) }}</span>
+                <span class="area-chip-meta">
+                  {{ text.capacity }}: {{ area.capacity || '-' }} · {{ text.availableTables }}: {{ areaAvailableCount(area.id) }}
+                </span>
+                <span v-if="form.areaId === area.id" class="area-chip-selected">{{ text.selected }}</span>
+              </button>
             </div>
           </section>
 
@@ -258,6 +241,13 @@
                       :disabled="table.availabilityStatus !== 'AVAILABLE'"
                       @click="selectTable(table)"
                     >
+                      <img
+                        :src="table.imageUrl || fallbackTableImage"
+                        :alt="`Ảnh ${table.name}`"
+                        class="map-seat-image"
+                        loading="lazy"
+                        @error="replaceTableImage"
+                      />
                       <span>{{ table.name }}</span>
                       <small>{{ table.capacity || table.maxCapacity || '-' }} {{ text.seats }}</small>
                     </button>
@@ -483,8 +473,7 @@ const idempotencyKey = ref(crypto.randomUUID())
 const lateDiningConfirmed = ref(false)
 let tableRequestSequence = 0
 
-const fallbackAreaImage = 'https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=900&q=80'
-const fallbackTableImage = 'https://images.unsplash.com/photo-1521017432531-fbd92d768814?auto=format&fit=crop&w=900&q=80'
+const fallbackTableImage = 'https://images.unsplash.com/photo-1515003197210-e0cd71810b5f?auto=format&fit=crop&w=480&q=80'
 const fallbackDishImage = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=900&q=80'
 const today = new Date().toISOString().slice(0, 10)
 
@@ -613,10 +602,6 @@ function dishCategory(dish) {
 
 function dishDescription(dish) {
   return lang.value === 'vi' ? dish.descriptionVi : (dish.descriptionEn || dish.descriptionVi)
-}
-
-function replaceImage(event) {
-  event.target.src = fallbackAreaImage
 }
 
 function replaceTableImage(event) {
@@ -1275,6 +1260,43 @@ small {
   background: #FFFFFF;
 }
 
+.area-chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.area-chip {
+  min-width: min(100%, 260px);
+  flex: 1 1 240px;
+  display: grid;
+  gap: 5px;
+  padding: 14px;
+  border: 1px solid #CFC7A8;
+  border-radius: 8px;
+  background: #FFFFFF;
+  color: #55503E;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.area-chip:hover,
+.area-chip:focus-visible {
+  border-color: #5A6E45;
+  outline: none;
+}
+
+.area-chip.selected {
+  border-color: #5A6E45;
+  box-shadow: 0 0 0 3px #E7E3D2;
+}
+
+.area-chip-title { font-weight: 900; color: #22301B; }
+.area-chip-description { color: #7A7460; font-size: 0.86rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.area-chip-meta { color: #5A6E45; font-size: 0.78rem; font-weight: 700; }
+.area-chip-selected { color: #5A6E45; font-size: 0.78rem; font-weight: 800; }
+
 .table-card {
   display: flex;
   flex-direction: column;
@@ -1391,7 +1413,7 @@ small {
 }
 
 .map-seat {
-  min-height: 72px;
+  min-height: 132px;
   border: 1px solid #CFC7A8;
   border-radius: 8px;
   background: #FFFFFF;
@@ -1399,7 +1421,7 @@ small {
   display: grid;
   place-items: center;
   align-content: center;
-  gap: 3px;
+  gap: 5px;
   cursor: pointer;
   font: inherit;
   overflow: hidden;
@@ -1568,6 +1590,14 @@ small {
   grid-template-columns: 1fr minmax(180px, 240px) auto;
   gap: 10px;
   margin: 18px 0;
+}
+
+.map-seat-image {
+  width: calc(100% - 12px);
+  height: 62px;
+  object-fit: cover;
+  border-radius: 5px;
+  pointer-events: none;
 }
 
 .cart-box {

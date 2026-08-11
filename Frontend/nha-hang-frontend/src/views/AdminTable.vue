@@ -64,6 +64,11 @@
             <label>Mô tả vị trí</label>
             <input v-model="newTable.positionDescription" type="text" class="g-form-control" placeholder="Gần cửa sổ, yên tĩnh..." />
           </div>
+          <div class="form-group">
+            <label>Ảnh bàn</label>
+            <input v-model="newTable.imageUrl" type="url" class="g-form-control" placeholder="URL ảnh riêng của bàn" />
+            <input type="file" accept="image/jpeg,image/png,image/webp" class="g-form-control" @change="uploadTableImage($event, newTable)" />
+          </div>
           <div class="table-options">
             <label class="checkbox-group">
               <input v-model="newTable.windowSeat" type="checkbox" />
@@ -281,6 +286,7 @@
           <div class="form-group">
             <label>Ảnh bàn</label>
             <input v-model="editTable.imageUrl" type="text" class="g-form-control" placeholder="URL ảnh bàn" />
+            <input type="file" accept="image/jpeg,image/png,image/webp" class="g-form-control" @change="uploadTableImage($event, editTable)" />
           </div>
           <div class="form-group edit-wide">
             <label>Mô tả vị trí</label>
@@ -358,6 +364,7 @@ const defaultNewTable = () => ({
   maxCapacity: 4,
   seatCount: 4,
   reservationPrice: 400000,
+  imageUrl: '',
   areaId: null,
   viewType: '',
   positionDescription: '',
@@ -626,6 +633,26 @@ const normalizeTablePayload = (table) => ({
   childFriendly: table.childFriendly !== false,
   active: table.active !== false
 });
+
+const uploadTableImage = async (event, table) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  const formData = new FormData();
+  formData.append('file', file);
+  try {
+    const response = await api.post('/api/admin/tables/images', formData, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('staff_token')}`,
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    table.imageUrl = response.data.imageUrl;
+  } catch (error) {
+    alert(error.response?.data?.message || error.response?.data || 'Không thể tải ảnh bàn lên.');
+  } finally {
+    event.target.value = '';
+  }
+};
 
 const handleAddTable = async () => {
   if (!newTable.value.name) return;
