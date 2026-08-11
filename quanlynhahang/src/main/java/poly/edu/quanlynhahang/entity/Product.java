@@ -10,6 +10,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import jakarta.persistence.Temporal;
 import jakarta.persistence.TemporalType;
@@ -62,6 +64,20 @@ public class Product {
 
     @Column(name = "cost_price", precision = 18, scale = 2)
     private BigDecimal costPrice = BigDecimal.ZERO;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "diet_type", nullable = false, length = 20)
+    private DietType dietType = DietType.MAN;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "cooking_method", nullable = false, length = 20)
+    private CookingMethod cookingMethod = CookingMethod.KHAC;
+
+    @Column(name = "spicy_level", nullable = false)
+    private Integer spicyLevel = 0;
+
+    @Column(name = "is_signature_dish", nullable = false)
+    private Boolean isSignatureDish = false;
 
     // Khóa ngoại liên kết với Category
     @ManyToOne

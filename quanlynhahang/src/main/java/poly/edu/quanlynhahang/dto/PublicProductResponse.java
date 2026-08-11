@@ -5,6 +5,8 @@ import java.math.RoundingMode;
 
 import poly.edu.quanlynhahang.entity.Category;
 import poly.edu.quanlynhahang.entity.Product;
+import poly.edu.quanlynhahang.entity.DietType;
+import poly.edu.quanlynhahang.entity.CookingMethod;
 
 public record PublicProductResponse(
         Integer id,
@@ -16,6 +18,10 @@ public record PublicProductResponse(
         Boolean status,
         Boolean available,
         Double averageRating,
+        DietType dietType,
+        CookingMethod cookingMethod,
+        Integer spicyLevel,
+        Boolean isSignatureDish,
         CategorySummary category) {
 
     public static PublicProductResponse from(Product product, Double averageRating) {
@@ -29,6 +35,10 @@ public record PublicProductResponse(
                 product.getStatus(),
                 product.getAvailable(),
                 averageRating,
+                product.getDietType(),
+                product.getCookingMethod(),
+                product.getSpicyLevel(),
+                product.getIsSignatureDish(),
                 CategorySummary.from(product.getCategory()));
     }
 

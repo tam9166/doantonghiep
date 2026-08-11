@@ -38,6 +38,36 @@
           </div>
 
           <div class="form-group">
+            <label>Chế độ món</label>
+            <select v-model="formData.dietType" class="g-form-control">
+              <option value="MAN">Món mặn</option>
+              <option value="CHAY">Món chay</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Cách chế biến</label>
+            <select v-model="formData.cookingMethod" class="g-form-control">
+              <option value="KHAC">Khác</option>
+              <option value="NUONG">Nướng</option>
+              <option value="HAP">Hấp</option>
+              <option value="CHIEN">Chiên</option>
+              <option value="XAO">Xào</option>
+              <option value="LUOC">Luộc</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Độ cay (0-3)</label>
+            <input v-model.number="formData.spicyLevel" min="0" max="3" type="number" class="g-form-control" />
+          </div>
+
+          <label class="signature-field">
+            <input v-model="formData.isSignatureDish" type="checkbox" />
+            Món đặc trưng của nhà hàng
+          </label>
+
+          <div class="form-group">
             <label>Trạng thái</label>
             <select v-model="formData.status" class="g-form-control">
               <option :value="true">✅ Đang bán (Còn hàng)</option>
@@ -86,7 +116,7 @@
                   <td>
                     <img :src="foodImage(p.image)" class="img-thumb" @error="replaceFoodImage" />
                   </td>
-                  <td><strong class="product-name">{{ p.name }}</strong></td>
+                  <td><strong class="product-name">{{ p.name }}</strong><div class="tag-summary"><span v-if="p.isSignatureDish">🌟 Đặc trưng</span><span v-if="p.dietType === 'CHAY'">🌱 Chay</span><span v-if="p.spicyLevel > 0">🌶️ {{ p.spicyLevel }}</span></div></td>
                   <td><span class="category-chip">{{ p.category ? p.category.name : 'Chưa phân loại' }}</span></td>
                   <td class="price-text">{{ p.price.toLocaleString() }}đ</td>
                   <td>{{ p.taxRate !== null && p.taxRate !== undefined ? p.taxRate + '%' : '8%' }}</td>
@@ -133,11 +163,12 @@ const isEditing = ref(false);
 const editingId = ref(null);
 
 const formData = ref({
-  name: '', price: '', description: '', image: '', categoryId: '', status: true, taxRate: 8
+  name: '', price: '', description: '', image: '', categoryId: '', status: true, taxRate: 8,
+  dietType: 'MAN', cookingMethod: 'KHAC', spicyLevel: 0, isSignatureDish: false
 });
 
 const getAuthConfig = () => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('staff_token');
   return token ? { headers: { 'Authorization': `Bearer ${token}` } } : {};
 };
 
@@ -165,7 +196,11 @@ const startEdit = (product) => {
     image: product.image || '',
     categoryId: product.category ? product.category.id : '',
     status: product.status !== false,
-    taxRate: product.taxRate !== null && product.taxRate !== undefined ? product.taxRate : 8
+    taxRate: product.taxRate !== null && product.taxRate !== undefined ? product.taxRate : 8,
+    dietType: product.dietType || 'MAN',
+    cookingMethod: product.cookingMethod || 'KHAC',
+    spicyLevel: product.spicyLevel ?? 0,
+    isSignatureDish: product.isSignatureDish === true
   };
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
@@ -173,7 +208,7 @@ const startEdit = (product) => {
 const cancelEdit = () => {
   isEditing.value = false;
   editingId.value = null;
-  formData.value = { name: '', price: '', description: '', image: '', categoryId: '', status: true, taxRate: 8 };
+  formData.value = { name: '', price: '', description: '', image: '', categoryId: '', status: true, taxRate: 8, dietType: 'MAN', cookingMethod: 'KHAC', spicyLevel: 0, isSignatureDish: false };
 };
 
 const saveProduct = async () => {
@@ -188,6 +223,10 @@ const saveProduct = async () => {
     image: formData.value.image,
     status: formData.value.status,
     taxRate: formData.value.taxRate,
+    dietType: formData.value.dietType,
+    cookingMethod: formData.value.cookingMethod,
+    spicyLevel: formData.value.spicyLevel,
+    isSignatureDish: formData.value.isSignatureDish,
     category: { id: formData.value.categoryId }
   };
 
@@ -274,6 +313,9 @@ onMounted(() => {
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
+.signature-field { display: flex; align-items: center; gap: 8px; margin: 0 0 16px; color: var(--text-secondary); font-weight: 600; cursor: pointer; }
+.tag-summary { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; font-size: 0.72rem; color: var(--text-muted); }
+.tag-summary span { background: var(--bg-input); border-radius: 999px; padding: 2px 6px; }
 .form-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 24px; }
 .btn-cancel {
   width: 100%;

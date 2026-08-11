@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 
 import poly.edu.quanlynhahang.entity.Product;
+import poly.edu.quanlynhahang.entity.DietType;
+import poly.edu.quanlynhahang.entity.CookingMethod;
 
 public record AdminProductResponse(
         Integer id,
@@ -16,6 +18,10 @@ public record AdminProductResponse(
         Boolean available,
         Double averageRating,
         BigDecimal costPrice,
+        DietType dietType,
+        CookingMethod cookingMethod,
+        Integer spicyLevel,
+        Boolean isSignatureDish,
         CategoryResponse category) {
 
     public static AdminProductResponse from(Product product) {
@@ -23,6 +29,7 @@ public record AdminProductResponse(
                 product.getId(), product.getName(), money(product.getPrice()), product.getTaxRate(),
                 product.getImage(), product.getDescription(), product.getStatus(), product.getAvailable(),
                 product.getAverageRating(), money(product.getCostPrice()),
+                product.getDietType(), product.getCookingMethod(), product.getSpicyLevel(), product.getIsSignatureDish(),
                 product.getCategory() == null ? null : CategoryResponse.from(product.getCategory()));
     }
 

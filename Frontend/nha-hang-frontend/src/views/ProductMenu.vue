@@ -54,6 +54,12 @@
         <div v-for="product in filteredProducts" :key="product.id" class="product-card">
           <img :src="foodImage(product.image)" :alt="productName(product)" loading="lazy" @error="replaceFoodImage" />
           <h3>{{ productName(product) }}</h3>
+          <div class="menu-tags" aria-label="Phân loại món">
+            <span v-if="product.isSignatureDish">🌟 Đặc trưng</span>
+            <span v-if="product.dietType === 'CHAY'">🌱 Chay</span>
+            <span v-if="product.cookingMethod === 'NUONG'">🔥 Nướng</span>
+            <span v-if="product.spicyLevel > 0">🌶️ {{ product.spicyLevel }}</span>
+          </div>
           <div class="product-rating" v-if="product.averageRating > 0">
             ⭐ {{ product.averageRating }}
           </div>
@@ -410,6 +416,9 @@ onMounted(async () => {
 .menu-state strong { color: var(--text-heading); font-size: 1.15rem; }
 .menu-error { border-left: 4px solid var(--danger); }
 .menu-error .g-btn-outline { margin-top: 4px; }
+.menu-tags { display: flex; flex-wrap: wrap; gap: 5px; margin: 0 14px 9px; }
+.menu-tags span { padding: 3px 7px; border-radius: 999px; background: var(--color-surface-container); color: var(--text-secondary); font-size: 0.72rem; font-weight: 700; }
+
 .product-card {
   background: rgba(255, 255, 255, 0.70); padding: 30px 20px; border-radius: 20px;
   border: 1px solid rgba(255,255,255,0.05); transition: var(--transition);

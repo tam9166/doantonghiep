@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
@@ -119,6 +120,19 @@ public class AdminProductController {
         return ResponseEntity.ok(available ? "AVAILABLE" : "UNAVAILABLE");
     }
 
+    @PostMapping("/signature-dishes/refresh")
+    public ResponseEntity<List<AdminProductResponse>> refreshSignatureDishes(
+            @RequestParam(defaultValue = "10") int limit) {
+        int safeLimit = Math.max(1, Math.min(limit, 50));
+        List<Integer> productIds = productRepository.findTopSellingProductIds(safeLimit);
+        List<Product> products = productRepository.findAll();
+        products.forEach(product -> product.setIsSignatureDish(productIds.contains(product.getId())));
+        productRepository.saveAll(products);
+        activityLogService.log("REFRESH", "Product", "signature-dishes",
+                "Cap nhat mon dac trung tu " + productIds.size() + " mon ban chay");
+        return ResponseEntity.ok(products.stream().map(AdminProductResponse::from).toList());
+    }
+
     private void applyRequest(Product product, ProductUpsertRequest request, boolean creating) {
         Category category = categoryRepository.findById(request.category().id())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "CATEGORY_NOT_FOUND"));
@@ -134,5 +148,9 @@ public class AdminProductController {
         if (request.available() != null || creating) {
             product.setAvailable(request.available() == null || request.available());
         }
+        product.setDietType(request.dietType() == null ? poly.edu.quanlynhahang.entity.DietType.MAN : request.dietType());
+        product.setCookingMethod(request.cookingMethod() == null ? poly.edu.quanlynhahang.entity.CookingMethod.KHAC : request.cookingMethod());
+        product.setSpicyLevel(request.spicyLevel() == null ? 0 : request.spicyLevel());
+        product.setIsSignatureDish(Boolean.TRUE.equals(request.isSignatureDish()));
     }
 }
