@@ -158,6 +158,11 @@ public class AdminOrderController {
             if (status == 4 && order.getStatus() != 4 && Boolean.TRUE.equals(order.getIsPaid())) {
                 awardOrderPoints(order);
             }
+            if (status == 7 && order.getOrderDetails() != null) {
+                order.getOrderDetails().stream()
+                        .filter(detail -> Integer.valueOf(1).equals(detail.getStatus()))
+                        .forEach(detail -> detail.setStatus(2));
+            }
             order.setStatus(status);
             orderRepository.save(order);
             
@@ -188,9 +193,9 @@ public class AdminOrderController {
                     "Bếp chỉ được hoàn thành đơn khi tất cả món đã nấu xong.");
         }
         if (status == 7 && order.getOrderDetails().stream()
-                .anyMatch(detail -> !Integer.valueOf(2).equals(detail.getStatus()))) {
+                .anyMatch(detail -> detail.getStatus() == null || detail.getStatus() < 1)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Phục vụ chỉ được hoàn thành khi tất cả món đã được bưng ra bàn.");
+                    "Phục vụ chỉ được hoàn thành khi tất cả món đã nấu xong.");
         }
     }
 
