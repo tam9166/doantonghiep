@@ -496,8 +496,15 @@ public class ReservationService {
         Reservation reservation = findReservation(id);
         ReservationStatus old = reservation.getReservationStatus();
         stateMachine.assertCanTransition(old, ReservationStatus.DEPOSIT_PAID);
+        BigDecimal paidAmount = reservation.getDepositAmount() == null ? BigDecimal.ZERO : reservation.getDepositAmount();
+        BigDecimal totalAmount = reservation.getTotalAmount() == null ? BigDecimal.ZERO : reservation.getTotalAmount();
         reservation.setDepositStatus(DepositStatus.PAID);
         reservation.setReservationStatus(ReservationStatus.DEPOSIT_PAID);
+        reservation.setPaidAmount(paidAmount);
+        reservation.setRemainingAmount(totalAmount.subtract(paidAmount).max(BigDecimal.ZERO));
+        reservation.setPaymentStatus(paidAmount.compareTo(totalAmount) >= 0
+                ? PaymentStatus.PAID
+                : PaymentStatus.PARTIALLY_PAID);
         reservation.setManagerNote(trimToNull(request != null ? request.getNote() : null));
         reservation.setUpdatedAt(new Date());
         Reservation saved = reservationRepository.save(reservation);

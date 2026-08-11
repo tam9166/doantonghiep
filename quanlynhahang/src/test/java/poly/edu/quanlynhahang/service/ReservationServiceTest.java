@@ -21,6 +21,8 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
 import poly.edu.quanlynhahang.entity.Reservation;
+import poly.edu.quanlynhahang.entity.DepositStatus;
+import poly.edu.quanlynhahang.entity.PaymentStatus;
 import poly.edu.quanlynhahang.entity.ReservationPreorderItem;
 import poly.edu.quanlynhahang.entity.ReservationStatus;
 import poly.edu.quanlynhahang.entity.RestaurantTable;
@@ -162,5 +164,40 @@ class ReservationServiceTest {
         assertEquals(1, result.size());
         assertEquals("MV-TEST-0007", result.getFirst().getReservationCode());
         verify(reservationRepository).findByCreatedByOrderByCreatedAtDesc("customer");
+    }
+
+    @Test
+    void markingDepositPaidRecordsPartialPaymentAndRemainingBalance() {
+        Reservation reservation = reservationForDepositPayment(BigDecimal.valueOf(500_000), BigDecimal.valueOf(1_000_000));
+        when(reservationRepository.findById(31L)).thenReturn(Optional.of(reservation));
+        when(reservationRepository.save(reservation)).thenReturn(reservation);
+
+        service.markDepositPaid(31L, null);
+
+        assertEquals(DepositStatus.PAID, reservation.getDepositStatus());
+        assertEquals(BigDecimal.valueOf(500_000), reservation.getPaidAmount());
+        assertEquals(BigDecimal.valueOf(500_000), reservation.getRemainingAmount());
+        assertEquals(PaymentStatus.PARTIALLY_PAID, reservation.getPaymentStatus());
+    }
+
+    @Test
+    void markingDepositPaidMarksReservationFullyPaidWhenDepositCoversTotal() {
+        Reservation reservation = reservationForDepositPayment(BigDecimal.valueOf(1_000_000), BigDecimal.valueOf(1_000_000));
+        when(reservationRepository.findById(32L)).thenReturn(Optional.of(reservation));
+        when(reservationRepository.save(reservation)).thenReturn(reservation);
+
+        service.markDepositPaid(32L, null);
+
+        assertEquals(BigDecimal.valueOf(1_000_000), reservation.getPaidAmount());
+        assertEquals(BigDecimal.ZERO, reservation.getRemainingAmount());
+        assertEquals(PaymentStatus.PAID, reservation.getPaymentStatus());
+    }
+
+    private Reservation reservationForDepositPayment(BigDecimal depositAmount, BigDecimal totalAmount) {
+        Reservation reservation = new Reservation();
+        reservation.setReservationStatus(ReservationStatus.PENDING);
+        reservation.setDepositAmount(depositAmount);
+        reservation.setTotalAmount(totalAmount);
+        return reservation;
     }
 }
