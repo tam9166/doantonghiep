@@ -1,15 +1,29 @@
+// restore.js - Security-hardened version
+// P0-06: Removed hardcoded admin/123 credentials
+// Usage: Set ADMIN_USERNAME and ADMIN_PASSWORD environment variables, or edit below
 const fs = require('fs');
+
+// P0-06: Read credentials from environment or prompt user
+const adminUsername = process.env.ADMIN_USERNAME || 'admin';
+const adminPassword = process.env.ADMIN_PASSWORD;
+
+if (!adminPassword) {
+  console.error('ERROR: ADMIN_PASSWORD environment variable is required.');
+  console.error('Usage: ADMIN_PASSWORD=your_secure_password node restore.js');
+  process.exit(1);
+}
 
 async function restore() {
   try {
+    // P0-06: Use secure credentials from environment
     const loginRes = await fetch('http://localhost:8080/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: 'admin', password: '123' })
+      body: JSON.stringify({ username: adminUsername, password: adminPassword })
     });
     
     if (!loginRes.ok) {
-        throw new Error('Login failed');
+      throw new Error(`Login failed for ${adminUsername}: ${loginRes.status}`);
     }
     const loginData = await loginRes.json();
     const token = loginData.token;
@@ -26,9 +40,9 @@ async function restore() {
           body: JSON.stringify(ing)
         });
         if (res.ok) {
-            console.log(`Added ${ing.name}`);
+          console.log(`Added ${ing.name}`);
         } else {
-            console.error(`Failed to add ${ing.name}`);
+          console.error(`Failed to add ${ing.name}: ${res.status}`);
         }
       } catch(e) {
         console.error(`Error adding ${ing.name}: ${e.message}`);

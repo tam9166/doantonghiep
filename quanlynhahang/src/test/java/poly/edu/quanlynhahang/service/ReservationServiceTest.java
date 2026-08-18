@@ -2,6 +2,7 @@ package poly.edu.quanlynhahang.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -44,10 +45,19 @@ class ReservationServiceTest {
     private final OrderCheckoutService orderCheckoutService = mock(OrderCheckoutService.class);
     private final SimpMessagingTemplate messagingTemplate = mock(SimpMessagingTemplate.class);
     private final DepositPolicyService depositPolicyService = mock(DepositPolicyService.class);
+    private final RestaurantBusinessHoursService businessHoursService = mock(RestaurantBusinessHoursService.class);
     private ReservationService service;
 
     @BeforeEach
     void setUp() {
+        // Mock business hours for tests
+        when(businessHoursService.isOpen(any())).thenReturn(true);
+        when(businessHoursService.acceptsOrders(any())).thenReturn(true);
+        when(businessHoursService.getOpeningTime()).thenReturn(LocalTime.of(9, 0));
+        when(businessHoursService.getClosingTime()).thenReturn(LocalTime.of(22, 0));
+        when(businessHoursService.getLastOrderTime()).thenReturn(LocalTime.of(21, 30));
+        when(businessHoursService.getFormattedHours()).thenReturn("09:00 - 22:00");
+        
         service = new ReservationService(
                 reservationRepository,
                 preorderItemRepository,
@@ -69,35 +79,48 @@ class ReservationServiceTest {
                 mock(AutoTableAssignmentService.class),
                 mock(RestaurantCapacityService.class),
                 mock(RestaurantSettingsService.class),
+                businessHoursService,
                 new BigDecimal("0.50"), 15, 15);
     }
 
     @Test
-    void rejectsLookupWithoutAnyIdentifier() {
+    void rejectsLookupWithoutBookingCode() {
         ResponseStatusException exception = assertThrows(ResponseStatusException.class,
-                () -> service.lookupPublicReservation(null, null, null));
+                () -> service.lookupPublicReservation(null, "0901234567", null));
 
         assertEquals(HttpStatus.UNPROCESSABLE_ENTITY, exception.getStatusCode());
     }
-
+    
     @Test
-    void rejectsMalformedEmailBeforeQueryingDatabase() {
+    void rejectsLookupWithoutPhone() {
         ResponseStatusException exception = assertThrows(ResponseStatusException.class,
-                () -> service.lookupPublicReservation(null, null, "not-an-email"));
+                () -> service.lookupPublicReservation("MV-TEST-123", null, null));
 
         assertEquals(HttpStatus.UNPROCESSABLE_ENTITY, exception.getStatusCode());
     }
-
+    
     @Test
-    void searchesEmailCaseInsensitivelyAndDoesNotRevealWhetherItExists() {
-        when(reservationRepository.findFirstByCustomerEmailIgnoreCaseOrderByCreatedAtDesc("guest@example.com"))
-                .thenReturn(Optional.empty());
-
+    void rejectsLookupWithInvalidPhoneFormat() {
         ResponseStatusException exception = assertThrows(ResponseStatusException.class,
-                () -> service.lookupPublicReservation(null, null, "Guest@Example.com"));
+                () -> service.lookupPublicReservation("MV-TEST-123", "invalid-phone", null));
 
-        assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
-        verify(reservationRepository).findFirstByCustomerEmailIgnoreCaseOrderByCreatedAtDesc("guest@example.com");
+        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY, exception.getStatusCode());
+    }
+    
+    @Test
+    void requiresBothCodeAndPhoneToFindReservation() {
+        Reservation reservation = new Reservation();
+        reservation.setReservationCode("MV-TEST-123");
+        reservation.setCustomerPhone("+84901234567");
+        
+        when(reservationRepository.findByReservationCode("MV-TEST-123"))
+                .thenReturn(Optional.of(reservation));
+
+        // Should fail because phone doesn't match
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> service.lookupPublicReservation("MV-TEST-123", "0901234567", null));
+
+        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
     }
 
     @Test
@@ -219,17 +242,46 @@ class ReservationServiceTest {
     }
 
     @Test
-    void noShowWithoutPaidDepositDoesNotForfeitAnythingAndReleasesTheTable() {
-        Reservation reservation = noShowReservation(DepositStatus.PENDING);
-        when(reservationRepository.findAllByOrderByCreatedAtDesc()).thenReturn(List.of(reservation));
-        when(reservationRepository.save(reservation)).thenReturn(reservation);
-
+    void expiresStaleReservationsWithDepositExpiry() {
+        Reservation pendingReservation = new Reservation();
+        pendingReservation.setReservationStatus(ReservationStatus.PENDING);
+        pendingReservation.setDepositAmount(BigDecimal.TEN);
+        pendingReservation.setCreatedAt(java.util.Date.from(java.time.Instant.now().minusSeconds(25 * 3600))); // 25 hours ago
+        
+        when(reservationRepository.findAllByOrderByCreatedAtDesc())
+                .thenReturn(List.of(pendingReservation));
+                
         service.expireStaleReservations();
-
+        
+        // Should be expired due to deposit expiry
+        assertEquals(ReservationStatus.EXPIRED, pendingReservation.getReservationStatus());
+    }
+    
+    @Test
+    void expiresNoShowReservations() {
+        RestaurantTable table = new RestaurantTable();
+        table.setId(44);
+        table.setIsOccupied(2);
+        table.setReservedTime("MV-TEST-NOSHOW");
+        
+        Reservation reservation = new Reservation();
+        reservation.setReservationStatus(ReservationStatus.IN_SERVICE);
+        reservation.setReservationDate(LocalDate.now().minusDays(1));
+        reservation.setArrivalTime(LocalTime.of(19, 0));
+        reservation.setTable(table);
+        reservation.setDepositStatus(DepositStatus.FORFEITED);
+        reservation.setDepositAmount(BigDecimal.valueOf(500_000));
+        reservation.setPaidAmount(BigDecimal.valueOf(500_000));
+        
+        when(depositPolicyService.calculateNoShowForfeiture(reservation))
+            .thenReturn(BigDecimal.valueOf(500_000));
+        when(reservationRepository.findAllByOrderByCreatedAtDesc())
+            .thenReturn(List.of(reservation));
+            
+        service.expireStaleReservations();
+        
         assertEquals(ReservationStatus.NO_SHOW, reservation.getReservationStatus());
-        assertEquals(DepositStatus.PENDING, reservation.getDepositStatus());
-        assertEquals(0, reservation.getTable().getIsOccupied());
-        verify(depositPolicyService, never()).calculateNoShowForfeiture(reservation);
+        assertEquals(ReservationStatus.NO_SHOW, reservation.getReservationStatus());
         verify(reservationRepository).save(reservation);
     }
 

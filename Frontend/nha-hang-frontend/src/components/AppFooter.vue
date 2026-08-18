@@ -55,7 +55,7 @@
             </li>
             <li>
               <span class="contact-icon">📞</span>
-              <a href="tel:0123456789">0123.456.789</a>
+              <a href="tel:+84347944028">+84 347 944 028</a>
             </li>
             <li>
               <span class="contact-icon">✉️</span>

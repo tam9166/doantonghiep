@@ -18,6 +18,7 @@ import poly.edu.quanlynhahang.entity.Product;
 import poly.edu.quanlynhahang.entity.Reservation;
 import poly.edu.quanlynhahang.entity.ReservationPreorderItem;
 import poly.edu.quanlynhahang.entity.OrderPaymentOption;
+import poly.edu.quanlynhahang.entity.OrderType;
 import poly.edu.quanlynhahang.entity.PaymentStatus;
 import poly.edu.quanlynhahang.entity.Recipe;
 import poly.edu.quanlynhahang.entity.RestaurantTable;
@@ -95,11 +96,27 @@ public class OrderCheckoutService {
         this.menuAvailabilityService = menuAvailabilityService;
     }
 
+    private String generateSecureOrderCode() {
+        String alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        StringBuilder sb = new StringBuilder(8);
+        for (int i = 0; i < 8; i++) {
+            sb.append(alphabet.charAt(SECURE_RANDOM.nextInt(alphabet.length())));
+        }
+        return sb.toString().toUpperCase();
+    }
+
     @Transactional
     public CheckoutResult checkout(OrderRequest request, String username) {
         validateRequest(request);
         Account account = authenticatedAccount(username);
-        boolean dineIn = request.getAddress() != null && request.getAddress().contains("[TẠI QUÁN]");
+        // Fix P0-03: orderType must be explicitly provided; no longer inferred from address text
+        OrderType orderType = request.getOrderType() != null
+                ? request.getOrderType() : OrderType.TAKEAWAY;
+        boolean dineIn = OrderType.DINE_IN.equals(orderType);
+        if (dineIn && request.getTableId() == null) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Đơn tại quán (DINE_IN) bắt buộc phải có tableId.");
+        }
         OrderPaymentOption paymentOption = resolvePaymentOption(request.getPaymentOption(), dineIn);
 
         List<RequestedItem> requestedItems = normalizeItems(request.getItems());
@@ -108,10 +125,10 @@ public class OrderCheckoutService {
         Map<Long, IngredientRequirement> requirements = inventoryRequirements(lines);
         Map<Long, List<IngredientBatch>> lockedBatches = lockAndValidateInventory(requirements);
 
-        String orderCode = String.format(Locale.ROOT, "%04d", SECURE_RANDOM.nextInt(10_000));
+        String orderCode = generateSecureOrderCode();
         Order order = new Order();
         order.setAccount(account);
-        order.setAddress("MÃ ĐƠN: #" + orderCode + " | " + safeAddress(request.getAddress()));
+        order.setAddress(safeAddress(request.getAddress()));
         order.setCreateDate(new Date());
         order.setStatus(0);
         order.setIsPaid(false);
@@ -119,6 +136,10 @@ public class OrderCheckoutService {
         order.setPaymentOption(paymentOption);
         order.setPaymentStatus(PaymentStatus.UNPAID);
         order.setPaidAmount(BigDecimal.ZERO);
+        order.setOrderType(orderType);
+        if (dineIn && request.getTableId() != null) {
+            order.setTableId(request.getTableId());
+        }
         Order savedOrder = orderRepository.save(order);
 
         BigDecimal subTotal = BigDecimal.ZERO;
@@ -531,14 +552,15 @@ public class OrderCheckoutService {
         }
     }
 
+    /**
+     * P0-03 FIX: Do NOT infer table from address text anymore.
+     * Table assignment must be done via explicit tableId in OrderRequest.
+     * This method is kept only for legacy compatibility but does nothing new.
+     * New DINE_IN orders should use Order.table_id FK instead of address parsing.
+     */
     private void occupyDineInTable(Order order, String address, String orderCode, boolean dineIn) {
-        if (!dineIn || address == null) {
-            return;
-        }
-        tableRepository.findAll().stream()
-                .filter(table -> table.getName() != null && address.contains(table.getName()))
-                .max(Comparator.comparingInt(table -> table.getName().length()))
-                .ifPresent(table -> markTablePending(order, orderCode, table));
+        // Intentionally empty - table assignment must be explicit via tableId field
+        // Legacy code that inferred table from address string has been removed
     }
 
     private void markTablePending(Order order, String orderCode, RestaurantTable table) {

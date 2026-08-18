@@ -135,9 +135,13 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.POST, "/api/reservations/table-suggestions").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/reservations/table-combinations").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/reservations/**").permitAll()
+            // P0-02: Lookup requires POST (not GET) to avoid PII in URLs
+            .requestMatchers(HttpMethod.POST, "/api/reservations/lookup").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/reservation-waitlist").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/reservation-waitlist/**").permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/reservation-reviews/public", "/api/reservation-reviews/mine/**").permitAll()
+            // P0-02: Review lookup no longer exposes PII in URL path - use POST body instead
+            .requestMatchers(HttpMethod.GET, "/api/reservation-reviews/public").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/reservation-reviews/mine").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/reservation-reviews").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/payments/qr", "/api/payments/*/regenerate").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/payments/*").permitAll()
@@ -148,6 +152,7 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.POST, "/api/customer/ai/menu-suggestion").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/menu/hot", "/api/settings/public").permitAll()
             .requestMatchers("/ws/**").permitAll()
+            // P0-04: guest-booking deprecated - keep for compatibility but don't allow new orders
             .requestMatchers(HttpMethod.POST, "/api/orders/guest-booking").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/orders/checkout").permitAll()
 

@@ -76,6 +76,11 @@ public class Order {
     @Column(name = "payment_option", length = 30, nullable = false)
     private OrderPaymentOption paymentOption = OrderPaymentOption.PAY_AT_RESTAURANT;
 
+    /** Type of order: DINE_IN (at table via QR session), TAKEAWAY, DELIVERY. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "order_type", length = 20, nullable = false)
+    private OrderType orderType = OrderType.TAKEAWAY;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "payment_status", length = 30, nullable = false)
     private PaymentStatus paymentStatus = PaymentStatus.UNPAID;

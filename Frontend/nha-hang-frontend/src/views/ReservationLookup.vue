@@ -252,14 +252,11 @@ async function lookupReservation() {
 }
 
 async function refreshReservationSilently() {
-  if (!form.value.code && !form.value.phone && !form.value.email) return
+  if (!form.value.code || !form.value.phone) return
   try {
-    const res = await api.get('/api/reservations/lookup', {
-      params: {
-        code: form.value.code || undefined,
-        phone: form.value.phone.replace(/\s/g, '') || undefined,
-        email: form.value.email || undefined
-      }
+    const res = await api.post('/api/reservations/lookup', {
+      reservationCode: form.value.code.trim(),
+      customerPhone: form.value.phone.replace(/\s/g, '')
     })
     reservation.value = res.data
     if (canReview.value) loadMyReview()
@@ -272,7 +269,11 @@ async function loadMyReview() {
   myReview.value = null
   if (!reservation.value?.reservationCode || !form.value.phone || !canReview.value) return
   try {
-    const res = await api.get(`/api/reservation-reviews/mine/${encodeURIComponent(reservation.value.reservationCode)}/${encodeURIComponent(form.value.phone.replace(/\s/g, ''))}`)
+    // P0-02: Use POST body instead of GET path params to avoid PII in URL
+    const res = await api.post('/api/reservation-reviews/mine', {
+      reservationCode: reservation.value.reservationCode,
+      customerPhone: form.value.phone.replace(/\s/g, '')
+    })
     myReview.value = res.data
   } catch {
     myReview.value = null

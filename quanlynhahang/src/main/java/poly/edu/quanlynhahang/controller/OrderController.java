@@ -7,8 +7,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Map;
+import java.security.SecureRandom;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -56,6 +58,7 @@ import org.slf4j.LoggerFactory;
 @RequestMapping("/api/orders")
 public class OrderController {
     private static final Logger log = LoggerFactory.getLogger(OrderController.class);
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     @Autowired private OrderRepository orderRepository;
     @Autowired private OrderDetailRepository orderDetailRepository;
     @Autowired private ProductRepository productRepository;
@@ -89,22 +92,21 @@ public class OrderController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    /**
+     * DEPRECATED P0-04: Guest booking endpoint removed.
+     * Use POST /api/reservations instead via ReservationService.createReservation().
+     * This endpoint now returns 410 Gone with a redirect instruction.
+     */
+    @Deprecated
     @PostMapping("/guest-booking")
     public ResponseEntity<?> guestBooking(@Valid @RequestBody GuestBookingRequest payload) {
-        String name = payload.customerName().trim();
-        String phone = payload.phone().trim();
-        String tableName = payload.tableName().trim();
-        String time = payload.scheduledTime().trim();
-        
-        String uniqueOrderCode = generateUnique4DigitCode();
-        Order order = new Order();
-        order.setAccount(null); // Guest
-        order.setAddress("Bàn " + tableName + " - Khách: " + name + " - SĐT: " + phone + " - Hẹn lúc: " + time);
-        order.setCreateDate(new java.util.Date());
-        order.setStatus(5); // 5 = Đặt bàn hẹn trước
-        orderRepository.save(order);
-        
-        return ResponseEntity.ok(java.util.Map.of("message", "Đặt bàn thành công!", "orderCode", uniqueOrderCode));
+        log.warn("Deprecated guest-booking endpoint called. Please migrate to POST /api/reservations");
+        return ResponseEntity.status(HttpStatus.GONE)
+                .body(java.util.Map.of(
+                        "error", "GONE",
+                        "message", "Endpoint đặt bàn khách vãng lai đã bị xoá. Vui lòng sử dụng POST /api/reservations.",
+                        "migrationHint", "Dùng ReservationService.createReservation() thay thế."
+                ));
     }
 
     @PostMapping("/checkout")
@@ -401,18 +403,18 @@ public class OrderController {
         }).orElse(ResponseEntity.badRequest().body("Lỗi không tìm thấy món!"));
     }
 
+    private String generateSecureOrderCode() {
+        String alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // exclude I, O, 0, 1 to avoid confusion
+        StringBuilder sb = new StringBuilder(8);
+        for (int i = 0; i < 8; i++) {
+            sb.append(alphabet.charAt(SECURE_RANDOM.nextInt(alphabet.length())));
+        }
+        return sb.toString().toUpperCase();
+    }
+
     private String generateUnique4DigitCode() {
-        Random random = new Random();
-        String code;
-        boolean isDuplicate;
-        do {
-            int number = random.nextInt(9000) + 1000;
-            code = String.valueOf(number);
-            final String checkCode = "#" + code;
-            isDuplicate = orderRepository.findAll().stream()
-                .anyMatch(o -> o.getAddress() != null && o.getAddress().contains(checkCode));
-        } while (isDuplicate);
-        return code;
+        int code = 1000 + SECURE_RANDOM.nextInt(9000);
+        return String.valueOf(code);
     }
 
     @PutMapping("/details/{detailId}/kitchen/start")

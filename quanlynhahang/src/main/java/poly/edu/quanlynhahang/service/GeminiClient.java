@@ -12,26 +12,44 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
 @Service
 public class GeminiClient {
-    private static final String API_URL =
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+    // P0-08: Model name now configurable via GEMINI_MODEL env var (default: gemini-2.5-flash)
+    private static final String DEFAULT_MODEL = "gemini-2.5-flash";
+    private static final String API_URL_TEMPLATE =
+            "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent";
 
     private final String apiKey;
+    private final String modelName;
     private final RestTemplate restTemplate;
 
     @Autowired
-    public GeminiClient(@Value("${gemini.api.key:}") String apiKey) {
-        this(apiKey, new RestTemplate());
+    public GeminiClient(
+            @Value("${gemini.api.key:}") String apiKey,
+            @Value("${gemini.model:" + DEFAULT_MODEL + "}") String modelName) {
+        this(apiKey, modelName, createSecureRestTemplate());
     }
 
-    GeminiClient(String apiKey, RestTemplate restTemplate) {
+    GeminiClient(String apiKey, String modelName, RestTemplate restTemplate) {
         this.apiKey = apiKey;
+        this.modelName = modelName != null && !modelName.isBlank() ? modelName : DEFAULT_MODEL;
         this.restTemplate = restTemplate;
+    }
+
+    /**
+     * Create RestTemplate with strict timeouts to prevent hanging calls
+     */
+    private static RestTemplate createSecureRestTemplate() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(Duration.ofSeconds(10));
+        factory.setReadTimeout(Duration.ofSeconds(30));
+        return new RestTemplate(factory);
     }
 
     public String generate(String prompt, String useCase) {
@@ -46,12 +64,17 @@ public class GeminiClient {
         Map<String, Object> body = Map.of(
                 "contents", List.of(Map.of(
                         "parts", List.of(Map.of("text", prompt))
-                ))
+                )),
+                "generationConfig", Map.of(
+                        "temperature", 0.7,
+                        "maxOutputTokens", 1024
+                )
         );
 
         try {
+            String url = API_URL_TEMPLATE.replace("{model}", modelName);
             ResponseEntity<Map> response = restTemplate.postForEntity(
-                    API_URL, new HttpEntity<>(body, headers), Map.class);
+                    url, new HttpEntity<>(body, headers), Map.class);
             String reply = extractReply(response.getBody());
             Metrics.counter("restaurant.ai.responses", "use_case", useCase, "result", "success").increment();
             return reply.replace("**", "");

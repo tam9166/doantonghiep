@@ -17,6 +17,7 @@ import poly.edu.quanlynhahang.dto.ReservationReviewAdminResponse;
 import poly.edu.quanlynhahang.dto.ReservationReviewPublicResponse;
 import poly.edu.quanlynhahang.dto.ReservationReviewCreateRequest;
 import poly.edu.quanlynhahang.dto.ReservationReviewReplyRequest;
+import poly.edu.quanlynhahang.dto.ReservationReviewMineRequest;
 import poly.edu.quanlynhahang.dto.ReservationReviewVisibilityRequest;
 import poly.edu.quanlynhahang.repository.ReservationRepository;
 import poly.edu.quanlynhahang.repository.ReservationReviewRepository;
@@ -76,8 +77,18 @@ public class ReservationReviewController {
         return ResponseEntity.ok(ReservationReviewPublicResponse.from(reviewRepository.save(review)));
     }
 
-    @GetMapping("/mine/{reservationCode}/{customerPhone}")
-    public ResponseEntity<?> getMyReview(@PathVariable String reservationCode, @PathVariable String customerPhone) {
+    /**
+     * P0-02: Changed from GET path params to POST body to avoid PII in URLs.
+     */
+    @PostMapping("/mine")
+    public ResponseEntity<?> getMyReview(@Valid @RequestBody ReservationReviewMineRequest request) {
+        String reservationCode = request.reservationCode();
+        String customerPhone = request.customerPhone();
+        
+        if (reservationCode == null || reservationCode.isBlank() || customerPhone == null || customerPhone.isBlank()) {
+            return ResponseEntity.badRequest().body("Vui lòng nhập mã đặt bàn và số điện thoại.");
+        }
+        
         return reservationRepository.findByReservationCodeAndCustomerPhone(reservationCode, customerPhone)
                 .flatMap(reservation -> reviewRepository.findByReservationId(reservation.getId()))
                 .<ResponseEntity<?>>map(review -> ResponseEntity.ok(ReservationReviewPublicResponse.from(review)))

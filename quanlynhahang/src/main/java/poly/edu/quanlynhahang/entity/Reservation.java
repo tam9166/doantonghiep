@@ -207,6 +207,15 @@ public class Reservation {
     @Column(name = "created_at")
     private Date createdAt = new Date();
 
+    /** P0-05: Explicit expiry time for waiting/deposit-required reservations */
+    @Temporal(TemporalType.TIMESTAMP)
+    @Column(name = "deposit_expires_at")
+    private Date depositExpiresAt;
+
+    /** P0-05: Contact task status for post-deposit workflow */
+    @Column(name = "contact_task_status", length = 40, nullable = false)
+    private String contactTaskStatus = "PENDING";
+
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "updated_at")
     private Date updatedAt = new Date();

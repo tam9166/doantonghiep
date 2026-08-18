@@ -38,6 +38,17 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             Integer tableId,
             Collection<ReservationStatus> statuses);
 
+    @Query("""
+            select r from Reservation r
+            where r.reservationDate = :reservationDate
+              and r.table.id = :tableId
+              and r.reservationStatus in :statuses
+            """)
+    List<Reservation> findByTableIdAndReservationDateAndReservationStatusIn(
+            @Param("tableId") Integer tableId,
+            @Param("reservationDate") LocalDate reservationDate,
+            @Param("statuses") Collection<ReservationStatus> statuses);
+
     List<Reservation> findByReservationDateAndReservationStatusIn(
             LocalDate reservationDate, Collection<ReservationStatus> statuses);
 

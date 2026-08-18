@@ -39,7 +39,9 @@ const router = createRouter({
     { path: '/admin/popular-items', name: 'AdminPopularItems', component: () => import('../views/AdminPopularItems.vue') },
     { path: '/admin/purchase-suggestions', name: 'AdminPurchaseSuggestion', component: () => import('../views/AdminPurchaseSuggestion.vue') },
     { path: '/admin/vouchers', name: 'AdminVoucher', component: () => import('../views/AdminVoucher.vue') },
-    { path: '/cashier', name: 'Cashier', component: () => import('../views/CashierView.vue') }
+    { path: '/cashier', name: 'Cashier', component: () => import('../views/CashierView.vue') },
+    // P0-07: Catch-all route for SPA fallback - handles all unmatched paths
+    { path: '/:pathMatch(.*)*', redirect: '/' }
   ]
 })
 

@@ -79,8 +79,6 @@ public class ReservationService {
     private static final int DEFAULT_DURATION_MINUTES = 120;
     private static final int CLEANUP_MINUTES = 15;
     private static final int MIN_ADVANCE_MINUTES = 30;
-    private static final LocalTime OPEN_TIME = LocalTime.of(9, 0);
-    private static final LocalTime CLOSE_TIME = LocalTime.of(22, 0);
     private static final int MAX_COMBINED_TABLES = 4;
     private static final EnumSet<ReservationStatus> BLOCKING_STATUSES = EnumSet.of(
             ReservationStatus.PENDING,
@@ -114,6 +112,7 @@ public class ReservationService {
     private final AutoTableAssignmentService autoTableAssignmentService;
     private final RestaurantCapacityService restaurantCapacityService;
     private final RestaurantSettingsService restaurantSettingsService;
+    private final RestaurantBusinessHoursService businessHoursService;
     private final BigDecimal depositRate;
     private final long depositExpiryMinutes;
     private final long noShowGraceMinutes;
@@ -139,6 +138,7 @@ public class ReservationService {
                               AutoTableAssignmentService autoTableAssignmentService,
                               RestaurantCapacityService restaurantCapacityService,
                               RestaurantSettingsService restaurantSettingsService,
+                              RestaurantBusinessHoursService businessHoursService,
                               @Value("${restaurant.reservation.deposit-rate:0.50}") BigDecimal depositRate,
                               @Value("${restaurant.reservation.deposit-expiry-minutes:15}") long depositExpiryMinutes,
                               @Value("${restaurant.reservation.no-show-grace-minutes:15}") long noShowGraceMinutes) {
@@ -162,9 +162,18 @@ public class ReservationService {
         this.autoTableAssignmentService = autoTableAssignmentService;
         this.restaurantCapacityService = restaurantCapacityService;
         this.restaurantSettingsService = restaurantSettingsService;
+        this.businessHoursService = businessHoursService;
         this.depositRate = depositRate;
         this.depositExpiryMinutes = depositExpiryMinutes;
         this.noShowGraceMinutes = noShowGraceMinutes;
+    }
+
+    private LocalTime openTime() {
+        return businessHoursService.getOpeningTime();
+    }
+
+    private LocalTime closeTime() {
+        return businessHoursService.getClosingTime();
     }
 
     @Transactional
@@ -277,6 +286,10 @@ public class ReservationService {
                 ? ReservationStatus.WAITING_TABLE_ASSIGNMENT : ReservationStatus.PENDING);
         reservation.setCreatedBy(currentUsernameOrNull());
 
+        // P0-05: Set explicit expiry time for waiting/deposit-required reservations
+        long expiryMinutes = depositExpiryMinutes > 0 ? depositExpiryMinutes : 1440;
+        reservation.setDepositExpiresAt(new Date(System.currentTimeMillis() + expiryMinutes * 60_000L));
+
         String paymentCapabilityToken = null;
         if (payableNow.signum() > 0 && !PaymentOption.PAY_AT_RESTAURANT.equals(paymentOption)) {
             paymentCapabilityToken = paymentCapabilityService.issue(reservation, currentUsernameOrNull());
@@ -311,31 +324,41 @@ public class ReservationService {
         return lookupPublicReservation(code, phone, null);
     }
 
+    /**
+     * Tra cứu booking công khai: BẮT BUỘC có bookingCode + phone.
+     * Phone xác thực phải khớp chính xác với database.
+     * Không cho phép tra cứu bằng code đơn thuần hay phone/email đơn thuần.
+     */
     @Transactional(readOnly = true)
     public PublicReservationResponse lookupPublicReservation(String code, String phone, String email) {
+        // Yêu cầu tối thiểu: bookingCode + phone hợp lệ
         String reservationCode = trimToNull(code);
-        String customerPhone = trimToNull(phone);
-        String customerEmail = trimToNull(email);
+        String customerPhone = normalizePhone(phone);
 
-        Reservation reservation;
-        if (reservationCode != null) {
-            reservation = reservationRepository.findByReservationCode(reservationCode)
-                    .orElseThrow(this::notFound);
-        } else if (customerPhone != null) {
-            reservation = reservationRepository.findByCustomerPhoneOrderByCreatedAtDesc(normalizePhone(customerPhone)).stream()
-                    .findFirst()
-                    .orElseThrow(this::notFound);
-        } else if (customerEmail != null) {
-            if (!EMAIL_PATTERN.matcher(customerEmail).matches()) {
-                throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Email không hợp lệ");
-            }
-            reservation = reservationRepository
-                    .findFirstByCustomerEmailIgnoreCaseOrderByCreatedAtDesc(customerEmail.toLowerCase(Locale.ROOT))
-                    .orElseThrow(this::notFound);
-        } else {
+        if (reservationCode == null || reservationCode.isBlank()) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
-                    "Vui lòng nhập mã đặt bàn, số điện thoại hoặc email để tra cứu");
+                    "Vui lòng nhập mã đặt bàn.");
         }
+        if (customerPhone == null) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Vui lòng nhập số điện thoại.");
+        }
+        if (!PHONE_PATTERN.matcher(customerPhone).matches()) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Số điện thoại không hợp lệ.");
+        }
+
+        // Tìm booking theo code
+        Reservation reservation = reservationRepository.findByReservationCode(reservationCode)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Không tìm thấy đặt bàn với mã này."));
+
+        // Xác thực phone khớp chính xác
+        if (!customerPhone.equals(normalizePhone(reservation.getCustomerPhone()))) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Mã đặt bàn hoặc số điện thoại không đúng.");
+        }
+
         return PublicReservationResponse.from(toResponse(reservation, false));
     }
 
@@ -699,9 +722,22 @@ public class ReservationService {
     @Transactional
     public void expireStaleReservations() {
         LocalDateTime now = LocalDateTime.now();
-        Date depositDeadline = new Date(System.currentTimeMillis() - depositExpiryMinutes * 60_000L);
+        // P0-05: Use explicit deposit_expires_at if available, otherwise fall back to created_at
+        long expiryMinutes = depositExpiryMinutes > 0 ? depositExpiryMinutes : 1440; // default 24h
+        Date depositDeadline = new Date(System.currentTimeMillis() - expiryMinutes * 60_000L);
+        
         for (Reservation reservation : reservationRepository.findAllByOrderByCreatedAtDesc()) {
             ReservationStatus status = reservation.getReservationStatus();
+            
+            // P0-05: Check explicit expiry first
+            if (reservation.getDepositExpiresAt() != null && reservation.getDepositExpiresAt().before(new Date())) {
+                if (isWaitingStatus(status)) {
+                    transitionSystem(reservation, ReservationStatus.EXPIRED, "Quá hạn chờ bố trí bàn");
+                    continue;
+                }
+            }
+            
+            // Legacy check using created_at
             if (isDepositExpired(status, reservation, depositDeadline)) {
                 transitionSystem(reservation, ReservationStatus.EXPIRED, "Quá hạn thanh toán đặt cọc");
                 continue;
@@ -710,6 +746,16 @@ public class ReservationService {
                 transitionSystem(reservation, ReservationStatus.NO_SHOW, "Khách không đến sau thời gian giữ bàn");
             }
         }
+    }
+
+    /** P0-05: Check if status is a waiting/pending status that should expire */
+    private boolean isWaitingStatus(ReservationStatus status) {
+        return EnumSet.of(
+            ReservationStatus.PENDING,
+            ReservationStatus.WAITING_TABLE_ASSIGNMENT,
+            ReservationStatus.DEPOSIT_REQUIRED,
+            ReservationStatus.DEPOSIT_PENDING
+        ).contains(status);
     }
 
     private boolean isDepositExpired(ReservationStatus status, Reservation reservation, Date deadline) {
@@ -808,10 +854,10 @@ public class ReservationService {
         if (arrival.isBefore(LocalDateTime.now().plusMinutes(MIN_ADVANCE_MINUTES))) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Cần đặt bàn trước ít nhất 30 phút");
         }
-        if (time.isBefore(OPEN_TIME) || !time.isBefore(CLOSE_TIME)) {
+        if (time.isBefore(openTime()) || !time.isBefore(closeTime())) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Thời gian đặt bàn nằm ngoài giờ hoạt động 09:00-22:00");
         }
-        if (time.plusMinutes(duration).isAfter(CLOSE_TIME) && !lateDiningConfirmed) {
+        if (time.plusMinutes(duration).isAfter(closeTime()) && !lateDiningConfirmed) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
                     "Vui lòng xác nhận dùng bữa sau giờ phục vụ trước khi đặt bàn");
         }

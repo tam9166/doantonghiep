@@ -29,8 +29,10 @@ public class RestaurantSettingsService {
         if (largePartyThreshold < 2 || largePartyThreshold > 100) {
             throw new IllegalArgumentException("Ngưỡng đoàn đông phải từ 2 đến 100 khách");
         }
-        if (maxCapacity < largePartyThreshold || maxCapacity > 10000) {
-            throw new IllegalArgumentException("Sức chứa phải lớn hơn hoặc bằng ngưỡng đoàn đông và không quá 10.000");
+        int physicalMax = 500; // Hard ceiling enforced by physicalMaxCapacity()
+        if (maxCapacity < largePartyThreshold || maxCapacity > physicalMax) {
+            throw new IllegalArgumentException(
+                "Sức chứa phải lớn hơn hoặc bằng ngưỡng đoàn đông và không vượt quá " + physicalMax);
         }
         updateValue(LARGE_PARTY_THRESHOLD, largePartyThreshold);
         updateValue(MAX_CAPACITY, maxCapacity);

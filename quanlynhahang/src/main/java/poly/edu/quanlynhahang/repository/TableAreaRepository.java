@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface TableAreaRepository extends JpaRepository<TableArea, Integer> {
     List<TableArea> findByStatusOrderByNameViAsc(String status);
+    List<TableArea> findByStatus(String status);
 }

@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import jakarta.validation.Valid;
 import poly.edu.quanlynhahang.dto.ReservationActionRequest;
 import poly.edu.quanlynhahang.dto.ReservationContactUpdateRequest;
+import poly.edu.quanlynhahang.dto.ReservationLookupRequest;
 import poly.edu.quanlynhahang.dto.ReservationQuoteRequest;
 import poly.edu.quanlynhahang.dto.ReservationRequest;
 import poly.edu.quanlynhahang.dto.TableSuggestionRequest;
@@ -55,17 +56,14 @@ public class ReservationController {
         return ResponseEntity.ok(reservationService.suggestTableCombo(request));
     }
 
-    @GetMapping("/api/reservations/{code}")
-    public ResponseEntity<?> getPublic(@PathVariable String code,
-                                       @RequestParam(required = false) String phone) {
-        return ResponseEntity.ok(reservationService.getPublicReservation(code, phone));
-    }
-
-    @GetMapping("/api/reservations/lookup")
-    public ResponseEntity<?> lookupPublic(@RequestParam(required = false) String code,
-                                          @RequestParam(required = false) String phone,
-                                          @RequestParam(required = false) String email) {
-        return ResponseEntity.ok(reservationService.lookupPublicReservation(code, phone, email));
+    /**
+     * Tra cứu booking công khai: BẮT BUỘC code + phone trong body POST.
+     * Không cho phép tra cứu bằng code đơn thuần hoặc phone/email đơn thuần.
+     */
+    @PostMapping("/api/reservations/lookup")
+    public ResponseEntity<?> lookupPublic(@Valid @RequestBody ReservationLookupRequest request) {
+        return ResponseEntity.ok(reservationService.lookupPublicReservation(
+                request.reservationCode(), request.customerPhone(), null));
     }
 
     @GetMapping("/api/admin/reservations")

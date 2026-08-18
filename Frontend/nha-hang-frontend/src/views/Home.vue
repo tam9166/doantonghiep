@@ -327,7 +327,7 @@
       <div class="fab-group" :class="{ 'is-open': showMobileFabActions }">
         <div class="fab-chat fab-wheel" @click="openLuckyWheel">🎁</div>
         <div class="fab-chat" @click="toggleSupportChat">💬</div>
-        <a href="tel:0123456789" class="fab-phone" style="text-decoration: none;">📞</a>
+        <a href="tel:+84347944028" class="fab-phone" style="text-decoration: none;">📞</a>
       </div>
     </div>
 
