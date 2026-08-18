@@ -83,7 +83,7 @@ const handleAdd = async () => {
   if (!newCategory.value.name) {
     alert('Vui lòng nhập tên danh mục!'); return;
   }
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('staff_token') || localStorage.getItem('token');
   try {
     await api.post('/api/categories', newCategory.value, {
       headers: { 'Authorization': `Bearer ${token}` }
@@ -108,7 +108,7 @@ const cancelEdit = () => {
 
 const handleUpdate = async () => {
   if (!newCategory.value.name) return alert('Vui lòng nhập tên danh mục!');
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('staff_token') || localStorage.getItem('token');
   try {
     await api.put(`/api/categories/${editingId.value}`, newCategory.value, {
       headers: { 'Authorization': `Bearer ${token}` }
@@ -121,7 +121,7 @@ const handleUpdate = async () => {
 
 const handleDelete = async (id) => {
   if (!confirm('Xóa danh mục này? Lưu ý: Cần đảm bảo không có món ăn nào đang dùng danh mục này!')) return;
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('staff_token') || localStorage.getItem('token');
   try {
     await api.delete(`/api/categories/${id}`, {
       headers: { 'Authorization': `Bearer ${token}` }

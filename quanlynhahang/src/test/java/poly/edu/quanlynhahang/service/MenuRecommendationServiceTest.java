@@ -18,6 +18,7 @@ import poly.edu.quanlynhahang.entity.CookingMethod;
 import poly.edu.quanlynhahang.entity.DietType;
 import poly.edu.quanlynhahang.entity.Product;
 import poly.edu.quanlynhahang.repository.ProductRepository;
+import poly.edu.quanlynhahang.dto.MenuRecommendationRequest;
 
 @ExtendWith(MockitoExtension.class)
 class MenuRecommendationServiceTest {
@@ -113,6 +114,20 @@ class MenuRecommendationServiceTest {
 
         assertTrue(result.stream().anyMatch(item -> item.productId().equals(2)
                 && "PAIRING_VEGETARIAN".equals(item.reasonCode())));
+    }
+
+    @Test
+    void respectsBudgetPerEstimatedDishAndKeepsOnlyActiveRealProducts() {
+        Product affordable = product(2, DietType.MAN, CookingMethod.NUONG, false, true);
+        affordable.setPrice(BigDecimal.valueOf(180_000));
+        Product expensive = product(3, DietType.MAN, CookingMethod.NUONG, false, true);
+        expensive.setPrice(BigDecimal.valueOf(300_000));
+        when(productRepository.findByAvailableTrueAndStatusTrue()).thenReturn(List.of(affordable, expensive));
+
+        var result = service.recommend(new MenuRecommendationRequest(
+                List.of(), 4, List.of("nướng"), BigDecimal.valueOf(400_000)));
+
+        assertEquals(List.of(2), result.stream().map(item -> item.productId()).toList());
     }
 
     private Product product(int id, DietType dietType, CookingMethod cookingMethod,

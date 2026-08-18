@@ -169,6 +169,30 @@ public class Reservation {
     @Column(name = "manager_note", columnDefinition = "nvarchar(500)")
     private String managerNote;
 
+    @Column(name = "receipt_email_status", length = 30)
+    private String receiptEmailStatus = "NOT_SENT";
+
+    @Temporal(TemporalType.TIMESTAMP)
+    @Column(name = "receipt_email_sent_at")
+    private Date receiptEmailSentAt;
+
+    @Column(name = "receipt_email_error", columnDefinition = "nvarchar(500)")
+    private String receiptEmailError;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "contact_status", length = 40, nullable = false)
+    private ContactStatus contactStatus = ContactStatus.NOT_CALLED;
+
+    @Column(name = "contact_call_note", columnDefinition = "nvarchar(1000)")
+    private String contactCallNote;
+
+    @Temporal(TemporalType.TIMESTAMP)
+    @Column(name = "contact_called_at")
+    private Date contactCalledAt;
+
+    @Column(name = "contact_called_by", length = 80)
+    private String contactCalledBy;
+
     @Column(name = "confirmed_by", length = 80)
     private String confirmedBy;
 

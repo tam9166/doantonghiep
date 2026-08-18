@@ -8,5 +8,6 @@ public class ReservationTableResponse {
     private String tableName;
     private String floor;
     private Integer capacity;
+    private String imageUrl;
     private boolean primary;
 }

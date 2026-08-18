@@ -9,6 +9,8 @@ import org.springframework.web.server.ResponseStatusException;
 import poly.edu.quanlynhahang.config.PaymentProperties;
 import poly.edu.quanlynhahang.dto.PaymentQrRequest;
 import poly.edu.quanlynhahang.dto.PaymentQrResponse;
+import poly.edu.quanlynhahang.entity.DepositStatus;
+import poly.edu.quanlynhahang.entity.ContactStatus;
 import poly.edu.quanlynhahang.entity.PaymentIntent;
 import poly.edu.quanlynhahang.entity.PaymentOption;
 import poly.edu.quanlynhahang.entity.PaymentStatus;
@@ -41,6 +43,8 @@ public class PaymentService {
     private final PaymentProperties paymentProperties;
     private final PaymentCapabilityService capabilityService;
     private final ActivityLogService activityLogService;
+    private final ReservationReceiptService receiptService;
+    private final RestaurantSettingsService settingsService;
 
     public PaymentService(ReservationRepository reservationRepository,
                           PaymentIntentRepository paymentIntentRepository,
@@ -48,7 +52,9 @@ public class PaymentService {
                           ReservationStateMachine stateMachine,
                           PaymentProperties paymentProperties,
                           PaymentCapabilityService capabilityService,
-                          ActivityLogService activityLogService) {
+                          ActivityLogService activityLogService,
+                          ReservationReceiptService receiptService,
+                          RestaurantSettingsService settingsService) {
         this.reservationRepository = reservationRepository;
         this.paymentIntentRepository = paymentIntentRepository;
         this.realtimeService = realtimeService;
@@ -56,6 +62,8 @@ public class PaymentService {
         this.paymentProperties = paymentProperties;
         this.capabilityService = capabilityService;
         this.activityLogService = activityLogService;
+        this.receiptService = receiptService;
+        this.settingsService = settingsService;
     }
 
     @Transactional
@@ -278,8 +286,22 @@ public class PaymentService {
 
         Reservation reservation = intent.getReservation();
         ReservationStatus oldStatus = reservation.getReservationStatus();
-        reservation.setPaymentStatus(PaymentStatus.PAID);
-        reservation.setRemainingAmount(reservation.getTotalAmount().subtract(intent.getAmount()).max(BigDecimal.ZERO));
+        BigDecimal paidBefore = reservation.getPaidAmount() == null
+                ? BigDecimal.ZERO
+                : reservation.getPaidAmount();
+        BigDecimal aggregatePaid = paidBefore.add(intent.getAmount());
+        BigDecimal total = reservation.getTotalAmount() == null
+                ? BigDecimal.ZERO
+                : reservation.getTotalAmount();
+        reservation.setPaidAmount(aggregatePaid);
+        reservation.setRemainingAmount(total.subtract(aggregatePaid).max(BigDecimal.ZERO));
+        reservation.setPaymentStatus(aggregatePaid.compareTo(total) >= 0
+                ? PaymentStatus.PAID
+                : PaymentStatus.PARTIALLY_PAID);
+        if (reservation.getDepositAmount() != null
+                && aggregatePaid.compareTo(reservation.getDepositAmount()) >= 0) {
+            reservation.setDepositStatus(DepositStatus.PAID);
+        }
         ReservationStatus nextStatus;
         if (reservation.getRemainingAmount().signum() == 0 || PaymentOption.FULL.equals(intent.getPaymentOption())) {
             nextStatus = ReservationStatus.FULLY_PAID;
@@ -288,8 +310,16 @@ public class PaymentService {
         }
         stateMachine.assertCanTransition(oldStatus, nextStatus);
         reservation.setReservationStatus(nextStatus);
+        if (reservation.getEventType() != null
+                || (reservation.getGuestCount() != null
+                    && reservation.getGuestCount() >= settingsService.largePartyThreshold())) {
+            reservation.setContactStatus(ContactStatus.NEEDS_CONFIRMATION_CALL);
+        } else {
+            reservation.setContactStatus(ContactStatus.NOT_REQUIRED);
+        }
         reservationRepository.save(reservation);
-        PaymentQrResponse response = toResponse(paymentIntentRepository.save(intent));
+        PaymentIntent savedIntent = paymentIntentRepository.save(intent);
+        PaymentQrResponse response = toResponse(savedIntent);
         realtimeService.publish(
                 "PAYMENT_CONFIRMED",
                 reservation.getReservationCode(),
@@ -297,6 +327,7 @@ public class PaymentService {
                 reservation.getReservationStatus(),
                 "Thanh toán đã được xác nhận",
                 null);
+        receiptService.scheduleAfterPaymentCommit(reservation, savedIntent);
         return response;
     }
 
@@ -304,10 +335,13 @@ public class PaymentService {
         if (PaymentOption.PAY_AT_RESTAURANT.equals(option)) {
             return BigDecimal.ZERO;
         }
+        BigDecimal paid = reservation.getPaidAmount() == null
+                ? BigDecimal.ZERO
+                : reservation.getPaidAmount();
         if (PaymentOption.FULL.equals(option)) {
-            return reservation.getTotalAmount();
+            return reservation.getTotalAmount().subtract(paid).max(BigDecimal.ZERO);
         }
-        return reservation.getDepositAmount();
+        return reservation.getDepositAmount().subtract(paid).max(BigDecimal.ZERO);
     }
 
     private PaymentQrResponse idempotentResponse(

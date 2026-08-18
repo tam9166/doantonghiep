@@ -93,6 +93,29 @@
                 ↻
               </button>
             </div>
+            <div class="recommendation-controls">
+              <label>
+                <span>Số khách</span>
+                <input v-model.number="recommendationProfile.guestCount" type="number" min="1" max="100" />
+              </label>
+              <label>
+                <span>Ngân sách tối đa</span>
+                <input v-model.number="recommendationProfile.maxBudget" type="number" min="0" max="100000000" step="50000" placeholder="Ví dụ: 1.000.000đ" />
+              </label>
+              <div class="preference-field">
+                <span>Sở thích</span>
+                <div class="preference-chips">
+                  <button
+                    v-for="option in recommendationPreferences"
+                    :key="option.value"
+                    type="button"
+                    :class="{ active: recommendationProfile.preferences.includes(option.value) }"
+                    :aria-pressed="recommendationProfile.preferences.includes(option.value)"
+                    @click="toggleRecommendationPreference(option.value)"
+                  >{{ option.label }}</button>
+                </div>
+              </div>
+            </div>
             <p v-if="recommendationLoading" class="recommendation-copy">{{ text.recommendationLoading }}</p>
             <template v-else-if="cartRecommendations.length">
               <p class="recommendation-copy">{{ recommendationMessage || text.recommendationFallback }}</p>
@@ -199,6 +222,21 @@ const cartRecommendations = ref([]);
 const recommendationMessage = ref('');
 const recommendationLoading = ref(false);
 const recommendationError = ref('');
+const recommendationProfile = ref({ guestCount: 2, maxBudget: null, preferences: [] });
+const recommendationPreferences = [
+  { value: 'chay', label: '🌱 Chay' },
+  { value: 'mặn', label: 'Món mặn' },
+  { value: 'nướng', label: '🔥 Nướng' },
+  { value: 'hấp', label: 'Hấp' },
+  { value: 'lẩu', label: 'Lẩu' },
+  { value: 'hải sản', label: 'Hải sản' },
+  { value: 'ít cay', label: 'Ít cay' },
+  { value: 'không cay', label: 'Không cay' },
+  { value: 'khai vị', label: 'Khai vị' },
+  { value: 'món chính', label: 'Món chính' },
+  { value: 'tráng miệng', label: 'Tráng miệng' },
+  { value: 'signature', label: '🌟 Đặc trưng' }
+];
 let recommendationRequestId = 0;
 
 const cartSubtotal = computed(() => {
@@ -217,6 +255,11 @@ const cartRecommendationKey = computed(() => cart.value
   .map(item => `${item.productId}:${item.quantity}`)
   .sort()
   .join('|'));
+const recommendationProfileKey = computed(() => [
+  recommendationProfile.value.guestCount,
+  recommendationProfile.value.maxBudget,
+  ...recommendationProfile.value.preferences.slice().sort()
+].join('|'));
 
 const productName = (product) => locale.value === 'en'
   ? (product.nameEn || product.nameVi || product.name)
@@ -238,13 +281,8 @@ const fetchCategories = async () => {
 
 const fetchSuggested = async () => {
   try {
-    const token = localStorage.getItem('token');
-    const response = await api.get('/api/admin/popular-items/products?limit=4', {
-      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-    });
-    // Lọc ra các món có isPopular = true hoặc lấy thẳng top 4
+    const response = await api.get('/api/menu/hot?limit=4');
     if (response.data && response.data.length > 0) {
-       // get full product info from id
        suggestedProducts.value = response.data
          .map(item => products.value.find(p => p.id === item.productId))
          .filter(p => p != null).slice(0, 4);
@@ -285,6 +323,13 @@ const addRecommendedItem = (item) => {
   if (product) addToCart(product);
 };
 
+const toggleRecommendationPreference = (value) => {
+  const selected = recommendationProfile.value.preferences;
+  recommendationProfile.value.preferences = selected.includes(value)
+    ? selected.filter(item => item !== value)
+    : [...selected, value];
+};
+
 const loadCartRecommendations = async () => {
   const requestId = ++recommendationRequestId;
   const productIds = cart.value.map(item => item.productId);
@@ -298,7 +343,12 @@ const loadCartRecommendations = async () => {
   recommendationLoading.value = true;
   recommendationError.value = '';
   try {
-    const response = await api.post('/api/customer/ai/menu-suggestion', { productIds });
+    const response = await api.post('/api/customer/ai/menu-suggestion', {
+      productIds,
+      guestCount: recommendationProfile.value.guestCount || 1,
+      maxBudget: recommendationProfile.value.maxBudget || null,
+      preferences: recommendationProfile.value.preferences
+    });
     if (requestId !== recommendationRequestId) return;
     cartRecommendations.value = response.data?.suggestions || [];
     recommendationMessage.value = response.data?.message || '';
@@ -317,7 +367,7 @@ const openCheckout = () => {
   loadCartRecommendations();
 };
 
-watch(cartRecommendationKey, () => {
+watch([cartRecommendationKey, recommendationProfileKey], () => {
   loadCartRecommendations();
 });
 
@@ -554,6 +604,13 @@ onMounted(async () => {
 .cart-recommendations { margin: 4px 0 20px; padding: 14px; border: 1px solid var(--color-outline-variant); border-radius: var(--radius-md); background: var(--color-surface-container-low); }
 .recommendation-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .recommendation-heading h4 { margin: 0; color: var(--text-primary); font-family: var(--font-display); }
+.recommendation-controls { display: grid; grid-template-columns: 120px minmax(180px, 1fr); gap: 10px; margin: 12px 0; }
+.recommendation-controls label, .preference-field { display: grid; gap: 5px; color: var(--text-secondary); font-size: 0.8rem; font-weight: 700; }
+.recommendation-controls input { width: 100%; min-height: 38px; padding: 7px 9px; border: 1px solid var(--color-outline-variant); border-radius: var(--radius-sm); background: var(--bg-card); color: var(--text-primary); font: inherit; }
+.preference-field { grid-column: 1 / -1; }
+.preference-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.preference-chips button { min-height: 32px; padding: 5px 9px; border: 1px solid var(--color-outline-variant); border-radius: 999px; background: var(--bg-card); color: var(--text-secondary); cursor: pointer; font: inherit; font-size: 0.78rem; }
+.preference-chips button.active { border-color: var(--primary); background: var(--primary); color: var(--color-on-primary); }
 .recommendation-retry { border: 0; background: transparent; color: var(--primary); cursor: pointer; font-size: 1.15rem; }
 .recommendation-retry:disabled { cursor: wait; opacity: 0.6; }
 .recommendation-copy { margin: 8px 0 12px; color: var(--text-secondary); font-size: 0.9rem; }
@@ -663,6 +720,8 @@ onMounted(async () => {
   .payment-banking-box img { display: block; width: min(180px, 100%) !important; margin: 0 auto; }
   .modal-actions { flex-direction: column; }
   .recommendation-item { grid-template-columns: 44px minmax(0, 1fr); }
+  .recommendation-controls { grid-template-columns: 1fr; }
+  .preference-field { grid-column: auto; }
   .recommendation-item button { grid-column: 1 / -1; width: 100%; }
   .g-modal-box { width: calc(100vw - 24px); max-height: calc(100vh - 24px); overflow-y: auto; }
 }

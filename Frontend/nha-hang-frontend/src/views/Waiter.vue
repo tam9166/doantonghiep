@@ -604,6 +604,10 @@ import { foodImage, replaceFoodImage } from '@/utils/imageFallback';
 
 const router = useRouter();
 const toastMsg = ref('');
+const showToast = (message, duration = 5000) => {
+  toastMsg.value = String(message || 'Có lỗi xảy ra.');
+  setTimeout(() => { toastMsg.value = ''; }, duration);
+};
 const orders = ref([]);
 const tables = ref([]);
 const now = ref(new Date());
@@ -807,7 +811,7 @@ const fetchData = async () => {
 
   } catch (error) {
     if (error.response && error.response.status === 403) {
-      alert('❌ LỖI 403: Spring Security ở Backend đang CHẶN không cho Phục vụ lấy đơn!');
+      showToast('Tài khoản phục vụ không có quyền lấy danh sách đơn.');
     }
     console.error('Lỗi lấy dữ liệu phục vụ:', error);
   }
@@ -821,7 +825,7 @@ const markAsServed = async (id) => {
     toastMsg.value = '✅ Đã bưng ra bàn thành công!';
     setTimeout(() => { toastMsg.value = ''; }, 3000);
     fetchData();
-  } catch (error) { alert('Lỗi hệ thống!'); }
+  } catch (error) { showToast('Không thể hoàn thành đơn lúc này.'); }
 };
 
 const markDishServed = async (order, detailId) => {
@@ -832,7 +836,7 @@ const markDishServed = async (order, detailId) => {
     toastMsg.value = '✅ Đã bưng món!';
     setTimeout(() => { toastMsg.value = ''; }, 2000);
     fetchData();
-  } catch (err) { alert('Lỗi cập nhật!'); }
+  } catch (err) { showToast('Không thể cập nhật món lúc này.'); }
 };
 
 // Nút KHÁCH VỀ: chuyển bàn sang trạng thái Cần dọn (3)
@@ -845,7 +849,7 @@ const markAsCleaning = async (table) => {
   );
 
   if (hasUnpaidOrder) {
-    alert(`❌ Khách bàn ${table.name} chưa thanh toán xong!\nVui lòng chờ Thu Ngân xác nhận thanh toán trước khi cho khách về.`);
+      showToast(`Khách bàn ${table.name} chưa thanh toán xong. Vui lòng chờ thu ngân xác nhận.`);
     return;
   }
 
@@ -863,7 +867,7 @@ const markAsCleaning = async (table) => {
     setTimeout(() => { toastMsg.value = ''; }, 3500);
     fetchData();
   } catch (error) {
-    alert('Lỗi khi cập nhật trạng thái bàn!');
+    showToast('Không thể cập nhật trạng thái bàn.');
   }
 };
 
@@ -878,9 +882,9 @@ const checkoutTable = async (table) => {
     fetchData();
   } catch (error) {
     if (error.response?.status === 403) {
-      alert('❌ Lỗi 403: Tài khoản Phục vụ chưa được cấp quyền dọn bàn!');
+      showToast('Tài khoản phục vụ chưa được cấp quyền dọn bàn.');
     } else {
-      alert('Lỗi khi dọn bàn: ' + (error.response?.data || error.message));
+      showToast('Không thể dọn bàn: ' + (error.response?.data?.message || error.response?.data || error.message));
     }
   }
 };
@@ -903,7 +907,7 @@ const openInvoice = (table) => {
     selectedOrder.value = activeOrder;
     selectedTableName.value = table.name;
   } else {
-    alert('Không tìm thấy đơn hàng nào đang mở cho bàn này!');
+    showToast('Không tìm thấy đơn hàng nào đang mở cho bàn này.');
   }
 };
 
@@ -935,7 +939,7 @@ const openCheckoutModal = (table) => {
     checkoutOrder.value = activeOrder;
     checkoutTableName.value = table.name;
   } else {
-    alert('Không tìm thấy đơn hàng nào đang mở cho bàn này!');
+    showToast('Không tìm thấy đơn hàng nào đang mở cho bàn này.');
   }
 };
 
@@ -987,7 +991,7 @@ const confirmMoveTable = async () => {
 
   const activeOrder = getActiveOrderForTable(movingTable.value.name);
   if (!activeOrder) {
-    alert("Không tìm thấy đơn hàng của bàn này!");
+    showToast('Không tìm thấy đơn hàng của bàn này.');
     return;
   }
 
@@ -1019,7 +1023,7 @@ const confirmMoveTable = async () => {
     fetchData();
   } catch (error) {
     console.error("Lỗi chuyển bàn", error);
-    alert("Có lỗi xảy ra khi chuyển bàn!");
+    showToast('Không thể chuyển bàn lúc này.');
   }
 };
 
@@ -1062,7 +1066,7 @@ const confirmMergeTable = async () => {
     showMergeModal.value = false;
     fetchData();
   } catch(error) {
-    alert(error.response?.data || "Lỗi gộp/ghép bàn!");
+    showToast(error.response?.data?.message || error.response?.data || 'Không thể gộp/ghép bàn.');
   }
 };
 
@@ -1078,7 +1082,7 @@ const unlinkTable = async (table) => {
     detailTable.value = null;
     fetchData();
   } catch (err) {
-    alert('Lỗi khi tách bàn!');
+    showToast('Không thể tách bàn lúc này.');
   }
 };
 
@@ -1093,7 +1097,7 @@ const openSplitTable = (table) => {
   selectedDetailIds.value = [];
   splitSourceOrder.value = getActiveOrderForTable(table.name);
   if (!splitSourceOrder.value) {
-    alert("Không tìm thấy đơn hàng cho bàn này!");
+    showToast('Không tìm thấy đơn hàng cho bàn này.');
     return;
   }
   showSplitModal.value = true;
@@ -1109,7 +1113,7 @@ const toggleDetailSplit = (id) => {
 
 const confirmSplitTable = async () => {
   if (!splitTargetTableId.value || selectedDetailIds.value.length === 0) {
-    alert("Vui lòng chọn bàn đích và ít nhất 1 món để chuyển!");
+    showToast('Vui lòng chọn bàn đích và ít nhất một món để chuyển.');
     return;
   }
   
@@ -1127,7 +1131,7 @@ const confirmSplitTable = async () => {
     showSplitModal.value = false;
     fetchData();
   } catch(error) {
-    alert(error.response?.data || "Lỗi tách bàn!");
+    showToast(error.response?.data?.message || error.response?.data || 'Không thể tách bàn.');
   }
 };
 
@@ -1142,7 +1146,7 @@ const upgradeToOccupied = async (table) => {
     setTimeout(() => { toastMsg.value = ''; }, 3000);
     fetchData();
   } catch (error) {
-    alert("Lỗi khi cập nhật trạng thái bàn!");
+    showToast('Không thể cập nhật trạng thái bàn.');
   }
 };
 
@@ -1156,7 +1160,7 @@ const cancelBooking = async (table) => {
     setTimeout(() => { toastMsg.value = ''; }, 3000);
     fetchData();
   } catch (error) {
-    alert("Lỗi khi hủy cọc bàn!");
+    showToast('Không thể hủy cọc bàn.');
   }
 };
 

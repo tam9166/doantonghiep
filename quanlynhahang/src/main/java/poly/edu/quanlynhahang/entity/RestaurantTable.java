@@ -80,6 +80,12 @@ public class RestaurantTable {
     @Column(name = "image_url", columnDefinition = "nvarchar(500)")
     private String imageUrl;
 
+    @Column(name = "display_order", nullable = false)
+    private Integer displayOrder = 0;
+
+    @Column(name = "notes", columnDefinition = "nvarchar(500)")
+    private String notes;
+
     public RestaurantTable(Integer id, String name, String floor, Integer isOccupied, Boolean hasView,
                            String reservedTime, Integer capacity, String viewType) {
         this.id = id;

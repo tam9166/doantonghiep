@@ -438,4 +438,33 @@ onUnmounted(() => {
   .brand-text h2 { max-width: 164px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .app-navbar, .navbar-transparent, .navbar-scrolled { padding-right: 12px; padding-left: 12px; }
 }
+
+/* Shared customer header aligned with the reservation mockups. */
+.app-navbar,
+.navbar-transparent,
+.app-navbar:not(.navbar-transparent):not(.navbar-scrolled),
+.navbar-scrolled {
+  padding: 10px 28px;
+  background: rgba(255, 253, 252, .97);
+  border-bottom: 1px solid #efd9d7;
+  box-shadow: 0 3px 14px rgba(83, 38, 43, .045);
+}
+.navbar-inner { max-width: 1480px; min-height: 54px; }
+.navbar-brand { gap: 10px; }
+.brand-icon { display: grid; width: 42px; height: 42px; place-items: center; border-radius: 50%; background: #f3eefb; font-size: 1.45rem; }
+.brand-text h2 { color: #24191b; font-family: inherit; font-size: 1.1rem; font-weight: 900; }
+.brand-text h2 span { color: #ba0c2f; }
+.brand-text p { color: #5d4c4d; font-size: .64rem; letter-spacing: .2em; }
+.navbar-nav { align-self: stretch; align-items: stretch; gap: 8px; }
+.navbar-nav a { display: flex; align-items: center; padding: 0 17px; color: #2f2425; font-size: .9rem; font-weight: 700; }
+.navbar-nav a.active { color: #ba0c2f; box-shadow: inset 0 -2px 0 #ba0c2f; }
+.navbar-actions { gap: 10px; }
+.lang-select, .nav-btn { min-height: 44px; padding: 0 15px; border-color: #ead0d0; border-radius: 10px; background: #fff; color: #332627; }
+.nav-btn-logout { border-color: #ba0c2f; background: #ba0c2f; color: #fff; }
+.nav-btn-logout:hover { border-color: #970824; background: #970824; color: #fff; }
+@media (max-width: 1180px) {
+  .navbar-nav a { padding: 0 10px; font-size: .82rem; }
+  .navbar-actions { gap: 6px; }
+  .nav-btn { padding: 0 10px; }
+}
 </style>

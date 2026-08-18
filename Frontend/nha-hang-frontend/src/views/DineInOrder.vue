@@ -216,6 +216,7 @@ const showModal = ref(false);
 const toastMsg = ref('');
 const isSubmitting = ref(false);
 const userRoles = ref([]);
+const addItemsIdempotencyKey = ref(crypto.randomUUID());
 
 const isAdminOrManager = computed(() => {
   return userRoles.value.includes('ROLE_ADMIN') || userRoles.value.includes('ROLE_MANAGER');
@@ -273,7 +274,7 @@ const isFetchingAI = ref(false);
 
 const fetchComboForParty = async () => {
   if (!partySize.value || partySize.value < 1) {
-    alert("Vui lòng nhập số người hợp lệ!");
+    toastMsg.value = 'Vui lòng nhập số người hợp lệ!';
     return;
   }
   isFetchingAI.value = true;
@@ -369,7 +370,7 @@ const fetchComboForParty = async () => {
 
 const addComboToCart = () => {
   aiCombo.value.forEach(p => addToCart(p, p.suggestedQuantity || 1));
-  alert('Đã thêm Combo Gợi ý vào giỏ hàng!');
+  toastMsg.value = 'Đã thêm Combo gợi ý vào giỏ hàng!';
 };
 
 const loadData = async () => {
@@ -388,7 +389,7 @@ const loadData = async () => {
     }
 
     // Lấy thông tin User để áp dụng hạng thẻ
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('staff_token') || localStorage.getItem('token');
     if (token) {
       const resProfile = await api.get('/api/auth/profile', {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -399,7 +400,7 @@ const loadData = async () => {
       else if (userProfile.value.membershipTier === 'Bạc') tierDiscount.value = 0.05;
     }
     
-    const storedUser = localStorage.getItem('user');
+    const storedUser = localStorage.getItem('staff_user') || localStorage.getItem('user');
     if (storedUser) {
       try {
         const parsed = JSON.parse(storedUser);
@@ -452,7 +453,7 @@ const closeVoiceModal = () => {
 const startVoiceOrder = () => {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
-    alert("Trình duyệt của bạn không hỗ trợ nhận diện giọng nói. Vui lòng dùng Google Chrome hoặc Edge.");
+    toastMsg.value = 'Trình duyệt chưa hỗ trợ nhận diện giọng nói. Vui lòng dùng Chrome hoặc Edge.';
     return;
   }
   
@@ -533,11 +534,17 @@ const startVoiceOrder = () => {
 };
 
 const submitOrder = async () => {
-  if (cart.value.length === 0) return alert("Giỏ hàng trống!");
-  if (!selectedTable.value) return alert('Vui lòng chọn bàn trước khi gửi bếp.');
+  if (cart.value.length === 0) {
+    toastMsg.value = 'Giỏ hàng đang trống.';
+    return;
+  }
+  if (!selectedTable.value) {
+    toastMsg.value = 'Vui lòng chọn bàn trước khi gửi bếp.';
+    return;
+  }
   if (isSubmitting.value) return;
   
-  const token = localStorage.getItem('token') || ''; 
+  const token = localStorage.getItem('staff_token') || localStorage.getItem('token') || '';
   const today = new Date().toLocaleDateString('en-CA');
   const now = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
   const infoFull = `[TẠI QUÁN] Bàn: ${selectedTable.value} | Lúc: ${now} ngày ${today}`;
@@ -559,7 +566,7 @@ const submitOrder = async () => {
     }
     if (existingOrder?.id) {
       await api.put(`/api/orders/${existingOrder.id}/add-items`, { items: formattedItems }, {
-        headers: { ...headers, 'X-Idempotency-Key': crypto.randomUUID() }
+        headers: { ...headers, 'X-Idempotency-Key': addItemsIdempotencyKey.value }
       });
     } else await api.post('/api/orders/checkout', {
       address: infoFull,
@@ -568,6 +575,7 @@ const submitOrder = async () => {
     }, { headers });
 
     cart.value = [];
+    addItemsIdempotencyKey.value = crypto.randomUUID();
     showModal.value = false;
     toastMsg.value = 'Đã ghi nhận đơn. Nhân viên sẽ xác nhận trước khi chuyển xuống bếp.';
     setTimeout(() => { toastMsg.value = ''; }, 4000);
@@ -576,8 +584,9 @@ const submitOrder = async () => {
     const message = typeof payload === 'string'
       ? payload
       : payload?.message || 'Không thể gửi đơn xuống bếp. Vui lòng thử lại.';
-    const reference = payload?.correlationId ? `\nMã hỗ trợ: ${payload.correlationId}` : '';
-    alert(`Lỗi: ${message}${reference}`);
+    const reference = payload?.correlationId ? ` Mã hỗ trợ: ${payload.correlationId}` : '';
+    toastMsg.value = `${message}${reference}`;
+    setTimeout(() => { toastMsg.value = ''; }, 6000);
   } finally {
     isSubmitting.value = false;
   }

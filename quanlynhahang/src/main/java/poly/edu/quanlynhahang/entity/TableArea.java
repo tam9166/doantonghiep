@@ -14,6 +14,8 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.util.Date;
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 @Entity
@@ -37,6 +39,9 @@ public class TableArea {
 
     @Column(name = "image_url", columnDefinition = "nvarchar(500)")
     private String imageUrl;
+    @jakarta.persistence.Convert(converter = StringListJsonConverter.class)
+    @Column(name="gallery_json",columnDefinition="nvarchar(max)")
+    private List<String> gallery = new ArrayList<>();
 
     @Column(name = "base_price", precision = 18, scale = 0)
     private BigDecimal basePrice = BigDecimal.ZERO;
@@ -61,6 +66,11 @@ public class TableArea {
 
     @Column(name = "package_price", precision = 18, scale = 0)
     private BigDecimal packagePrice = BigDecimal.ZERO;
+    @Column(name="max_tables") private Integer maxTables;
+    @Column(name="default_guests_per_table") private Integer defaultGuestsPerTable = 10;
+    @jakarta.persistence.Convert(converter = StringListJsonConverter.class)
+    @Column(name="suitable_event_types",columnDefinition="nvarchar(max)")
+    private List<String> suitableEventTypes = new ArrayList<>();
 
     @Column(length = 30)
     private String status = "ACTIVE";

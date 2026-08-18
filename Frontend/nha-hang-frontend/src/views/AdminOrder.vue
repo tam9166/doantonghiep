@@ -231,7 +231,7 @@ const timeFilter = ref('all');
 const selectedOrder = ref(null);
 
 const configHeader = () => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('staff_token') || localStorage.getItem('token');
   return { headers: { 'Authorization': `Bearer ${token}` } };
 };
 
@@ -354,7 +354,7 @@ const getCountdown = (address) => {
 // 🌟 Auto-activate scheduled reservation orders every 30s
 const activateScheduled = async () => {
   try {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('staff_token') || localStorage.getItem('token');
     if (!token || token === 'null' || token === 'undefined') return; // Skip if no valid token
     await api.put('/api/admin/orders/activate-scheduled', {}, configHeader());
     loadData(); // Refresh list

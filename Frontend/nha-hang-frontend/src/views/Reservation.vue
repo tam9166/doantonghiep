@@ -8,7 +8,6 @@
             <h1>{{ text.title }}</h1>
             <p>{{ text.subtitle }}</p>
           </div>
-          <button class="lang-toggle" type="button" @click="toggleLang">{{ lang === 'vi' ? 'EN' : 'VI' }}</button>
         </header>
 
         <nav class="stepper" aria-label="Reservation steps">
@@ -42,8 +41,23 @@
           </div>
           <div class="summary-grid">
             <span>{{ text.total }}</span><strong>{{ money(submitResult.totalAmount) }}</strong>
-            <span>{{ text.payableNow }}</span><strong>{{ money(submitResult.depositAmount) }}</strong>
+            <span>{{ text.payableNow }}</span><strong>{{ money(submitResult.amountDueNow) }}</strong>
             <span>{{ text.status }}</span><strong>{{ statusLabel(submitResult.reservationStatus) }}</strong>
+          </div>
+          <article v-if="submitResult.tables?.length" class="qr-card">
+            <div>
+              <h3>Bàn được sắp xếp: {{ submitResult.tables[0].tableName }}</h3>
+              <p>Khu vực: {{ submitResult.areaName }} · Sức chứa: {{ submitResult.tables[0].capacity }} khách</p>
+            </div>
+            <img
+              :src="submitResult.tables[0].imageUrl || fallbackTableImage"
+              :alt="`Ảnh thật của ${submitResult.tables[0].tableName}`"
+              @error="replaceTableImage"
+            />
+          </article>
+          <div v-else-if="submitResult.reservationStatus === 'WAITING_TABLE_ASSIGNMENT'" class="staff-info">
+            <span>ℹ️</span>
+            <p>Đặt chỗ đang chờ nhà hàng xác nhận phương án bố trí hoặc ghép bàn.</p>
           </div>
           <article v-if="paymentQr" class="qr-card">
             <div>
@@ -101,7 +115,7 @@
 
         <form v-else class="reservation-card" @submit.prevent="submitReservation">
           <section v-show="step === 1" class="panel">
-            <h2>{{ text.customerInfo }}</h2>
+            <div class="section-heading"><span class="section-icon">♙</span><div><h2>{{ text.customerInfo }}</h2><p>Vui lòng cung cấp thông tin để nhà hàng xác nhận đặt bàn.</p></div></div>
             <div class="form-grid">
               <label>
                 {{ text.fullName }}
@@ -120,14 +134,14 @@
               </label>
               <label>
                 {{ text.contactNote }}
-                <input v-model.trim="form.contactNote" type="text" placeholder="Có thể để trống" />
+                <textarea v-model.trim="form.contactNote" rows="3" placeholder="Có thể để trống"></textarea>
               </label>
             </div>
           </section>
 
           <section v-show="step === 2" class="panel">
-            <h2>{{ text.timeInfo }}</h2>
-            <div class="form-grid">
+            <div class="section-heading"><span class="section-icon">◷</span><div><h2>{{ text.timeInfo }}</h2><p>Chọn thời gian phù hợp cho buổi dùng bữa của bạn.</p></div></div>
+            <div class="form-grid time-grid">
               <label>
                 {{ text.date }}
                 <input v-model="form.reservationDate" type="date" :min="today" />
@@ -159,16 +173,39 @@
           </section>
 
           <section v-show="step === 3" class="panel">
-            <h2>{{ text.guestInfo }}</h2>
-            <div class="form-grid compact">
-              <label>
-                {{ text.guests }}
-                <input v-model.number="form.guestCount" type="number" min="1" max="10000" />
+            <div class="guest-layout">
+              <div>
+                <div class="section-heading"><span class="section-icon">♧</span><div><h2>{{ text.guestInfo }}</h2><p>{{ text.guestHint }}</p></div></div>
+                <div class="guest-counter">
+                  <button type="button" aria-label="Giảm số khách" @click="form.guestCount = Math.max(1, Number(form.guestCount || 1) - 1)">−</button>
+                  <label class="guest-count-input">
+                    <input
+                      v-model.number="form.guestCount"
+                      type="number"
+                      min="1"
+                      max="10000"
+                      inputmode="numeric"
+                      aria-label="Nhập số khách"
+                      @change="form.guestCount = Math.max(1, Number(form.guestCount || 1))"
+                    />
+                    <small>khách</small>
+                  </label>
+                  <button type="button" aria-label="Tăng số khách" @click="form.guestCount = Number(form.guestCount || 0) + 1">+</button>
+                </div>
+                <div class="guest-presets">
+                  <button v-for="count in [1, 2, 4, 6, 8]" :key="count" type="button" :class="{ selected: form.guestCount === count }" @click="form.guestCount = count">{{ count === 8 ? 'Nhóm 8+' : `${count} người` }}</button>
+                </div>
                 <small v-if="errors.guestCount">{{ errors.guestCount }}</small>
                 <small v-if="earlyGroupWarning" class="group-warning">{{ earlyGroupWarning }}</small>
-              </label>
+                <p class="guest-tip">Hệ thống ưu tiên bàn có sức chứa gần nhất với số khách.</p>
+              </div>
+              <aside class="quick-summary">
+                <h3>Tóm tắt nhanh</h3>
+                <div><span>Khách hàng</span><strong>{{ form.customerName || 'Chưa nhập' }}</strong></div>
+                <div><span>Ngày giờ</span><strong>{{ form.reservationDate }} · {{ form.arrivalTime }}</strong></div>
+                <p>Gợi ý bàn phù hợp cho <strong>{{ form.guestCount }} khách</strong></p>
+              </aside>
             </div>
-            <p class="review-note">{{ text.guestHint }}</p>
           </section>
 
           <section v-show="step === 4" class="panel">
@@ -195,6 +232,7 @@
                 :aria-pressed="form.areaId === area.id"
                 @click="selectArea(area)"
               >
+                <span class="area-chip-icon">{{ activeAreas.indexOf(area) === 0 ? '⌂' : activeAreas.indexOf(area) === 1 ? '♜' : '♣' }}</span>
                 <span class="area-chip-title">{{ areaName(area) }}</span>
                 <span class="area-chip-description">{{ areaDescription(area) }}</span>
                 <span class="area-chip-meta">
@@ -206,122 +244,26 @@
           </section>
 
           <section v-show="step === 5" class="panel">
-            <div class="panel-row">
-              <h2>{{ text.tableInfo }}</h2>
-              <button class="ghost-btn" type="button" @click="loadAvailableTables" :disabled="loadingTables">
-                {{ loadingTables ? text.loading : text.reload }}
-              </button>
-            </div>
-            <div v-if="tableError" class="error-banner">
-              {{ tableError }}
-              <button type="button" @click="loadAvailableTables">{{ text.retry }}</button>
-            </div>
-            <div v-if="loadingTables" class="skeleton-grid">
-              <div v-for="n in 4" :key="n" class="skeleton-card table"></div>
-            </div>
-            <div v-if="!loadingTables && requiresTableCombination" class="combo-suggestion">
-              <strong>Nhóm {{ form.guestCount }} khách cần ghép bàn</strong>
-              <p v-if="tableCombo?.available">
-                {{ tableCombo.reasons?.join(' ') }}
-              </p>
-              <template v-if="tableCombo?.available">
-                <div class="combo-table-list">
-                  <span v-for="table in tableCombo.tables" :key="table.tableId">
-                    {{ table.tableName }} ({{ table.capacity }} chỗ)
-                  </span>
-                </div>
-                <button class="primary-btn" type="button" @click="acceptTableCombination">
-                  {{ form.tableIds.length ? 'Đã chọn tổ hợp bàn' : 'Chấp nhận ghép bàn' }}
-                </button>
-              </template>
-              <span v-else>{{ tableCombo?.reasons?.[0] || 'Không tìm được tổ hợp bàn phù hợp.' }}</span>
-              <button class="secondary-btn" type="button" @click="step = 4">Đổi khu vực</button>
-            </div>
-            <div v-if="!loadingTables && tables.length && !requiresTableCombination" class="table-map">
-              <div class="table-map-header">
-                <div>
-                  <h3>{{ text.tableMap }}</h3>
-                  <p>{{ text.tableMapHint }}</p>
-                </div>
-                <div class="map-legend">
-                  <span class="legend available">{{ text.statusMap.AVAILABLE }}</span>
-                  <span class="legend blocked">{{ text.unavailable }}</span>
-                </div>
-              </div>
-              <div class="map-groups">
-                <section v-for="group in tableMapGroups" :key="group.name" class="map-group">
-                  <strong>{{ group.name }}</strong>
-                  <div class="map-grid">
-                    <button
-                      v-for="table in group.tables"
-                      :key="table.id"
-                      type="button"
-                      :class="['map-seat', tableMapStatusClass(table), { selected: form.tableId === table.id }]"
-                      :disabled="table.availabilityStatus !== 'AVAILABLE'"
-                      @click="selectTable(table)"
-                    >
-                      <img
-                        :src="table.imageUrl || fallbackTableImage"
-                        :alt="`Ảnh ${table.name}`"
-                        class="map-seat-image"
-                        loading="lazy"
-                        @error="replaceTableImage"
-                      />
-                      <span>{{ table.name }}</span>
-                      <small>{{ table.capacity || table.maxCapacity || '-' }} {{ text.seats }}</small>
-                    </button>
-                  </div>
-                </section>
+            <div class="section-heading">
+              <span class="section-icon">⌑</span>
+              <div>
+                <h2>Bố trí bàn tự động</h2>
+                <p v-if="form.guestCount < largePartyThreshold">
+                  Hệ thống sẽ chọn bàn đang hoạt động có sức chứa gần nhất tại khu vực Quý khách đã chọn.
+                </p>
+                <p v-else>
+                  Nhà hàng sẽ chủ động sắp xếp hoặc ghép bàn phù hợp cho đoàn của Quý khách.
+                </p>
               </div>
             </div>
-            <div v-if="!loadingTables && !availableTables.length && !tableCombo?.available" class="empty-state waitlist-offer">
-              <strong>{{ text.noTables }}</strong>
-              <span>{{ text.waitlistOffer }}</span>
-              <button class="primary-btn" type="button" @click="submitWaitlist" :disabled="submitting">
-                {{ submitting ? text.submitting : text.joinWaitlist }}
-              </button>
-            </div>
-            <div v-if="!loadingTables && availableTables.length && !requiresTableCombination" class="table-grid">
-              <article
-                v-for="table in availableTables"
-                :key="table.id"
-                :class="['table-card', { selected: form.tableId === table.id }]"
-              >
-                <img :src="table.imageUrl || fallbackTableImage" :alt="table.name" loading="lazy" @error="replaceTableImage" />
-                <div class="card-body">
-                  <div class="card-title-row">
-                    <strong>{{ table.name }}</strong>
-                    <span class="status-pill available">{{ tableStatusLabel(table.availabilityStatus) }}</span>
-                    <span v-if="suggestionById[table.id]?.best" class="status-pill suggested">{{ text.bestSuggestion }}</span>
-                  </div>
-                  <p>{{ table.positionDescription || table.areaName || table.floor }}</p>
-                  <div class="meta-grid">
-                    <span>{{ text.minGuests }}: {{ table.minCapacity || 1 }}</span>
-                    <span>{{ text.maxGuests }}: {{ table.maxCapacity || table.capacity }}</span>
-                    <span>{{ text.seats }}: {{ table.capacity || table.maxCapacity }}</span>
-                    <span>{{ text.fit }}: {{ fitLabel(table.fitScore) }}</span>
-                    <span v-if="suggestionById[table.id]">{{ text.score }}: {{ suggestionById[table.id].score }}</span>
-                  </div>
-                  <ul v-if="suggestionById[table.id]?.reasons?.length" class="reason-list">
-                    <li v-for="reason in suggestionById[table.id].reasons" :key="reason">{{ reason }}</li>
-                  </ul>
-                  <div class="amenities">
-                    <span v-if="table.windowSeat">{{ text.windowSeat }}</span>
-                    <span v-if="table.privateRoom">{{ text.privateRoom }}</span>
-                    <span v-if="table.childFriendly">{{ text.childFriendly }}</span>
-                    <span v-if="table.hasView">{{ text.hasView }}</span>
-                  </div>
-                  <small v-if="table.warning">{{ table.warning }}</small>
-                  <button class="primary-btn" type="button" @click="selectTable(table)">
-                    {{ form.tableId === table.id ? text.selected : text.chooseTable }}
-                  </button>
-                </div>
-              </article>
+            <div class="staff-info">
+              <span>ℹ️</span>
+              <p>Quý khách không cần chọn bàn cụ thể. Bàn và ảnh thực tế sẽ hiển thị ngay trong xác nhận nếu hệ thống có thể tự bố trí.</p>
             </div>
           </section>
 
           <section v-show="step === 6" class="panel">
-            <h2>{{ text.preorderTitle }}</h2>
+            <div class="section-heading"><span class="section-icon">⌒</span><div><h2>{{ text.preorderTitle }}</h2><p>Chọn món và số lượng để bếp chuẩn bị chu đáo trước khi bạn đến.</p></div></div>
             <div class="choice-grid">
               <button type="button" :class="{ selected: form.preorderEnabled }" @click="form.preorderEnabled = true">
                 <strong>{{ text.preorderYes }}</strong>
@@ -373,12 +315,15 @@
                   <span>{{ money(item.price * item.quantity) }}</span>
                   <button type="button" class="danger-btn" @click="removeDish(item.productId)">{{ text.remove }}</button>
                 </div>
+                <button class="primary-btn cart-continue-btn" type="button" @click="nextStep">
+                  {{ text.next }} →
+                </button>
               </aside>
             </div>
           </section>
 
           <section v-show="step === 7" class="panel">
-            <h2>{{ text.requestInfo }}</h2>
+            <div class="section-heading"><span class="section-icon">✎</span><div><h2>{{ text.requestInfo }}</h2><p>Cho chúng tôi biết để phục vụ bạn tốt hơn.</p></div></div>
             <div class="preference-grid">
               <label v-for="item in visiblePreferences" :key="item">
                 <input v-model="selectedPreferences" type="checkbox" :value="item" />
@@ -393,7 +338,7 @@
           </section>
 
           <section v-show="step === 8 && hasPreorderItems" class="panel">
-            <h2>{{ text.paymentTitle }}</h2>
+            <div class="section-heading"><span class="section-icon">▣</span><div><h2>{{ text.paymentTitle }}</h2><p>Lựa chọn hình thức thanh toán phù hợp.</p></div></div>
             <div class="choice-grid">
               <button v-for="option in paymentOptions" :key="option.key" type="button" :class="{ selected: form.paymentOption === option.key }" @click="selectPayment(option.key)">
                 <strong>{{ option.label }}</strong>
@@ -421,7 +366,7 @@
           </section>
 
           <section v-show="step === 9" class="panel">
-            <h2>{{ text.review }}</h2>
+            <div class="section-heading"><span class="section-icon">✓</span><div><h2>{{ text.review }}</h2><p>Vui lòng kiểm tra lại thông tin đặt bàn trước khi gửi yêu cầu.</p></div></div>
             <div class="review-box">
               <div><span>{{ text.fullName }}</span><strong>{{ form.customerName }}</strong></div>
               <div><span>{{ text.phone }}</span><strong>{{ form.customerPhone }}</strong></div>
@@ -477,6 +422,7 @@ const menuItems = ref([])
 const cartItems = ref([])
 const areaCounts = ref({})
 const selectedTable = ref(null)
+const largePartyThreshold = ref(10)
 const selectedPreferences = ref([])
 const errors = ref({})
 const areaError = ref('')
@@ -583,17 +529,9 @@ const lateDiningEndTime = computed(() => {
   return endMinutes >= 24 * 60 ? `${endTime} ngày hôm sau` : endTime
 })
 
-function toggleLang() {
-  locale.value = lang.value === 'vi' ? 'en' : 'vi'
-}
-
 const money = formatCurrency
 
 function statusLabel(status) {
-  return text.value.statusMap[status] || status
-}
-
-function tableStatusLabel(status) {
   return text.value.statusMap[status] || status
 }
 
@@ -602,12 +540,6 @@ function tableMapStatusClass(table) {
   if (table.availabilityStatus === 'TOO_SMALL') return 'too-small'
   if (table.availabilityStatus === 'RESERVED' || table.availabilityStatus === 'PENDING') return 'reserved'
   return 'blocked'
-}
-
-function fitLabel(score) {
-  if (score === 0) return lang.value === 'vi' ? 'Vừa đủ' : 'Exact'
-  if (score <= 2) return lang.value === 'vi' ? `Dư ${score} chỗ` : `${score} extra seats`
-  return lang.value === 'vi' ? 'Bàn lớn' : 'Large table'
 }
 
 function paymentOptionLabel(key) {
@@ -686,7 +618,6 @@ function validateCurrentStep() {
   }
   if (step.value === 3 && (!form.value.guestCount || form.value.guestCount < 1)) errors.value.guestCount = lang.value === 'vi' ? 'Số khách không hợp lệ' : 'Invalid party size'
   if (step.value === 4 && !form.value.areaId) serverError.value = lang.value === 'vi' ? 'Vui lòng chọn khu vực' : 'Please select an area'
-  if (step.value === 5 && !form.value.tableId) serverError.value = lang.value === 'vi' ? 'Vui lòng chọn bàn còn trống' : 'Please select an available table'
   if (step.value === 2 && form.value.arrivalTime) {
     const timeError = reservationTimeError()
     if (timeError) errors.value.arrivalTime = timeError
@@ -1136,6 +1067,12 @@ function resetForm() {
 }
 
 onMounted(async () => {
+  try {
+    const response = await api.get('/api/settings/public')
+    largePartyThreshold.value = Number(response.data?.largePartyThreshold || 10)
+  } catch {
+    largePartyThreshold.value = 10
+  }
   await loadAreas()
   await loadPreorderMenu()
 })
@@ -2140,5 +2077,124 @@ input:focus, select:focus, textarea:focus { outline-color: var(--primary-glow); 
   .area-card, .table-card, .dish-card, .preview-table { min-width: 0; }
   .card-title-row, .meta-grid, .reason-list, .summary-grid { min-width: 0; overflow-wrap: anywhere; }
   .qr-card img { width: min(100%, 260px); }
+}
+
+/* Reservation phase 2 — visual system matched to the approved mockups. */
+.reservation-page {
+  --wine: #be0b2f;
+  --wine-dark: #9f0927;
+  --ink: #201719;
+  --muted: #706568;
+  --line: #edd2d3;
+  --blush: #fff7f6;
+  min-height: calc(100vh - 68px);
+  padding: 44px 40px 72px;
+  background:
+    radial-gradient(circle at 86% 8%, rgba(190, 11, 47, .035), transparent 27%),
+    linear-gradient(180deg, #fffdfc 0%, #fff9f8 100%);
+}
+.reservation-shell { max-width: 1480px; }
+.reservation-header { min-height: 128px; position: relative; }
+.reservation-header::after { content: '❧'; position: absolute; right: 72px; top: 28px; color: #f3ddda; font-size: 98px; transform: rotate(-18deg); pointer-events: none; }
+.reservation-header .eyebrow { margin: 0 0 10px; color: #b46d76; font-size: .9rem; font-weight: 800; text-transform: uppercase; }
+.reservation-header h1 { margin: 0; color: var(--ink); font-family: inherit; font-size: clamp(2.8rem, 4vw, 4.35rem); font-weight: 900; letter-spacing: -.045em; line-height: 1; }
+.reservation-header p:not(.eyebrow) { margin-top: 16px; font-size: 1rem; }
+.lang-toggle { position: relative; z-index: 1; min-width: 58px; min-height: 48px; border-color: var(--line); border-radius: 10px; }
+.stepper { display: flex; grid-template-columns: none; gap: 8px; overflow-x: auto; padding: 2px 0 4px; scrollbar-width: thin; }
+.step-chip { flex: 1 1 112px; min-width: 104px; min-height: 42px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255,255,255,.82); color: var(--ink); font-size: .78rem; padding: 4px 7px; }
+.step-chip span { width: 20px; height: 20px; margin-right: 4px; background: #fff0ef; color: var(--wine); font-size: .72rem; }
+.step-chip.active { color: #fff; border-color: var(--wine); background: linear-gradient(135deg, var(--wine), #d20c39); box-shadow: 0 8px 20px rgba(190,11,47,.16); }
+.step-chip.active span { color: var(--wine); background: #fff; }
+.step-chip.done { border-color: #e6b8bd; color: var(--ink); background: #fff; }
+.step-chip.done span { color: #fff; background: var(--wine); }
+.reservation-card, .success-panel { margin-top: 18px; padding: 28px 30px; border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 12px 28px rgba(96,43,48,.07); }
+.section-heading { display: flex; align-items: center; gap: 18px; margin-bottom: 24px; }
+.section-heading h2 { margin: 0 0 4px; font-family: inherit; font-size: 1.55rem; font-weight: 850; }
+.section-heading p { margin: 0; color: var(--muted); }
+.section-icon { display: grid; flex: 0 0 48px; width: 48px; height: 48px; place-items: center; border-radius: 50%; background: #fff0ef; color: var(--wine); font-size: 1.6rem; font-weight: 800; }
+.form-grid { gap: 22px 34px; }
+.time-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+label { gap: 9px; color: var(--ink); }
+input, select, textarea { min-height: 50px; border-color: #e7cbca; border-radius: 9px; padding: 12px 16px; }
+textarea { resize: vertical; }
+input:focus, select:focus, textarea:focus { outline: 3px solid rgba(190,11,47,.09); border-color: var(--wine); }
+.late-dining-confirmation { display: grid; grid-template-columns: auto 1fr; margin-top: 28px; padding: 26px 30px; border-color: #edca78; border-radius: 10px; background: #fff9e9; }
+.late-dining-confirmation::before { content: '♨'; grid-row: 1 / 4; display: grid; width: 112px; height: 112px; place-items: center; margin-right: 24px; border-radius: 50%; background: #fff; color: var(--wine); font-size: 3rem; }
+.late-dining-confirmation label { border-top: 1px dashed #edca78; padding-top: 14px; }
+.guest-layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(280px, .9fr); gap: 28px; }
+.guest-counter { display: flex; max-width: 590px; align-items: center; justify-content: space-between; margin: 10px auto 24px; padding: 18px 30px; border: 1px solid #edc8c9; border-radius: 20px; box-shadow: 0 5px 13px rgba(190,11,47,.08); }
+.guest-counter button { width: 58px; height: 58px; border: 0; border-radius: 50%; background: #fff0ef; color: var(--wine); font-size: 2rem; cursor: pointer; }
+.guest-count-input { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.guest-count-input input { width: 130px; min-height: 56px; padding: 4px 10px; border: 0; background: transparent; color: var(--wine); font-size: 3rem; font-weight: 600; line-height: 1; text-align: center; appearance: textfield; }
+.guest-count-input input::-webkit-inner-spin-button, .guest-count-input input::-webkit-outer-spin-button { appearance: none; margin: 0; }
+.guest-count-input input:focus { outline: 2px solid rgba(190,11,47,.12); border-radius: 10px; }
+.guest-count-input small { color: var(--ink); font-size: 1rem; font-weight: 700; }
+.guest-presets { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+.guest-presets button { min-height: 54px; border: 1px solid var(--line); border-radius: 12px; background: #fff; cursor: pointer; font-weight: 700; }
+.guest-presets button.selected { color: var(--wine); border-color: var(--wine); background: #fff6f5; }
+.guest-tip { margin: 26px 0 0; padding: 16px 20px; border-radius: 10px; background: #fff8f3; color: var(--muted); }
+.quick-summary { padding: 24px; border: 1px solid var(--line); border-radius: 16px; background: #fffdfa; }
+.quick-summary h3 { margin: 0 0 16px; font-size: 1.3rem; }
+.quick-summary div { display: grid; gap: 4px; padding: 13px 0; border-bottom: 1px dashed var(--line); }
+.quick-summary span { color: var(--muted); font-size: .85rem; }
+.quick-summary p { padding: 15px; border-radius: 10px; background: #fff4e8; }
+.area-chip-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.area-chip { position: relative; min-height: 190px; padding: 28px 24px; border-color: #dfc99f; border-radius: 13px; align-content: center; }
+.area-chip-icon { display: grid; width: 66px; height: 66px; place-items: center; border-radius: 50%; background: #f2f7e9; color: #32713b; font-size: 2rem; }
+.area-chip-title { position: absolute; left: 112px; top: 40px; font-size: 1.15rem; }
+.area-chip-description { margin-left: 88px; white-space: normal; }
+.area-chip-meta { margin-top: 12px; padding: 10px; border-radius: 8px; background: #faf8f2; color: #51483d; }
+.area-chip.selected { border-color: #668454; background: #fbfff8; box-shadow: none; }
+.area-chip-selected { position: absolute; right: 18px; top: 18px; width: 28px; height: 28px; overflow: hidden; color: transparent; border-radius: 50%; background: #178143; }
+.area-chip-selected::after { content: '✓'; display: grid; height: 100%; place-items: center; color: #fff; }
+.choice-grid button { min-height: 128px; border-color: #e7d4bd; border-radius: 12px; }
+.choice-grid button.selected { border-color: #5b8a4e; background: #f7fff4; }
+.menu-picker { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 20px; margin-top: 24px; align-items: start; }
+.menu-picker .filters, .menu-picker .error-banner, .menu-picker .preorder-summary { grid-column: 1 / -1; }
+.dish-grid { grid-column: 1; grid-template-columns: repeat(3, minmax(0,1fr)); }
+.dish-card { border-radius: 13px; overflow: hidden; }
+.dish-card img { height: 180px; }
+.dish-card b { color: var(--wine); font-size: 1.05rem; }
+.dish-card .primary-btn { border-radius: 9px; }
+.cart-box { grid-column: 2; position: sticky; top: 88px; margin-top: 0; border-color: var(--line); border-radius: 13px; background: #fffdfa; }
+.cart-row { grid-template-columns: 1fr 96px; padding: 12px 0; border-top: 1px solid var(--line); }
+.cart-row input, .cart-row .danger-btn { grid-column: 1 / -1; }
+.cart-continue-btn { width: 100%; margin-top: 16px; }
+.preference-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
+.preference-grid label { min-height: 64px; justify-content: space-between; border-color: var(--line); border-radius: 10px; padding: 14px; }
+.preference-grid input { order: 2; accent-color: var(--wine); }
+.voucher-field { margin-top: 24px; }
+.review-box { gap: 2px 22px; padding: 14px; border-radius: 12px; background: #fff9f8; }
+.review-box > div { display: flex; min-height: 54px; align-items: center; justify-content: space-between; background: rgba(255,255,255,.55); }
+.actions { margin-top: 22px; padding-top: 20px; border-top: 1px solid var(--line); }
+.actions .ghost-btn { min-width: 170px; }
+.actions .primary-btn { min-width: 190px; }
+.primary-btn { min-height: 50px; border-radius: 9px; background: linear-gradient(135deg, var(--wine), #d30a38); border-color: var(--wine); }
+.primary-btn:hover:not(:disabled) { background: var(--wine-dark); }
+.success-panel { max-width: 980px; margin-right: auto; margin-left: auto; text-align: center; }
+.success-panel .summary-grid { margin: 24px 0; text-align: left; }
+.reservation-code { background: var(--wine); }
+@media (max-width: 1100px) {
+  .reservation-page { padding: 34px 22px 56px; }
+  .guest-layout, .menu-picker { grid-template-columns: 1fr; }
+  .cart-box { grid-column: 1; position: static; }
+  .dish-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .preference-grid { grid-template-columns: repeat(3, minmax(0,1fr)); }
+}
+@media (max-width: 700px) {
+  .reservation-page { padding: 24px 12px 40px; }
+  .reservation-header { min-height: 132px; }
+  .reservation-header::after { display: none; }
+  .reservation-header h1 { font-size: 2.65rem; }
+  .stepper { display: flex; overflow-x: auto; }
+  .step-chip { flex: 0 0 108px; }
+  .reservation-card, .success-panel { padding: 20px 14px; }
+  .time-grid, .area-chip-grid, .dish-grid, .preference-grid { grid-template-columns: 1fr; }
+  .guest-presets { grid-template-columns: repeat(2, 1fr); }
+  .guest-counter { padding: 14px; }
+  .guest-counter strong { font-size: 2.4rem; }
+  .late-dining-confirmation { grid-template-columns: 1fr; }
+  .late-dining-confirmation::before { display: none; }
+  .filters { grid-template-columns: 1fr; }
 }
 </style>

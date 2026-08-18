@@ -319,7 +319,7 @@ const fetchData = async () => {
   isLoading.value = true;
   fetchError.value = '';
   try {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('staff_token') || localStorage.getItem('token');
     const headers = { 'Authorization': `Bearer ${token}` };
 
     const today = new Date();

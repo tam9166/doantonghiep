@@ -400,7 +400,7 @@ const executeMerge = async () => {
   if (!confirm(`Bạn chắc chắn muốn ghép/gộp ${fromT.name} vào ${toT.name}?`)) return;
   
   try {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('staff_token') || localStorage.getItem('token');
     
     if (mergeData.value.type === 'ORDER') {
       const res = await api.post('/api/orders/merge-tables', {
@@ -428,7 +428,7 @@ const executeMerge = async () => {
 const unlinkTable = async (id) => {
   if (!confirm('Bạn có chắc chắn muốn tách bàn này ra không?')) return;
   try {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('staff_token') || localStorage.getItem('token');
     const res = await api.put(`/api/tables/${id}/unlink`, {}, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
@@ -471,7 +471,7 @@ const downloadQRImage = () => {
 };
 
 const fetchTables = async () => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('staff_token') || localStorage.getItem('token');
   try {
     const res = await api.get('/api/tables', {
       headers: token ? { 'Authorization': `Bearer ${token}` } : {}
@@ -492,7 +492,7 @@ const fetchAreas = async () => {
 const fetchLayouts = async () => {
   try {
     const res = await api.get('/api/admin/table-layouts', {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('staff_token') || localStorage.getItem('token')}` }
     });
     const next = {};
     (Array.isArray(res.data) ? res.data : []).forEach(layout => {
@@ -605,7 +605,7 @@ const saveLayouts = async () => {
   });
   try {
     await api.put('/api/admin/table-layouts/bulk', payload, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('staff_token') || localStorage.getItem('token')}` }
     });
     alert('Đã lưu layout bàn.');
     await fetchLayouts();
@@ -656,7 +656,7 @@ const uploadTableImage = async (event, table) => {
 
 const handleAddTable = async () => {
   if (!newTable.value.name) return;
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('staff_token') || localStorage.getItem('token');
   try {
     await api.post('/api/tables', normalizeTablePayload(newTable.value), {
       headers: { 'Authorization': `Bearer ${token}` }
@@ -695,7 +695,7 @@ const submitEditTable = async () => {
   }
   try {
     await api.put(`/api/admin/tables/${editTable.value.id}`, normalizeTablePayload(editTable.value), {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('staff_token') || localStorage.getItem('token')}` }
     });
     closeEditModal();
     fetchTables();
@@ -708,7 +708,7 @@ const updateStatus = async (tableId, newStatus) => {
   if (newStatus == 0 && !confirm('Dọn bàn sẽ ĐÓNG GÓI tất cả đơn hàng tại bàn này. Xác nhận?')) {
     fetchTables(); return;
   }
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('staff_token') || localStorage.getItem('token');
   try {
     await api.put(`/api/tables/${tableId}/status?status=${newStatus}`, {}, {
       headers: { 'Authorization': `Bearer ${token}` }
@@ -726,7 +726,7 @@ const toggleHeatmap = async () => {
   if (showHeatmap.value) {
     try {
       const res = await api.get('/api/orders/history', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('staff_token') || localStorage.getItem('token')}` }
       });
       const orders = res.data;
       
@@ -763,7 +763,7 @@ const deleteTable = async (id) => {
   if (!confirm('Xóa bàn này khỏi hệ thống?')) return;
   try {
     await api.delete(`/api/admin/tables/${id}`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('staff_token') || localStorage.getItem('token')}` }
     });
     fetchTables();
   } catch { alert('Không thể xóa bàn đang có dữ liệu hóa đơn!'); }

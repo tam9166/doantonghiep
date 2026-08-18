@@ -657,7 +657,7 @@ const exportInvoiceToPDF = () => {
   window.print();
 };
 
-const getToken = () => localStorage.getItem('token');
+const getToken = () => localStorage.getItem('staff_token') || localStorage.getItem('token');
 const configHeader = () => ({ headers: { 'Authorization': `Bearer ${getToken()}` } });
 
 // === CHUNG ===

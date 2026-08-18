@@ -20,13 +20,18 @@ import io.jsonwebtoken.security.Keys;
 @Component
 public class JwtUtils {
 
-    private final SecretKey fallbackDevKey = Keys.secretKeyFor(SignatureAlgorithm.HS256);
+    /**
+     * Stable development-only key. Production is rejected by
+     * ApplicationStartupValidator when JWT_SECRET is missing.
+     */
+    private static final String STABLE_DEV_SECRET =
+            "moc-vi-local-development-jwt-key-change-in-production-2026";
 
     @Value("${app.jwt.secret:}")
     private String jwtSecret;
 
-    @Value("${app.jwt.expiration-ms:900000}")
-    private int jwtExpirationMs = 900_000;
+    @Value("${app.jwt.expiration-ms:28800000}")
+    private long jwtExpirationMs = 28_800_000L;
 
     @Value("${app.jwt.issuer:restaurant-api}")
     private String jwtIssuer = "restaurant-api";
@@ -39,7 +44,7 @@ public class JwtUtils {
 
     private Key signingKey() {
         if (jwtSecret == null || jwtSecret.isBlank()) {
-            return fallbackDevKey;
+            return Keys.hmacShaKeyFor(STABLE_DEV_SECRET.getBytes(StandardCharsets.UTF_8));
         }
         return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
     }

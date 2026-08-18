@@ -58,6 +58,7 @@ public class SecurityConfig {
         "/admin/reservations",
         "/admin/reservation-reviews",
         "/admin/customer-history",
+        "/admin/ai-knowledge",
         "/cashier"
     };
 
@@ -143,7 +144,9 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.POST, "/api/webhooks/payments/**").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/applications", "/api/applications/upload").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/chatbot/chat").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/ai/feedback").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/customer/ai/menu-suggestion").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/menu/hot", "/api/settings/public").permitAll()
             .requestMatchers("/ws/**").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/orders/guest-booking").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/orders/checkout").permitAll()
@@ -192,6 +195,7 @@ public class SecurityConfig {
             .requestMatchers("/api/admin/popular-items", "/api/admin/popular-items/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_KITCHEN")
             .requestMatchers("/api/admin/purchase-suggestions", "/api/admin/purchase-suggestions/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER")
             .requestMatchers("/api/admin/ai/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER")
+            .requestMatchers("/api/settings/admin", "/api/settings/admin/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER")
 
             // Các API admin khác chỉ cho Admin/Manager
             .requestMatchers("/api/admin/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER")

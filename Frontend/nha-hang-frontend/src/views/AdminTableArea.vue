@@ -39,9 +39,21 @@
             </div>
           </div>
           <div class="form-row">
+            <label>Loại khu vực</label>
+            <select v-model="form.areaType" class="g-form-control"><option value="DINING">Khu phục vụ</option><option value="EVENT_HALL">Sảnh sự kiện</option></select>
+          </div>
+          <div class="form-row">
             <label>Ảnh khu vực</label>
             <input v-model.trim="form.imageUrl" class="g-form-control" placeholder="URL ảnh minh họa" />
           </div>
+          <div class="form-row"><label>Gallery (mỗi URL một dòng)</label><textarea v-model="form.galleryText" class="g-form-control" rows="3" placeholder="https://.../anh-1.jpg"></textarea></div>
+          <template v-if="form.areaType === 'EVENT_HALL'">
+            <div class="form-columns"><div class="form-row"><label>Khách tối thiểu</label><input v-model.number="form.minGuestCount" type="number" min="1" class="g-form-control"></div><div class="form-row"><label>Khách tối đa</label><input v-model.number="form.maxGuestCount" type="number" min="1" class="g-form-control"></div></div>
+            <div class="form-columns"><div class="form-row"><label>Số bàn tối đa</label><input v-model.number="form.maxTables" type="number" min="1" class="g-form-control"></div><div class="form-row"><label>Khách/bàn mặc định</label><input v-model.number="form.defaultGuestsPerTable" type="number" min="1" class="g-form-control"></div></div>
+            <div class="form-columns"><div class="form-row"><label>Giờ thuê tối thiểu</label><input v-model.number="form.minBookingHours" type="number" min="1" class="g-form-control"></div><div class="form-row"><label>Giá theo giờ</label><input v-model.number="form.hourlyRate" type="number" min="0" class="g-form-control"></div></div>
+            <div class="form-row"><label>Giá gói sự kiện</label><input v-model.number="form.packagePrice" type="number" min="0" class="g-form-control"></div>
+            <div class="form-row"><label>Loại sự kiện phù hợp</label><div class="event-checks"><label v-for="type in eventTypes" :key="type.value"><input v-model="form.suitableEventTypes" type="checkbox" :value="type.value"> {{ type.label }}</label></div></div>
+          </template>
           <div class="form-row">
             <label>Trạng thái</label>
             <select v-model="form.status" class="g-form-control">
@@ -83,6 +95,7 @@
                 <div class="area-meta">
                   <span>Sức chứa: {{ area.capacity || 0 }}</span>
                   <span>Giá nền: {{ formatCurrency(area.basePrice) }}</span>
+                  <span v-if="area.areaType === 'EVENT_HALL'">Sảnh: {{ area.minGuestCount }}–{{ area.maxGuestCount }} khách · tối đa {{ area.maxTables || '-' }} bàn</span>
                 </div>
                 <div class="area-actions">
                   <button class="btn-secondary" @click="editArea(area)">Sửa</button>
@@ -115,10 +128,13 @@ const defaultForm = () => ({
   descriptionVi: '',
   descriptionEn: '',
   imageUrl: '',
+  galleryText: '',
   basePrice: 0,
   capacity: 0,
-  status: 'ACTIVE'
+  status: 'ACTIVE', areaType: 'DINING', minGuestCount: 1, maxGuestCount: 1000, minBookingHours: 2,
+  hourlyRate: 0, packagePrice: 0, maxTables: null, defaultGuestsPerTable: 10, suitableEventTypes: []
 });
+const eventTypes = [{value:'WEDDING',label:'Tiệc cưới'},{value:'ENGAGEMENT',label:'Ăn hỏi'},{value:'BIRTHDAY',label:'Sinh nhật'},{value:'REUNION',label:'Họp lớp/Liên hoan'},{value:'CORPORATE',label:'Tiệc công ty'},{value:'CONFERENCE',label:'Hội nghị'},{value:'OTHER',label:'Khác'}]
 
 const areas = ref([]);
 const form = ref(defaultForm());
@@ -126,7 +142,7 @@ const loading = ref(false);
 const saving = ref(false);
 
 const authHeader = () => ({
-  headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+  headers: { Authorization: `Bearer ${localStorage.getItem('staff_token') || localStorage.getItem('token')}` }
 });
 
 const sortedAreas = computed(() => {
@@ -166,17 +182,18 @@ const editArea = (area) => {
     ...area,
     basePrice: Number(area.basePrice || 0),
     capacity: Number(area.capacity || 0),
+    galleryText: (area.gallery || []).join('\n'),
     status: area.status || 'ACTIVE'
   };
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
-const normalizePayload = () => ({
-  ...form.value,
-  basePrice: Number(form.value.basePrice || 0),
-  capacity: Number(form.value.capacity || 0),
-  status: form.value.status || 'ACTIVE'
-});
+const normalizePayload = () => {
+  const { galleryText, id, ...base } = form.value
+  return { ...base, basePrice: Number(form.value.basePrice || 0), capacity: Number(form.value.capacity || 0),
+    status: form.value.status || 'ACTIVE', gallery: galleryText.split(/\r?\n/).map(v => v.trim()).filter(Boolean),
+    suitableEventTypes: form.value.suitableEventTypes || [] }
+};
 
 const submitArea = async () => {
   if (!form.value.nameVi) {
@@ -229,6 +246,7 @@ onMounted(fetchAreas);
 .form-panel h3 { margin-bottom: 18px; }
 .form-row { display: grid; gap: 7px; margin-bottom: 14px; }
 .form-row label { color: var(--text-muted); font-size: 0.8rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; }
+.event-checks{display:grid;grid-template-columns:1fr 1fr;gap:8px}.event-checks label{display:flex;align-items:center;gap:6px;text-transform:none}.event-checks input{width:auto}
 .form-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .form-actions { display: flex; gap: 10px; margin-top: 18px; }
 .btn-secondary, .btn-danger {

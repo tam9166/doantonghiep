@@ -50,7 +50,9 @@
             <div><span>Bàn</span><strong>{{ reservation.tableName || '-' }}</strong></div>
             <div><span>Khu vực</span><strong>{{ reservation.areaName || reservation.tableFloor || '-' }}</strong></div>
             <div><span>Tổng tiền</span><strong>{{ money(reservation.totalAmount) }}</strong></div>
-            <div><span>Cần thanh toán</span><strong>{{ money(reservation.depositAmount) }}</strong></div>
+            <div><span>Tiền cọc yêu cầu</span><strong>{{ money(reservation.depositAmount) }}</strong></div>
+            <div><span>Đã thanh toán</span><strong>{{ money(reservation.paidAmount) }}</strong></div>
+            <div><span>Cần thanh toán ngay</span><strong>{{ money(reservation.amountDueNow) }}</strong></div>
             <div><span>Còn lại</span><strong>{{ money(reservation.remainingAmount) }}</strong></div>
             <div><span>Thanh toán</span><strong>{{ paymentStatusText(reservation.paymentStatus) }}</strong></div>
           </div>
@@ -170,7 +172,7 @@ const paymentCapability = computed(() => reservation.value?.reservationCode
 const hasPaymentAccess = computed(() => Boolean(paymentCapability.value || localStorage.getItem('token')))
 const activeStatuses = ['PENDING', 'CONFIRMED', 'DEPOSIT_REQUIRED', 'DEPOSIT_PENDING', 'DEPOSIT_PAID']
 const canCreateQr = computed(() => reservation.value
-  && Number(reservation.value.depositAmount || 0) > 0
+  && Number(reservation.value.amountDueNow || 0) > 0
   && reservation.value.paymentOption !== 'PAY_AT_RESTAURANT'
   && hasPaymentAccess.value
   && activeStatuses.includes(reservation.value.reservationStatus))
@@ -207,7 +209,10 @@ function statusText(status) {
 function paymentStatusText(status) {
   const map = {
     PENDING: 'Chờ thanh toán',
+    UNPAID: 'Chưa thanh toán',
+    PARTIALLY_PAID: 'Đã thanh toán một phần',
     PAID: 'Đã thanh toán',
+    OVERPAID: 'Thanh toán dư',
     EXPIRED: 'Hết hạn',
     CANCELLED: 'Đã hủy'
   }

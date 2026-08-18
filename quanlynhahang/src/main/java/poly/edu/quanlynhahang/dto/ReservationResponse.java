@@ -5,6 +5,7 @@ import poly.edu.quanlynhahang.entity.DepositStatus;
 import poly.edu.quanlynhahang.entity.PaymentOption;
 import poly.edu.quanlynhahang.entity.PaymentStatus;
 import poly.edu.quanlynhahang.entity.ReservationStatus;
+import poly.edu.quanlynhahang.entity.ContactStatus;
 
 import java.math.BigDecimal;
 import java.util.Date;
@@ -43,6 +44,7 @@ public class ReservationResponse {
     private BigDecimal depositRate;
     private BigDecimal depositAmount;
     private BigDecimal paidAmount;
+    private BigDecimal amountDueNow;
     private BigDecimal remainingAmount;
     private DepositStatus depositStatus;
     private PaymentOption paymentOption;
@@ -51,6 +53,13 @@ public class ReservationResponse {
     private List<PaymentQrResponse> payments;
     private String managerNote;
     private String rejectedReason;
+    private String receiptEmailStatus;
+    private Date receiptEmailSentAt;
+    private String receiptEmailError;
+    private ContactStatus contactStatus;
+    private String contactCallNote;
+    private Date contactCalledAt;
+    private String contactCalledBy;
     private Date confirmedAt;
     private Date createdAt;
     private List<String> history;

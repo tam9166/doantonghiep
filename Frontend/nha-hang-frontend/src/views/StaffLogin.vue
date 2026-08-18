@@ -150,7 +150,10 @@ const handleStaffLogin = async () => {
   isLoading.value = true
   try {
     // Gọi endpoint riêng dành cho nhân sự
-    const res = await api.post('/api/auth/staff/login', form.value)
+    const res = await api.post('/api/auth/staff/login', form.value, {
+      authType: 'staff',
+      preserveSessionOn401: true
+    })
 
     // Phiên nhân viên tách biệt với phiên khách hàng đang có trong cùng trình duyệt.
     // Kitchen, Waiter và Cashier đều đọc đúng hai khóa này.

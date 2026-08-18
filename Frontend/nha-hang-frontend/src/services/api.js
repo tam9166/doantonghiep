@@ -74,6 +74,9 @@ async function attachAuthAndCaptcha(config) {
   const token = localStorage.getItem(isStaffRequest(config) ? 'staff_token' : 'token')
   if (token && !config.headers.Authorization) {
     config.headers.Authorization = `Bearer ${token}`
+    // Used by the response interceptor to distinguish a rejected session from
+    // a public/login request that happens to return 401.
+    config.__sessionTokenAttached = true
   }
 
   const action = captchaActionForRequest(config)
@@ -101,8 +104,10 @@ api.interceptors.response.use(
     if (error.response) {
       const { status } = error.response
 
-      // Token hết hạn hoặc không hợp lệ
-      if (status === 401) {
+      // Only an authenticated request rejected with 401 proves that the
+      // locally stored session is no longer accepted. A 403 means the session
+      // is valid but lacks permission and must never force logout.
+      if (status === 401 && error.config?.__sessionTokenAttached && !error.config?.preserveSessionOn401) {
         const isStaff = isStaffRequest(error.config || {})
         if (isStaff) {
           localStorage.removeItem('staff_token')
@@ -130,7 +135,7 @@ api.interceptors.response.use(
  * Lấy thông tin user hiện tại từ localStorage
  */
 export function getCurrentUser() {
-  const stored = localStorage.getItem('user')
+  const stored = localStorage.getItem('staff_user') || localStorage.getItem('user')
   if (!stored) return null
   try {
     return JSON.parse(stored)
@@ -143,7 +148,7 @@ export function getCurrentUser() {
  * Kiểm tra user đã đăng nhập chưa
  */
 export function isAuthenticated() {
-  return !!localStorage.getItem('token')
+  return !!(localStorage.getItem('staff_token') || localStorage.getItem('token'))
 }
 
 /**

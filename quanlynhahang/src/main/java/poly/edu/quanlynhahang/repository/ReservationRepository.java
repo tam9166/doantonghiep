@@ -4,6 +4,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Repository;
 import poly.edu.quanlynhahang.entity.Reservation;
 import poly.edu.quanlynhahang.entity.ReservationStatus;
@@ -36,6 +38,9 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             Integer tableId,
             Collection<ReservationStatus> statuses);
 
+    List<Reservation> findByReservationDateAndReservationStatusIn(
+            LocalDate reservationDate, Collection<ReservationStatus> statuses);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             select r from Reservation r
@@ -56,4 +61,10 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     List<Reservation> findByCreatedByOrderByCreatedAtDesc(String createdBy);
 
     List<Reservation> findByCustomerPhoneOrderByCreatedAtDesc(String customerPhone);
+
+    @Modifying
+    @Transactional
+    @Query("update Reservation r set r.receiptEmailStatus = :status, r.receiptEmailSentAt = :sentAt, r.receiptEmailError = :error where r.id = :id")
+    int updateReceiptDelivery(@Param("id") Long id, @Param("status") String status,
+                              @Param("sentAt") java.util.Date sentAt, @Param("error") String error);
 }

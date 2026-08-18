@@ -39,7 +39,7 @@ public class ApplicationStartupValidator implements ApplicationRunner {
 
         if (!production) {
             if (!hasText(jwtSecret)) {
-                log.warn("JWT_SECRET is not configured. A temporary development signing key will be used.");
+                log.warn("JWT_SECRET is not configured. The stable development-only signing key is active; configure JWT_SECRET before production.");
             }
             return;
         }

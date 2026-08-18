@@ -2,6 +2,7 @@ package poly.edu.quanlynhahang.entity;
 
 public enum ReservationStatus {
     PENDING,
+    WAITING_TABLE_ASSIGNMENT,
     CONFIRMED,
     DEPOSIT_REQUIRED,
     REJECTED,

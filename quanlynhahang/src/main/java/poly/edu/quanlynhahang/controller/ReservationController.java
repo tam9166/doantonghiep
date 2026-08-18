@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import jakarta.validation.Valid;
 import poly.edu.quanlynhahang.dto.ReservationActionRequest;
+import poly.edu.quanlynhahang.dto.ReservationContactUpdateRequest;
 import poly.edu.quanlynhahang.dto.ReservationQuoteRequest;
 import poly.edu.quanlynhahang.dto.ReservationRequest;
 import poly.edu.quanlynhahang.dto.TableSuggestionRequest;
@@ -23,9 +24,12 @@ import poly.edu.quanlynhahang.service.ReservationService;
 @RestController
 public class ReservationController {
     private final ReservationService reservationService;
+    private final poly.edu.quanlynhahang.service.ReservationReceiptService receiptService;
 
-    public ReservationController(ReservationService reservationService) {
+    public ReservationController(ReservationService reservationService,
+                                 poly.edu.quanlynhahang.service.ReservationReceiptService receiptService) {
         this.reservationService = reservationService;
+        this.receiptService = receiptService;
     }
 
     @PostMapping("/api/reservations")
@@ -83,6 +87,12 @@ public class ReservationController {
         return ResponseEntity.ok(reservationService.getAdminReservation(id));
     }
 
+    @GetMapping("/api/admin/reservations/{id}/assignment-options")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+    public ResponseEntity<?> assignmentOptions(@PathVariable Long id) {
+        return ResponseEntity.ok(reservationService.getAssignmentOptions(id));
+    }
+
     @PatchMapping("/api/admin/reservations/{id}/confirm")
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     public ResponseEntity<?> confirm(@PathVariable Long id, @Valid @RequestBody(required = false) ReservationActionRequest request) {
@@ -105,6 +115,20 @@ public class ReservationController {
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     public ResponseEntity<?> markDepositPaid(@PathVariable Long id, @Valid @RequestBody(required = false) ReservationActionRequest request) {
         return ResponseEntity.ok(reservationService.markDepositPaid(id, request));
+    }
+
+    @PostMapping("/api/admin/reservations/{id}/resend-receipt")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+    public ResponseEntity<?> resendReceipt(@PathVariable Long id) {
+        receiptService.resend(id);
+        return ResponseEntity.accepted().body(java.util.Map.of("message", "Đã xếp lịch gửi lại biên nhận"));
+    }
+
+    @PatchMapping("/api/admin/reservations/{id}/contact-status")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+    public ResponseEntity<?> updateContactStatus(@PathVariable Long id,
+                                                  @Valid @RequestBody ReservationContactUpdateRequest request) {
+        return ResponseEntity.ok(reservationService.updateContactStatus(id, request));
     }
 
     @PatchMapping("/api/admin/reservations/{id}/check-in")

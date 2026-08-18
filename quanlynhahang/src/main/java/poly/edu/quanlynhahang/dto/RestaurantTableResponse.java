@@ -23,7 +23,9 @@ public record RestaurantTableResponse(
         Boolean privateRoom,
         Boolean childFriendly,
         Boolean active,
-        String imageUrl) {
+        String imageUrl,
+        Integer displayOrder,
+        String notes) {
 
     public static RestaurantTableResponse from(RestaurantTable table) {
         return new RestaurantTableResponse(
@@ -31,6 +33,6 @@ public record RestaurantTableResponse(
                 table.getReservedTime(), table.getCapacity(), table.getViewType(), table.getMinCapacity(),
                 table.getMaxCapacity(), table.getSeatCount(), table.getReservationPrice(), table.getAreaId(),
                 table.getPositionDescription(), table.getWindowSeat(), table.getPrivateRoom(),
-                table.getChildFriendly(), table.getActive(), table.getImageUrl());
+                table.getChildFriendly(), table.getActive(), table.getImageUrl(), table.getDisplayOrder(), table.getNotes());
     }
 }

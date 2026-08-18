@@ -33,7 +33,10 @@ public class MenuRecommendationController {
 
     @PostMapping("/menu-suggestion")
     public ResponseEntity<MenuRecommendationResponse> recommend(@Valid @RequestBody MenuRecommendationRequest request) {
-        List<MenuRecommendationItemResponse> suggestions = recommendationService.recommend(request.productIds());
+        List<MenuRecommendationItemResponse> suggestions = (request.preferences() == null || request.preferences().isEmpty())
+                && request.maxBudget() == null
+                ? recommendationService.recommend(request.productIds())
+                : recommendationService.recommend(request);
         if (suggestions.isEmpty()) {
             return ResponseEntity.ok(new MenuRecommendationResponse(List.of(), null, "RULE_BASED"));
         }

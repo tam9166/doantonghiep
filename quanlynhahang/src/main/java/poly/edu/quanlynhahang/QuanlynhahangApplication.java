@@ -14,7 +14,7 @@ import jakarta.annotation.PostConstruct;
 @EnableScheduling
 public class QuanlynhahangApplication {
 
-    // Ép múi giờ và encoding ngay khi ứng dụng khởi động
+    // Ép múi giờ và en8777777777coding ngay khi ứng dụng khởi động
     @PostConstruct
     public void init() {
         TimeZone.setDefault(TimeZone.getTimeZone("Asia/Ho_Chi_Minh"));

@@ -21,6 +21,7 @@ import poly.edu.quanlynhahang.config.PaymentProperties;
 import poly.edu.quanlynhahang.dto.PaymentQrResponse;
 import poly.edu.quanlynhahang.dto.PaymentQrRequest;
 import poly.edu.quanlynhahang.entity.PaymentIntent;
+import poly.edu.quanlynhahang.entity.DepositStatus;
 import poly.edu.quanlynhahang.entity.PaymentOption;
 import poly.edu.quanlynhahang.entity.PaymentStatus;
 import poly.edu.quanlynhahang.entity.Reservation;
@@ -43,6 +44,8 @@ class PaymentServiceTest {
     private final PaymentProperties paymentProperties = paymentProperties();
     private final PaymentCapabilityService capabilityService = mock(PaymentCapabilityService.class);
     private final ActivityLogService activityLogService = mock(ActivityLogService.class);
+    private final ReservationReceiptService receiptService = mock(ReservationReceiptService.class);
+    private final RestaurantSettingsService settingsService = mock(RestaurantSettingsService.class);
     private final PaymentService service = new PaymentService(
             reservationRepository,
             paymentIntentRepository,
@@ -50,7 +53,9 @@ class PaymentServiceTest {
             stateMachine,
             paymentProperties,
             capabilityService,
-            activityLogService);
+            activityLogService,
+            receiptService,
+            settingsService);
 
     @AfterEach
     void clearSecurityContext() {
@@ -69,6 +74,9 @@ class PaymentServiceTest {
         assertEquals(PaymentStatus.PAID, response.getStatus());
         assertEquals("BANK-001", intent.getBankTransactionCode());
         assertEquals(ReservationStatus.DEPOSIT_PAID, intent.getReservation().getReservationStatus());
+        assertEquals(PaymentStatus.PARTIALLY_PAID, intent.getReservation().getPaymentStatus());
+        assertEquals(DepositStatus.PAID, intent.getReservation().getDepositStatus());
+        assertEquals(new BigDecimal("100000"), intent.getReservation().getPaidAmount());
         assertEquals(new BigDecimal("100000"), intent.getReservation().getRemainingAmount());
         verify(reservationRepository).save(intent.getReservation());
         verify(realtimeService).publish(any(), any(), any(), any(), any(), any());
@@ -86,6 +94,24 @@ class PaymentServiceTest {
         assertEquals("409 CONFLICT \"PAYMENT_QR_EXPIRED\"", ex.getMessage());
         assertEquals(PaymentStatus.EXPIRED, intent.getStatus());
         verify(paymentIntentRepository).save(intent);
+    }
+
+    @Test
+    void paidDepositCannotCreateAnotherDepositQr() {
+        Reservation reservation = pendingIntent().getReservation();
+        reservation.setPaidAmount(new BigDecimal("100000"));
+        reservation.setDepositStatus(DepositStatus.PAID);
+        reservation.setReservationStatus(ReservationStatus.DEPOSIT_PAID);
+        when(reservationRepository.findLockedByReservationCode("MV-001")).thenReturn(Optional.of(reservation));
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+                () -> service.createQr(
+                        request("MV-001", PaymentOption.DEPOSIT_50),
+                        "capability",
+                        "second-deposit-001"));
+
+        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY, error.getStatusCode());
+        verify(paymentIntentRepository, never()).save(any());
     }
 
     @Test

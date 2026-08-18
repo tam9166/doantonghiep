@@ -128,7 +128,7 @@ const filterUser = ref('');
 const filterAction = ref('');
 const filterEntity = ref('');
 
-const getToken = () => localStorage.getItem('token');
+const getToken = () => localStorage.getItem('staff_token') || localStorage.getItem('token');
 const configHeader = () => ({ headers: { 'Authorization': `Bearer ${getToken()}` } });
 
 const fetchLogs = async () => {

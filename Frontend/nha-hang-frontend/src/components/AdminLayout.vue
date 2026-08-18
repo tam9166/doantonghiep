@@ -28,6 +28,10 @@
             <span class="nav-icon">📊</span>
             <span class="nav-label" v-if="!sidebarCollapsed">Thống kê</span>
           </router-link>
+          <router-link to="/admin/ai-knowledge" class="nav-item" active-class="active">
+            <span class="nav-icon">🧠</span>
+            <span class="nav-label" v-if="!sidebarCollapsed">Tri thức AI</span>
+          </router-link>
         </div>
 
         <div class="nav-section">
@@ -224,12 +228,16 @@ const moduleSearch = ref('')
 const adminModules = [
   { keywords: 'sản phẩm món ăn menu', route: '/admin' },
   { keywords: 'danh mục category', route: '/admin/categories' },
-  { keywords: 'đơn hàng order', route: '/admin/orders' },
+  { keywords: 'đơn hàng order hóa đơn lịch sử khách đặt hàng', route: '/admin/orders' },
   { keywords: 'đặt bàn reservation booking khách hàng', route: '/admin/reservations' },
-  { keywords: 'bàn khu vực sơ đồ table area', route: '/admin/tables' },
-  { keywords: 'nhân viên staff', route: '/admin/staff' },
-  { keywords: 'nguyên liệu kho inventory', route: '/admin/ingredients' },
-  { keywords: 'thống kê analytics', route: '/admin/analytics' }
+  { keywords: 'lịch sử khách đặt bàn customer history', route: '/admin/customer-history' },
+  { keywords: 'bàn sơ đồ table', route: '/admin/tables' },
+  { keywords: 'khu vực bàn tầng phòng sảnh table area', route: '/admin/table-areas' },
+  { keywords: 'nhân viên staff tài khoản nhân sự ca làm lương', route: '/admin/staff' },
+  { keywords: 'nguyên liệu kho inventory tồn kho nhập hàng', route: '/admin/ingredients' },
+  { keywords: 'món hay dùng món bán chạy popular items', route: '/admin/popular-items' },
+  { keywords: 'đề xuất mua hàng nhập kho purchase suggestions', route: '/admin/purchase-suggestions' },
+  { keywords: 'thống kê analytics doanh thu lợi nhuận', route: '/admin/analytics' }
 ]
 const normalizeSearch = (value) => value
   .toLocaleLowerCase('vi-VN')
@@ -248,7 +256,7 @@ const showNotifPanel = ref(false)
 const bellAnimating = ref(false)
 let notifInterval = null
 
-const getToken = () => localStorage.getItem('token')
+const getToken = () => localStorage.getItem('staff_token') || localStorage.getItem('token')
 const configHeader = () => ({ headers: { 'Authorization': `Bearer ${getToken()}` } })
 
 const fetchNotifications = async () => {
@@ -346,6 +354,8 @@ function goToSearchResult() {
 
 function handleLogout() {
   if (confirm('Bạn có chắc muốn đăng xuất?')) {
+    localStorage.removeItem('staff_token')
+    localStorage.removeItem('staff_user')
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     router.push('/staff-login')

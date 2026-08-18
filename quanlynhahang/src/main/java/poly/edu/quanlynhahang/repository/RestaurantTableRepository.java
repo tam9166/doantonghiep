@@ -24,4 +24,8 @@ public interface RestaurantTableRepository extends JpaRepository<RestaurantTable
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select t from RestaurantTable t where t.id in :ids order by t.id")
     List<RestaurantTable> findLockedByIdIn(@Param("ids") Collection<Integer> ids);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select t from RestaurantTable t where t.areaId = :areaId and t.active = true order by t.displayOrder, t.name")
+    List<RestaurantTable> findLockedActiveByAreaId(@Param("areaId") Integer areaId);
 }

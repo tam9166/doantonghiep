@@ -496,7 +496,7 @@ const markReady = async (id) => {
     fetchOrders();
     showToast('✅ Đã báo phục vụ: Bàn #' + id);
   } catch (err) {
-    alert(apiErrorMessage(err, 'Không thể hoàn thành đơn lúc này.'));
+    showToast(apiErrorMessage(err, 'Không thể hoàn thành đơn lúc này.'));
   }
 };
 
@@ -509,7 +509,7 @@ const markDishReady = async (detailId) => {
     fetchOrders();
     showToast('✅ Món đã xong, báo phục vụ bưng!');
   } catch (err) {
-    alert(apiErrorMessage(err, 'Không thể cập nhật món lúc này.'));
+    showToast(apiErrorMessage(err, 'Không thể cập nhật món lúc này.'));
   }
 };
 
@@ -519,7 +519,7 @@ const startDish = async (detailId) => {
     showToast('🔥 Đã bắt đầu chế biến món.');
     fetchOrders();
   } catch (err) {
-    alert(err.response?.data?.message || 'Không thể bắt đầu chế biến món.');
+    showToast(err.response?.data?.message || 'Không thể bắt đầu chế biến món.');
   }
 };
 
@@ -531,7 +531,7 @@ const cancelDish = async (detailId) => {
     showToast('Đã hủy món và báo phục vụ.');
     fetchOrders();
   } catch (err) {
-    alert(err.response?.data?.message || 'Không thể hủy món.');
+    showToast(err.response?.data?.message || 'Không thể hủy món.');
   }
 };
 
@@ -559,7 +559,7 @@ const aggregatedDishes = computed(() => {
 const analyzeDishes = async () => {
   const dishes = Object.values(aggregatedDishes.value).map(g => `${g.name} (SL: ${g.totalQuantity})`).join(', ');
   if (!dishes) {
-    alert('Không có món nào chờ nấu!');
+    showToast('Không có món nào chờ nấu!');
     return;
   }
   
@@ -590,7 +590,7 @@ const markGroupReady = async (details) => {
     aiResponse.value = '';
     showToast('✅ Đã báo phục vụ bưng các món gộp!');
   } catch (err) {
-    alert('Lỗi cập nhật!');
+    showToast('Lỗi cập nhật!');
   }
 };
 
@@ -600,7 +600,7 @@ const startCooking = async (id) => {
     toastMsg.value = '🔥 Đang nấu...';
     setTimeout(() => { toastMsg.value = ''; }, 2500);
     fetchOrders();
-  } catch (err) { alert('Lỗi cập nhật trạng thái!'); }
+  } catch (err) { showToast('Lỗi cập nhật trạng thái!'); }
 };
 
 const toggleAvailable = async (product) => {
@@ -612,7 +612,7 @@ const toggleAvailable = async (product) => {
     setTimeout(() => { toastMsg.value = ''; }, 3000);
     fetchProducts();
     } catch (error) {
-      alert("Lỗi khi cập nhật trạng thái món ăn!");
+    showToast("Lỗi khi cập nhật trạng thái món ăn!");
       product.available = originalState; // revert if error
     }
 };
@@ -624,7 +624,7 @@ const viewRecipeDetails = async (product) => {
     currentProductRecipes.value = res.data;
     showRecipeModal.value = true;
   } catch (err) {
-    alert("Không thể tải công thức món ăn!");
+    showToast("Không thể tải công thức món ăn!");
   }
 };
 

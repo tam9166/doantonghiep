@@ -85,7 +85,7 @@ const loading = ref(false);
 const detailLoading = ref(false);
 
 const authHeader = () => ({
-  headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+  headers: { Authorization: `Bearer ${localStorage.getItem('staff_token') || localStorage.getItem('token')}` }
 });
 
 const filteredHistory = computed(() => {

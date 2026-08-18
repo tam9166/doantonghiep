@@ -66,6 +66,9 @@ class ReservationServiceTest {
                 new ReservationStateMachine(),
                 mock(PaymentCapabilityService.class),
                 orderCheckoutService,
+                mock(AutoTableAssignmentService.class),
+                mock(RestaurantCapacityService.class),
+                mock(RestaurantSettingsService.class),
                 new BigDecimal("0.50"), 15, 15);
     }
 

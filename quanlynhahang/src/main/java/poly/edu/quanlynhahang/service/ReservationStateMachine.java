@@ -23,6 +23,14 @@ public class ReservationStateMachine {
             ReservationStatus.NO_SHOW);
 
     static {
+        allow(ReservationStatus.WAITING_TABLE_ASSIGNMENT,
+                ReservationStatus.CONFIRMED,
+                ReservationStatus.DEPOSIT_REQUIRED,
+                ReservationStatus.DEPOSIT_PAID,
+                ReservationStatus.FULLY_PAID,
+                ReservationStatus.REJECTED,
+                ReservationStatus.CANCELLED,
+                ReservationStatus.EXPIRED);
         allow(ReservationStatus.PENDING,
                 ReservationStatus.CONFIRMED,
                 ReservationStatus.DEPOSIT_REQUIRED,

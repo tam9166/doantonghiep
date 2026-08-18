@@ -65,7 +65,7 @@ const replyDrafts = ref({});
 const loading = ref(false);
 
 const authHeader = () => ({
-  headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+  headers: { Authorization: `Bearer ${localStorage.getItem('staff_token') || localStorage.getItem('token')}` }
 });
 
 const visibleCount = computed(() => reviews.value.filter(review => !review.hidden).length);

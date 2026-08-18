@@ -77,11 +77,13 @@ public class TableAreaController {
     }
 
     private void applyRequest(TableArea area, TableAreaUpsertRequest request) {
+        if (request.minGuestCount() != null && request.maxGuestCount() != null && request.minGuestCount() > request.maxGuestCount()) throw new IllegalArgumentException("Sức chứa tối thiểu không được lớn hơn tối đa");
         area.setNameVi(request.nameVi().trim());
         area.setNameEn(request.nameEn());
         area.setDescriptionVi(request.descriptionVi());
         area.setDescriptionEn(request.descriptionEn());
         area.setImageUrl(request.imageUrl());
+        area.setGallery(cleanList(request.gallery(), 20));
         area.setBasePrice(request.basePrice() == null ? java.math.BigDecimal.ZERO : request.basePrice());
         area.setCapacity(request.capacity() == null ? 0 : request.capacity());
         area.setStatus(request.status() == null || request.status().isBlank() ? "ACTIVE" : request.status());
@@ -91,5 +93,9 @@ public class TableAreaController {
         area.setMinBookingHours(request.minBookingHours() == null ? 2 : request.minBookingHours());
         area.setHourlyRate(request.hourlyRate() == null ? java.math.BigDecimal.ZERO : request.hourlyRate());
         area.setPackagePrice(request.packagePrice() == null ? java.math.BigDecimal.ZERO : request.packagePrice());
+        area.setMaxTables(request.maxTables());
+        area.setDefaultGuestsPerTable(request.defaultGuestsPerTable() == null ? 10 : request.defaultGuestsPerTable());
+        area.setSuitableEventTypes(cleanList(request.suitableEventTypes(), 20));
     }
+    private java.util.List<String> cleanList(java.util.List<String> values,int max){if(values==null)return new java.util.ArrayList<>();return values.stream().filter(java.util.Objects::nonNull).map(String::trim).filter(v->!v.isBlank()).distinct().limit(max).toList();}
 }

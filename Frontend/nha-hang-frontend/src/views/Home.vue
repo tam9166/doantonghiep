@@ -287,6 +287,8 @@
           <div v-for="(msg, i) in supportMessages" :key="i" :class="['chat-msg', msg.type, { 'msg-booking': msg.isTableBooking, 'msg-menu': msg.isMenuLink }]">
             <template v-if="!msg.isTableBooking && !msg.isMenuLink">
               {{ msg.text }}
+              <div v-if="msg.type === 'bot' && msg.interactionId && !msg.feedback" class="ai-feedback"><button @click="sendAiFeedback(msg, true)">👍</button><button @click="sendAiFeedback(msg, false)">👎</button></div>
+              <small v-else-if="msg.feedback">Cảm ơn Quý khách đã đánh giá.</small>
             </template>
             <template v-else-if="msg.isMenuLink">
               <div class="menu-link-widget">
@@ -296,38 +298,9 @@
             </template>
             <template v-else>
               <div class="booking-widget">
-                <div v-if="!msg.bookingState.tableConfirmed">
-                  <p>Các bàn trống phù hợp yêu cầu của bạn:</p>
-                  <div class="b-table-list">
-                    <div v-for="t in msg.bookingState.tables" :key="t.id" class="b-table-card">
-                      <strong>{{ t.name }}</strong> ({{ t.capacity }} người)<br>
-                      <span>{{ t.description }}</span>
-                      <button @click="selectBookingTable(msg, t)" class="b-btn-small">Chọn bàn này</button>
-                    </div>
-                    <div v-if="msg.bookingState.tables.length === 0" style="color: var(--danger); font-size:0.8rem">Không tìm thấy bàn trống phù hợp!</div>
-                  </div>
-                </div>
-                
-                <div v-else-if="!msg.bookingState.paymentMethod">
-                  <p>Đã chọn: <strong>{{ msg.bookingState.selectedTable.name }}</strong></p>
-                  <div class="b-actions">
-                    <button @click="choosePaymentMethod(msg, 'cọc')" class="b-btn">Chỉ đặt bàn (Cọc 100K)</button>
-                    <button @click="choosePaymentMethod(msg, 'món')" class="b-btn-outline">Đặt món trước</button>
-                  </div>
-                </div>
-
-                <div v-else-if="msg.bookingState.paymentMethod === 'cọc' && !msg.bookingState.paid" class="b-success">
-                  <p>Tiếp tục trong quy trình đặt bàn an toàn để nhận báo giá, chính sách cọc và QR riêng.</p>
-                  <button @click="continueSecureReservation" class="b-btn">Tiếp tục đặt bàn</button>
-                </div>
-
-                <div v-else-if="msg.bookingState.paymentMethod === 'món'" class="b-success">
-                  <p>Đã lưu bàn. Đang chuyển tới Thực Đơn...</p>
-                </div>
-
-                <div v-else-if="msg.bookingState.paid" class="b-success">
-                  ✅ Đặt bàn thành công!<br>Mã đơn: <strong>#{{ msg.bookingState.orderCode }}</strong>
-                </div>
+                <p>🗓️ <strong>{{ msg.bookingState.time }}</strong> • 👥 {{ msg.bookingState.pax }} khách • 📍 {{ msg.bookingState.view }}</p>
+                <p>Nhà hàng sẽ tự động sắp xếp bàn phù hợp. Với đoàn đông, nhân viên sẽ xác nhận phương án ghép bàn.</p>
+                <button @click="continueSecureReservation" class="b-btn">Tiếp tục đặt bàn</button>
               </div>
             </template>
           </div>
@@ -554,6 +527,7 @@ const supportMessages = ref([
 const supportChatBody = ref(null);
 
 const isSupportTyping = ref(false);
+const supportSessionId = ref(sessionStorage.getItem('support_ai_session') || '');
 
 const toggleSupportChat = () => {
   showSupportChat.value = !showSupportChat.value;
@@ -588,8 +562,13 @@ const sendSupportMessage = async () => {
       message: text,
       type: 'SUPPORT',
       history: historyStr,
-      locale: locale.value
+      locale: locale.value,
+      sessionId: supportSessionId.value || null
     });
+    if (res.data.sessionId) {
+      supportSessionId.value = res.data.sessionId;
+      sessionStorage.setItem('support_ai_session', res.data.sessionId);
+    }
     
     let reply = res.data.reply || '';
     
@@ -606,47 +585,21 @@ const sendSupportMessage = async () => {
       const pax = parseInt(match[2]);
       const view = match[3];
 
-      // Fetch tables
-      const tRes = await api.get('/api/tables');
-      
-      const available = tRes.data.filter(t => {
-        if (t.isOccupied !== 0) return false;
-        if (t.capacity && t.capacity < pax) return false; // Sức chứa phải >= số người
-        
-        // Nếu khách yêu cầu view cụ thể (phố, sông, sân vườn)
-        if (view && view.toLowerCase() !== 'không' && view.toLowerCase() !== 'none') {
-           // Nếu bàn không có viewType hoặc không khớp từ khóa view
-           const v = view.toLowerCase();
-           if (!t.viewType || (!t.viewType.toLowerCase().includes('phố') && v.includes('phố')) && (!t.viewType.toLowerCase().includes('sông') && v.includes('sông')) && (!t.viewType.toLowerCase().includes('vườn') && v.includes('vườn'))) {
-             // Bỏ qua lọc view khắt khe để tránh báo hết bàn nếu AI phân tích sai, nhưng nếu AI bảo rõ view thì ưu tiên lọc
-             if (t.viewType) {
-               return t.viewType.toLowerCase().includes(v.replace('view ', ''));
-             }
-           }
-        }
-        return true;
-      });
-
       supportMessages.value.push({ 
         type: 'bot', 
         isTableBooking: true,
         bookingState: {
           time, pax, view,
-          tables: available.slice(0, 3), // Show max 3 tables
-          tableConfirmed: false,
-          selectedTable: null,
-          paymentMethod: null,
-          guestName: '', guestPhone: '',
-          paid: false, orderCode: ''
+          tableConfirmed: false
         }
       });
     } else if (menuMatch) {
       // Remove the tag from the text
       const cleanReply = reply.replace(menuRegex, '').trim();
-      supportMessages.value.push({ type: 'bot', text: cleanReply });
+      supportMessages.value.push({ type: 'bot', text: cleanReply, interactionId: res.data.interactionId });
       supportMessages.value.push({ type: 'bot', isMenuLink: true });
     } else {
-      supportMessages.value.push({ type: 'bot', text: reply });
+      supportMessages.value.push({ type: 'bot', text: reply, interactionId: res.data.interactionId });
     }
   } catch (err) {
     supportMessages.value.push({ type: 'bot', text: 'Xin lỗi, AI hiện đang mất kết nối. Vui lòng gọi Hotline để được hỗ trợ!' });
@@ -656,29 +609,12 @@ const sendSupportMessage = async () => {
   }
 };
 
-const selectBookingTable = (msg, table) => {
-  msg.bookingState.selectedTable = table;
-  msg.bookingState.tableConfirmed = true;
-  scrollToBottomSupport();
-};
-
-const choosePaymentMethod = (msg, method) => {
-  msg.bookingState.paymentMethod = method;
-  if (method === 'món') {
-    localStorage.setItem('bookedTable', JSON.stringify({
-      id: msg.bookingState.selectedTable.id,
-      name: msg.bookingState.selectedTable.name,
-      time: msg.bookingState.time
-    }));
-    setTimeout(() => {
-      router.push('/dine-in');
-    }, 1500);
-  }
-  scrollToBottomSupport();
-};
-
 const continueSecureReservation = () => {
   router.push('/reservation');
+};
+const sendAiFeedback = async (msg, helpful) => {
+  await api.post('/api/ai/feedback', { interactionId: msg.interactionId, sessionId: supportSessionId.value, helpful, comment: '' });
+  msg.feedback = true;
 };
 
 // === INTERVIEW CHATBOT ===

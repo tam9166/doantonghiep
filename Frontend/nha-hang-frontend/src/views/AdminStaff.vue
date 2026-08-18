@@ -646,7 +646,7 @@ const salaryMonth = ref(todayStr.slice(0, 7)); // YYYY-MM
 const salaryList = ref([]);
 
 const configHeader = () => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('staff_token') || localStorage.getItem('token');
   return { headers: { Authorization: 'Bearer ' + token } };
 };
 

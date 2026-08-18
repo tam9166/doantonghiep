@@ -28,7 +28,9 @@ public record RestaurantTableUpsertRequest(
         Boolean privateRoom,
         Boolean childFriendly,
         Boolean active,
-        @Size(max = 500) String imageUrl) {
+        @Size(max = 500) String imageUrl,
+        @Min(0) Integer displayOrder,
+        @Size(max = 500) String notes) {
 
     public RestaurantTable toNewEntity() {
         RestaurantTable table = new RestaurantTable();
@@ -50,6 +52,8 @@ public record RestaurantTableUpsertRequest(
         table.setViewType(trimToNull(viewType));
         table.setPositionDescription(trimToNull(positionDescription));
         table.setImageUrl(trimToNull(imageUrl));
+        table.setDisplayOrder(displayOrder == null ? (table.getDisplayOrder() == null ? 0 : table.getDisplayOrder()) : displayOrder);
+        table.setNotes(trimToNull(notes));
         table.setHasView(hasView == null ? Boolean.TRUE.equals(windowSeat) || viewType != null : hasView);
         table.setWindowSeat(windowSeat == null ? Boolean.TRUE.equals(table.getHasView()) : windowSeat);
         table.setPrivateRoom(privateRoom == null

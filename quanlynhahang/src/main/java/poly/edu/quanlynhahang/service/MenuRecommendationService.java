@@ -7,11 +7,15 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.text.Normalizer;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 import poly.edu.quanlynhahang.dto.MenuRecommendationItemResponse;
+import poly.edu.quanlynhahang.dto.MenuRecommendationRequest;
 import poly.edu.quanlynhahang.entity.CookingMethod;
 import poly.edu.quanlynhahang.entity.DietType;
 import poly.edu.quanlynhahang.entity.Product;
@@ -27,10 +31,81 @@ public class MenuRecommendationService {
     private static final int MAX_SUGGESTIONS = 5;
 
     private final ProductRepository productRepository;
+    private final HotMenuItemService hotMenuItemService;
 
     public MenuRecommendationService(ProductRepository productRepository) {
-        this.productRepository = productRepository;
+        this(productRepository, null);
     }
+
+    @Autowired
+    public MenuRecommendationService(ProductRepository productRepository, HotMenuItemService hotMenuItemService) {
+        this.productRepository = productRepository;
+        this.hotMenuItemService = hotMenuItemService;
+    }
+
+    @Transactional(readOnly = true)
+    public List<MenuRecommendationItemResponse> recommend(MenuRecommendationRequest request) {
+        List<Integer> selected = request.productIds();
+        Set<Integer> selectedIds = selected.stream().filter(Objects::nonNull)
+                .collect(java.util.stream.Collectors.toSet());
+        Set<String> preferences = request.preferences() == null ? Set.of() : request.preferences().stream()
+                .filter(Objects::nonNull).map(this::normalize).collect(java.util.stream.Collectors.toSet());
+        if (preferences.isEmpty() && request.maxBudget() == null) return recommend(selected);
+
+        BigDecimal perDishBudget = calculatePerDishBudget(request.maxBudget(), request.guestCount());
+
+        List<Integer> hotIds;
+        try {
+            hotIds = hotMenuItemService == null ? List.of() : hotMenuItemService.getHotMenuItems(50).stream()
+                    .map(item -> item.productId()).toList();
+        } catch (RuntimeException unavailableRanking) {
+            hotIds = List.of();
+        }
+        List<Integer> finalHotIds = hotIds;
+        boolean vegetarian = preferences.stream().anyMatch(value -> value.contains("chay") || value.contains("vegetarian"));
+        List<MenuRecommendationItemResponse> preferenceMatches = productRepository.findByAvailableTrueAndStatusTrue().stream()
+                .filter(product -> product.getId() != null && !selectedIds.contains(product.getId()))
+                .filter(product -> !vegetarian || product.getDietType() == DietType.CHAY)
+                .filter(product -> isWithinBudget(product, perDishBudget))
+                .map(product -> new RankedProduct(product, preferenceScore(product, preferences, finalHotIds)))
+                .filter(ranked -> preferences.isEmpty() || ranked.score() > 0)
+                .sorted(Comparator.comparingInt(RankedProduct::score).reversed()
+                        .thenComparing(ranked -> ranked.product().getId()))
+                .map(ranked -> MenuRecommendationItemResponse.from(ranked.product(), "PREFERENCE_MATCH"))
+                .toList();
+
+        LinkedHashMap<Integer, MenuRecommendationItemResponse> combined = new LinkedHashMap<>();
+        preferenceMatches.forEach(item -> combined.putIfAbsent(item.productId(), item));
+        recommend(selected).stream()
+                .filter(item -> perDishBudget == null || item.price() == null || item.price().compareTo(perDishBudget) <= 0)
+                .forEach(item -> combined.putIfAbsent(item.productId(), item));
+        return combined.values().stream().limit(MAX_SUGGESTIONS).toList();
+    }
+
+    private BigDecimal calculatePerDishBudget(BigDecimal maxBudget, Integer guestCount) {
+        if (maxBudget == null) return null;
+        int estimatedDishCount = Math.max(1, Math.min(MAX_SUGGESTIONS,
+                (int) Math.ceil((guestCount == null ? 2 : guestCount) / 2.0)));
+        return maxBudget.divide(BigDecimal.valueOf(estimatedDishCount), 0, RoundingMode.DOWN);
+    }
+
+    private boolean isWithinBudget(Product product, BigDecimal perDishBudget) {
+        return perDishBudget == null || product.getPrice() == null || product.getPrice().compareTo(perDishBudget) <= 0;
+    }
+
+    private int preferenceScore(Product product, Set<String> preferences, List<Integer> hotIds) {
+        String searchable = categoryAndName(product);
+        int score = Boolean.TRUE.equals(product.getIsSignatureDish()) && preferences.contains("signature") ? 35 : 0;
+        if (preferences.contains("hot") && hotIds.contains(product.getId())) score += 30 - Math.min(20, hotIds.indexOf(product.getId()));
+        if ((preferences.contains("chay") || preferences.contains("vegetarian")) && product.getDietType() == DietType.CHAY) score += 50;
+        if ((preferences.contains("nuong") || preferences.contains("grilled")) && product.getCookingMethod() == CookingMethod.NUONG) score += 45;
+        if ((preferences.contains("hap") || preferences.contains("steamed")) && product.getCookingMethod() == CookingMethod.HAP) score += 40;
+        if ((preferences.contains("it cay") || preferences.contains("khong cay")) && (product.getSpicyLevel() == null || product.getSpicyLevel() <= 1)) score += 35;
+        for (String preference : preferences) if (searchable.contains(preference)) score += 20;
+        return score;
+    }
+
+    private record RankedProduct(Product product, int score) {}
 
     @Transactional(readOnly = true)
     public List<MenuRecommendationItemResponse> recommend(List<Integer> requestedProductIds) {

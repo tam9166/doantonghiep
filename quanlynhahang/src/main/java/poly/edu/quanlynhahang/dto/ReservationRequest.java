@@ -41,7 +41,7 @@ public class ReservationRequest {
     private String seatingPreference;
     @Positive
     private Integer areaId;
-    @NotNull @Positive
+    @Positive
     private Integer tableId;
     @Size(max = 4)
     private List<@NotNull @Positive Integer> tableIds;

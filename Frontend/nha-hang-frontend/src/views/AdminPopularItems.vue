@@ -134,7 +134,7 @@ const period = ref('week');
 const topProducts = ref([]);
 const topIngredients = ref([]);
 
-const getToken = () => localStorage.getItem('token');
+const getToken = () => localStorage.getItem('staff_token') || localStorage.getItem('token');
 const configHeader = () => ({ headers: { 'Authorization': `Bearer ${getToken()}` } });
 
 const fetchData = async () => {

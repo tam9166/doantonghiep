@@ -87,7 +87,8 @@
               <td>
                 <div class="row-actions">
                   <button v-if="item.reservationStatus === 'PENDING'" type="button" @click="confirmReservation(item)">Xác nhận</button>
-                  <button v-if="item.reservationStatus === 'PENDING'" type="button" class="danger" @click="rejectReservation(item)">Từ chối</button>
+                  <button v-if="item.reservationStatus === 'WAITING_TABLE_ASSIGNMENT'" type="button" @click="openAssignment(item)">Bố trí bàn</button>
+                  <button v-if="['PENDING','WAITING_TABLE_ASSIGNMENT'].includes(item.reservationStatus)" type="button" class="danger" @click="rejectReservation(item)">Từ chối</button>
                   <button v-if="['DEPOSIT_REQUIRED','DEPOSIT_PENDING'].includes(item.reservationStatus)" type="button" @click="markDeposit(item)">Đã cọc</button>
                   <button v-if="['CONFIRMED','DEPOSIT_REQUIRED','DEPOSIT_PENDING','DEPOSIT_PAID','FULLY_PAID'].includes(item.reservationStatus)" type="button" @click="checkIn(item)">Check-in</button>
                   <button v-if="!['CANCELLED','REJECTED','COMPLETED'].includes(item.reservationStatus)" type="button" class="ghost" @click="cancelReservation(item)">Hủy</button>
@@ -169,7 +170,7 @@
           </header>
           <div class="detail-grid">
             <div><span>Khách</span><strong>{{ selected.customerName }}</strong></div>
-            <div><span>SĐT</span><strong>{{ selected.customerPhone }}</strong></div>
+            <div><span>SĐT</span><strong><a :href="`tel:${selected.customerPhone}`">{{ selected.customerPhone }}</a></strong></div>
             <div><span>Email</span><strong>{{ selected.customerEmail || '-' }}</strong></div>
             <div><span>Ngày giờ</span><strong>{{ selected.reservationDate }} {{ selected.arrivalTime }}</strong></div>
             <div><span>Dịp</span><strong>{{ selected.occasion || '-' }}</strong></div>
@@ -178,12 +179,45 @@
             <div><span>Hình thức thanh toán</span><strong>{{ paymentOptionText(selected.paymentOption) }}</strong></div>
             <div><span>Tiền bàn</span><strong>{{ money(selected.tableAmount) }}</strong></div>
             <div><span>Tiền món</span><strong>{{ money(selected.foodAmount) }}</strong></div>
-            <div><span>Cần thanh toán</span><strong>{{ money(selected.depositAmount) }}</strong></div>
+            <div><span>Tiền cọc yêu cầu</span><strong>{{ money(selected.depositAmount) }}</strong></div>
+            <div><span>Đã thanh toán</span><strong>{{ money(selected.paidAmount) }}</strong></div>
+            <div><span>Cần thanh toán ngay</span><strong>{{ money(selected.amountDueNow) }}</strong></div>
             <div><span>Còn lại</span><strong>{{ money(selected.remainingAmount) }}</strong></div>
             <div><span>Trạng thái thanh toán</span><strong>{{ paymentStatusText(selected.paymentStatus) }}</strong></div>
             <div><span>Lý do từ chối</span><strong>{{ selected.rejectedReason || '-' }}</strong></div>
             <div><span>Ghi chú nội bộ</span><strong>{{ selected.managerNote || '-' }}</strong></div>
+            <div><span>Trạng thái gọi</span><strong>{{ contactStatusText(selected.contactStatus) }}</strong></div>
+            <div><span>Người gọi</span><strong>{{ selected.contactCalledBy || '-' }}</strong></div>
+            <div><span>Thời gian gọi</span><strong>{{ formatDateTime(selected.contactCalledAt) || '-' }}</strong></div>
+            <div><span>Ghi chú cuộc gọi</span><strong>{{ selected.contactCallNote || '-' }}</strong></div>
+            <div><span>Email biên nhận</span><strong>{{ selected.receiptEmailStatus || 'NOT_SENT' }}</strong></div>
+            <div><span>Gửi lúc</span><strong>{{ formatDateTime(selected.receiptEmailSentAt) || '-' }}</strong></div>
           </div>
+          <div class="detail-actions">
+            <a class="ghost" :href="`tel:${selected.customerPhone}`">Gọi khách</a>
+            <button type="button" @click="updateContact(selected, 'CONFIRMED_BY_CUSTOMER')">Khách xác nhận</button>
+            <button type="button" @click="updateContact(selected, 'UNREACHABLE')">Không liên lạc được</button>
+            <button type="button" @click="updateContact(selected, 'CHANGE_REQUESTED')">Yêu cầu thay đổi</button>
+            <button type="button" class="ghost" @click="updateContact(selected, 'NOT_REQUIRED')">Không cần gọi</button>
+            <button type="button" class="ghost" @click="resendReceipt(selected)">Gửi lại biên nhận</button>
+          </div>
+          <section v-if="selected.reservationStatus === 'WAITING_TABLE_ASSIGNMENT'" class="assignment-box">
+            <h3>Bố trí bàn cho {{ selected.guestCount }} khách</h3>
+            <p>Hệ thống chỉ đề xuất; quản lý xác nhận phương án cuối cùng.</p>
+            <div v-if="assignmentLoading">Đang kiểm tra bàn trống...</div>
+            <template v-else-if="assignmentOptions">
+              <div class="recommendations">
+                <button v-for="(option,index) in assignmentOptions.recommendedOptions || []" :key="option.join('-')" type="button" class="option-card" @click="selectOption(option)"><strong>Phương án {{ index + 1 }}</strong><span>{{ optionNames(option) }}</span><small>Tổng {{ optionCapacity(option) }} chỗ</small></button>
+              </div>
+              <h4>Chọn bàn thủ công</h4>
+              <div class="manual-tables">
+                <label v-for="table in assignmentOptions.availableTables" :key="table.tableId" :class="{ chosen: assignedTableIds.includes(table.tableId) }"><input v-model="assignedTableIds" type="checkbox" :value="table.tableId"><span><strong>{{ table.tableName }}</strong><small>{{ table.capacity }} chỗ · {{ table.floor || selected.areaName }}</small></span></label>
+              </div>
+              <p :class="{ 'capacity-error': selectedCapacity < selected.guestCount }">Đã chọn {{ assignedTableIds.length }} bàn · {{ selectedCapacity }}/{{ selected.guestCount }} chỗ</p>
+              <textarea v-model="assignmentNote" rows="2" maxlength="500" placeholder="Ghi chú phương án bố trí"></textarea>
+              <button type="button" :disabled="savingAssignment || selectedCapacity < selected.guestCount" @click="confirmAssignment">{{ savingAssignment ? 'Đang lưu...' : 'Xác nhận phương án bàn' }}</button>
+            </template>
+          </section>
           <h3>Món đặt trước</h3>
           <div v-if="selected.preorderItems?.length" class="preorder-list">
             <div v-for="dish in selected.preorderItems" :key="dish.id" class="preorder-row">
@@ -230,13 +264,19 @@ const keyword = ref('')
 const statusFilter = ref('')
 const selected = ref(null)
 const realtimeMessage = ref('')
+const assignmentOptions = ref(null)
+const assignedTableIds = ref([])
+const assignmentNote = ref('')
+const assignmentLoading = ref(false)
+const savingAssignment = ref(false)
 let stompClient = null
 let realtimeTimer = null
 let keywordTimer = null
 
-const statuses = ['PENDING', 'CONFIRMED', 'DEPOSIT_REQUIRED', 'DEPOSIT_PENDING', 'DEPOSIT_PAID', 'FULLY_PAID', 'CHECKED_IN', 'IN_SERVICE', 'COMPLETED', 'CANCELLED', 'REJECTED', 'NO_SHOW', 'EXPIRED']
+const statuses = ['PENDING', 'WAITING_TABLE_ASSIGNMENT', 'CONFIRMED', 'DEPOSIT_REQUIRED', 'DEPOSIT_PENDING', 'DEPOSIT_PAID', 'FULLY_PAID', 'CHECKED_IN', 'IN_SERVICE', 'COMPLETED', 'CANCELLED', 'REJECTED', 'NO_SHOW', 'EXPIRED']
 const groups = [
   { key: 'PENDING', label: 'Yêu cầu mới' },
+  { key: 'WAITING_TABLE_ASSIGNMENT', label: 'Chờ bố trí bàn' },
   { key: 'DEPOSIT_REQUIRED', label: 'Cần cọc' },
   { key: 'DEPOSIT_PAID', label: 'Đã cọc' },
   { key: 'CHECKED_IN', label: 'Đã đến' },
@@ -257,6 +297,10 @@ function tableNames(reservation) {
   const names = (reservation.tables || []).map(table => table.tableName).filter(Boolean)
   return names.length ? names.join(' + ') : (reservation.tableName || 'Chưa xếp bàn')
 }
+const selectedCapacity = computed(() => (assignmentOptions.value?.availableTables || []).filter(t => assignedTableIds.value.includes(t.tableId)).reduce((sum, t) => sum + (t.capacity || 0), 0))
+function optionNames(ids) { return (assignmentOptions.value?.availableTables || []).filter(t => ids.includes(t.tableId)).map(t => t.tableName).join(' + ') }
+function optionCapacity(ids) { return (assignmentOptions.value?.availableTables || []).filter(t => ids.includes(t.tableId)).reduce((sum, t) => sum + (t.capacity || 0), 0) }
+function selectOption(ids) { assignedTableIds.value = [...ids] }
 
 watch(keywordInput, (value) => {
   if (keywordTimer) clearTimeout(keywordTimer)
@@ -278,6 +322,7 @@ const countByStatus = (status) => reservations.value.filter(item => item.reserva
 function statusText(status) {
   const map = {
     PENDING: 'Chờ xác nhận',
+    WAITING_TABLE_ASSIGNMENT: 'Chờ bố trí bàn',
     CONFIRMED: 'Đã xác nhận',
     DEPOSIT_REQUIRED: 'Cần thanh toán cọc',
     REJECTED: 'Từ chối',
@@ -306,11 +351,25 @@ function paymentOptionText(option) {
 function paymentStatusText(status) {
   const map = {
     PENDING: 'Chờ thanh toán',
+    UNPAID: 'Chưa thanh toán',
+    PARTIALLY_PAID: 'Đã thanh toán một phần',
     PAID: 'Đã thanh toán',
+    OVERPAID: 'Thanh toán dư',
     EXPIRED: 'Hết hạn',
     CANCELLED: 'Đã hủy'
   }
   return map[status] || status || '-'
+}
+
+function contactStatusText(status) {
+  return {
+    NOT_CALLED: 'Chưa gọi',
+    NEEDS_CONFIRMATION_CALL: 'Cần gọi xác nhận',
+    CONFIRMED_BY_CUSTOMER: 'Đã gọi – khách xác nhận',
+    UNREACHABLE: 'Không liên lạc được',
+    CHANGE_REQUESTED: 'Khách yêu cầu thay đổi',
+    NOT_REQUIRED: 'Không cần gọi'
+  }[status] || status || 'Chưa gọi'
 }
 
 function waitlistStatusText(status) {
@@ -377,8 +436,8 @@ function connectRealtime() {
   if (stompClient?.active) return
   stompClient = new Client({
     webSocketFactory: () => new SockJS('/ws'),
-    connectHeaders: localStorage.getItem('token')
-      ? { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    connectHeaders: localStorage.getItem('staff_token') || localStorage.getItem('token')
+      ? { Authorization: `Bearer ${localStorage.getItem('staff_token') || localStorage.getItem('token')}` }
       : {},
     reconnectDelay: 5000,
     onConnect: () => {
@@ -417,6 +476,41 @@ async function refreshDetail(item) {
   const idx = reservations.value.findIndex(r => r.id === item.id)
   if (idx >= 0) reservations.value[idx] = res.data
   selected.value = res.data
+}
+async function openAssignment(item) {
+  assignmentLoading.value = true
+  assignmentOptions.value = null
+  assignedTableIds.value = []
+  assignmentNote.value = ''
+  try {
+    await refreshDetail(item)
+    const { data } = await api.get(`/api/admin/reservations/${item.id}/assignment-options`)
+    assignmentOptions.value = data
+    if (data.recommendedOptions?.length) selectOption(data.recommendedOptions[0])
+  } finally { assignmentLoading.value = false }
+}
+async function confirmAssignment() {
+  if (!assignedTableIds.value.length || selectedCapacity.value < selected.value.guestCount) return
+  savingAssignment.value = true
+  try {
+    await api.patch(`/api/admin/reservations/${selected.value.id}/confirm`, { tableId: assignedTableIds.value[0], tableIds: assignedTableIds.value, areaId: selected.value.areaId, note: assignmentNote.value })
+    selected.value = null
+    await fetchReservations()
+  } finally { savingAssignment.value = false }
+}
+
+async function updateContact(item, status) {
+  const note = window.prompt('Ghi chú cuộc gọi:', item.contactCallNote || '')
+  if (note === null) return
+  const res = await api.patch(`/api/admin/reservations/${item.id}/contact-status`, { status, note })
+  selected.value = res.data
+  const idx = reservations.value.findIndex(reservation => reservation.id === item.id)
+  if (idx >= 0) reservations.value[idx] = res.data
+}
+
+async function resendReceipt(item) {
+  await api.post(`/api/admin/reservations/${item.id}/resend-receipt`)
+  window.setTimeout(() => refreshDetail(item), 800)
 }
 
 async function confirmReservation(item) {
@@ -776,6 +870,18 @@ td small {
   border-radius: 8px;
   padding: 12px;
 }
+
+.detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.detail-actions a {
+  text-decoration: none;
+}
+.assignment-box{margin:18px 0;padding:16px;border:1px solid #d7b56d;border-radius:10px;background:#fffaf0}.recommendations{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:10px 0 16px}.option-card{display:grid;text-align:left;gap:4px;background:#7a3e16}.option-card small{color:#fff}.manual-tables{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}.manual-tables label{display:flex;gap:8px;border:1px solid #cfc7a8;border-radius:8px;padding:10px;cursor:pointer}.manual-tables label.chosen{border-color:#7a3e16;background:#f7eee6}.manual-tables label span{display:grid}.manual-tables small{color:#7a7460}.assignment-box textarea{width:100%;padding:10px;border:1px solid #cfc7a8;border-radius:8px;margin:8px 0}.capacity-error{color:#b42318;font-weight:700}
 
 .detail-grid span {
   display: block;

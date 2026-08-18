@@ -8,6 +8,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import java.util.List;
 
 public record TableAreaUpsertRequest(
         @NotBlank @Size(max = 150) String nameVi,
@@ -15,6 +16,7 @@ public record TableAreaUpsertRequest(
         @Size(max = 500) String descriptionVi,
         @Size(max = 500) String descriptionEn,
         @Size(max = 500) String imageUrl,
+        @Size(max=20) List<@Size(max=500) String> gallery,
         @DecimalMin("0") BigDecimal basePrice,
         @Min(0) @Max(1000) Integer capacity,
         @Size(max = 30) String status,
@@ -23,5 +25,8 @@ public record TableAreaUpsertRequest(
         @Min(1) @Max(10000) Integer maxGuestCount,
         @Min(1) @Max(72) Integer minBookingHours,
         @DecimalMin("0") BigDecimal hourlyRate,
-        @DecimalMin("0") BigDecimal packagePrice) {
+        @DecimalMin("0") BigDecimal packagePrice,
+        @Min(1) @Max(500) Integer maxTables,
+        @Min(1) @Max(50) Integer defaultGuestsPerTable,
+        @Size(max=20) List<@Size(max=40) String> suitableEventTypes) {
 }
