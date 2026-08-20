@@ -96,16 +96,18 @@ public class ImportInvoiceController {
                 
                 ingredientBatchRepository.save(batch);
                 
-                totalAmount = totalAmount.add(batch.getUnitPrice()
-                        .multiply(BigDecimal.valueOf(batch.getQuantity())));
+                totalAmount = totalAmount.add(batch.getUnitPrice().multiply(batch.getQuantity()));
                 
                 // Cập nhật giá nhập mới nhất cho nguyên liệu
                 ing.setUnitPrice(batch.getUnitPrice());
                 // Cập nhật tồn kho
                 List<IngredientBatch> allBatches = ingredientBatchRepository.findByIngredientIdOrderByExpirationDateAsc(ing.getId());
-                double totalQty = allBatches.stream()
+                BigDecimal totalQty = allBatches.stream()
                         .filter(b -> b.getExpirationDate() == null || b.getExpirationDate().after(new Date()))
-                        .mapToDouble(IngredientBatch::getQuantity).sum() + batch.getQuantity();
+                        .map(IngredientBatch::getQuantity)
+                        .filter(java.util.Objects::nonNull)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add)
+                        .add(batch.getQuantity());
                 
                 ing.setQuantity(totalQty);
                 ingredientRepository.save(ing);

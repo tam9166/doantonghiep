@@ -1,6 +1,6 @@
 package poly.edu.quanlynhahang.repository;
 
-import java.util.Date;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -11,7 +11,7 @@ import poly.edu.quanlynhahang.entity.Timekeeping;
 
 @Repository
 public interface TimekeepingRepository extends JpaRepository<Timekeeping, Long> {
-    Optional<Timekeeping> findByAccountUsernameAndWorkDate(String username, Date workDate);
-    List<Timekeeping> findByWorkDateBetweenOrderByWorkDateAsc(Date startDate, Date endDate);
-    List<Timekeeping> findByAccountUsernameAndWorkDateBetweenOrderByWorkDateAsc(String username, Date startDate, Date endDate);
+    Optional<Timekeeping> findByAccountUsernameAndWorkDate(String username, LocalDate workDate);
+    List<Timekeeping> findByWorkDateBetweenOrderByWorkDateAsc(LocalDate startDate, LocalDate endDate);
+    List<Timekeeping> findByAccountUsernameAndWorkDateBetweenOrderByWorkDateAsc(String username, LocalDate startDate, LocalDate endDate);
 }

@@ -309,7 +309,7 @@ onMounted(fetchData)
 
 <style scoped>
 .deposit-page {
-  color: #201D14;
+  color: var(--text-primary);
 }
 
 .toolbar,
@@ -330,12 +330,12 @@ onMounted(fetchData)
 h1,
 h2 {
   margin: 0 0 6px;
-  color: #22301B;
+  color: var(--color-on-secondary-container);
 }
 
 p {
   margin: 0;
-  color: #7A7460;
+  color: var(--text-muted);
 }
 
 .content-grid {
@@ -349,7 +349,7 @@ p {
 .policy-list,
 .policy-card {
   background: #FFFFFF;
-  border: 1px solid #CFC7A8;
+  border: 1px solid var(--border);
   border-radius: 8px;
 }
 
@@ -368,13 +368,13 @@ label {
   display: grid;
   gap: 6px;
   font-weight: 800;
-  color: #55503E;
+  color: var(--text-secondary);
 }
 
 input,
 select {
   width: 100%;
-  border: 1px solid #CFC7A8;
+  border: 1px solid var(--border);
   border-radius: 8px;
   min-height: 40px;
   padding: 0 10px;
@@ -408,20 +408,20 @@ select {
 
 .primary-btn,
 .row-actions button {
-  border: 1px solid #33422A;
-  background: #33422A;
+  border: 1px solid var(--secondary);
+  background: var(--secondary);
   color: #FFFFFF;
 }
 
 .ghost-btn {
-  border: 1px solid #CFC7A8;
+  border: 1px solid var(--border);
   background: #FFFFFF;
-  color: #55503E;
+  color: var(--text-secondary);
 }
 
 .row-actions .danger {
-  border-color: #B23B2E;
-  background: #B23B2E;
+  border-color: var(--primary);
+  background: var(--primary);
 }
 
 button:disabled {
@@ -450,14 +450,14 @@ button:disabled {
 }
 
 .policy-main span {
-  color: #7A7460;
+  color: var(--text-muted);
   margin-top: 4px;
 }
 
 .priority {
   white-space: nowrap;
-  background: #E7E3D2;
-  color: #33422A;
+  background: var(--bg-hover);
+  color: var(--secondary);
   border-radius: 999px;
   padding: 5px 10px;
   font-weight: 900;
@@ -470,10 +470,10 @@ button:disabled {
 }
 
 .policy-meta span {
-  background: #DED8C2;
+  background: var(--bg-card2);
   border-radius: 8px;
   padding: 8px;
-  color: #55503E;
+  color: var(--text-secondary);
 }
 
 .error-box,
@@ -490,8 +490,8 @@ button:disabled {
 }
 
 .empty {
-  background: #DED8C2;
-  color: #7A7460;
+  background: var(--bg-card2);
+  color: var(--text-muted);
   text-align: center;
 }
 

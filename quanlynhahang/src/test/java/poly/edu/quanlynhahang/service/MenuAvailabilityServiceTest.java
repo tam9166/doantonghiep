@@ -1,5 +1,7 @@
 package poly.edu.quanlynhahang.service;
 
+import java.math.BigDecimal;
+
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -51,7 +53,7 @@ class MenuAvailabilityServiceTest {
 
     private Ingredient ingredient(double quantity) {
         Ingredient ingredient = new Ingredient();
-        ingredient.setQuantity(quantity);
+        ingredient.setQuantity(BigDecimal.valueOf(quantity));
         return ingredient;
     }
 
@@ -59,7 +61,7 @@ class MenuAvailabilityServiceTest {
         Recipe recipe = new Recipe();
         recipe.setProduct(product);
         recipe.setIngredient(ingredient);
-        recipe.setAmountRequired(amount);
+        recipe.setAmountRequired(BigDecimal.valueOf(amount));
         return recipe;
     }
 }

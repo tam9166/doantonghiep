@@ -137,7 +137,7 @@ const currentYear = new Date().getFullYear()
 }
 .footer-brand-icon {
   font-size: 2rem;
-  filter: drop-shadow(0 0 12px rgba(90, 110, 69, 0.5));
+  filter: drop-shadow(0 0 12px color-mix(in srgb, var(--secondary) 50%, transparent));
 }
 .footer-brand h3 {
   margin: 0;
@@ -176,8 +176,8 @@ const currentYear = new Date().getFullYear()
   transition: var(--transition);
 }
 .social-link:hover {
-  background: rgba(90, 110, 69, 0.1);
-  border-color: rgba(90, 110, 69, 0.3);
+  background: color-mix(in srgb, var(--secondary) 10%, transparent);
+  border-color: color-mix(in srgb, var(--secondary) 30%, transparent);
   color: var(--primary);
   transform: translateY(-3px);
 }
@@ -277,7 +277,7 @@ const currentYear = new Date().getFullYear()
 }
 .newsletter-btn:hover {
   background: var(--primary);
-  box-shadow: 0 0 20px rgba(90, 110, 69, 0.4);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--secondary) 40%, transparent);
 }
 
 /* Keep every footer label readable on the light footer background. */

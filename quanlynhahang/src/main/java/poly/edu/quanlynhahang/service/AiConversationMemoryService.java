@@ -95,7 +95,7 @@ public class AiConversationMemoryService {
 
     private Integer matchInt(Pattern pattern, String text, Integer fallback) {
         Matcher m = pattern.matcher(Optional.ofNullable(text).orElse(""));
-        return m.find() ? Integer.parseInt(m.group(1)) : fallback;
+        return m.find() ? Integer.valueOf(m.group(1)) : fallback;
     }
 
     private LocalTime matchTime(String text, LocalTime fallback) {
@@ -108,7 +108,7 @@ public class AiConversationMemoryService {
     private LocalDate matchDate(String text, LocalDate fallback, Instant now) {
         String s = normalize(text);
         // P0-3.5: Use injected clock instead of LocalDate.now()
-        LocalDate today = LocalDate.now(zoneId);
+        LocalDate today = LocalDate.ofInstant(now, zoneId);
         if (s.contains("ngay mai") || s.contains("toi mai")) return today.plusDays(1);
         if (s.contains("hom nay") || s.contains("toi nay")) return today;
         Matcher m = Pattern.compile("(\\d{1,2})[/-](\\d{1,2})(?:[/-](\\d{4}))?").matcher(s);
@@ -135,7 +135,9 @@ public class AiConversationMemoryService {
 
     private String normalize(String s) {
         return java.text.Normalizer.normalize(Optional.ofNullable(s).orElse(""),
-                java.text.Normalizer.Form.NFD).replaceAll("\\p{M}", "");
+                java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toLowerCase(Locale.ROOT);
     }
 
     public record Memory(String sessionId, Integer guestCount, LocalDate date,

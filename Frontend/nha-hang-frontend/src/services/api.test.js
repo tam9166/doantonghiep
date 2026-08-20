@@ -36,6 +36,18 @@ describe('internal API client', () => {
     expect(config.headers.Authorization).toBe('Bearer staff-token')
   })
 
+  it('never falls back to a customer token for a staff request', async () => {
+    localStorage.setItem('token', 'customer-token')
+
+    const config = await requestInterceptor()({
+      method: 'get',
+      url: '/api/admin/orders',
+      headers: {}
+    })
+
+    expect(config.headers.Authorization).toBeUndefined()
+  })
+
   it('never adds application credentials to an external absolute URL', async () => {
     localStorage.setItem('token', 'internal-token')
 

@@ -23,6 +23,7 @@ import poly.edu.quanlynhahang.entity.PaymentStatus;
 import poly.edu.quanlynhahang.entity.Recipe;
 import poly.edu.quanlynhahang.entity.RestaurantTable;
 import poly.edu.quanlynhahang.entity.Voucher;
+import poly.edu.quanlynhahang.entity.OrderVoucherUsage;
 import poly.edu.quanlynhahang.repository.AccountRepository;
 import poly.edu.quanlynhahang.repository.IngredientBatchRepository;
 import poly.edu.quanlynhahang.repository.IngredientRepository;
@@ -33,6 +34,7 @@ import poly.edu.quanlynhahang.repository.ProductRepository;
 import poly.edu.quanlynhahang.repository.RecipeRepository;
 import poly.edu.quanlynhahang.repository.RestaurantTableRepository;
 import poly.edu.quanlynhahang.repository.VoucherRepository;
+import poly.edu.quanlynhahang.repository.OrderVoucherUsageRepository;
 
 import java.security.SecureRandom;
 import java.security.MessageDigest;
@@ -64,6 +66,7 @@ public class OrderCheckoutService {
     private final IngredientRepository ingredientRepository;
     private final IngredientBatchRepository ingredientBatchRepository;
     private final VoucherRepository voucherRepository;
+    private final OrderVoucherUsageRepository orderVoucherUsageRepository;
     private final ActivityLogService activityLogService;
     private final OrderPaymentService orderPaymentService;
     private final MenuAvailabilityService menuAvailabilityService;
@@ -78,6 +81,7 @@ public class OrderCheckoutService {
                                 IngredientRepository ingredientRepository,
                                 IngredientBatchRepository ingredientBatchRepository,
                                 VoucherRepository voucherRepository,
+                                OrderVoucherUsageRepository orderVoucherUsageRepository,
                                 ActivityLogService activityLogService,
                                 OrderPaymentService orderPaymentService,
                                 MenuAvailabilityService menuAvailabilityService) {
@@ -91,6 +95,7 @@ public class OrderCheckoutService {
         this.ingredientRepository = ingredientRepository;
         this.ingredientBatchRepository = ingredientBatchRepository;
         this.voucherRepository = voucherRepository;
+        this.orderVoucherUsageRepository = orderVoucherUsageRepository;
         this.activityLogService = activityLogService;
         this.orderPaymentService = orderPaymentService;
         this.menuAvailabilityService = menuAvailabilityService;
@@ -98,37 +103,49 @@ public class OrderCheckoutService {
 
     private String generateSecureOrderCode() {
         String alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-        StringBuilder sb = new StringBuilder(8);
+        StringBuilder code = new StringBuilder(8);
         for (int i = 0; i < 8; i++) {
-            sb.append(alphabet.charAt(SECURE_RANDOM.nextInt(alphabet.length())));
+            code.append(alphabet.charAt(SECURE_RANDOM.nextInt(alphabet.length())));
         }
-        return sb.toString().toUpperCase();
+        return code.toString();
     }
 
     @Transactional
     public CheckoutResult checkout(OrderRequest request, String username) {
         validateRequest(request);
         Account account = authenticatedAccount(username);
-        // Fix P0-03: orderType must be explicitly provided; no longer inferred from address text
-        OrderType orderType = request.getOrderType() != null
-                ? request.getOrderType() : OrderType.TAKEAWAY;
+        // The caller must choose the business flow explicitly. A silent fallback can
+        // misclassify dine-in orders and corrupt historical reporting.
+        OrderType orderType = request.getOrderType();
+        if (orderType == null) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Vui lòng chọn loại đơn hàng (DINE_IN, TAKEAWAY hoặc DELIVERY).");
+        }
         boolean dineIn = OrderType.DINE_IN.equals(orderType);
         if (dineIn && request.getTableId() == null) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
                     "Đơn tại quán (DINE_IN) bắt buộc phải có tableId.");
         }
+        RestaurantTable dineInTable = dineIn
+                ? tableRepository.findLockedById(request.getTableId())
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy bàn."))
+                : null;
         OrderPaymentOption paymentOption = resolvePaymentOption(request.getPaymentOption(), dineIn);
 
         List<RequestedItem> requestedItems = normalizeItems(request.getItems());
         List<CheckoutLine> lines = loadProducts(requestedItems);
-        double discountRate = calculateDiscount(request.getVoucherCode(), account, dineIn);
+        // Validate voucher trước (chưa ghi usage, chưa set isUsed)
+        Voucher validatedVoucher = validateVoucher(request.getVoucherCode(), account, dineIn);
+        double discountRate = calculateBaseDiscount(account, dineIn)
+                + (validatedVoucher != null ? validatedVoucher.getDiscountPercent() / 100.0 : 0.0);
+        discountRate = Math.min(discountRate, 1.0);
         Map<Long, IngredientRequirement> requirements = inventoryRequirements(lines);
         Map<Long, List<IngredientBatch>> lockedBatches = lockAndValidateInventory(requirements);
 
         String orderCode = generateSecureOrderCode();
         Order order = new Order();
         order.setAccount(account);
-        order.setAddress(safeAddress(request.getAddress()));
+        order.setAddress(dineIn ? null : safeAddress(request.getAddress()));
         order.setCreateDate(new Date());
         order.setStatus(0);
         order.setIsPaid(false);
@@ -157,7 +174,7 @@ public class OrderCheckoutService {
             detail.setProduct(product);
             detail.setQuantity(line.quantity());
             detail.setPrice(lineSubtotal);
-            detail.setTaxRate(taxRate.doubleValue());
+            detail.setTaxRate(taxRate);
             detail.setTaxAmount(lineTax);
             detail.setStatus(0);
             detail.setNote(line.note());
@@ -175,8 +192,16 @@ public class OrderCheckoutService {
         savedOrder.setTotalAmount(totalAmount);
         savedOrder.setRemainingAmount(totalAmount.setScale(0, RoundingMode.HALF_UP));
         consumeInventory(requirements, lockedBatches);
-        occupyDineInTable(savedOrder, request.getAddress(), orderCode, dineIn);
+        if (dineInTable != null) {
+            markTablePending(savedOrder, orderCode, dineInTable);
+        }
         orderRepository.save(savedOrder);
+
+        // Ghi VoucherUsage sau khi đã có orderId
+        if (validatedVoucher != null) {
+            recordVoucherUsage(validatedVoucher, savedOrder, account, discountRate);
+        }
+
         PaymentQrResponse payment = orderPaymentService.createForOrder(savedOrder);
         activityLogService.log("CREATE", "Order", String.valueOf(savedOrder.getId()),
                 "Tạo đơn chờ xác nhận #" + orderCode);
@@ -232,7 +257,7 @@ public class OrderCheckoutService {
             detail.setProduct(line.product());
             detail.setQuantity(line.quantity());
             detail.setPrice(lineTotal);
-            detail.setTaxRate(0.0);
+            detail.setTaxRate(BigDecimal.ZERO);
             detail.setTaxAmount(BigDecimal.ZERO);
             detail.setStatus(0);
             detail.setNote(line.note());
@@ -301,7 +326,7 @@ public class OrderCheckoutService {
             detail.setProduct(product);
             detail.setQuantity(line.quantity());
             detail.setPrice(lineSubtotal);
-            detail.setTaxRate(taxRate.doubleValue());
+            detail.setTaxRate(taxRate);
             detail.setTaxAmount(lineTax);
             detail.setStatus(0);
             detail.setNote(line.note());
@@ -347,8 +372,8 @@ public class OrderCheckoutService {
         return (value == null ? BigDecimal.ZERO : value).setScale(2, RoundingMode.HALF_UP);
     }
 
-    private BigDecimal decimal(Double value, double fallback) {
-        return BigDecimal.valueOf(value == null ? fallback : value);
+    private BigDecimal decimal(BigDecimal value, double fallback) {
+        return value == null ? BigDecimal.valueOf(fallback) : value;
     }
 
     private String addItemsRequestHash(Integer orderId, List<RequestedItem> items) {
@@ -435,42 +460,69 @@ public class OrderCheckoutService {
         return option;
     }
 
-    private double calculateDiscount(String voucherCode, Account account, boolean dineIn) {
+    /**
+     * Validate voucher mà chưa ghi usage (gọi trước khi save order).
+     * Trả về Voucher object nếu hợp lệ, null nếu không có voucher.
+     */
+    private Voucher validateVoucher(String voucherCode, Account account, boolean dineIn) {
+        if (dineIn || account == null || voucherCode == null || voucherCode.isBlank()) {
+            return null;
+        }
+        Voucher voucher = voucherRepository.findLockedByCode(voucherCode.trim())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                        "Voucher không tồn tại"));
+        if (Boolean.TRUE.equals(voucher.getIsUsed())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Voucher đã được sử dụng");
+        }
+        if (voucher.getAccount() != null
+                && !account.getUsername().equals(voucher.getAccount().getUsername())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Voucher không thuộc tài khoản này");
+        }
+        if (voucher.getDiscountPercent() == null
+                || voucher.getDiscountPercent() <= 0
+                || voucher.getDiscountPercent() > 100) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Voucher có mức giảm không hợp lệ");
+        }
+        return voucher;
+    }
+
+    private double calculateBaseDiscount(Account account, boolean dineIn) {
         if (dineIn || account == null) {
-            if (voucherCode != null && !voucherCode.isBlank()) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                        "Voucher chỉ áp dụng cho tài khoản đã đăng nhập và đơn mang đi/giao hàng");
-            }
             return 0.0;
         }
-
-        double discount = switch (account.getMembershipTier() == null ? "" : account.getMembershipTier()) {
+        return switch (account.getMembershipTier() == null ? "" : account.getMembershipTier()) {
             case "Kim Cương" -> 0.15;
             case "Vàng" -> 0.10;
             case "Bạc" -> 0.05;
             default -> 0.0;
         };
-        if (voucherCode != null && !voucherCode.isBlank()) {
-            Voucher voucher = voucherRepository.findLockedByCode(voucherCode.trim())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
-                            "Voucher không tồn tại"));
-            if (Boolean.TRUE.equals(voucher.getIsUsed())) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "Voucher đã được sử dụng");
-            }
-            if (voucher.getAccount() != null
-                    && !account.getUsername().equals(voucher.getAccount().getUsername())) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Voucher không thuộc tài khoản này");
-            }
-            if (voucher.getDiscountPercent() == null
-                    || voucher.getDiscountPercent() <= 0
-                    || voucher.getDiscountPercent() > 100) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "Voucher có mức giảm không hợp lệ");
-            }
-            discount += voucher.getDiscountPercent() / 100.0;
-            voucher.setIsUsed(true);
-            voucherRepository.save(voucher);
+    }
+
+    private void recordVoucherUsage(Voucher voucher, Order order, Account account, double discountRate) {
+        // Tính số tiền giảm thực tế
+        BigDecimal discountAmount = BigDecimal.ZERO;
+        if (order.getTotalAmount() != null && discountRate > 0) {
+            discountAmount = order.getTotalAmount()
+                    .multiply(BigDecimal.valueOf(discountRate))
+                    .setScale(0, RoundingMode.HALF_UP);
         }
-        return Math.min(discount, 1.0);
+
+        OrderVoucherUsage usage = new OrderVoucherUsage();
+        usage.setVoucherId(voucher.getId());
+        usage.setVoucherCode(voucher.getCode());
+        usage.setOrderId(order.getId());
+        usage.setAccountUsername(account != null ? account.getUsername() : null);
+        usage.setDiscountAmount(discountAmount);
+        usage.setOriginalAmount(order.getTotalAmount());
+        usage.setUsedAt(new Date());
+        orderVoucherUsageRepository.save(usage);
+
+        // Đánh dấu voucher đã dùng
+        voucher.setIsUsed(true);
+        voucherRepository.save(voucher);
+
+        activityLogService.log("VOUCHER_USED", "Order", String.valueOf(order.getId()),
+                "Áp dụng voucher " + voucher.getCode() + " giảm " + discountAmount.toPlainString() + " VND");
     }
 
     private Map<Long, IngredientRequirement> inventoryRequirements(List<CheckoutLine> lines) {
@@ -484,13 +536,13 @@ public class OrderCheckoutService {
             for (Recipe recipe : recipes) {
                 Ingredient ingredient = recipe.getIngredient();
                 if (ingredient == null || ingredient.getId() == null
-                        || recipe.getAmountRequired() == null || recipe.getAmountRequired() <= 0) {
+                        || recipe.getAmountRequired() == null || recipe.getAmountRequired().signum() <= 0) {
                     throw new ResponseStatusException(HttpStatus.CONFLICT,
                             "Công thức món chưa hợp lệ: " + line.product().getName());
                 }
-                double amount = recipe.getAmountRequired() * line.quantity();
+                BigDecimal amount = recipe.getAmountRequired().multiply(BigDecimal.valueOf(line.quantity()));
                 requirements.merge(ingredient.getId(), new IngredientRequirement(ingredient, amount),
-                        (left, right) -> new IngredientRequirement(left.ingredient(), left.amount() + right.amount()));
+                        (left, right) -> new IngredientRequirement(left.ingredient(), left.amount().add(right.amount())));
             }
         }
         return requirements;
@@ -505,13 +557,12 @@ public class OrderCheckoutService {
                 .forEach(entry -> {
                     List<IngredientBatch> batches = ingredientBatchRepository
                             .findAvailableBatchesForUpdate(entry.getKey());
-                    double available = batches.stream()
+                    BigDecimal available = batches.stream()
                             .map(IngredientBatch::getQuantity)
-                            .filter(value -> value != null && value > 0)
-                            .mapToDouble(Double::doubleValue)
-                            .sum();
+                            .filter(value -> value != null && value.signum() > 0)
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
                     IngredientRequirement requirement = entry.getValue();
-                    if (available + 0.000001 < requirement.amount()) {
+                    if (available.compareTo(requirement.amount()) < 0) {
                         shortages.put(requirement.ingredient().getName(),
                                 "required=" + requirement.amount() + ", available=" + available);
                     }
@@ -526,41 +577,29 @@ public class OrderCheckoutService {
     private void consumeInventory(Map<Long, IngredientRequirement> requirements,
                                   Map<Long, List<IngredientBatch>> lockedBatches) {
         for (Map.Entry<Long, IngredientRequirement> entry : requirements.entrySet()) {
-            double remaining = entry.getValue().amount();
+            BigDecimal remaining = entry.getValue().amount();
             List<IngredientBatch> batches = lockedBatches.get(entry.getKey());
             for (IngredientBatch batch : batches) {
-                if (remaining <= 0) {
+                if (remaining.signum() <= 0) {
                     break;
                 }
-                double batchQuantity = batch.getQuantity() == null ? 0.0 : batch.getQuantity();
-                double consumed = Math.min(batchQuantity, remaining);
-                batch.setQuantity(batchQuantity - consumed);
-                remaining -= consumed;
+                BigDecimal batchQuantity = batch.getQuantity() == null ? BigDecimal.ZERO : batch.getQuantity();
+                BigDecimal consumed = batchQuantity.min(remaining);
+                batch.setQuantity(batchQuantity.subtract(consumed));
+                remaining = remaining.subtract(consumed);
             }
             ingredientBatchRepository.saveAll(batches);
 
-            double quantityAfter = batches.stream()
+            BigDecimal quantityAfter = batches.stream()
                     .map(IngredientBatch::getQuantity)
-                    .filter(value -> value != null && value > 0)
-                    .mapToDouble(Double::doubleValue)
-                    .sum();
+                    .filter(value -> value != null && value.signum() > 0)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
             Ingredient ingredient = entry.getValue().ingredient();
             ingredient.setQuantity(quantityAfter);
             ingredientRepository.save(ingredient);
 
             menuAvailabilityService.refreshForIngredient(ingredient);
         }
-    }
-
-    /**
-     * P0-03 FIX: Do NOT infer table from address text anymore.
-     * Table assignment must be done via explicit tableId in OrderRequest.
-     * This method is kept only for legacy compatibility but does nothing new.
-     * New DINE_IN orders should use Order.table_id FK instead of address parsing.
-     */
-    private void occupyDineInTable(Order order, String address, String orderCode, boolean dineIn) {
-        // Intentionally empty - table assignment must be explicit via tableId field
-        // Legacy code that inferred table from address string has been removed
     }
 
     private void markTablePending(Order order, String orderCode, RestaurantTable table) {
@@ -586,7 +625,7 @@ public class OrderCheckoutService {
     private record CheckoutLine(Product product, int quantity, String note, String allergyNote, int priority) {
     }
 
-    private record IngredientRequirement(Ingredient ingredient, double amount) {
+    private record IngredientRequirement(Ingredient ingredient, BigDecimal amount) {
     }
 
     public record CheckoutResult(Integer orderId,

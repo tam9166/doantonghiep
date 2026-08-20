@@ -67,8 +67,7 @@ public class AiAvailabilityToolService {
      * Find specific tables that can accommodate the guest count at the given time.
      */
     private List<TableInfo> findAvailableTables(LocalDate date, LocalTime time, int guestCount) {
-        return tableRepository.findAll().stream()
-                .filter(RestaurantTable::getActive)
+        return tableRepository.findByActiveTrueOrderByAreaIdAscIdAsc().stream()
                 .sorted(Comparator.comparing(RestaurantTable::getAreaId, Comparator.nullsLast(Integer::compareTo))
                         .thenComparing(RestaurantTable::getId))
                 .filter(table -> {

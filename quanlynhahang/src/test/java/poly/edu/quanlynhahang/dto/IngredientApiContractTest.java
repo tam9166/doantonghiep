@@ -18,9 +18,9 @@ class IngredientApiContractTest {
 
     @Test
     void rejectsInvalidIngredientAndBatchPayloads() {
-        assertFalse(validator.validate(new IngredientUpsertRequest("", "", -1.0,
+        assertFalse(validator.validate(new IngredientUpsertRequest("", "", new BigDecimal("-1.0"),
                 new BigDecimal("-1"), "x".repeat(501), 0)).isEmpty());
-        assertFalse(validator.validate(new IngredientBatchCreateRequest(0.0,
+        assertFalse(validator.validate(new IngredientBatchCreateRequest(BigDecimal.ZERO,
                 new BigDecimal("-1"), null)).isEmpty());
     }
 
@@ -29,7 +29,7 @@ class IngredientApiContractTest {
         Ingredient ingredient = new Ingredient();
         ingredient.setId(4L);
         ingredient.setName("Rau cải");
-        ingredient.setQuantity(3.0);
+        ingredient.setQuantity(new BigDecimal("3.0000"));
         ingredient.setUnit("kg");
 
         String json = new ObjectMapper().writeValueAsString(IngredientResponse.from(ingredient));

@@ -14,12 +14,15 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Date;
 import java.util.List;
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 import poly.edu.quanlynhahang.entity.Reservation;
@@ -90,6 +93,23 @@ class ReservationServiceTest {
 
         assertEquals(HttpStatus.UNPROCESSABLE_ENTITY, exception.getStatusCode());
     }
+
+    @Test
+    void generatedReservationCodesAreUniqueAndDatabaseChecked() {
+        when(reservationRepository.findByReservationCode(any())).thenReturn(Optional.empty());
+        LocalDate reservationDate = LocalDate.of(2026, 8, 20);
+        Set<String> codes = new HashSet<>();
+
+        for (int index = 0; index < 100; index++) {
+            String code = ReflectionTestUtils.invokeMethod(service, "generateReservationCode", reservationDate);
+            codes.add(code);
+        }
+
+        assertEquals(100, codes.size());
+        codes.forEach(code -> org.junit.jupiter.api.Assertions.assertTrue(
+                code.matches("MV-20260820-[0-9A-F]{8}")));
+        verify(reservationRepository, org.mockito.Mockito.times(100)).findByReservationCode(any());
+    }
     
     @Test
     void rejectsLookupWithoutPhone() {
@@ -118,7 +138,7 @@ class ReservationServiceTest {
 
         // Should fail because phone doesn't match
         ResponseStatusException exception = assertThrows(ResponseStatusException.class,
-                () -> service.lookupPublicReservation("MV-TEST-123", "0901234567", null));
+                () -> service.lookupPublicReservation("MV-TEST-123", "0987654321", null));
 
         assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
     }
@@ -135,8 +155,8 @@ class ReservationServiceTest {
         futureConfirmed.setReservationDate(LocalDate.now().plusDays(1));
         futureConfirmed.setArrivalTime(LocalTime.NOON);
 
-        when(reservationRepository.findAllByOrderByCreatedAtDesc())
-                .thenReturn(List.of(pendingPayment, futureConfirmed));
+        when(reservationRepository.findExpiryCandidateIds(any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(List.of());
 
         service.expireStaleReservations();
 
@@ -157,7 +177,7 @@ class ReservationServiceTest {
         reservation.setExpectedDurationMinutes(120);
         reservation.setGuestCount(2);
         reservation.setDepositAmount(BigDecimal.ZERO);
-        reservation.setReservationStatus(ReservationStatus.PENDING);
+        reservation.setReservationStatus(ReservationStatus.WAITING_TABLE_ASSIGNMENT);
         reservation.setPreorderEnabled(true);
         ReservationPreorderItem preorder = new ReservationPreorderItem();
         preorder.setProductId(5);
@@ -228,7 +248,7 @@ class ReservationServiceTest {
         Reservation reservation = noShowReservation(DepositStatus.PAID);
         reservation.setDepositAmount(BigDecimal.valueOf(500_000));
         reservation.setPaidAmount(BigDecimal.valueOf(500_000));
-        when(reservationRepository.findAllByOrderByCreatedAtDesc()).thenReturn(List.of(reservation));
+        stubExpiryCandidates(reservation);
         when(depositPolicyService.calculateNoShowForfeiture(reservation)).thenReturn(BigDecimal.valueOf(500_000));
         when(reservationRepository.save(reservation)).thenReturn(reservation);
 
@@ -248,8 +268,7 @@ class ReservationServiceTest {
         pendingReservation.setDepositAmount(BigDecimal.TEN);
         pendingReservation.setCreatedAt(java.util.Date.from(java.time.Instant.now().minusSeconds(25 * 3600))); // 25 hours ago
         
-        when(reservationRepository.findAllByOrderByCreatedAtDesc())
-                .thenReturn(List.of(pendingReservation));
+        stubExpiryCandidates(pendingReservation);
                 
         service.expireStaleReservations();
         
@@ -258,7 +277,7 @@ class ReservationServiceTest {
     }
     
     @Test
-    void expiresNoShowReservations() {
+    void doesNotMarkInServiceReservationAsNoShow() {
         RestaurantTable table = new RestaurantTable();
         table.setId(44);
         table.setIsOccupied(2);
@@ -275,22 +294,32 @@ class ReservationServiceTest {
         
         when(depositPolicyService.calculateNoShowForfeiture(reservation))
             .thenReturn(BigDecimal.valueOf(500_000));
-        when(reservationRepository.findAllByOrderByCreatedAtDesc())
-            .thenReturn(List.of(reservation));
+        when(reservationRepository.findExpiryCandidateIds(any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(List.of());
             
         service.expireStaleReservations();
         
-        assertEquals(ReservationStatus.NO_SHOW, reservation.getReservationStatus());
-        assertEquals(ReservationStatus.NO_SHOW, reservation.getReservationStatus());
-        verify(reservationRepository).save(reservation);
+        assertEquals(ReservationStatus.IN_SERVICE, reservation.getReservationStatus());
+        verify(reservationRepository, never()).save(reservation);
     }
 
     private Reservation reservationForDepositPayment(BigDecimal depositAmount, BigDecimal totalAmount) {
         Reservation reservation = new Reservation();
-        reservation.setReservationStatus(ReservationStatus.PENDING);
+        reservation.setReservationStatus(ReservationStatus.WAITING_TABLE_ASSIGNMENT);
         reservation.setDepositAmount(depositAmount);
         reservation.setTotalAmount(totalAmount);
         return reservation;
+    }
+
+    private void stubExpiryCandidates(Reservation... reservations) {
+        List<Long> ids = java.util.stream.IntStream.range(0, reservations.length)
+                .mapToObj(index -> (long) index + 1)
+                .toList();
+        when(reservationRepository.findExpiryCandidateIds(any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(ids);
+        when(reservationRepository.findExpiryCandidatesByIdIn(ids)).thenReturn(List.of(reservations));
+        when(reservationRepository.save(any(Reservation.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     private Reservation noShowReservation(DepositStatus depositStatus) {

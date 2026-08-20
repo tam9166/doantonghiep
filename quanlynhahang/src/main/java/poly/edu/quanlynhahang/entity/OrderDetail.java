@@ -25,8 +25,8 @@ public class OrderDetail {
     @Column(precision = 18, scale = 2)
     private BigDecimal price;
 
-    @jakarta.persistence.Column(name = "tax_rate", columnDefinition = "FLOAT DEFAULT 8.0")
-    private Double taxRate = 8.0;
+    @Column(name = "tax_rate", precision = 5, scale = 2)
+    private BigDecimal taxRate = new BigDecimal("8.00");
 
     @Column(name = "tax_amount", precision = 18, scale = 2)
     private BigDecimal taxAmount = BigDecimal.ZERO;

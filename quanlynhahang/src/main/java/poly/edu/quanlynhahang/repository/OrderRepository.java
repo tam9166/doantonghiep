@@ -29,14 +29,11 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
     @Query("select distinct o from Order o "
             + "left join fetch o.orderDetails od "
             + "left join fetch od.product "
-            + "where ((:tableId is not null and o.tableId = :tableId) "
-            + "or (o.address is not null and (lower(o.address) like lower(concat('%Bàn: ', :tableName, ' |%')) "
-            + "or lower(o.address) like lower(concat('%| ', :tableName, ' |%'))))) "
+            + "where o.tableId = :tableId "
             + "and (o.isPaid = false or o.isPaid is null) "
             + "and (o.status is null or (o.status <> 3 and o.status <> 4)) "
             + "order by o.createDate desc")
-    List<Order> findOpenDineInOrdersWithDetails(@Param("tableId") Integer tableId,
-                                                 @Param("tableName") String tableName);
+    List<Order> findOpenDineInOrdersByTableIdWithDetails(@Param("tableId") Integer tableId);
 
     @Query("select distinct o from Order o "
             + "left join fetch o.orderDetails od left join fetch od.product "
@@ -51,10 +48,10 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
     List<Order> findByAddressAndIsPaidFalse(String address);
 
     @Query("select case when count(o) > 0 then true else false end from Order o "
-            + "where (o.tableId = :tableId or (o.tableId is null and lower(o.address) like lower(concat('%', :tableName, '%')))) "
+            + "where o.tableId = :tableId "
             + "and (o.isPaid = false or o.isPaid is null) "
             + "and (o.status is null or o.status <> 3)")
-    boolean existsOpenUnpaidOrderForTable(@Param("tableId") Integer tableId, @Param("tableName") String tableName);
+    boolean existsOpenUnpaidOrderForTable(@Param("tableId") Integer tableId);
 
     @Query("select case when count(o) > 0 then true else false end from Order o "
             + "where o.account.username = :username "

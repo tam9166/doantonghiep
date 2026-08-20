@@ -333,32 +333,13 @@ public class AdminOrderController {
                     .divide(BigDecimal.valueOf(2), 2, RoundingMode.HALF_UP);
             orderRepository.save(order);
             
-            // Giải phóng bàn (nếu có)
-            if (order.getAddress() != null) {
-                // Address: "MÃ ĐƠN: #1234 | Bàn: Tầng 2 - Sảnh..."
-                String address = order.getAddress();
-                if (address.contains("Bàn: ")) {
-                    String[] parts = address.split("\\|");
-                    for (String part : parts) {
-                        if (part.trim().startsWith("Bàn: ")) {
-                            String tableName = part.replace("Bàn: ", "").trim();
-                            // Loại bỏ các chữ dư thừa có thể sinh ra như lúc, ngày
-                            if (tableName.contains(" |")) {
-                                tableName = tableName.substring(0, tableName.indexOf(" |"));
-                            }
-                            // Giải phóng bàn
-                            List<RestaurantTable> tables = tableRepository.findAll();
-                            for (RestaurantTable t : tables) {
-                                if (t.getName().equalsIgnoreCase(tableName)) {
-                                    t.setIsOccupied(0);
-                                    t.setReservedTime(null);
-                                    tableRepository.save(t);
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
+            // Giải phóng đúng bàn bằng khóa ngoại, không suy luận từ chuỗi địa chỉ.
+            if (order.getTableId() != null) {
+                tableRepository.findById(order.getTableId()).ifPresent(table -> {
+                    table.setIsOccupied(0);
+                    table.setReservedTime(null);
+                    tableRepository.save(table);
+                });
             }
 
             return ResponseEntity.ok(java.util.Map.of(

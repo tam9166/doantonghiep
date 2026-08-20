@@ -38,8 +38,8 @@ public class Product {
     @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal price;
 
-    @Column(name = "tax_rate", columnDefinition = "FLOAT DEFAULT 8.0")
-    private Double taxRate = 8.0;
+    @Column(name = "tax_rate", precision = 5, scale = 2)
+    private BigDecimal taxRate = new BigDecimal("8.00");
 
     @Column(length = 255)
     private String image;

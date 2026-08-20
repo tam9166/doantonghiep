@@ -21,13 +21,14 @@ public class Ingredient {
     @Column(columnDefinition = "nvarchar(200)")
     private String name;
 
-    private Double quantity = 0.0;
+    @Column(precision = 19, scale = 4)
+    private BigDecimal quantity = BigDecimal.ZERO;
 
     @Column(columnDefinition = "nvarchar(50)")
     private String unit;
 
-    @Column(name = "min_stock")
-    private Double minStock = 5.0;
+    @Column(name = "min_stock", precision = 19, scale = 4)
+    private BigDecimal minStock = new BigDecimal("5.0000");
 
     @Column(name = "unit_price", precision = 18, scale = 2)
     private BigDecimal unitPrice = BigDecimal.ZERO;

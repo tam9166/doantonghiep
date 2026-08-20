@@ -100,7 +100,11 @@
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { getCurrentUser, hasRole as checkRole, isAuthenticated } from '@/services/api'
+import {
+  clearCustomerSession,
+  getCustomerUser,
+  isCustomerAuthenticated
+} from '@/services/session'
 
 defineProps({
   transparent: { type: Boolean, default: false }
@@ -118,7 +122,7 @@ const isScrolled = ref(false)
 const mobileMenuOpen = ref(false)
 
 function hasRole(role) {
-  return checkRole(role)
+  return user.value?.roles?.includes(role) || false
 }
 
 function changeLanguage() {
@@ -127,8 +131,7 @@ function changeLanguage() {
 
 function handleLogout() {
   if (confirm(t('auth.logoutConfirm'))) {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
+    clearCustomerSession()
     isLoggedIn.value = false
     user.value = null
     mobileMenuOpen.value = false
@@ -141,9 +144,9 @@ function onScroll() {
 }
 
 onMounted(() => {
-  if (isAuthenticated()) {
+  if (isCustomerAuthenticated()) {
     isLoggedIn.value = true
-    user.value = getCurrentUser()
+    user.value = getCustomerUser()
   }
   window.addEventListener('scroll', onScroll)
 })
@@ -202,7 +205,7 @@ onUnmounted(() => {
 }
 .brand-icon {
   font-size: 1.8rem;
-  filter: drop-shadow(0 0 12px rgba(90, 110, 69, 0.4));
+  filter: drop-shadow(0 0 12px color-mix(in srgb, var(--secondary) 40%, transparent));
   transition: var(--transition);
 }
 .navbar-brand:hover .brand-icon {
@@ -247,7 +250,7 @@ onUnmounted(() => {
 }
 .navbar-nav a.active {
   color: #fff;
-  background: rgba(90, 110, 69, 0.42);
+  background: color-mix(in srgb, var(--secondary) 42%, transparent);
 }
 
 /* Actions */
@@ -301,18 +304,18 @@ onUnmounted(() => {
 }
 .nav-btn-primary:hover {
   color: var(--bg-dark);
-  box-shadow: 0 4px 15px rgba(90, 110, 69, 0.4);
+  box-shadow: 0 4px 15px color-mix(in srgb, var(--secondary) 40%, transparent);
   transform: translateY(-1px);
 }
-.nav-btn-admin { border-color: rgba(185, 130, 41, 0.3); color: #B98229; }
-.nav-btn-admin:hover { background: rgba(185, 130, 41, 0.1); color: #B98229; border-color: rgba(185, 130, 41, 0.5); }
-.nav-btn-kitchen { border-color: rgba(90, 110, 69, 0.3); color: var(--primary); }
-.nav-btn-waiter { border-color: rgba(90, 110, 69, 0.3); color: #5A6E45; }
-.nav-btn-waiter:hover { background: rgba(90, 110, 69, 0.1); color: #5A6E45; border-color: rgba(90, 110, 69, 0.5); }
-.nav-btn-cashier { border-color: rgba(192, 138, 46, 0.3); color: #C08A2E; }
-.nav-btn-cashier:hover { background: rgba(192, 138, 46, 0.1); color: #C08A2E; border-color: rgba(192, 138, 46, 0.5); }
-.nav-btn-logout { border-color: rgba(178, 59, 46, 0.45); color: #fff; }
-.nav-btn-logout:hover { background: rgba(178, 59, 46, 0.16); color: #fff; border-color: rgba(178, 59, 46, 0.75); }
+.nav-btn-admin { border-color: color-mix(in srgb, var(--color-tertiary) 30%, transparent); color: var(--color-tertiary); }
+.nav-btn-admin:hover { background: color-mix(in srgb, var(--color-tertiary) 10%, transparent); color: var(--color-tertiary); border-color: color-mix(in srgb, var(--color-tertiary) 50%, transparent); }
+.nav-btn-kitchen { border-color: color-mix(in srgb, var(--secondary) 30%, transparent); color: var(--primary); }
+.nav-btn-waiter { border-color: color-mix(in srgb, var(--secondary) 30%, transparent); color: var(--secondary); }
+.nav-btn-waiter:hover { background: color-mix(in srgb, var(--secondary) 10%, transparent); color: var(--secondary); border-color: color-mix(in srgb, var(--secondary) 50%, transparent); }
+.nav-btn-cashier { border-color: color-mix(in srgb, var(--color-tertiary) 30%, transparent); color: var(--color-tertiary); }
+.nav-btn-cashier:hover { background: color-mix(in srgb, var(--color-tertiary) 10%, transparent); color: var(--color-tertiary); border-color: color-mix(in srgb, var(--color-tertiary) 50%, transparent); }
+.nav-btn-logout { border-color: color-mix(in srgb, var(--primary) 45%, transparent); color: #fff; }
+.nav-btn-logout:hover { background: color-mix(in srgb, var(--primary) 16%, transparent); color: #fff; border-color: color-mix(in srgb, var(--primary) 75%, transparent); }
 
 /* Hamburger */
 .hamburger {
@@ -369,8 +372,8 @@ onUnmounted(() => {
   transition: var(--transition);
 }
 .mobile-nav a:hover, .mobile-nav a.router-link-active {
-  background: rgba(90, 110, 69, 0.1);
-  border-color: rgba(90, 110, 69, 0.3);
+  background: color-mix(in srgb, var(--secondary) 10%, transparent);
+  border-color: color-mix(in srgb, var(--secondary) 30%, transparent);
   color: var(--primary);
 }
 .mobile-divider {
@@ -379,7 +382,7 @@ onUnmounted(() => {
   margin: 8px 0;
 }
 .mobile-logout {
-  color: #B23B2E !important;
+  color: var(--primary) !important;
 }
 
 /* Customer-facing GustoPro navigation. */
@@ -405,7 +408,7 @@ onUnmounted(() => {
 .nav-btn:hover, .lang-select:hover { color: var(--primary); border-color: var(--primary); background: var(--color-surface-container-low); }
 .nav-btn-primary { background: var(--primary); color: var(--color-on-primary); border-color: var(--primary); }
 .nav-btn-primary:hover { background: var(--primary-dark); color: var(--color-on-primary); box-shadow: none; transform: none; }
-.hamburger span { background: var(--text-primary); }
+.hamburger span { background: var(--color-inverse-surface); }
 .mobile-overlay { background: rgba(62, 44, 43, 0.38); backdrop-filter: blur(6px); }
 .mobile-nav { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px; }
 .mobile-nav a { background: transparent; border-color: transparent; color: var(--text-primary); }

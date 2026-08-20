@@ -31,7 +31,7 @@ public class PopularItemsController {
     public ResponseEntity<?> getTopProducts(
             @RequestParam(defaultValue = "week") String period) {
 
-        List<Order> orders = orderRepository.findAll();
+        List<Order> orders = orderRepository.findAllWithDetails();
         Date now = new Date();
 
         // Lọc theo thời gian
@@ -92,7 +92,7 @@ public class PopularItemsController {
     public ResponseEntity<?> getTopIngredients(
             @RequestParam(defaultValue = "week") String period) {
 
-        List<Order> orders = orderRepository.findAll();
+        List<Order> orders = orderRepository.findAllWithDetails();
         List<Recipe> recipes = recipeRepository.findAll();
         Date now = new Date();
 
@@ -131,21 +131,22 @@ public class PopularItemsController {
                 for (Recipe r : productRecipes) {
                     if (r.getIngredient() == null) continue;
                     String ingName = r.getIngredient().getName();
-                    double consumed = (r.getAmountRequired() != null ? r.getAmountRequired() : 0) * qty;
+                    BigDecimal consumed = (r.getAmountRequired() == null ? BigDecimal.ZERO : r.getAmountRequired())
+                            .multiply(BigDecimal.valueOf(qty));
 
                     ingredientMap.computeIfAbsent(ingName, k -> {
                         Map<String, Object> m = new HashMap<>();
                         m.put("name", ingName);
                         m.put("unit", r.getIngredient().getUnit());
                         m.put("image", r.getIngredient().getImage());
-                        m.put("totalConsumed", 0.0);
+                        m.put("totalConsumed", BigDecimal.ZERO);
                         m.put("currentStock", r.getIngredient().getQuantity());
                         m.put("minStock", r.getIngredient().getMinStock());
                         return m;
                     });
 
                     Map<String, Object> data = ingredientMap.get(ingName);
-                    data.put("totalConsumed", (double) data.get("totalConsumed") + consumed);
+                    data.put("totalConsumed", ((BigDecimal) data.get("totalConsumed")).add(consumed));
                 }
             }
         }

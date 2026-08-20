@@ -1081,8 +1081,8 @@ onMounted(async () => {
 <style scoped>
 .reservation-page {
   min-height: 100vh;
-  background: #DED8C2;
-  color: #201D14;
+  background: var(--bg-card2);
+  color: var(--text-primary);
   padding: 32px 16px 56px;
 }
 
@@ -1101,7 +1101,7 @@ onMounted(async () => {
 
 .eyebrow {
   margin: 0 0 6px;
-  color: #5A6E45;
+  color: var(--secondary);
   font-weight: 800;
   text-transform: uppercase;
   font-size: 0.78rem;
@@ -1110,12 +1110,12 @@ onMounted(async () => {
 .reservation-header h1 {
   margin: 0;
   font-size: 2.35rem;
-  color: #22301B;
+  color: var(--color-on-secondary-container);
 }
 
 .reservation-header p {
   max-width: 720px;
-  color: #7A7460;
+  color: var(--text-muted);
 }
 
 .stepper {
@@ -1126,12 +1126,12 @@ onMounted(async () => {
 }
 
 .step-chip {
-  border: 1px solid #CFC7A8;
+  border: 1px solid var(--border);
   background: #FFFFFF;
   border-radius: 8px;
   min-height: 48px;
   padding: 6px;
-  color: #7A7460;
+  color: var(--text-muted);
   font-weight: 700;
   cursor: pointer;
 }
@@ -1143,21 +1143,21 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: #E7E3D2;
-  color: #5A6E45;
+  background: var(--bg-hover);
+  color: var(--secondary);
   margin-right: 6px;
 }
 
 .step-chip.active,
 .step-chip.done {
-  border-color: #5A6E45;
-  color: #201D14;
+  border-color: var(--secondary);
+  color: var(--text-primary);
 }
 
 .reservation-card,
 .success-panel {
   background: #FFFFFF;
-  border: 1px solid #CFC7A8;
+  border: 1px solid var(--border);
   border-radius: 8px;
   box-shadow: 0 18px 40px rgba(35, 48, 43, 0.08);
   padding: 24px;
@@ -1169,10 +1169,10 @@ onMounted(async () => {
   max-width: 620px;
   margin: 20px auto;
   padding: 22px;
-  border: 1px solid #5A6E45;
+  border: 1px solid var(--secondary);
   border-radius: 10px;
   background: #F5F4E9;
-  color: #22301B;
+  color: var(--color-on-secondary-container);
 }
 
 .combo-table-list {
@@ -1185,13 +1185,13 @@ onMounted(async () => {
   padding: 6px 10px;
   border-radius: 999px;
   background: #FFFFFF;
-  border: 1px solid #CFC7A8;
+  border: 1px solid var(--border);
 }
 
 .panel h2,
 .success-panel h2 {
   margin: 0 0 18px;
-  color: #22301B;
+  color: var(--color-on-secondary-container);
 }
 
 .panel-row,
@@ -1218,29 +1218,29 @@ label {
   display: grid;
   gap: 7px;
   font-weight: 700;
-  color: #55503E;
+  color: var(--text-secondary);
 }
 
 input,
 select,
 textarea {
   width: 100%;
-  border: 1px solid #CFC7A8;
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 11px 12px;
   background: #FFFFFF;
-  color: #201D14;
+  color: var(--text-primary);
 }
 
 input:focus,
 select:focus,
 textarea:focus {
-  outline: 3px solid #E7E3D2;
-  border-color: #5A6E45;
+  outline: 3px solid var(--bg-hover);
+  border-color: var(--secondary);
 }
 
 small {
-  color: #B23B2E;
+  color: var(--primary);
 }
 
 .lang-toggle,
@@ -1249,7 +1249,7 @@ small {
 .danger-btn {
   min-height: 40px;
   border-radius: 8px;
-  border: 1px solid #CFC7A8;
+  border: 1px solid var(--border);
   padding: 0 16px;
   font-weight: 800;
   cursor: pointer;
@@ -1258,13 +1258,13 @@ small {
 .lang-toggle,
 .ghost-btn {
   background: #FFFFFF;
-  color: #201D14;
+  color: var(--text-primary);
 }
 
 .primary-btn {
-  background: #5A6E45;
+  background: var(--secondary);
   color: #FFFFFF;
-  border-color: #5A6E45;
+  border-color: var(--secondary);
 }
 
 .table-card .primary-btn {
@@ -1275,7 +1275,7 @@ small {
 
 .danger-btn {
   background: #FFFFFF;
-  color: #B23B2E;
+  color: var(--primary);
   border-color: #E8C9C4;
 }
 
@@ -1297,7 +1297,7 @@ small {
 .area-card,
 .table-card,
 .dish-card {
-  border: 1px solid #CFC7A8;
+  border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
   background: #FFFFFF;
@@ -1315,10 +1315,10 @@ small {
   display: grid;
   gap: 5px;
   padding: 14px;
-  border: 1px solid #CFC7A8;
+  border: 1px solid var(--border);
   border-radius: 8px;
   background: #FFFFFF;
-  color: #55503E;
+  color: var(--text-secondary);
   cursor: pointer;
   font: inherit;
   text-align: left;
@@ -1326,19 +1326,19 @@ small {
 
 .area-chip:hover,
 .area-chip:focus-visible {
-  border-color: #5A6E45;
+  border-color: var(--secondary);
   outline: none;
 }
 
 .area-chip.selected {
-  border-color: #5A6E45;
-  box-shadow: 0 0 0 3px #E7E3D2;
+  border-color: var(--secondary);
+  box-shadow: 0 0 0 3px var(--bg-hover);
 }
 
-.area-chip-title { font-weight: 900; color: #22301B; }
-.area-chip-description { color: #7A7460; font-size: 0.86rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.area-chip-meta { color: #5A6E45; font-size: 0.78rem; font-weight: 700; }
-.area-chip-selected { color: #5A6E45; font-size: 0.78rem; font-weight: 800; }
+.area-chip-title { font-weight: 900; color: var(--color-on-secondary-container); }
+.area-chip-description { color: var(--text-muted); font-size: 0.86rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.area-chip-meta { color: var(--secondary); font-size: 0.78rem; font-weight: 700; }
+.area-chip-selected { color: var(--secondary); font-size: 0.78rem; font-weight: 800; }
 
 .table-card {
   display: flex;
@@ -1372,8 +1372,8 @@ small {
 
 .area-card.selected,
 .table-card.selected {
-  border-color: #5A6E45;
-  box-shadow: 0 0 0 3px #E7E3D2;
+  border-color: var(--secondary);
+  box-shadow: 0 0 0 3px var(--bg-hover);
 }
 
 .area-card img,
@@ -1386,9 +1386,9 @@ small {
 }
 
 .table-map {
-  border: 1px solid #E7E3D2;
+  border: 1px solid var(--bg-hover);
   border-radius: 8px;
-  background: #DED8C2;
+  background: var(--bg-card2);
   padding: 16px;
   margin-bottom: 18px;
 }
@@ -1403,12 +1403,12 @@ small {
 
 .table-map-header h3 {
   margin: 0 0 4px;
-  color: #22301B;
+  color: var(--color-on-secondary-container);
 }
 
 .table-map-header p {
   margin: 0;
-  color: #7A7460;
+  color: var(--text-muted);
 }
 
 .map-legend {
@@ -1426,13 +1426,13 @@ small {
 }
 
 .legend.available {
-  background: #E7E3D2;
-  color: #22301B;
+  background: var(--bg-hover);
+  color: var(--color-on-secondary-container);
 }
 
 .legend.blocked {
-  background: #DED8C2;
-  color: #55503E;
+  background: var(--bg-card2);
+  color: var(--text-secondary);
 }
 
 .map-groups {
@@ -1446,7 +1446,7 @@ small {
 }
 
 .map-group > strong {
-  color: #55503E;
+  color: var(--text-secondary);
 }
 
 .map-grid {
@@ -1457,10 +1457,10 @@ small {
 
 .map-seat {
   min-height: 132px;
-  border: 1px solid #CFC7A8;
+  border: 1px solid var(--border);
   border-radius: 8px;
   background: #FFFFFF;
-  color: #55503E;
+  color: var(--text-secondary);
   display: grid;
   place-items: center;
   align-content: center;
@@ -1483,38 +1483,38 @@ small {
 }
 
 .map-seat small {
-  color: #7A7460;
+  color: var(--text-muted);
   font-size: 0.76rem;
 }
 
 .map-seat.available {
   border-color: #B9D8C2;
   background: #F3F7F0;
-  color: #22301B;
+  color: var(--color-on-secondary-container);
 }
 
 .map-seat.reserved {
   border-color: #E7D5B8;
   background: #F5F0E4;
-  color: #8A641F;
+  color: var(--warning);
 }
 
 .map-seat.too-small {
   border-color: #D7E3ED;
   background: #EEF3F6;
-  color: #5A6E45;
+  color: var(--secondary);
 }
 
 .map-seat.blocked,
 .map-seat:disabled {
-  background: #DED8C2;
-  color: #7A7460;
+  background: var(--bg-card2);
+  color: var(--text-muted);
   cursor: not-allowed;
   opacity: 0.75;
 }
 
 .map-seat.selected {
-  outline: 3px solid #5A6E45;
+  outline: 3px solid var(--secondary);
   outline-offset: 2px;
 }
 
@@ -1528,7 +1528,7 @@ small {
 .card-body p,
 .dish-card p,
 .review-note {
-  color: #7A7460;
+  color: var(--text-muted);
   margin: 0;
 }
 
@@ -1557,7 +1557,7 @@ small {
 .review-box > div,
 .summary-grid > span,
 .summary-grid > strong {
-  background: #DED8C2;
+  background: var(--bg-card2);
   border-radius: 8px;
   padding: 10px;
 }
@@ -1570,8 +1570,8 @@ small {
 
 .amenities span,
 .status-pill {
-  background: #E7E3D2;
-  color: #5A6E45;
+  background: var(--bg-hover);
+  color: var(--secondary);
   padding: 5px 8px;
   border-radius: 999px;
   font-size: 0.78rem;
@@ -1579,19 +1579,19 @@ small {
 }
 
 .status-pill.available {
-  background: #E7E3D2;
-  color: #2F8F5B;
+  background: var(--bg-hover);
+  color: var(--success);
 }
 
 .status-pill.suggested {
   background: #EEF3F6;
-  color: #5A6E45;
+  color: var(--secondary);
 }
 
 .reason-list {
   margin: 0;
   padding-left: 18px;
-  color: #55503E;
+  color: var(--text-secondary);
   font-size: 0.86rem;
 }
 
@@ -1600,7 +1600,7 @@ small {
 }
 
 .ghost-link {
-  color: #5A6E45;
+  color: var(--secondary);
   font-weight: 800;
   text-decoration: none;
 }
@@ -1616,7 +1616,7 @@ small {
   display: grid;
   gap: 8px;
   min-height: 110px;
-  border: 1px solid #CFC7A8;
+  border: 1px solid var(--border);
   border-radius: 8px;
   background: #FFFFFF;
   padding: 16px;
@@ -1624,8 +1624,8 @@ small {
 }
 
 .choice-grid button.selected {
-  border-color: #5A6E45;
-  background: #E7E3D2;
+  border-color: var(--secondary);
+  background: var(--bg-hover);
 }
 
 .filters {
@@ -1645,10 +1645,10 @@ small {
 
 .cart-box {
   margin-top: 18px;
-  border: 1px solid #CFC7A8;
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 14px;
-  background: #DED8C2;
+  background: var(--bg-card2);
 }
 
 .cart-row {
@@ -1663,7 +1663,7 @@ small {
   display: grid;
   grid-template-columns: 32px 1fr 32px;
   align-items: center;
-  border: 1px solid #CFC7A8;
+  border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
   text-align: center;
@@ -1671,7 +1671,7 @@ small {
 
 .qty button {
   border: 0;
-  background: #E7E3D2;
+  background: var(--bg-hover);
   height: 34px;
   cursor: pointer;
 }
@@ -1689,7 +1689,7 @@ small {
 .preference-grid label {
   display: flex;
   align-items: center;
-  border: 1px solid #CFC7A8;
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 10px;
 }
@@ -1701,7 +1701,7 @@ small {
 .error-banner,
 .empty-state {
   background: #F5F0E4;
-  color: #8A641F;
+  color: var(--warning);
   border: 1px solid #E7D5B8;
   border-radius: 8px;
   padding: 12px;
@@ -1709,9 +1709,9 @@ small {
 }
 
 .empty-state {
-  background: #DED8C2;
-  color: #7A7460;
-  border-color: #CFC7A8;
+  background: var(--bg-card2);
+  color: var(--text-muted);
+  border-color: var(--border);
 }
 
 .waitlist-offer {
@@ -1723,7 +1723,7 @@ small {
 .skeleton-card {
   height: 260px;
   border-radius: 8px;
-  background: linear-gradient(90deg, #DED8C2, #CFC7A8, #DED8C2);
+  background: linear-gradient(90deg, var(--bg-card2), var(--border), var(--bg-card2));
   background-size: 200% 100%;
   animation: shimmer 1.2s infinite;
 }
@@ -1798,7 +1798,7 @@ small {
 .reservation-code {
   display: inline-flex;
   margin: 0;
-  background: #22301B;
+  background: var(--color-on-secondary-container);
   color: #FFFFFF;
   border-radius: 8px;
   padding: 10px 14px;
@@ -1808,12 +1808,12 @@ small {
 
 .reservation-code::selection {
   background: #F7D77B;
-  color: #1B1212;
+  color: var(--text-primary);
 }
 
 .reservation-code::-moz-selection {
   background: #F7D77B;
-  color: #1B1212;
+  color: var(--text-primary);
 }
 
 .code-copy-btn {
@@ -1840,7 +1840,7 @@ small {
   gap: 18px;
   margin: 18px 0;
   padding: 18px;
-  border: 1px solid #CFC7A8;
+  border: 1px solid var(--border);
   border-radius: 8px;
 }
 
@@ -1862,13 +1862,13 @@ small {
 }
 
 .qr-card dt {
-  color: #7A7460;
+  color: var(--text-muted);
 }
 
 .table-preview {
   margin-top: 24px;
   padding-top: 20px;
-  border-top: 1px solid #CFC7A8;
+  border-top: 1px solid var(--border);
 }
 
 .table-preview h3,
@@ -1894,9 +1894,9 @@ small {
   min-height: 132px;
   padding: 16px;
   text-align: left;
-  color: #201D14;
+  color: var(--text-primary);
   background: #FFFFFF;
-  border: 1px solid #CFC7A8;
+  border: 1px solid var(--border);
   border-radius: 8px;
   cursor: pointer;
 }
@@ -1904,8 +1904,8 @@ small {
 .preview-table:hover,
 .preview-table:focus-visible,
 .preview-table.selected {
-  border-color: #5A6E45;
-  box-shadow: 0 0 0 3px #E7E3D2;
+  border-color: var(--secondary);
+  box-shadow: 0 0 0 3px var(--bg-hover);
   outline: none;
 }
 
@@ -1922,7 +1922,7 @@ small {
 .qr-local-state {
   margin: 18px 0;
   padding: 18px;
-  border: 1px solid #CFC7A8;
+  border: 1px solid var(--border);
   background: #FFFFFF;
 }
 

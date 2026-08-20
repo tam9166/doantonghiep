@@ -312,7 +312,7 @@ onMounted(() => {
   border-radius: 100px; transition: var(--transition);
 }
 .nav-links a:hover, .nav-links a.router-link-active, .nav-links a.active {
-  color: var(--primary); background: rgba(90, 110, 69, 0.1);
+  color: var(--primary); background: color-mix(in srgb, var(--secondary) 10%, transparent);
 }
 
 .nav-right { display: flex; align-items: center; gap: 10px; }
@@ -321,7 +321,7 @@ onMounted(() => {
   color: var(--text-secondary); padding: 10px 24px;
   border-radius: 100px; font-weight: 700; cursor: pointer; transition: var(--transition);
 }
-.nav-badge:hover { border-color: var(--primary); color: var(--primary); background: rgba(90, 110, 69, 0.1); }
+.nav-badge:hover { border-color: var(--primary); color: var(--primary); background: color-mix(in srgb, var(--secondary) 10%, transparent); }
 
 /* Content */
 .history-container { padding: 40px 20px; max-width: 900px; margin: 0 auto; color: var(--text-primary); }
@@ -331,13 +331,13 @@ h1 { color: var(--primary); border-bottom: 1px solid var(--border); padding-bott
 .history-table th, .history-table td { padding: 15px; border-bottom: 1px solid var(--border); text-align: left; }
 .history-table th { background-color: var(--bg-nav); color: var(--primary); font-weight: bold; }
 .history-table tr:hover { background-color: rgba(255,255,255,0.02); }
-.status-pending { color: #B98229; font-weight: bold; background: rgba(185, 130, 41, 0.1); padding: 5px 10px; border-radius: 12px; font-size: 0.85rem; }
-.status-done { color: #2F8F5B; font-weight: bold; background: rgba(47, 143, 91, 0.1); padding: 5px 10px; border-radius: 12px; font-size: 0.85rem; }
+.status-pending { color: var(--color-tertiary); font-weight: bold; background: color-mix(in srgb, var(--color-tertiary) 10%, transparent); padding: 5px 10px; border-radius: 12px; font-size: 0.85rem; }
+.status-done { color: var(--success); font-weight: bold; background: color-mix(in srgb, var(--success) 10%, transparent); padding: 5px 10px; border-radius: 12px; font-size: 0.85rem; }
 .payment-summary { display: block; margin-top: 6px; color: var(--text-secondary); font-weight: 600; }
 .no-order { text-align: center; color: var(--text-muted); margin-top: 50px; font-style: italic; background: var(--bg-card); padding: 30px; border-radius: 8px; border: 1px dashed var(--border); }
-.btn-review { background: var(--primary); color: #201D14; border: none; padding: 5px 10px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+.btn-review { background: var(--primary); color: var(--color-on-primary); border: none; padding: 5px 10px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.3s; }
 .btn-review:hover { background: var(--primary-glow); }
-.text-success { color: #2F8F5B; font-weight: bold; font-style: italic; font-size: 0.9rem; }
+.text-success { color: var(--success); font-weight: bold; font-style: italic; font-size: 0.9rem; }
 
 /* Modal */
 .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 1000; }
@@ -347,7 +347,7 @@ h1 { color: var(--primary); border-bottom: 1px solid var(--border); padding-bott
 .review-item { background: var(--bg-input); padding: 10px; border-radius: 6px; border: 1px solid var(--border); }
 .r-select { width: 100%; padding: 5px; margin-bottom: 5px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-card); color: #FFFFFF; }
 .r-input { width: 100%; padding: 8px; margin-bottom: 5px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-card); color: #FFFFFF; box-sizing: border-box; }
-.btn-submit-review { background: #2F8F5B; color: #FFFFFF; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; }
+.btn-submit-review { background: var(--success); color: #FFFFFF; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; }
 .btn-close-review { background: transparent; color: #FFFFFF; border: 1px solid var(--border); padding: 8px; border-radius: 4px; cursor: pointer; width: 100%; }
 .invoice-modal { color: var(--text-primary); }
 .invoice-row { display: flex; justify-content: space-between; gap: 16px; padding: 9px 0; border-bottom: 1px dashed var(--border); }
@@ -366,8 +366,8 @@ h1 { color: var(--primary); border-bottom: 1px solid var(--border); padding-bott
 .vip-name { font-size: 1.1rem; text-transform: uppercase; font-family: var(--font-primary); font-weight: bold; }
 .vip-discount { font-size: 0.9rem; font-family: var(--font-primary); background: rgba(255,255,255,0.2); padding: 4px 8px; border-radius: 6px; }
 
-.tier-bronze { background: linear-gradient(135deg, #C08A2E, #8A641F); }
-.tier-silver { background: linear-gradient(135deg, #A6B0AA, #7A7460); color: #201D14; }
-.tier-gold { background: linear-gradient(135deg, #B98229, #8A641F); }
-.tier-diamond { background: linear-gradient(135deg, #7FA08F, #5A6E45); }
+.tier-bronze { background: linear-gradient(135deg, var(--color-tertiary), var(--warning)); }
+.tier-silver { background: linear-gradient(135deg, var(--color-outline), var(--text-muted)); color: var(--text-primary); }
+.tier-gold { background: linear-gradient(135deg, var(--color-tertiary), var(--warning)); }
+.tier-diamond { background: linear-gradient(135deg, var(--tier-diamond), var(--secondary)); }
 </style>

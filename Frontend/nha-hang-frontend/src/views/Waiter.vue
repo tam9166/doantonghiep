@@ -20,7 +20,7 @@
           <span class="live-dot"></span>
           <span>LIVE</span>
         </div>
-        <button @click="$router.push('/staff')" class="btn-profile" style="background:#8A641F; color:#FFFFFF; padding:8px 15px; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">👤 Cá Nhân</button>
+        <button @click="$router.push('/staff')" class="btn-profile" style="background:var(--warning); color:#FFFFFF; padding:8px 15px; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">👤 Cá Nhân</button>
         <button @click="handleLogout" class="btn-logout">🚪 Tan Ca</button>
       </div>
     </header>
@@ -122,13 +122,13 @@
       <section class="section">
         <div class="section-header">
           <h3 class="section-title">🔥 Món Đang Làm</h3>
-          <span class="count-badge" style="background: rgba(185,130,41,0.2); color: #B98229; border-color: rgba(185,130,41,0.4);">
+          <span class="count-badge" style="background: color-mix(in srgb, var(--color-tertiary) 20%, transparent); color: var(--color-tertiary); border-color: color-mix(in srgb, var(--color-tertiary) 40%, transparent);">
             {{ filteredCookingOrders.length }}
           </span>
         </div>
 
         <div v-if="filteredCookingOrders.length > 0" class="serve-grid">
-          <div v-for="order in filteredCookingOrders" :key="'cook-'+order.id" class="serve-card" style="border-left-color: #B98229;">
+          <div v-for="order in filteredCookingOrders" :key="'cook-'+order.id" class="serve-card" style="border-left-color: var(--color-tertiary);">
             <div class="serve-main">
               <div class="serve-top">
                 <div class="serve-info">
@@ -148,7 +148,7 @@
                     <span v-else class="serve-dish-icon">🍽️</span>
                     <span class="serve-dish-name">{{ detail.product?.name || 'Món ăn' }}</span>
                     <span class="serve-dish-qty">x{{ detail.quantity }}</span>
-                    <span class="serve-dish-price" style="color: #B98229; font-size: 0.8rem; font-weight: bold; background: rgba(185,130,41,0.1); padding: 4px 8px; border-radius: 10px; margin-left: auto;">⏳ Đang nấu</span>
+                    <span class="serve-dish-price" style="color: var(--color-tertiary); font-size: 0.8rem; font-weight: bold; background: color-mix(in srgb, var(--color-tertiary) 10%, transparent); padding: 4px 8px; border-radius: 10px; margin-left: auto;">⏳ Đang nấu</span>
                   </div>
                 </template>
               </div>
@@ -227,14 +227,14 @@
         <div class="modal-body">
           <div v-if="detailTable.isOccupied === 3" style="padding: 30px; text-align: center;">
             <p style="font-size: 1.2rem; margin-bottom: 20px;">Bàn này đang chờ dọn dẹp</p>
-            <button @click="checkoutTable(detailTable)" class="btn-action-large" style="width: 100%; background: rgba(47, 143, 91, 0.2); color: #2F8F5B; border: 1px solid #2F8F5B;">✅ Đã Dọn Xong</button>
+            <button @click="checkoutTable(detailTable)" class="btn-action-large" style="width: 100%; background: color-mix(in srgb, var(--success) 20%, transparent); color: var(--success); border: 1px solid var(--success);">✅ Đã Dọn Xong</button>
           </div>
           
           <div v-else-if="detailTable.isOccupied === 0" class="empty-state" style="padding: 30px;">
             <p>Bàn này đang trống</p>
             <div style="display: flex; gap: 10px; margin-top: 15px;">
-              <button @click="goAddItem(detailTable)" class="btn-action-large" style="flex: 1; background: rgba(47, 143, 91, 0.2); color: #2F8F5B; border: 1px solid #2F8F5B;">👨‍👩‍👧 Đón Khách Mới</button>
-              <button @click="openMergeTable(detailTable, 'PHYSICAL')" class="btn-action-large" style="flex: 1; background: rgba(90, 110, 69, 0.2); color: #5A6E45; border: 1px solid #5A6E45;">🔗 Ghép Bàn Này</button>
+              <button @click="goAddItem(detailTable)" class="btn-action-large" style="flex: 1; background: color-mix(in srgb, var(--success) 20%, transparent); color: var(--success); border: 1px solid var(--success);">👨‍👩‍👧 Đón Khách Mới</button>
+              <button @click="openMergeTable(detailTable, 'PHYSICAL')" class="btn-action-large" style="flex: 1; background: color-mix(in srgb, var(--secondary) 20%, transparent); color: var(--secondary); border: 1px solid var(--secondary);">🔗 Ghép Bàn Này</button>
             </div>
           </div>
           
@@ -260,11 +260,11 @@
               </div>
             </div>
             <div class="detail-total" style="flex-direction: column; align-items: flex-start;">
-              <div style="width: 100%; display: flex; justify-content: space-between; font-size: 0.9rem; color: #A6B0AA; margin-bottom: 5px;">
+              <div style="width: 100%; display: flex; justify-content: space-between; font-size: 0.9rem; color: var(--color-outline); margin-bottom: 5px;">
                 <span>Tạm tính:</span>
                 <span>{{ calculateSubTotal(detailOrder).toLocaleString() }} đ</span>
               </div>
-              <div style="width: 100%; display: flex; justify-content: space-between; font-size: 0.9rem; color: #A6B0AA; border-bottom: 1px dashed rgba(255,255,255,0.2); padding-bottom: 10px; margin-bottom: 10px;">
+              <div style="width: 100%; display: flex; justify-content: space-between; font-size: 0.9rem; color: var(--color-outline); border-bottom: 1px dashed rgba(255,255,255,0.2); padding-bottom: 10px; margin-bottom: 10px;">
                 <span>Thuế GTGT:</span>
                 <span>{{ calculateTax(detailOrder).toLocaleString() }} đ</span>
               </div>
@@ -280,33 +280,33 @@
 
             <!-- Hành động tùy theo trạng thái bàn -->
             <div v-if="detailTable.isOccupied === 1" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-              <button @click="upgradeToOccupied(detailTable)" class="btn-action-large" style="background: rgba(47, 143, 91, 0.2); color: #2F8F5B; border: 1px solid #2F8F5B;">✅ Khách Đã Đến</button>
-              <button @click="cancelBooking(detailTable)" class="btn-action-large" style="background: rgba(178, 59, 46, 0.2); color: #B23B2E; border: 1px solid #B23B2E;">❌ Khách Hủy</button>
-              <button @click="goAddItem(detailTable)" class="btn-action-large" style="grid-column: span 2; background: rgba(90, 110, 69, 0.2); color: #5A6E45; border: 1px solid #5A6E45;">➕ Gọi Thêm</button>
+              <button @click="upgradeToOccupied(detailTable)" class="btn-action-large" style="background: color-mix(in srgb, var(--success) 20%, transparent); color: var(--success); border: 1px solid var(--success);">✅ Khách Đã Đến</button>
+              <button @click="cancelBooking(detailTable)" class="btn-action-large" style="background: color-mix(in srgb, var(--primary) 20%, transparent); color: var(--primary); border: 1px solid var(--primary);">❌ Khách Hủy</button>
+              <button @click="goAddItem(detailTable)" class="btn-action-large" style="grid-column: span 2; background: color-mix(in srgb, var(--secondary) 20%, transparent); color: var(--secondary); border: 1px solid var(--secondary);">➕ Gọi Thêm</button>
             </div>
             
             <div v-else class="modal-table-actions" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-               <button @click="openMoveTable(detailTable)" class="btn-action-large" style="background: rgba(185, 130, 41, 0.2); color: #B98229; border: 1px solid #B98229;">🔄 Chuyển Bàn</button>
-               <button @click="goAddItem(detailTable)" class="btn-action-large" style="background: rgba(47, 143, 91, 0.2); color: #2F8F5B; border: 1px solid #2F8F5B;">➕ Gọi Thêm</button>
-               <button @click="openMergeTable(detailTable)" class="btn-action-large" style="background: rgba(90, 110, 69, 0.2); color: #5A6E45; border: 1px solid #5A6E45;">🔗 Gộp Bàn</button>
-               <button @click="openSplitTable(detailTable)" class="btn-action-large" style="background: rgba(192, 138, 46, 0.2); color: #C08A2E; border: 1px solid #C08A2E;">✂️ Tách Bàn</button>
-               <button @click="openInvoice(detailTable)" class="btn-action-large" style="background: rgba(192, 138, 46, 0.2); color: #C08A2E; border: 1px solid #C08A2E;">🧾 In Tạm Tính</button>
-               <button @click="openCheckoutModal(detailTable)" class="btn-action-large" style="grid-column: span 2; background: rgba(47, 143, 91, 0.8); color: #FFFFFF; border: none; font-weight: bold; font-size: 1.1rem; padding: 12px;">💰 THANH TOÁN</button>
+               <button @click="openMoveTable(detailTable)" class="btn-action-large" style="background: color-mix(in srgb, var(--color-tertiary) 20%, transparent); color: var(--color-tertiary); border: 1px solid var(--color-tertiary);">🔄 Chuyển Bàn</button>
+               <button @click="goAddItem(detailTable)" class="btn-action-large" style="background: color-mix(in srgb, var(--success) 20%, transparent); color: var(--success); border: 1px solid var(--success);">➕ Gọi Thêm</button>
+               <button @click="openMergeTable(detailTable)" class="btn-action-large" style="background: color-mix(in srgb, var(--secondary) 20%, transparent); color: var(--secondary); border: 1px solid var(--secondary);">🔗 Gộp Bàn</button>
+               <button @click="openSplitTable(detailTable)" class="btn-action-large" style="background: color-mix(in srgb, var(--color-tertiary) 20%, transparent); color: var(--color-tertiary); border: 1px solid var(--color-tertiary);">✂️ Tách Bàn</button>
+               <button @click="openInvoice(detailTable)" class="btn-action-large" style="background: color-mix(in srgb, var(--color-tertiary) 20%, transparent); color: var(--color-tertiary); border: 1px solid var(--color-tertiary);">🧾 In Tạm Tính</button>
+               <button @click="openCheckoutModal(detailTable)" class="btn-action-large" style="grid-column: span 2; background: color-mix(in srgb, var(--success) 80%, transparent); color: #FFFFFF; border: none; font-weight: bold; font-size: 1.1rem; padding: 12px;">💰 THANH TOÁN</button>
             </div>
           </div>
           
           <div v-else-if="detailTable.isOccupied === 5" style="padding: 30px; text-align: center;">
             <p style="font-size: 1.2rem; margin-bottom: 20px;">Bàn này đã được ghép với bàn khác.</p>
-            <p style="color: #B98229; font-weight: bold;">{{ detailTable.reservedTime }}</p>
-            <button @click="unlinkTable(detailTable)" class="btn-action-large" style="width: 100%; margin-top: 15px; background: rgba(192, 138, 46, 0.2); color: #C08A2E; border: 1px solid #C08A2E;">✂️ Tách Bàn Này Ra</button>
+            <p style="color: var(--color-tertiary); font-weight: bold;">{{ detailTable.reservedTime }}</p>
+            <button @click="unlinkTable(detailTable)" class="btn-action-large" style="width: 100%; margin-top: 15px; background: color-mix(in srgb, var(--color-tertiary) 20%, transparent); color: var(--color-tertiary); border: 1px solid var(--color-tertiary);">✂️ Tách Bàn Này Ra</button>
           </div>
 
           <div v-else-if="detailTable.isOccupied === 1" style="padding: 30px; text-align: center;">
             <!-- CÓ CỌC NHƯNG CHƯA ĐẶT MÓN -->
             <p style="font-size: 1.2rem; margin-bottom: 20px;">Bàn đang được khách đặt cọc trước (Chưa gọi món)</p>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-              <button @click="upgradeToOccupied(detailTable)" class="btn-action-large" style="background: rgba(47, 143, 91, 0.2); color: #2F8F5B; border: 1px solid #2F8F5B;">✅ Khách Đã Đến</button>
-              <button @click="cancelBooking(detailTable)" class="btn-action-large" style="background: rgba(178, 59, 46, 0.2); color: #B23B2E; border: 1px solid #B23B2E;">❌ Khách Hủy</button>
+              <button @click="upgradeToOccupied(detailTable)" class="btn-action-large" style="background: color-mix(in srgb, var(--success) 20%, transparent); color: var(--success); border: 1px solid var(--success);">✅ Khách Đã Đến</button>
+              <button @click="cancelBooking(detailTable)" class="btn-action-large" style="background: color-mix(in srgb, var(--primary) 20%, transparent); color: var(--primary); border: 1px solid var(--primary);">❌ Khách Hủy</button>
             </div>
           </div>
           
@@ -314,8 +314,8 @@
             <!-- CÓ KHÁCH NHƯNG CHƯA GỌI MÓN (Hoặc đã thanh toán đơn trước đó nhưng chưa dọn bàn) -->
             <p style="font-size: 1.2rem; margin-bottom: 20px;">Bàn có khách nhưng hiện tại chưa có món nào</p>
             <div style="display: grid; grid-template-columns: 1fr; gap: 10px;">
-              <button @click="goAddItem(detailTable)" class="btn-action-large" style="background: rgba(90, 110, 69, 0.2); color: #5A6E45; border: 1px solid #5A6E45;">➕ Khách Gọi Món</button>
-              <button @click="markAsCleaning(detailTable)" class="btn-action-large" style="background: rgba(192, 138, 46, 0.2); color: #C08A2E; border: 1px solid #C08A2E;">🏠 Khách Đã Về (Cần Dọn)</button>
+              <button @click="goAddItem(detailTable)" class="btn-action-large" style="background: color-mix(in srgb, var(--secondary) 20%, transparent); color: var(--secondary); border: 1px solid var(--secondary);">➕ Khách Gọi Món</button>
+              <button @click="markAsCleaning(detailTable)" class="btn-action-large" style="background: color-mix(in srgb, var(--color-tertiary) 20%, transparent); color: var(--color-tertiary); border: 1px solid var(--color-tertiary);">🏠 Khách Đã Về (Cần Dọn)</button>
             </div>
           </div>
         </div>
@@ -383,11 +383,11 @@
           </table>
 
           <div class="invoice-total">
-            <div class="total-row" style="font-size: 0.9rem; color: #55503E; margin-bottom: 5px;">
+            <div class="total-row" style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 5px;">
               <span>Tạm tính:</span>
               <span>{{ calculateSubTotal(selectedOrder).toLocaleString() }} đ</span>
             </div>
-            <div class="total-row" style="font-size: 0.9rem; color: #55503E; border-bottom: 1px dashed #A6B0AA; padding-bottom: 10px; margin-bottom: 10px;">
+            <div class="total-row" style="font-size: 0.9rem; color: var(--text-secondary); border-bottom: 1px dashed var(--color-outline); padding-bottom: 10px; margin-bottom: 10px;">
               <span>Thuế GTGT:</span>
               <span>{{ calculateTax(selectedOrder).toLocaleString() }} đ</span>
             </div>
@@ -461,7 +461,7 @@
             </template>
           </select>
           <div class="move-actions">
-            <button @click="confirmMergeTable" class="btn-confirm-move" :disabled="!targetMergeTableId" style="background:#5A6E45">
+            <button @click="confirmMergeTable" class="btn-confirm-move" :disabled="!targetMergeTableId" style="background:var(--secondary)">
               {{ mergeMode === 'PHYSICAL' ? 'Ghép Bàn Ngay' : 'Gộp Bàn Ngay' }}
             </button>
           </div>
@@ -501,11 +501,11 @@
               </div>
               <span>{{ detail.price.toLocaleString() }}đ</span>
             </div>
-            <p v-if="splitSourceOrder?.orderDetails?.length === 0" style="text-align: center; color: #7A7460;">Không có món nào.</p>
+            <p v-if="splitSourceOrder?.orderDetails?.length === 0" style="text-align: center; color: var(--text-muted);">Không có món nào.</p>
           </div>
 
           <div class="move-actions" style="margin-top: 20px;">
-            <button @click="confirmSplitTable" class="btn-confirm-move" :disabled="!splitTargetTableId || selectedDetailIds.length === 0" style="background:#C08A2E; width: 100%;">Xác Nhận Tách ({{ selectedDetailIds.length }} món)</button>
+            <button @click="confirmSplitTable" class="btn-confirm-move" :disabled="!splitTargetTableId || selectedDetailIds.length === 0" style="background:var(--color-tertiary); width: 100%;">Xác Nhận Tách ({{ selectedDetailIds.length }} món)</button>
           </div>
         </div>
       </div>
@@ -558,11 +558,11 @@
           </table>
 
           <div class="invoice-total">
-            <div class="total-row" style="font-size: 0.9rem; color: #55503E; margin-bottom: 5px;">
+            <div class="total-row" style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 5px;">
               <span>Tạm tính:</span>
               <span>{{ calculateSubTotal(checkoutOrder).toLocaleString() }} đ</span>
             </div>
-            <div class="total-row" style="font-size: 0.9rem; color: #55503E; border-bottom: 1px dashed #A6B0AA; padding-bottom: 10px; margin-bottom: 10px;">
+            <div class="total-row" style="font-size: 0.9rem; color: var(--text-secondary); border-bottom: 1px dashed var(--color-outline); padding-bottom: 10px; margin-bottom: 10px;">
               <span>Thuế GTGT:</span>
               <span>{{ calculateTax(checkoutOrder).toLocaleString() }} đ</span>
             </div>
@@ -583,7 +583,7 @@
 
         <div class="modal-actions hide-on-print" style="display: flex; flex-direction: column; gap: 10px; padding: 15px;">
           <div style="display: flex; gap: 10px;">
-            <button @click="printCheckoutInvoice" class="btn-export" style="flex:1; background: #5A6E45;">🖨️ In Hóa Đơn</button>
+            <button @click="printCheckoutInvoice" class="btn-export" style="flex:1; background: var(--secondary);">🖨️ In Hóa Đơn</button>
           </div>
         </div>
       </div>
@@ -601,6 +601,7 @@ import SockJS from 'sockjs-client';
 import { Stomp } from '@stomp/stompjs';
 import TimekeepingWidget from '../components/TimekeepingWidget.vue';
 import { foodImage, replaceFoodImage } from '@/utils/imageFallback';
+import { clearStaffSession, getStaffToken, getStaffUser } from '@/services/session';
 
 const router = useRouter();
 const toastMsg = ref('');
@@ -627,9 +628,9 @@ const expandedFloors = ref([]);
 // Lấy khu vực phân công của nhân viên hiện tại
 const fetchMyZones = async () => {
   try {
-    const u = JSON.parse(localStorage.getItem('user'));
+    const u = getStaffUser();
     if (!u || !u.username) return;
-    const token = localStorage.getItem('token');
+    const token = getStaffToken();
     const today = new Date().toISOString().split('T')[0];
     const res = await api.get(`/api/service-zones/my?date=${today}`, {
       headers: { 'Authorization': `Bearer ${token}` }
@@ -787,7 +788,7 @@ const getServeTimerClass = (order) => {
 // === FETCH DATA ===
 const fetchData = async () => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getStaffToken();
 
     const resOrders = await api.get('/api/admin/orders', {
       headers: { 'Authorization': `Bearer ${token}` }
@@ -820,7 +821,7 @@ const fetchData = async () => {
 const markAsServed = async (id) => {
   try {
     await api.put(`/api/admin/orders/${id}/status?status=7`, {}, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      headers: { 'Authorization': `Bearer ${getStaffToken()}` }
     });
     toastMsg.value = '✅ Đã bưng ra bàn thành công!';
     setTimeout(() => { toastMsg.value = ''; }, 3000);
@@ -831,7 +832,7 @@ const markAsServed = async (id) => {
 const markDishServed = async (order, detailId) => {
   try {
     await api.put(`/api/orders/details/${detailId}/status?status=2`, {}, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      headers: { 'Authorization': `Bearer ${getStaffToken()}` }
     });
     toastMsg.value = '✅ Đã bưng món!';
     setTimeout(() => { toastMsg.value = ''; }, 2000);
@@ -861,7 +862,7 @@ const markAsCleaning = async (table) => {
 
   try {
     await api.put(`/api/tables/${table.id}/status?status=3`, {}, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      headers: { 'Authorization': `Bearer ${getStaffToken()}` }
     });
     toastMsg.value = `🧹 Bàn "${table.name}" đang chờ dọn!`;
     setTimeout(() => { toastMsg.value = ''; }, 3500);
@@ -875,7 +876,7 @@ const markAsCleaning = async (table) => {
 const checkoutTable = async (table) => {
   try {
     await api.put(`/api/tables/${table.id}/status?status=0`, {}, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      headers: { 'Authorization': `Bearer ${getStaffToken()}` }
     });
     showCheckoutToast(table.name);
     detailTable.value = null;
@@ -996,7 +997,7 @@ const confirmMoveTable = async () => {
   }
 
   const newTable = tables.value.find(t => t.id === targetTableId.value);
-  const token = localStorage.getItem('token');
+  const token = getStaffToken();
   
   try {
     // 1. Cập nhật địa chỉ đơn hàng sang bàn mới
@@ -1047,7 +1048,7 @@ const confirmMergeTable = async () => {
   const targetTable = tables.value.find(t => t.id === targetMergeTableId.value);
   if (!targetTable) return;
 
-  const token = localStorage.getItem('token');
+  const token = getStaffToken();
   try {
     if (mergeMode.value === 'PHYSICAL') {
       await api.put(`/api/tables/${movingTable.value.id}/link/${targetTable.id}`, {}, {
@@ -1056,8 +1057,8 @@ const confirmMergeTable = async () => {
       toastMsg.value = `✅ Đã ghép bàn vật lý ${movingTable.value.name} vào ${targetTable.name}!`;
     } else {
       await api.post('/api/orders/merge-tables', {
-        fromTable: movingTable.value.name,
-        toTable: targetTable.name
+        fromTableId: movingTable.value.id,
+        toTableId: targetTable.id
       }, { headers: { 'Authorization': `Bearer ${token}` } });
       toastMsg.value = `✅ Đã gộp đơn từ bàn ${movingTable.value.name} sang ${targetTable.name} thành công!`;
     }
@@ -1073,7 +1074,7 @@ const confirmMergeTable = async () => {
 const unlinkTable = async (table) => {
   if (!confirm('Bạn có chắc chắn muốn tách bàn này ra trở lại thành bàn trống không?')) return;
   try {
-    const token = localStorage.getItem('token');
+    const token = getStaffToken();
     await api.put(`/api/tables/${table.id}/unlink`, {}, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
@@ -1118,11 +1119,11 @@ const confirmSplitTable = async () => {
   }
   
   const targetTable = tables.value.find(t => t.id === splitTargetTableId.value);
-  const token = localStorage.getItem('token');
+  const token = getStaffToken();
   try {
     await api.post('/api/orders/split-table', {
-      fromTable: movingTable.value.name,
-      toTable: targetTable.name,
+      fromTableId: movingTable.value.id,
+      toTableId: targetTable.id,
       detailIds: selectedDetailIds.value
     }, { headers: { 'Authorization': `Bearer ${token}` } });
 
@@ -1140,7 +1141,7 @@ const upgradeToOccupied = async (table) => {
   if (!confirm(`Khách đặt trước bàn ${table.name} đã đến?`)) return;
   try {
     await api.put(`/api/tables/${table.id}/status?status=2`, {}, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      headers: { 'Authorization': `Bearer ${getStaffToken()}` }
     });
     toastMsg.value = `✅ Đã đánh dấu Bàn ${table.name} CÓ KHÁCH!`;
     setTimeout(() => { toastMsg.value = ''; }, 3000);
@@ -1154,7 +1155,7 @@ const cancelBooking = async (table) => {
   if (!confirm(`Xác nhận HỦY CỌC bàn ${table.name}? Bàn sẽ trở về trạng thái TRỐNG.`)) return;
   try {
     await api.put(`/api/tables/${table.id}/status?status=0`, {}, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      headers: { 'Authorization': `Bearer ${getStaffToken()}` }
     });
     toastMsg.value = `❌ Đã hủy cọc Bàn ${table.name}!`;
     setTimeout(() => { toastMsg.value = ''; }, 3000);
@@ -1172,7 +1173,7 @@ const showCheckoutToast = (tableName) => {
 
 const handleLogout = () => {
   if (confirm('Bạn có chắc chắn muốn đăng xuất tan ca không?')) {
-    localStorage.clear();
+    clearStaffSession();
     window.location.href = '/staff-login';
   }
 };
@@ -1213,7 +1214,7 @@ const connectWebSocket = () => {
   const socket = new SockJS('/ws');
   stompClient = Stomp.over(socket);
   stompClient.debug = () => {}; // Tắt log debug
-  const token = localStorage.getItem('token');
+  const token = getStaffToken();
   stompClient.connect(token ? { Authorization: `Bearer ${token}` } : {}, () => {
     stompClient.subscribe('/topic/waiter', (message) => {
       if (message.body === 'ORDER_READY' || message.body === 'DISH_STATUS_CHANGED') {
@@ -1271,7 +1272,7 @@ onUnmounted(() => {
 .header-right { display: flex; align-items: center; gap: 16px; }
 
 .brand { display: flex; align-items: center; gap: 14px; }
-.brand-icon { font-size: 2rem; filter: drop-shadow(0 0 10px rgba(90, 110, 69, 0.5)); }
+.brand-icon { font-size: 2rem; filter: drop-shadow(0 0 10px color-mix(in srgb, var(--secondary) 50%, transparent)); }
 .brand h2 { margin: 0; font-size: 1.3rem; font-weight: 900; color: var(--primary); letter-spacing: 1px; }
 .brand p { margin: 0; font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 2px; }
 
@@ -1279,9 +1280,9 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: rgba(178, 59, 46, 0.15);
-  border: 1px solid rgba(178, 59, 46, 0.3);
-  color: #B23B2E;
+  background: color-mix(in srgb, var(--primary) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+  color: var(--primary);
   padding: 6px 14px;
   border-radius: 20px;
   font-size: 0.83rem;
@@ -1290,7 +1291,7 @@ onUnmounted(() => {
 }
 .alert-dot {
   width: 7px; height: 7px;
-  background: #B23B2E;
+  background: var(--primary);
   border-radius: 50%;
   animation: pulse-red 1.2s ease-in-out infinite;
 }
@@ -1314,15 +1315,15 @@ onUnmounted(() => {
 }
 
 .btn-logout {
-  background: rgba(178, 59, 46, 0.15);
-  border: 1px solid rgba(178, 59, 46, 0.3);
-  color: #B23B2E;
+  background: color-mix(in srgb, var(--primary) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+  color: var(--primary);
   padding: 8px 18px;
   border-radius: var(--radius-md);
   cursor: pointer; font-weight: 700; font-size: 0.88rem; font-family: inherit;
   transition: var(--transition);
 }
-.btn-logout:hover { background: rgba(178,59,46,0.3); }
+.btn-logout:hover { background: color-mix(in srgb, var(--primary) 30%, transparent); }
 
 /* STATS BAR */
 .stats-bar {
@@ -1337,12 +1338,12 @@ onUnmounted(() => {
   background: var(--bg-card); border: 1px solid var(--border-light);
   border-radius: 12px; padding: 10px 18px; min-width: 100px;
 }
-.stat-item.stat-urgent { border-color: rgba(178,59,46,0.3); }
-.stat-item.stat-active { border-color: rgba(185,130,41,0.3); }
-.stat-item.stat-done { border-color: rgba(90, 110, 69, 0.3); }
+.stat-item.stat-urgent { border-color: color-mix(in srgb, var(--primary) 30%, transparent); }
+.stat-item.stat-active { border-color: color-mix(in srgb, var(--color-tertiary) 30%, transparent); }
+.stat-item.stat-done { border-color: color-mix(in srgb, var(--secondary) 30%, transparent); }
 .stat-value { font-size: 1.5rem; font-weight: 900; color: var(--text-heading); }
-.stat-item.stat-urgent .stat-value { color: #B23B2E; }
-.stat-item.stat-active .stat-value { color: #B98229; }
+.stat-item.stat-urgent .stat-value { color: var(--primary); }
+.stat-item.stat-active .stat-value { color: var(--color-tertiary); }
 .stat-item.stat-done .stat-value { color: var(--primary); }
 .stat-label {
   font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase;
@@ -1387,10 +1388,10 @@ onUnmounted(() => {
 }
 .legend { display: flex; gap: 12px; }
 .legend-item { font-size: 0.8rem; font-weight: 600; padding: 4px 12px; border-radius: 20px; }
-.legend-item.empty { background: rgba(90, 110, 69, 0.1); color: var(--primary); }
-.legend-item.booked { background: rgba(185,130,41,0.1); color: #B98229; }
-.legend-item.occupied { background: rgba(178,59,46,0.1); color: #B23B2E; }
-.legend-item.cleaning { background: rgba(192, 138, 46, 0.1); color: #C08A2E; }
+.legend-item.empty { background: color-mix(in srgb, var(--secondary) 10%, transparent); color: var(--primary); }
+.legend-item.booked { background: color-mix(in srgb, var(--color-tertiary) 10%, transparent); color: var(--color-tertiary); }
+.legend-item.occupied { background: color-mix(in srgb, var(--primary) 10%, transparent); color: var(--primary); }
+.legend-item.cleaning { background: color-mix(in srgb, var(--color-tertiary) 10%, transparent); color: var(--color-tertiary); }
 
 /* Serve Grid */
 .serve-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
@@ -1398,7 +1399,7 @@ onUnmounted(() => {
   position: relative;
   background: var(--bg-card);
   border: 1px solid var(--border-light);
-  border-left: 4px solid #B23B2E;
+  border-left: 4px solid var(--primary);
   border-radius: var(--radius-lg);
   padding: 0;
   display: flex; flex-direction: column;
@@ -1407,11 +1408,11 @@ onUnmounted(() => {
   animation: slideIn 0.4s ease;
   transition: var(--transition);
 }
-.serve-card:hover { box-shadow: 0 0 30px rgba(178,59,46,0.15), var(--shadow-md); }
+.serve-card:hover { box-shadow: 0 0 30px color-mix(in srgb, var(--primary) 15%, transparent), var(--shadow-md); }
 .serve-card-glow {
   position: absolute;
   left: 0; top: 0; bottom: 0; width: 200px;
-  background: linear-gradient(90deg, rgba(178,59,46,0.05), transparent);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--primary) 5%, transparent), transparent);
   pointer-events: none;
 }
 @keyframes slideIn {
@@ -1431,9 +1432,9 @@ onUnmounted(() => {
   border-radius: 20px; font-family: var(--font-primary);
   white-space: nowrap;
 }
-.timer-normal { background: rgba(90, 110, 69, 0.15); color: var(--primary); }
-.timer-warning { background: rgba(185,130,41,0.2); color: #B98229; }
-.timer-critical { background: rgba(178,59,46,0.2); color: #B23B2E; animation: blink-timer 0.8s ease-in-out infinite; }
+.timer-normal { background: color-mix(in srgb, var(--secondary) 15%, transparent); color: var(--primary); }
+.timer-warning { background: color-mix(in srgb, var(--color-tertiary) 20%, transparent); color: var(--color-tertiary); }
+.timer-critical { background: color-mix(in srgb, var(--primary) 20%, transparent); color: var(--primary); animation: blink-timer 0.8s ease-in-out infinite; }
 @keyframes blink-timer {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
@@ -1456,10 +1457,10 @@ onUnmounted(() => {
 }
 .serve-dish-icon { font-size: 1rem; }
 .serve-dish-name { font-size: 0.8rem; font-weight: 600; color: var(--text-heading); flex: 1; }
-.serve-dish-price { color: #B23B2E; font-weight: bold; margin-left: auto; font-size: 0.8rem; }
+.serve-dish-price { color: var(--primary); font-weight: bold; margin-left: auto; font-size: 0.8rem; }
 
 .btn-dish-served {
-  background: #2F8F5B;
+  background: var(--success);
   color: #FFFFFF;
   border: none;
   padding: 3px 6px;
@@ -1469,13 +1470,13 @@ onUnmounted(() => {
   transition: 0.2s;
 }
 .btn-dish-served:hover {
-  background: #2F8F5B;
+  background: var(--success);
   transform: scale(1.05);
 }
 
 .serve-dish-qty {
   font-size: 0.78rem; font-weight: 800;
-  background: rgba(90, 110, 69, 0.15); color: var(--primary);
+  background: color-mix(in srgb, var(--secondary) 15%, transparent); color: var(--primary);
   padding: 2px 8px; border-radius: 10px;
 }
 
@@ -1490,7 +1491,7 @@ onUnmounted(() => {
   width: 100%;
   border-top: 1px solid var(--border-light);
 }
-.btn-served:hover { background: linear-gradient(135deg, var(--primary-dark), var(--primary)); box-shadow: 0 6px 20px rgba(90, 110, 69, 0.4); }
+.btn-served:hover { background: linear-gradient(135deg, var(--primary-dark), var(--primary)); box-shadow: 0 6px 20px color-mix(in srgb, var(--secondary) 40%, transparent); }
 
 /* Empty */
 .empty-state { text-align: center; padding: 40px; color: var(--text-muted); }
@@ -1525,11 +1526,11 @@ onUnmounted(() => {
   transform: translateY(-5px);
   box-shadow: 0 8px 20px rgba(0,0,0,0.3);
 }
-.table-box.table-empty { border-color: #2F8F5B; box-shadow: 0 0 10px rgba(47, 143, 91, 0.1); }
-.table-box.table-booked { border-color: #B98229; box-shadow: 0 0 10px rgba(185, 130, 41, 0.1); }
-.table-box.table-occupied { border-color: #B23B2E; box-shadow: 0 0 10px rgba(178, 59, 46, 0.1); }
-.table-box.table-cleaning { border-color: #C08A2E; box-shadow: 0 0 10px rgba(192, 138, 46, 0.1); }
-.table-box.table-linked { border-color: #5A6E45; box-shadow: 0 0 10px rgba(90, 110, 69, 0.1); background: rgba(90, 110, 69, 0.05); }
+.table-box.table-empty { border-color: var(--success); box-shadow: 0 0 10px color-mix(in srgb, var(--success) 10%, transparent); }
+.table-box.table-booked { border-color: var(--color-tertiary); box-shadow: 0 0 10px color-mix(in srgb, var(--color-tertiary) 10%, transparent); }
+.table-box.table-occupied { border-color: var(--primary); box-shadow: 0 0 10px color-mix(in srgb, var(--primary) 10%, transparent); }
+.table-box.table-cleaning { border-color: var(--color-tertiary); box-shadow: 0 0 10px color-mix(in srgb, var(--color-tertiary) 10%, transparent); }
+.table-box.table-linked { border-color: var(--secondary); box-shadow: 0 0 10px color-mix(in srgb, var(--secondary) 10%, transparent); background: color-mix(in srgb, var(--secondary) 5%, transparent); }
 
 .tc-top {
   display: flex;
@@ -1539,7 +1540,7 @@ onUnmounted(() => {
 }
 .tc-capacity {
   background: rgba(255,255,255,0.05);
-  color: #5A6E45;
+  color: var(--secondary);
   padding: 2px 8px;
   border-radius: 12px;
   font-size: 0.75rem;
@@ -1562,11 +1563,11 @@ onUnmounted(() => {
   border-radius: 50%;
   margin: 0 auto 8px auto;
 }
-.table-empty .tc-dot { background: #2F8F5B; box-shadow: 0 0 8px #2F8F5B; }
-.table-booked .tc-dot { background: #B98229; box-shadow: 0 0 8px #B98229; }
-.table-occupied .tc-dot { background: #B23B2E; box-shadow: 0 0 8px #B23B2E; }
-.table-cleaning .tc-dot { background: #C08A2E; box-shadow: 0 0 8px #C08A2E; }
-.table-linked .tc-dot { background: #5A6E45; box-shadow: 0 0 8px #5A6E45; }
+.table-empty .tc-dot { background: var(--success); box-shadow: 0 0 8px var(--success); }
+.table-booked .tc-dot { background: var(--color-tertiary); box-shadow: 0 0 8px var(--color-tertiary); }
+.table-occupied .tc-dot { background: var(--primary); box-shadow: 0 0 8px var(--primary); }
+.table-cleaning .tc-dot { background: var(--color-tertiary); box-shadow: 0 0 8px var(--color-tertiary); }
+.table-linked .tc-dot { background: var(--secondary); box-shadow: 0 0 8px var(--secondary); }
 
 .tc-center h4 {
   margin: 0 0 5px 0;
@@ -1626,9 +1627,9 @@ onUnmounted(() => {
 
 .btn-add-item {
   width: 100%;
-  background: rgba(47, 143, 91, 0.1);
-  color: #2F8F5B;
-  border: 1px solid rgba(47, 143, 91, 0.3);
+  background: color-mix(in srgb, var(--success) 10%, transparent);
+  color: var(--success);
+  border: 1px solid color-mix(in srgb, var(--success) 30%, transparent);
   padding: 6px;
   border-radius: 4px;
   font-size: 0.75rem;
@@ -1636,13 +1637,13 @@ onUnmounted(() => {
   cursor: pointer;
   transition: all 0.3s ease;
 }
-.btn-add-item:hover { background: #2F8F5B; color: #FFFFFF; }
+.btn-add-item:hover { background: var(--success); color: #FFFFFF; }
 
 .btn-upgrade {
   flex: 1;
-  background: rgba(47, 143, 91, 0.1);
-  color: #2F8F5B;
-  border: 1px solid rgba(47, 143, 91, 0.3);
+  background: color-mix(in srgb, var(--success) 10%, transparent);
+  color: var(--success);
+  border: 1px solid color-mix(in srgb, var(--success) 30%, transparent);
   padding: 6px;
   border-radius: 4px;
   font-size: 0.75rem;
@@ -1650,13 +1651,13 @@ onUnmounted(() => {
   cursor: pointer;
   transition: all 0.3s ease;
 }
-.btn-upgrade:hover { background: #2F8F5B; color: #FFFFFF; }
+.btn-upgrade:hover { background: var(--success); color: #FFFFFF; }
 
 .btn-cancel-book {
   flex: 1;
-  background: rgba(178, 59, 46, 0.1);
-  color: #B23B2E;
-  border: 1px solid rgba(178, 59, 46, 0.3);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  color: var(--primary);
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
   padding: 6px;
   border-radius: 4px;
   font-size: 0.75rem;
@@ -1664,7 +1665,7 @@ onUnmounted(() => {
   cursor: pointer;
   transition: all 0.3s ease;
 }
-.btn-cancel-book:hover { background: #B23B2E; color: #FFFFFF; }
+.btn-cancel-book:hover { background: var(--primary); color: #FFFFFF; }
 
 /* Toast */
 .toast-notification {
@@ -1677,7 +1678,7 @@ onUnmounted(() => {
   padding: 14px 28px;
   border-radius: 30px;
   border: 1px solid var(--primary);
-  box-shadow: 0 0 30px rgba(90, 110, 69, 0.3);
+  box-shadow: 0 0 30px color-mix(in srgb, var(--secondary) 30%, transparent);
   font-weight: bold;
   z-index: 1000;
   animation: slideUp 0.3s ease;
@@ -1710,10 +1711,10 @@ onUnmounted(() => {
   padding: 4px 12px; border-radius: 20px;
   font-size: 0.78rem; font-weight: 700;
 }
-.badge-cooking { background: rgba(185,130,41,0.15); color: #B98229; }
-.badge-ready { background: rgba(90, 110, 69, 0.15); color: var(--primary); }
-.badge-serving { background: rgba(90, 110, 69, 0.15); color: #5A6E45; }
-.badge-done { background: rgba(47,143,91,0.15); color: #2F8F5B; }
+.badge-cooking { background: color-mix(in srgb, var(--color-tertiary) 15%, transparent); color: var(--color-tertiary); }
+.badge-ready { background: color-mix(in srgb, var(--secondary) 15%, transparent); color: var(--primary); }
+.badge-serving { background: color-mix(in srgb, var(--secondary) 15%, transparent); color: var(--secondary); }
+.badge-done { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); }
 
 .detail-dishes {
   max-height: 350px; overflow-y: auto;
@@ -1732,7 +1733,7 @@ onUnmounted(() => {
 .detail-dish-left strong { color: var(--text-heading); font-size: 0.92rem; }
 .detail-dish-qty {
   margin-left: 6px; font-size: 0.78rem; font-weight: 700;
-  color: var(--primary); background: rgba(90, 110, 69, 0.1);
+  color: var(--primary); background: color-mix(in srgb, var(--secondary) 10%, transparent);
   padding: 2px 8px; border-radius: 10px;
 }
 .detail-dish-price { font-weight: 700; color: var(--text-secondary); font-size: 0.9rem; white-space: nowrap; }
@@ -1750,7 +1751,7 @@ onUnmounted(() => {
   display: flex; align-items: center; justify-content: center; z-index: 2000;
 }
 .invoice-modal {
-  background: #FFFFFF; color: #201D14; width: 320px; border-radius: 8px; overflow: hidden;
+  background: #FFFFFF; color: var(--text-primary); width: 320px; border-radius: 8px; overflow: hidden;
   max-height: 90vh; display: flex; flex-direction: column;
 }
 .modal-header {
@@ -1758,7 +1759,7 @@ onUnmounted(() => {
 }
 .modal-header h2 { margin: 0; font-size: 1rem; color: var(--primary); }
 .btn-close { background: none; border: none; color: #FFFFFF; cursor: pointer; font-size: 1.2rem; transition: 0.3s; }
-.btn-close:hover { color: #B23B2E; transform: scale(1.1); }
+.btn-close:hover { color: var(--primary); transform: scale(1.1); }
 
 .modal-body {
   padding: 20px;
@@ -1768,21 +1769,21 @@ onUnmounted(() => {
 }
 
 .invoice-content { padding: 20px; font-family: var(--font-primary); font-size: 0.9rem; overflow-y: auto; }
-.invoice-brand { text-align: center; border-bottom: 1px dashed #201D14; padding-bottom: 10px; margin-bottom: 10px; }
+.invoice-brand { text-align: center; border-bottom: 1px dashed var(--text-primary); padding-bottom: 10px; margin-bottom: 10px; }
 .invoice-brand h1 { margin: 0; font-size: 1.2rem; }
 .print-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
-.print-table th, .print-table td { padding: 4px 2px; border-bottom: 1px dashed #A6B0AA; vertical-align: middle; font-size: 0.8rem; }
+.print-table th, .print-table td { padding: 4px 2px; border-bottom: 1px dashed var(--color-outline); vertical-align: middle; font-size: 0.8rem; }
 .bill-thumb {
   width: 32px; height: 32px; border-radius: 4px; object-fit: cover;
-  border: 1px solid #CFC7A8;
+  border: 1px solid var(--border);
 }
 .no-img-icon { font-size: 1.2rem; }
-.total-row { display: flex; justify-content: space-between; font-weight: bold; font-size: 1.1rem; border-top: 1px dashed #201D14; padding-top: 10px; }
-.qr-payment { text-align: center; margin-top: 20px; border-top: 1px dashed #201D14; padding-top: 10px; }
+.total-row { display: flex; justify-content: space-between; font-weight: bold; font-size: 1.1rem; border-top: 1px dashed var(--text-primary); padding-top: 10px; }
+.qr-payment { text-align: center; margin-top: 20px; border-top: 1px dashed var(--text-primary); padding-top: 10px; }
 .qr-payment img { width: 150px; }
 .invoice-footer { text-align: center; margin-top: 10px; font-size: 0.8rem; }
-.modal-actions { padding: 10px; text-align: center; background: #E2DCC2; }
-.btn-export { background: #5A6E45; color: #FFFFFF; border: none; padding: 10px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; width: 100%; }
+.modal-actions { padding: 10px; text-align: center; background: var(--border); }
+.btn-export { background: var(--secondary); color: #FFFFFF; border: none; padding: 10px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; width: 100%; }
 
 @media print {
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
@@ -1798,7 +1799,7 @@ onUnmounted(() => {
     box-shadow: none !important;
     border-radius: 0 !important;
     background: #FFFFFF !important;
-    color: #201D14 !important;
+    color: var(--text-primary) !important;
     z-index: 99999 !important;
     margin: 0 auto !important;
   }
@@ -1836,7 +1837,7 @@ onUnmounted(() => {
 .btn-confirm-move {
   width: 100%;
   padding: 12px;
-  background: #B98229;
+  background: var(--color-tertiary);
   color: #FFFFFF;
   font-weight: bold;
   border: none;
@@ -1845,11 +1846,11 @@ onUnmounted(() => {
   transition: all 0.3s ease;
 }
 .btn-confirm-move:disabled {
-  background: #7A7460;
+  background: var(--text-muted);
   cursor: not-allowed;
 }
 .btn-confirm-move:not(:disabled):hover {
-  background: #C08A2E;
+  background: var(--color-tertiary);
 }
 
 @keyframes slideDown {
@@ -1918,8 +1919,8 @@ onUnmounted(() => {
   justify-content: space-between;
   gap: 16px;
   padding: 12px 40px;
-  background: linear-gradient(135deg, rgba(90, 110, 69, 0.08), rgba(90, 110, 69, 0.06));
-  border-bottom: 1px solid rgba(90, 110, 69, 0.15);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--secondary) 8%, transparent), color-mix(in srgb, var(--secondary) 6%, transparent));
+  border-bottom: 1px solid color-mix(in srgb, var(--secondary) 15%, transparent);
   animation: slideDownBanner 0.5s ease;
 }
 
@@ -1936,7 +1937,7 @@ onUnmounted(() => {
 
 .zone-info-icon {
   font-size: 1.5rem;
-  filter: drop-shadow(0 0 6px rgba(90, 110, 69, 0.5));
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--secondary) 50%, transparent));
 }
 
 .zone-info-title {
@@ -1956,8 +1957,8 @@ onUnmounted(() => {
 
 .zone-floor-tag {
   padding: 4px 12px;
-  background: rgba(90, 110, 69, 0.15);
-  border: 1px solid rgba(90, 110, 69, 0.3);
+  background: color-mix(in srgb, var(--secondary) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--secondary) 30%, transparent);
   color: var(--primary);
   border-radius: 16px;
   font-size: 0.82rem;
@@ -1980,8 +1981,8 @@ onUnmounted(() => {
   background: rgba(255, 255, 255, 0.1);
 }
 .btn-toggle-floors.active {
-  background: rgba(90, 110, 69, 0.15);
-  border-color: rgba(90, 110, 69, 0.4);
+  background: color-mix(in srgb, var(--secondary) 15%, transparent);
+  border-color: color-mix(in srgb, var(--secondary) 40%, transparent);
   color: var(--primary);
 }
 
@@ -1999,8 +2000,8 @@ onUnmounted(() => {
   display: inline-block;
   margin-left: 10px;
   padding: 3px 10px;
-  background: rgba(90, 110, 69, 0.15);
-  border: 1px solid rgba(90, 110, 69, 0.3);
+  background: color-mix(in srgb, var(--secondary) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--secondary) 30%, transparent);
   color: var(--primary);
   border-radius: 12px;
   font-size: 0.72rem;
@@ -2010,8 +2011,8 @@ onUnmounted(() => {
 }
 
 @keyframes pulseZone {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(90, 110, 69, 0.3); }
-  50% { box-shadow: 0 0 8px 2px rgba(90, 110, 69, 0.2); }
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--secondary) 30%, transparent); }
+  50% { box-shadow: 0 0 8px 2px color-mix(in srgb, var(--secondary) 20%, transparent); }
 }
 
 .other-zone-hint {

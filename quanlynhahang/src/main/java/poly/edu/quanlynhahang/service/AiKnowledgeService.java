@@ -82,7 +82,14 @@ public class AiKnowledgeService {
                 + "; GIỌNG ĐIỆU: " + clean(b.getToneOfVoice(),500) + "; QUY TẮC KHÔNG BIẾT: " + clean(b.getUnknownAnswerRule(),1000)
                 + "; KHÔNG BỊA: " + clean(b.getNoFabricationRule(),1000) + "; CHUYỂN NHÂN VIÊN: " + clean(b.getHandoffRule(),1000);
     }
-    private String extractPdf(byte[] bytes) throws IOException { try (var doc = Loader.loadPDF(bytes)) { return new PDFTextStripper().getText(doc); } }
+    private String extractPdf(byte[] bytes) throws IOException {
+        try (var doc = Loader.loadPDF(bytes)) {
+            PDFTextStripper stripper = new PDFTextStripper();
+            stripper.setSortByPosition(true);
+            String text = stripper.getText(doc);
+            return text != null ? text : "";
+        }
+    }
     private String extractDocx(byte[] bytes) throws IOException {
         try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(bytes))) {
             for (var entry = zip.getNextEntry(); entry != null; entry = zip.getNextEntry()) if ("word/document.xml".equals(entry.getName())) {

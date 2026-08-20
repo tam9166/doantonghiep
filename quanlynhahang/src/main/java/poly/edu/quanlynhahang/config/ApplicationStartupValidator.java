@@ -31,7 +31,10 @@ public class ApplicationStartupValidator implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) {
         boolean production = Arrays.stream(environment.getActiveProfiles())
-                .anyMatch(profile -> "prod".equalsIgnoreCase(profile) || "production".equalsIgnoreCase(profile));
+                .anyMatch(profile -> "prod".equalsIgnoreCase(profile)
+                        || "production".equalsIgnoreCase(profile)
+                        || "stage".equalsIgnoreCase(profile)
+                        || "staging".equalsIgnoreCase(profile));
 
         if (hasText(jwtSecret) && jwtSecret.length() < 32) {
             throw new IllegalStateException("JWT_SECRET must be at least 32 characters for HS256 signing.");
@@ -51,7 +54,7 @@ public class ApplicationStartupValidator implements ApplicationRunner {
 
     private void requireSecret(String value, String name) {
         if (!hasText(value)) {
-            throw new IllegalStateException(name + " is required when running with prod/production profile.");
+            throw new IllegalStateException(name + " is required when running with a production-like profile.");
         }
     }
 

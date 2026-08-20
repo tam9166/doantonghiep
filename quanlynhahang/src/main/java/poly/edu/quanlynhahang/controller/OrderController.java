@@ -81,12 +81,8 @@ public class OrderController {
 
     @GetMapping("/open-by-table")
     @PreAuthorize("hasAnyRole('WAITER', 'CASHIER', 'MANAGER', 'ADMIN')")
-    public ResponseEntity<?> getOpenDineInOrder(@org.springframework.web.bind.annotation.RequestParam String tableName) {
-        String normalizedTableName = tableName.trim();
-        Integer tableId = tableRepository.findByName(normalizedTableName)
-                .map(RestaurantTable::getId)
-                .orElse(null);
-        return orderRepository.findOpenDineInOrdersWithDetails(tableId, normalizedTableName).stream()
+    public ResponseEntity<?> getOpenDineInOrder(@org.springframework.web.bind.annotation.RequestParam Integer tableId) {
+        return orderRepository.findOpenDineInOrdersByTableIdWithDetails(tableId).stream()
                 .findFirst()
                 .map(order -> ResponseEntity.ok(OrderResponse.from(order)))
                 .orElseGet(() -> ResponseEntity.notFound().build());
@@ -174,35 +170,20 @@ public class OrderController {
     @Transactional
     @PreAuthorize("hasAnyRole('WAITER', 'CASHIER', 'MANAGER', 'ADMIN')")
     public ResponseEntity<?> mergeTables(@Valid @RequestBody MergeTablesRequest payload) {
-        String fromTable = payload.fromTable().trim();
-        String toTable = payload.toTable().trim();
-        if (fromTable.equalsIgnoreCase(toTable)) {
+        if (payload.fromTableId().equals(payload.toTableId())) {
             return ResponseEntity.badRequest().body("Source and destination tables must differ.");
         }
+        RestaurantTable fromTable = tableRepository.findById(payload.fromTableId())
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Không tìm thấy bàn nguồn."));
+        RestaurantTable toTable = tableRepository.findById(payload.toTableId())
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Không tìm thấy bàn đích."));
 
-        Optional<Order> anySourceOrder = orderRepository.findAll().stream()
-            .filter(o -> o.getAddress() != null && o.getAddress().contains(fromTable) && o.getStatus() != 3)
-            .findFirst();
-
-        Optional<Order> anyTargetOrder = orderRepository.findAll().stream()
-            .filter(o -> o.getAddress() != null && o.getAddress().contains(toTable) && o.getStatus() != 3)
-            .findFirst();
-
-        if (anySourceOrder.isPresent() && anyTargetOrder.isPresent()) {
-            boolean sourcePaid = Boolean.TRUE.equals(anySourceOrder.get().getIsPaid());
-            boolean targetPaid = Boolean.TRUE.equals(anyTargetOrder.get().getIsPaid());
-            if (sourcePaid != targetPaid) {
-                return ResponseEntity.status(409).body("Không thể gộp bàn đã thanh toán với bàn chưa thanh toán!");
-            }
-        }
-        
-        Optional<Order> sourceOrderOpt = orderRepository.findAll().stream()
-            .filter(o -> o.getAddress() != null && o.getAddress().contains(fromTable) && (o.getIsPaid() == null || !o.getIsPaid()) && o.getStatus() != 3)
-            .findFirst();
-            
-        Optional<Order> targetOrderOpt = orderRepository.findAll().stream()
-            .filter(o -> o.getAddress() != null && o.getAddress().contains(toTable) && (o.getIsPaid() == null || !o.getIsPaid()) && o.getStatus() != 3)
-            .findFirst();
+        Optional<Order> sourceOrderOpt = orderRepository
+                .findOpenDineInOrdersByTableIdWithDetails(fromTable.getId()).stream().findFirst();
+        Optional<Order> targetOrderOpt = orderRepository
+                .findOpenDineInOrdersByTableIdWithDetails(toTable.getId()).stream().findFirst();
             
         if (sourceOrderOpt.isEmpty()) {
             return ResponseEntity.badRequest().body("Bàn nguồn không có hóa đơn nào đang mở!");
@@ -238,14 +219,9 @@ public class OrderController {
         orderRepository.save(sourceOrder);
         
         // Đánh dấu bàn cũ là Đã Ghép thay vì Trống
-        tableRepository.findAll().stream()
-            .filter(t -> t.getName().equals(fromTable))
-            .findFirst()
-            .ifPresent(t -> {
-                t.setIsOccupied(5);
-                t.setReservedTime("[GHÉP VỚI: " + toTable + "]");
-                tableRepository.save(t);
-            });
+        fromTable.setIsOccupied(5);
+        fromTable.setReservedTime("[GHÉP VỚI: " + toTable.getName() + "]");
+        tableRepository.save(fromTable);
             
         messagingTemplate.convertAndSend("/topic/orders", "TABLE_MERGED");
         
@@ -256,16 +232,19 @@ public class OrderController {
     @Transactional
     @PreAuthorize("hasAnyRole('WAITER', 'CASHIER', 'MANAGER', 'ADMIN')")
     public ResponseEntity<?> splitTable(@Valid @RequestBody SplitTableRequest payload) {
-        String fromTable = payload.fromTable().trim();
-        String toTable = payload.toTable().trim();
-        if (fromTable.equalsIgnoreCase(toTable)) {
+        if (payload.fromTableId().equals(payload.toTableId())) {
             return ResponseEntity.badRequest().body("Source and destination tables must differ.");
         }
+        RestaurantTable fromTable = tableRepository.findById(payload.fromTableId())
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Không tìm thấy bàn nguồn."));
+        RestaurantTable toTable = tableRepository.findById(payload.toTableId())
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Không tìm thấy bàn đích."));
         List<Integer> detailIds = payload.detailIds();
 
-        Optional<Order> sourceOrderOpt = orderRepository.findAll().stream()
-            .filter(o -> o.getAddress() != null && o.getAddress().contains(fromTable) && (o.getIsPaid() == null || !o.getIsPaid()) && o.getStatus() != 3)
-            .findFirst();
+        Optional<Order> sourceOrderOpt = orderRepository
+                .findOpenDineInOrdersByTableIdWithDetails(fromTable.getId()).stream().findFirst();
 
         if (sourceOrderOpt.isEmpty()) {
             return ResponseEntity.badRequest().body("Bàn nguồn không có hóa đơn nào đang mở!");
@@ -274,9 +253,8 @@ public class OrderController {
         Order sourceOrder = sourceOrderOpt.get();
         
         // Cố gắng tìm Order của bàn đích
-        Optional<Order> targetOrderOpt = orderRepository.findAll().stream()
-            .filter(o -> o.getAddress() != null && o.getAddress().contains(toTable) && (o.getIsPaid() == null || !o.getIsPaid()) && o.getStatus() != 3)
-            .findFirst();
+        Optional<Order> targetOrderOpt = orderRepository
+                .findOpenDineInOrdersByTableIdWithDetails(toTable.getId()).stream().findFirst();
         
         Order targetOrder;
         if (targetOrderOpt.isPresent()) {
@@ -286,21 +264,18 @@ public class OrderController {
             String uniqueOrderCode = generateUnique4DigitCode();
             targetOrder = new Order();
             targetOrder.setAccount(sourceOrder.getAccount()); // copy account
-            targetOrder.setAddress("MÃ ĐƠN: #" + uniqueOrderCode + " | Bàn: " + toTable + " | [TẠI QUÁN]");
+            targetOrder.setTableId(toTable.getId());
+            targetOrder.setOrderType(poly.edu.quanlynhahang.entity.OrderType.DINE_IN);
+            targetOrder.setAddress(null);
             targetOrder.setCreateDate(new Date());
             targetOrder.setStatus(sourceOrder.getStatus()); // copy status
             targetOrder = orderRepository.save(targetOrder);
             
             // Cập nhật trạng thái bàn đích
             final String fUniqueOrderCode = uniqueOrderCode;
-            tableRepository.findAll().stream()
-                .filter(t -> t.getName().equals(toTable))
-                .findFirst()
-                .ifPresent(t -> {
-                    t.setIsOccupied(2); // Có khách
-                    t.setReservedTime("Đơn: #" + fUniqueOrderCode);
-                    tableRepository.save(t);
-                });
+            toTable.setIsOccupied(2);
+            toTable.setReservedTime("Đơn: #" + fUniqueOrderCode);
+            tableRepository.save(toTable);
         }
         
         final Order finalTargetOrder = targetOrder;
@@ -342,14 +317,9 @@ public class OrderController {
         if (remainingItems == 0) {
             sourceOrder.setStatus(3); // Hủy
             orderRepository.save(sourceOrder);
-            tableRepository.findAll().stream()
-                .filter(t -> t.getName().equals(fromTable))
-                .findFirst()
-                .ifPresent(t -> {
-                    t.setIsOccupied(0);
-                    t.setReservedTime(null);
-                    tableRepository.save(t);
-                });
+            fromTable.setIsOccupied(0);
+            fromTable.setReservedTime(null);
+            tableRepository.save(fromTable);
         }
 
         messagingTemplate.convertAndSend("/topic/orders", "TABLE_SPLIT");

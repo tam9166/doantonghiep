@@ -2,6 +2,7 @@ package poly.edu.quanlynhahang.service;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalTime;
 
@@ -18,9 +19,9 @@ class RestaurantBusinessHoursServiceTest {
     void setUp() {
         service = new RestaurantBusinessHoursService();
         // Use default values from annotation defaults (09:00 - 22:00, last order 21:30)
-        service.openingTime = LocalTime.of(9, 0);
-        service.closingTime = LocalTime.of(22, 0);
-        service.lastOrderTime = LocalTime.of(21, 30);
+        ReflectionTestUtils.setField(service, "openingTime", LocalTime.of(9, 0));
+        ReflectionTestUtils.setField(service, "closingTime", LocalTime.of(22, 0));
+        ReflectionTestUtils.setField(service, "lastOrderTime", LocalTime.of(21, 30));
     }
     
     @Test
@@ -67,8 +68,8 @@ class RestaurantBusinessHoursServiceTest {
     @Test
     void handlesCrossMidnightScenario() {
         // Simulate overnight restaurant (e.g., 23:00 - 06:00 next day)
-        service.openingTime = LocalTime.of(23, 0);
-        service.closingTime = LocalTime.of(6, 0);
+        ReflectionTestUtils.setField(service, "openingTime", LocalTime.of(23, 0));
+        ReflectionTestUtils.setField(service, "closingTime", LocalTime.of(6, 0));
         
         // Should be open late night
         assertTrue(service.isOpen(LocalTime.of(23, 0)));
@@ -79,6 +80,18 @@ class RestaurantBusinessHoursServiceTest {
         // Should be closed during day
         assertFalse(service.isOpen(LocalTime.of(12, 0)));
         assertFalse(service.isOpen(LocalTime.of(18, 0)));
+    }
+
+    @Test
+    void acceptsOrdersBeforeOvernightCutoff() {
+        ReflectionTestUtils.setField(service, "openingTime", LocalTime.of(23, 0));
+        ReflectionTestUtils.setField(service, "closingTime", LocalTime.of(6, 0));
+        ReflectionTestUtils.setField(service, "lastOrderTime", LocalTime.of(5, 30));
+
+        assertTrue(service.acceptsOrders(LocalTime.of(23, 30)));
+        assertTrue(service.acceptsOrders(LocalTime.of(5, 29)));
+        assertFalse(service.acceptsOrders(LocalTime.of(5, 30)));
+        assertFalse(service.acceptsOrders(LocalTime.of(12, 0)));
     }
     
     @Test

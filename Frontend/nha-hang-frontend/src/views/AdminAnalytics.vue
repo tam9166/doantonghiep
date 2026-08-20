@@ -147,13 +147,13 @@
                 <td style="text-align: center; font-weight: bold; color: var(--primary);">
                   {{ item.quantity }}
                 </td>
-                <td style="text-align: right; color: #B98229; font-weight: bold;">
+                <td style="text-align: right; color: var(--color-tertiary); font-weight: bold;">
                   {{ item.revenue.toLocaleString() }}đ
                 </td>
-                <td style="text-align: right; color: #B23B2E; font-weight: bold;">
+                <td style="text-align: right; color: var(--primary); font-weight: bold;">
                   {{ item.cost.toLocaleString() }}đ
                 </td>
-                <td :style="{ textAlign: 'right', fontWeight: 'bold', color: (item.revenue - item.cost) >= 0 ? '#2F8F5B' : '#B23B2E' }">
+                <td :style="{ textAlign: 'right', fontWeight: 'bold', color: (item.revenue - item.cost) >= 0 ? 'var(--success)' : 'var(--primary)' }">
                   {{ (item.revenue - item.cost).toLocaleString() }}đ
                 </td>
                 <td style="text-align: center;">
@@ -214,6 +214,19 @@ import {
 } from 'chart.js';
 import { Bar, Line } from 'vue-chartjs';
 
+// Canvas APIs do not resolve CSS custom properties. Keep their concrete values
+// centralized here and synchronized with --color-secondary in theme-tokens.css.
+const chartTheme = {
+  secondary: '#485f84',
+  secondaryFill: 'rgba(72, 95, 132, 0.20)',
+  grid: 'rgba(72, 95, 132, 0.08)',
+  primary: '#b7102a',
+  primaryFill: 'rgba(183, 16, 42, 0.70)',
+  successFill: 'rgba(25, 122, 69, 0.70)',
+  textPrimary: '#271717',
+  textSecondary: '#5b403f'
+};
+
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, PointElement, LineElement, Filler);
 
 const orders = ref([]);
@@ -242,16 +255,16 @@ const chartOptions = {
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
-    legend: { labels: { color: '#201D14', font: { family: 'Times New Roman', size: 13 } } }
+      legend: { labels: { color: chartTheme.textPrimary, font: { family: 'Times New Roman', size: 13 } } }
   },
   scales: {
     x: { 
-      ticks: { color: '#55503E' }, 
-      grid: { color: 'rgba(90, 110, 69, 0.08)' } 
+        ticks: { color: chartTheme.textSecondary },
+        grid: { color: chartTheme.grid }
     },
     y: { 
-      ticks: { color: '#55503E' }, 
-      grid: { color: 'rgba(90, 110, 69, 0.08)' },
+        ticks: { color: chartTheme.textSecondary },
+        grid: { color: chartTheme.grid },
       beginAtZero: true
     }
   }
@@ -261,16 +274,16 @@ const profitChartOptions = {
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
-    legend: { labels: { color: '#201D14', font: { family: 'Times New Roman', size: 13 } } }
+      legend: { labels: { color: chartTheme.textPrimary, font: { family: 'Times New Roman', size: 13 } } }
   },
   scales: {
     x: {
-      ticks: { color: '#55503E' },
-      grid: { color: 'rgba(90, 110, 69, 0.08)' }
+        ticks: { color: chartTheme.textSecondary },
+        grid: { color: chartTheme.grid }
     },
     y: {
-      ticks: { color: '#55503E' },
-      grid: { color: 'rgba(90, 110, 69, 0.08)' }
+        ticks: { color: chartTheme.textSecondary },
+        grid: { color: chartTheme.grid }
     }
   }
 };
@@ -319,7 +332,7 @@ const fetchData = async () => {
   isLoading.value = true;
   fetchError.value = '';
   try {
-    const token = localStorage.getItem('staff_token') || localStorage.getItem('token');
+    const token = localStorage.getItem('staff_token');
     const headers = { 'Authorization': `Bearer ${token}` };
 
     const today = new Date();
@@ -441,12 +454,12 @@ const processData = () => {
     datasets: [{
       label: 'Doanh Thu (VNĐ)',
       data: revData,
-      borderColor: '#33422A',
-      backgroundColor: 'rgba(90, 110, 69, 0.2)',
+      borderColor: chartTheme.secondary,
+      backgroundColor: chartTheme.secondaryFill,
       borderWidth: 3,
       fill: true,
       tension: 0.3,
-      pointBackgroundColor: '#33422A'
+      pointBackgroundColor: chartTheme.secondary
     }]
   };
 
@@ -455,7 +468,7 @@ const processData = () => {
     datasets: [{
       label: 'Số lượng đơn hàng',
       data: countData,
-      backgroundColor: '#5A6E45',
+      backgroundColor: chartTheme.secondary,
       borderRadius: 6,
       barThickness: 30
     }]
@@ -467,14 +480,14 @@ const processData = () => {
       {
         label: 'Doanh Thu (Đầu ra)',
         data: revData,
-        backgroundColor: 'rgba(47, 143, 91, 0.7)',
+        backgroundColor: chartTheme.successFill,
         borderRadius: 6,
         barThickness: 24
       },
       {
         label: 'Giá Vốn (Đầu vào)',
         data: costData,
-        backgroundColor: 'rgba(178, 59, 46, 0.7)',
+        backgroundColor: chartTheme.primaryFill,
         borderRadius: 6,
         barThickness: 24
       }
@@ -486,7 +499,7 @@ const processData = () => {
     datasets: [{
       label: 'Lợi Nhuận (VNĐ)',
       data: profitData,
-      backgroundColor: profitData.map(v => v >= 0 ? 'rgba(47, 143, 91, 0.7)' : 'rgba(178, 59, 46, 0.7)'),
+      backgroundColor: profitData.map(v => v >= 0 ? chartTheme.successFill : chartTheme.primaryFill),
       borderRadius: 6,
       barThickness: 30
     }]
@@ -573,14 +586,14 @@ onMounted(fetchData);
 }
 .page-title {
   margin: 0; font-size: 1.8rem; font-weight: 900;
-  background: linear-gradient(135deg, #33422A, #5A6E45);
+  background: linear-gradient(135deg, var(--secondary), var(--secondary));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .filter-group { display: flex; align-items: center; gap: 12px; }
 .filter-label { font-weight: 600; color: var(--text-muted); }
-.filter-select { width: 220px; border-color: var(--primary); color: var(--primary); font-weight: 700; background: rgba(90, 110, 69, 0.05); }
+.filter-select { width: 220px; border-color: var(--primary); color: var(--primary); font-weight: 700; background: color-mix(in srgb, var(--secondary) 5%, transparent); }
 
 .analytics-loading {
   display: grid;
@@ -666,42 +679,42 @@ onMounted(fetchData);
 }
 
 /* Card Revenue */
-.card-revenue { border-color: rgba(47, 143, 91, 0.3); }
-.card-revenue .fc-icon { background: rgba(47, 143, 91, 0.15); color: #2F8F5B; }
-.card-revenue .fc-value { color: #2F8F5B; }
-.card-revenue .fc-glow { background: #2F8F5B; }
-.card-revenue:hover { box-shadow: 0 8px 30px rgba(47, 143, 91, 0.2); }
+.card-revenue { border-color: color-mix(in srgb, var(--success) 30%, transparent); }
+.card-revenue .fc-icon { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); }
+.card-revenue .fc-value { color: var(--success); }
+.card-revenue .fc-glow { background: var(--success); }
+.card-revenue:hover { box-shadow: 0 8px 30px color-mix(in srgb, var(--success) 20%, transparent); }
 
 /* Card Cost */
-.card-cost { border-color: rgba(178, 59, 46, 0.3); }
-.card-cost .fc-icon { background: rgba(178, 59, 46, 0.15); color: #B23B2E; }
-.card-cost .fc-value { color: #B23B2E; }
-.card-cost .fc-glow { background: #B23B2E; }
-.card-cost:hover { box-shadow: 0 8px 30px rgba(178, 59, 46, 0.2); }
+.card-cost { border-color: color-mix(in srgb, var(--primary) 30%, transparent); }
+.card-cost .fc-icon { background: color-mix(in srgb, var(--primary) 15%, transparent); color: var(--primary); }
+.card-cost .fc-value { color: var(--primary); }
+.card-cost .fc-glow { background: var(--primary); }
+.card-cost:hover { box-shadow: 0 8px 30px color-mix(in srgb, var(--primary) 20%, transparent); }
 
 /* Card Profit */
-.card-profit { border-color: rgba(185, 130, 41, 0.3); }
-.card-profit .fc-icon { background: rgba(185, 130, 41, 0.15); color: #B98229; }
-.card-profit .fc-value { color: #B98229; }
-.card-profit .fc-ratio { color: #2F8F5B; }
-.card-profit .fc-glow { background: #B98229; }
-.card-profit:hover { box-shadow: 0 8px 30px rgba(185, 130, 41, 0.2); }
+.card-profit { border-color: color-mix(in srgb, var(--color-tertiary) 30%, transparent); }
+.card-profit .fc-icon { background: color-mix(in srgb, var(--color-tertiary) 15%, transparent); color: var(--color-tertiary); }
+.card-profit .fc-value { color: var(--color-tertiary); }
+.card-profit .fc-ratio { color: var(--success); }
+.card-profit .fc-glow { background: var(--color-tertiary); }
+.card-profit:hover { box-shadow: 0 8px 30px color-mix(in srgb, var(--color-tertiary) 20%, transparent); }
 
 /* Card OP */
-.card-op { border-color: rgba(90, 110, 69, 0.3); }
-.card-op .fc-icon { background: rgba(90, 110, 69, 0.15); color: #5A6E45; }
-.card-op .fc-value { color: #5A6E45; }
-.card-op .fc-ratio { color: #33422A; }
-.card-op .fc-glow { background: #5A6E45; }
-.card-op:hover { box-shadow: 0 8px 30px rgba(90, 110, 69, 0.2); }
+.card-op { border-color: color-mix(in srgb, var(--secondary) 30%, transparent); }
+.card-op .fc-icon { background: color-mix(in srgb, var(--secondary) 15%, transparent); color: var(--secondary); }
+.card-op .fc-value { color: var(--secondary); }
+.card-op .fc-ratio { color: var(--secondary); }
+.card-op .fc-glow { background: var(--secondary); }
+.card-op:hover { box-shadow: 0 8px 30px color-mix(in srgb, var(--secondary) 20%, transparent); }
 
 /* Card Loss */
-.card-loss { border-color: rgba(178, 59, 46, 0.5); }
-.card-loss .fc-icon { background: rgba(178, 59, 46, 0.2); color: #B23B2E; }
-.card-loss .fc-value { color: #B23B2E; }
-.card-loss .fc-ratio { color: #B23B2E; }
-.card-loss .fc-glow { background: #B23B2E; }
-.card-loss:hover { box-shadow: 0 8px 30px rgba(178, 59, 46, 0.3); }
+.card-loss { border-color: color-mix(in srgb, var(--primary) 50%, transparent); }
+.card-loss .fc-icon { background: color-mix(in srgb, var(--primary) 20%, transparent); color: var(--primary); }
+.card-loss .fc-value { color: var(--primary); }
+.card-loss .fc-ratio { color: var(--primary); }
+.card-loss .fc-glow { background: var(--primary); }
+.card-loss:hover { box-shadow: 0 8px 30px color-mix(in srgb, var(--primary) 30%, transparent); }
 
 /* Charts */
 .charts-grid {
@@ -721,7 +734,7 @@ onMounted(fetchData);
 }
 
 /* Leaderboard */
-.leaderboard-section { padding: 24px; border-left: 4px solid #B98229; }
+.leaderboard-section { padding: 24px; border-left: 4px solid var(--color-tertiary); }
 .leaderboard-header { margin-bottom: 20px; }
 .subtitle { margin: 4px 0 0 0; font-size: 0.9rem; color: var(--text-muted); font-style: italic; }
 
@@ -730,9 +743,9 @@ onMounted(fetchData);
   width: 30px; height: 30px; border-radius: 50%;
   background: var(--bg-nav); font-weight: 900; color: #FFFFFF;
 }
-.rank-1 { background: #B98229; color: #1A170F; box-shadow: 0 0 10px rgba(185,130,41,0.6); transform: scale(1.2); }
-.rank-2 { background: #A6B0AA; color: #1A170F; }
-.rank-3 { background: #C08A2E; color: #FFFFFF; }
+.rank-1 { background: var(--color-tertiary); color: var(--text-primary); box-shadow: 0 0 10px color-mix(in srgb, var(--color-tertiary) 60%, transparent); transform: scale(1.2); }
+.rank-2 { background: var(--color-outline); color: var(--text-primary); }
+.rank-3 { background: var(--color-tertiary); color: #FFFFFF; }
 
 .leader-row:hover { background: rgba(255,255,255,0.03); }
 .product-name { font-size: 1.05rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
@@ -743,18 +756,18 @@ onMounted(fetchData);
   background: var(--bg-nav); border-radius: 4px; overflow: hidden;
 }
 .hot-fill {
-  height: 100%; background: linear-gradient(90deg, #B23B2E, #B98229);
+  height: 100%; background: linear-gradient(90deg, var(--primary), var(--color-tertiary));
   border-radius: 4px; transition: width 1s ease-out;
 }
 .empty-row { text-align: center; color: var(--text-muted); padding: 40px; font-style: italic; }
 
 .btn-ai-analyze {
-  background: linear-gradient(135deg, #C08A2E, #8A641F);
+  background: linear-gradient(135deg, var(--color-tertiary), var(--warning));
   color: #FFFFFF; border: none; padding: 10px 20px; border-radius: 8px;
   font-weight: bold; cursor: pointer; transition: 0.3s;
-  box-shadow: 0 4px 15px rgba(192, 138, 46, 0.4);
+  box-shadow: 0 4px 15px color-mix(in srgb, var(--color-tertiary) 40%, transparent);
 }
-.btn-ai-analyze:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(192, 138, 46, 0.6); }
+.btn-ai-analyze:hover { transform: translateY(-2px); box-shadow: 0 6px 20px color-mix(in srgb, var(--color-tertiary) 60%, transparent); }
 
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; }
 .ai-modal { background: var(--bg-card); width: 550px; max-width: 90%; border-radius: 12px; padding: 20px; border: 1px solid var(--border-light); }
@@ -764,9 +777,9 @@ onMounted(fetchData);
   background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-muted);
 }
 .ai-loading { text-align: center; padding: 30px; color: var(--primary); font-weight: bold; }
-.spinner { width: 40px; height: 40px; border: 4px solid rgba(90, 110, 69, 0.2); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px auto; }
+.spinner { width: 40px; height: 40px; border: 4px solid color-mix(in srgb, var(--secondary) 20%, transparent); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px auto; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.ai-result { padding: 20px; font-size: 1.05rem; line-height: 1.6; color: var(--text-primary); border-left: 4px solid var(--primary); background: rgba(90, 110, 69, 0.05); border-radius: 0 8px 8px 0; white-space: pre-line; }
+.ai-result { padding: 20px; font-size: 1.05rem; line-height: 1.6; color: var(--text-primary); border-left: 4px solid var(--primary); background: color-mix(in srgb, var(--secondary) 5%, transparent); border-radius: 0 8px 8px 0; white-space: pre-line; }
 
 @media (max-width: 1024px) {
   .charts-grid { grid-template-columns: 1fr; }

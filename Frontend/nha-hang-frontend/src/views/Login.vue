@@ -205,7 +205,7 @@ const handleLogin = async () => {
   inset: 0;
   background: linear-gradient(135deg, 
     rgba(20, 28, 15, 0.85) 0%,
-    rgba(90, 110, 69, 0.4) 50%,
+    color-mix(in srgb, var(--secondary) 40%, transparent) 50%,
     rgba(20, 28, 15, 0.9) 100%
   );
 }
@@ -217,8 +217,8 @@ const handleLogin = async () => {
 }
 .visual-badge {
   display: inline-block;
-  background: rgba(90, 110, 69, 0.15);
-  border: 1px solid rgba(90, 110, 69, 0.3);
+  background: color-mix(in srgb, var(--secondary) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--secondary) 30%, transparent);
   color: var(--secondary);
   padding: 8px 20px;
   border-radius: 100px;
@@ -266,11 +266,11 @@ const handleLogin = async () => {
 .deco-circle {
   position: absolute;
   border-radius: 50%;
-  border: 1px solid rgba(90, 110, 69, 0.15);
+  border: 1px solid color-mix(in srgb, var(--secondary) 15%, transparent);
 }
 .c1 { width: 400px; height: 400px; top: -100px; right: -100px; }
 .c2 { width: 250px; height: 250px; bottom: 50px; left: -80px; }
-.c3 { width: 150px; height: 150px; bottom: -30px; right: 100px; background: rgba(90, 110, 69, 0.05); }
+.c3 { width: 150px; height: 150px; bottom: -30px; right: 100px; background: color-mix(in srgb, var(--secondary) 5%, transparent); }
 
 @keyframes float {
   0%, 100% { transform: translateY(0); }
@@ -295,7 +295,7 @@ const handleLogin = async () => {
   left: 0;
   bottom: 0;
   width: 1px;
-  background: linear-gradient(180deg, transparent, rgba(90, 110, 69, 0.3), transparent);
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--secondary) 30%, transparent), transparent);
 }
 
 .form-wrapper {
@@ -366,7 +366,7 @@ const handleLogin = async () => {
 .input-field input:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(90, 110, 69, 0.15);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--secondary) 15%, transparent);
   background: rgba(26, 23, 15, 0.7);
 }
 .input-field input::placeholder { color: var(--text-muted); }
@@ -450,7 +450,7 @@ const handleLogin = async () => {
 .btn-login:hover::after { left: 100%; }
 .btn-login:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(90, 110, 69, 0.45);
+  box-shadow: 0 8px 30px color-mix(in srgb, var(--secondary) 45%, transparent);
 }
 .btn-login:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 .btn-login:disabled::after { display: none; }
@@ -478,13 +478,13 @@ const handleLogin = async () => {
   gap: 10px;
   margin-top: 16px;
   padding: 14px 16px;
-  background: rgba(178, 59, 46, 0.1);
-  border: 1px solid rgba(178, 59, 46, 0.25);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent);
   border-radius: 12px;
   animation: shakeX 0.4s ease;
 }
 .error-alert span { font-size: 1.1rem; flex-shrink: 0; }
-.error-alert p { margin: 0; color: #B23B2E; font-size: 0.88rem; font-weight: 500; line-height: 1.4; }
+.error-alert p { margin: 0; color: var(--primary); font-size: 0.88rem; font-weight: 500; line-height: 1.4; }
 
 @keyframes shakeX {
   0%, 100% { transform: translateX(0); }

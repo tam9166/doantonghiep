@@ -1,5 +1,7 @@
 package poly.edu.quanlynhahang.service;
 
+import java.math.BigDecimal;
+
 import java.text.Normalizer;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -48,8 +50,7 @@ public class StaffOperationsAssistantService {
         if (!matches.isEmpty()) {
             return formatIngredients(matches, false);
         }
-        List<Ingredient> lowStock = ingredientRepository.findAll().stream()
-                .filter(this::isLowStock)
+        List<Ingredient> lowStock = ingredientRepository.findLowStockIngredients().stream()
                 .sorted(Comparator.comparing(Ingredient::getName, Comparator.nullsLast(String::compareToIgnoreCase)))
                 .limit(8)
                 .toList();
@@ -88,7 +89,7 @@ public class StaffOperationsAssistantService {
                 ? "Nguyên liệu chưa xác định" : batch.getIngredient().getName();
         String date = new SimpleDateFormat("dd/MM/yyyy", Locale.ROOT).format(batch.getExpirationDate());
         String status = batch.getExpirationDate().before(now) ? "đã hết hạn" : "hết hạn";
-        String quantity = String.format(Locale.ROOT, "%.2f", batch.getQuantity() == null ? 0D : batch.getQuantity());
+        String quantity = String.format(Locale.ROOT, "%.2f", batch.getQuantity() == null ? BigDecimal.ZERO : batch.getQuantity());
         String unit = batch.getIngredient() == null || batch.getIngredient().getUnit() == null
                 ? "" : " " + batch.getIngredient().getUnit();
         return name + " (" + quantity + unit + ", " + status + " " + date + ")";
@@ -133,7 +134,7 @@ public class StaffOperationsAssistantService {
 
     private String formatIngredients(List<Ingredient> ingredients, boolean includeShelfLife) {
         return ingredients.stream().map(ingredient -> {
-            String quantity = String.format(Locale.ROOT, "%.2f", ingredient.getQuantity() == null ? 0D : ingredient.getQuantity());
+            String quantity = String.format(Locale.ROOT, "%.2f", ingredient.getQuantity() == null ? BigDecimal.ZERO : ingredient.getQuantity());
             String text = ingredient.getName() + " " + quantity + " "
                     + (ingredient.getUnit() == null ? "" : ingredient.getUnit());
             return includeShelfLife ? text + " (" + (ingredient.getShelfLifeDays() == null ? "chưa cấu hình" : ingredient.getShelfLifeDays() + " ngày") + ")" : text;
@@ -142,7 +143,7 @@ public class StaffOperationsAssistantService {
 
     private boolean isLowStock(Ingredient ingredient) {
         return ingredient.getQuantity() != null && ingredient.getMinStock() != null
-                && ingredient.getQuantity() <= ingredient.getMinStock();
+                && ingredient.getQuantity().compareTo(ingredient.getMinStock()) <= 0;
     }
 
     private String normalize(String value) {

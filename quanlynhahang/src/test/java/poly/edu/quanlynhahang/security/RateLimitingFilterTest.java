@@ -33,6 +33,22 @@ class RateLimitingFilterTest {
     }
 
     @Test
+    void publicChatbotUsesItsTighterMethodAndPathPolicy() throws Exception {
+        RateLimitingFilter filter = new RateLimitingFilter(
+                new RateLimitService(), mock(JwtUtils.class), errorWriter());
+        MockHttpServletResponse lastResponse = null;
+
+        for (int index = 0; index < 11; index++) {
+            MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/chatbot/chat");
+            request.setRemoteAddr("198.51.100.70");
+            lastResponse = new MockHttpServletResponse();
+            filter.doFilter(request, lastResponse, new MockFilterChain());
+        }
+
+        assertEquals(429, lastResponse.getStatus());
+    }
+
+    @Test
     void regenerateQrHasDedicatedRateLimit() throws Exception {
         RateLimitingFilter filter = new RateLimitingFilter(
                 new RateLimitService(), mock(JwtUtils.class), errorWriter());

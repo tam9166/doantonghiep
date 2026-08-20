@@ -2,6 +2,7 @@ package poly.edu.quanlynhahang.service;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.Authentication;
@@ -9,6 +10,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import poly.edu.quanlynhahang.dto.AvailableTableResponse;
 import poly.edu.quanlynhahang.dto.PaymentQrResponse;
 import poly.edu.quanlynhahang.dto.PreorderItemRequest;
@@ -69,10 +72,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.regex.Pattern;
 
 @Service
 public class ReservationService {
+    private static final Logger log = LoggerFactory.getLogger(ReservationService.class);
     private static final Pattern PHONE_PATTERN = Pattern.compile("^(0|\\+84)(3|5|7|8|9)[0-9]{8}$");
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}$", Pattern.CASE_INSENSITIVE);
     private static final Pattern UNSAFE_TEXT_PATTERN = Pattern.compile("(?i)<\\s*script|javascript:|onerror\\s*=|onload\\s*=");
@@ -166,14 +171,6 @@ public class ReservationService {
         this.depositRate = depositRate;
         this.depositExpiryMinutes = depositExpiryMinutes;
         this.noShowGraceMinutes = noShowGraceMinutes;
-    }
-
-    private LocalTime openTime() {
-        return businessHoursService.getOpeningTime();
-    }
-
-    private LocalTime closeTime() {
-        return businessHoursService.getClosingTime();
     }
 
     @Transactional
@@ -321,7 +318,7 @@ public class ReservationService {
 
     @Transactional(readOnly = true)
     public PublicReservationResponse getPublicReservation(String code, String phone) {
-        return lookupPublicReservation(code, phone, null);
+        return lookupPublicReservation(code, phone);
     }
 
     /**
@@ -330,7 +327,7 @@ public class ReservationService {
      * Không cho phép tra cứu bằng code đơn thuần hay phone/email đơn thuần.
      */
     @Transactional(readOnly = true)
-    public PublicReservationResponse lookupPublicReservation(String code, String phone, String email) {
+    public PublicReservationResponse lookupPublicReservation(String code, String phone) {
         // Yêu cầu tối thiểu: bookingCode + phone hợp lệ
         String reservationCode = trimToNull(code);
         String customerPhone = normalizePhone(phone);
@@ -360,6 +357,15 @@ public class ReservationService {
         }
 
         return PublicReservationResponse.from(toResponse(reservation, false));
+    }
+
+    /**
+     * Compatibility overload for internal callers. Email is deliberately ignored:
+     * public lookup requires the reservation code and matching phone only.
+     */
+    @Deprecated(forRemoval = false)
+    public PublicReservationResponse lookupPublicReservation(String code, String phone, String ignoredEmail) {
+        return lookupPublicReservation(code, phone);
     }
 
     @Transactional(readOnly = true)
@@ -719,32 +725,64 @@ public class ReservationService {
     @Scheduled(
             initialDelayString = "${restaurant.reservation.expiry-initial-delay-ms:60000}",
             fixedDelayString = "${restaurant.reservation.expiry-scan-ms:60000}")
-    @Transactional
     public void expireStaleReservations() {
         LocalDateTime now = LocalDateTime.now();
-        // P0-05: Use explicit deposit_expires_at if available, otherwise fall back to created_at
-        long expiryMinutes = depositExpiryMinutes > 0 ? depositExpiryMinutes : 1440; // default 24h
+        long expiryMinutes = depositExpiryMinutes > 0 ? depositExpiryMinutes : 1440;
         Date depositDeadline = new Date(System.currentTimeMillis() - expiryMinutes * 60_000L);
-        
-        for (Reservation reservation : reservationRepository.findAllByOrderByCreatedAtDesc()) {
-            ReservationStatus status = reservation.getReservationStatus();
-            
-            // P0-05: Check explicit expiry first
-            if (reservation.getDepositExpiresAt() != null && reservation.getDepositExpiresAt().before(new Date())) {
-                if (isWaitingStatus(status)) {
-                    transitionSystem(reservation, ReservationStatus.EXPIRED, "Quá hạn chờ bố trí bàn");
-                    continue;
-                }
+        LocalDateTime noShowThreshold = now.minusMinutes(noShowGraceMinutes);
+        List<Long> candidateIds = reservationRepository.findExpiryCandidateIds(
+                new Date(),
+                depositDeadline,
+                noShowThreshold.toLocalDate(),
+                noShowThreshold.toLocalTime(),
+                EnumSet.of(ReservationStatus.PENDING, ReservationStatus.WAITING_TABLE_ASSIGNMENT,
+                        ReservationStatus.DEPOSIT_REQUIRED, ReservationStatus.DEPOSIT_PENDING),
+                EnumSet.of(ReservationStatus.PENDING, ReservationStatus.DEPOSIT_REQUIRED,
+                        ReservationStatus.DEPOSIT_PENDING),
+                EnumSet.of(ReservationStatus.CONFIRMED, ReservationStatus.DEPOSIT_PAID,
+                        ReservationStatus.FULLY_PAID),
+                PageRequest.of(0, 200));
+        List<Reservation> candidates = candidateIds.isEmpty()
+                ? List.of()
+                : reservationRepository.findExpiryCandidatesByIdIn(candidateIds);
+        int total = 0, success = 0, fail = 0;
+
+        for (Reservation reservation : candidates) {
+            try {
+                processSingleExpiry(reservation, now, depositDeadline);
+                success++;
+            } catch (Exception e) {
+                fail++;
+                log.error("Expire failed for reservation {}: {}",
+                    reservation.getReservationCode(), e.getMessage());
             }
-            
-            // Legacy check using created_at
-            if (isDepositExpired(status, reservation, depositDeadline)) {
-                transitionSystem(reservation, ReservationStatus.EXPIRED, "Quá hạn thanh toán đặt cọc");
-                continue;
+            total++;
+        }
+
+        if (fail > 0) {
+            log.warn("Expire scan: {}/{} succeeded, {} failed", success, total, fail);
+        }
+    }
+
+    @Transactional
+    public void processSingleExpiry(Reservation reservation, LocalDateTime now, Date depositDeadline) {
+        ReservationStatus status = reservation.getReservationStatus();
+
+        // P0-05: Check explicit expiry first
+        if (reservation.getDepositExpiresAt() != null && reservation.getDepositExpiresAt().before(new Date())) {
+            if (isWaitingStatus(status)) {
+                transitionSystem(reservation, ReservationStatus.EXPIRED, "Quá hạn chờ bố trí bàn");
+                return;
             }
-            if (isNoShow(status, reservation, now)) {
-                transitionSystem(reservation, ReservationStatus.NO_SHOW, "Khách không đến sau thời gian giữ bàn");
-            }
+        }
+
+        // Legacy check using created_at
+        if (isDepositExpired(status, reservation, depositDeadline)) {
+            transitionSystem(reservation, ReservationStatus.EXPIRED, "Quá hạn thanh toán đặt cọc");
+            return;
+        }
+        if (isNoShow(status, reservation, now)) {
+            transitionSystem(reservation, ReservationStatus.NO_SHOW, "Khách không đến sau thời gian giữ bàn");
         }
     }
 
@@ -851,13 +889,19 @@ public class ReservationService {
 
     private void validateReservationTime(LocalDate date, LocalTime time, int duration, boolean lateDiningConfirmed) {
         LocalDateTime arrival = LocalDateTime.of(date, time);
+        // P0: Check quá khứ tuyệt đối — không thể đặt bàn vào thời gian đã qua
+        if (arrival.isBefore(LocalDateTime.now())) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Không thể đặt bàn vào thời gian đã qua. Vui lòng chọn thời gian trong tương lai.");
+        }
         if (arrival.isBefore(LocalDateTime.now().plusMinutes(MIN_ADVANCE_MINUTES))) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Cần đặt bàn trước ít nhất 30 phút");
         }
-        if (time.isBefore(openTime()) || !time.isBefore(closeTime())) {
-            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Thời gian đặt bàn nằm ngoài giờ hoạt động 09:00-22:00");
+        if (!businessHoursService.isOpen(time)) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Thời gian đặt bàn nằm ngoài giờ hoạt động " + businessHoursService.getFormattedHours());
         }
-        if (time.plusMinutes(duration).isAfter(closeTime()) && !lateDiningConfirmed) {
+        if (time.plusMinutes(duration).isAfter(businessHoursService.getClosingTime()) && !lateDiningConfirmed) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
                     "Vui lòng xác nhận dùng bữa sau giờ phục vụ trước khi đặt bàn");
         }
@@ -1355,10 +1399,9 @@ public class ReservationService {
 
     private String generateReservationCode(LocalDate date) {
         String prefix = "MV-" + date.format(DateTimeFormatter.BASIC_ISO_DATE) + "-";
-        long sequence = reservationRepository.countByReservationDate(date) + 1;
         String code;
         do {
-            code = prefix + String.format(Locale.ROOT, "%04d", sequence++);
+            code = prefix + UUID.randomUUID().toString().substring(0, 8).toUpperCase(Locale.ROOT);
         } while (reservationRepository.findByReservationCode(code).isPresent());
         return code;
     }

@@ -14,7 +14,7 @@
 
       <!-- Món ăn gợi ý -->
       <div v-if="!isLoading && !loadError && suggestedProducts.length > 0" class="suggested-section">
-        <h2 class="section-title"><span style="color: #B98229">🌟</span> {{ text.suggestions }}</h2>
+        <h2 class="section-title"><span style="color: var(--color-tertiary)">🌟</span> {{ text.suggestions }}</h2>
         <div class="suggested-grid">
           <div v-for="product in suggestedProducts" :key="'sugg-'+product.id" class="suggested-card">
             <div class="sugg-badge">HOT</div>
@@ -64,14 +64,14 @@
             ⭐ {{ product.averageRating }}
           </div>
           <div class="product-rating" v-else>
-            <span style="color: #55503E; font-size: 0.8rem">{{ text.noRatings }}</span>
+            <span style="color: var(--text-secondary); font-size: 0.8rem">{{ text.noRatings }}</span>
           </div>
           <p class="price">{{ formatCurrency(product.price) }}</p>
           <button v-if="!isAdminOrManager" class="btn-add" @click="addToCart(product)">+ {{ text.addToCart }}</button>
           <button v-else class="btn-add btn-disabled" disabled>{{ text.viewOnly }}</button>
         </div>
       </div>
-      
+
       <!-- Floating Cart Button -->
       <div v-if="cart.length > 0 && !isAdminOrManager" class="floating-cart" @click="openCheckout">
         <span class="cart-icon">🛒</span>
@@ -84,7 +84,7 @@
     <div v-if="showCheckoutModal" class="g-modal-overlay" @click.self="showCheckoutModal = false">
       <div class="g-modal-box" style="max-width: 600px;">
         <h3>{{ text.checkoutTitle }}</h3>
-        
+
         <div v-if="!paymentQr" class="checkout-scroll-area" style="max-height: 400px; overflow-y: auto; padding-right: 10px;">
           <section v-if="cart.length > 0" class="cart-recommendations" aria-live="polite">
             <div class="recommendation-heading">
@@ -154,7 +154,7 @@
             <h4 style="color: var(--primary); margin: 0 0 10px 0;">{{ text.bankTransfer }}</h4>
             <p style="margin-bottom: 5px;">{{ text.subtotal }}: <strong>{{ formatCurrency(cartSubtotal) }}</strong></p>
             <p style="margin-bottom: 5px;">{{ text.tax }}: <strong>{{ formatCurrency(cartTax) }}</strong></p>
-            <p>{{ text.estimatedTotal }}: <strong style="color: #B23B2E; font-size: 1.2rem;">{{ formatCurrency(cartTotal) }}</strong></p>
+            <p>{{ text.estimatedTotal }}: <strong style="color: var(--primary); font-size: 1.2rem;">{{ formatCurrency(cartTotal) }}</strong></p>
             <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 10px;">
               {{ text.qrHint }}
             </p>
@@ -373,7 +373,7 @@ watch([cartRecommendationKey, recommendationProfileKey], () => {
 
 const submitShipOrder = async () => {
   const token = localStorage.getItem('token');
-  
+
   if(!orderInfo.value.fullname || !orderInfo.value.phone || !orderInfo.value.address) {
     alert(t('menu.requiredDeliveryInfo'));
     return;
@@ -381,10 +381,10 @@ const submitShipOrder = async () => {
 
   // Cấu trúc infoFull để Admin dùng In hóa đơn sau này
   const infoFull = `[GIAO HÀNG] Khách: ${orderInfo.value.fullname} | SĐT: ${orderInfo.value.phone} | ĐC: ${orderInfo.value.address}`;
-  
-  const formattedItems = cart.value.map(item => ({ 
-    productId: item.productId, 
-    quantity: item.quantity 
+
+  const formattedItems = cart.value.map(item => ({
+    productId: item.productId,
+    quantity: item.quantity
   }));
 
   try {
@@ -438,7 +438,7 @@ onMounted(async () => {
   await loadMenu();
   const token = localStorage.getItem('token');
   if (token) isLoggedIn.value = true;
-  
+
   const storedUser = localStorage.getItem('user');
   if (storedUser) {
     try {
@@ -475,7 +475,7 @@ onMounted(async () => {
   font-weight: 600; font-size: 0.95rem; padding: 10px 20px;
   border-radius: 100px; transition: var(--transition);
 }
-.nav-links a:hover, .nav-links a.active { color: var(--primary); background: rgba(90, 110, 69, 0.1); }
+.nav-links a:hover, .nav-links a.active { color: var(--primary); background: color-mix(in srgb, var(--secondary) 10%, transparent); }
 
 .nav-right { display: flex; gap: 10px; }
 .btn-nav-outline {
@@ -483,31 +483,31 @@ onMounted(async () => {
   color: var(--text-secondary); padding: 10px 24px;
   border-radius: 100px; font-weight: 700; cursor: pointer; transition: var(--transition);
 }
-.btn-nav-outline:hover { border-color: var(--primary); color: var(--primary); background: rgba(90, 110, 69, 0.1); }
+.btn-nav-outline:hover { border-color: var(--primary); color: var(--primary); background: color-mix(in srgb, var(--secondary) 10%, transparent); }
 .btn-cart {
   background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-  color: #1A170F; border: none; padding: 10px 24px; border-radius: 100px;
+  color: var(--text-primary); border: none; padding: 10px 24px; border-radius: 100px;
   font-weight: 800; cursor: pointer; transition: var(--transition);
 }
-.btn-cart:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(90, 110, 69, 0.4); }
+.btn-cart:hover { transform: translateY(-2px); box-shadow: 0 6px 20px color-mix(in srgb, var(--secondary) 40%, transparent); }
 
 .menu-content { max-width: 1400px; margin: 60px auto; padding: 0 20px; text-align: center;}
 .page-title { font-size: 3rem; color: var(--text-heading); font-weight: 900; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; }
 .page-subtitle { color: var(--primary); font-size: 1.2rem; margin-bottom: 30px; font-weight: 600; }
 
-.suggested-section { margin-bottom: 50px; text-align: left; background: rgba(185, 130, 41, 0.05); padding: 25px; border-radius: 20px; border: 1px solid rgba(185, 130, 41, 0.2); }
-.suggested-section .section-title { font-size: 1.8rem; margin-bottom: 20px; color: #B98229; font-weight: 900; }
+.suggested-section { margin-bottom: 50px; text-align: left; background: color-mix(in srgb, var(--color-tertiary) 5%, transparent); padding: 25px; border-radius: 20px; border: 1px solid color-mix(in srgb, var(--color-tertiary) 20%, transparent); }
+.suggested-section .section-title { font-size: 1.8rem; margin-bottom: 20px; color: var(--color-tertiary); font-weight: 900; }
 .suggested-grid { display: flex; gap: 20px; overflow-x: auto; padding-bottom: 15px; }
 .suggested-grid::-webkit-scrollbar { height: 8px; }
-.suggested-grid::-webkit-scrollbar-thumb { background: #B98229; border-radius: 10px; }
-.suggested-card { min-width: 250px; background: rgba(0,0,0,0.5); border-radius: 15px; padding: 15px; display: flex; flex-direction: column; position: relative; border: 1px solid rgba(185, 130, 41, 0.3); transition: 0.3s; }
-.suggested-card:hover { transform: translateY(-5px); box-shadow: 0 5px 15px rgba(185, 130, 41, 0.2); }
-.sugg-badge { position: absolute; top: -10px; right: -10px; background: #B23B2E; color: #FFFFFF; padding: 5px 10px; border-radius: 10px; font-weight: 900; font-size: 0.8rem; transform: rotate(10deg); box-shadow: 0 2px 10px rgba(178,59,46,0.5); }
+.suggested-grid::-webkit-scrollbar-thumb { background: var(--color-tertiary); border-radius: 10px; }
+.suggested-card { min-width: 250px; background: rgba(0,0,0,0.5); border-radius: 15px; padding: 15px; display: flex; flex-direction: column; position: relative; border: 1px solid color-mix(in srgb, var(--color-tertiary) 30%, transparent); transition: 0.3s; }
+.suggested-card:hover { transform: translateY(-5px); box-shadow: 0 5px 15px color-mix(in srgb, var(--color-tertiary) 20%, transparent); }
+.sugg-badge { position: absolute; top: -10px; right: -10px; background: var(--primary); color: #FFFFFF; padding: 5px 10px; border-radius: 10px; font-weight: 900; font-size: 0.8rem; transform: rotate(10deg); box-shadow: 0 2px 10px color-mix(in srgb, var(--primary) 50%, transparent); }
 .suggested-card img { width: 100%; height: 140px; object-fit: cover; border-radius: 10px; margin-bottom: 15px; }
 .sugg-info { flex: 1; }
 .sugg-info h3 { margin: 0 0 5px 0; font-size: 1.1rem; color: #FFFFFF; }
-.sugg-info .price { color: #B98229; font-weight: bold; font-size: 1.2rem; margin: 0; }
-.btn-sugg-add { background: #B98229; color: #201D14; border: none; padding: 10px; border-radius: 8px; font-weight: bold; margin-top: 15px; cursor: pointer; transition: 0.3s; }
+.sugg-info .price { color: var(--color-tertiary); font-weight: bold; font-size: 1.2rem; margin: 0; }
+.btn-sugg-add { background: var(--color-tertiary); color: var(--text-primary); border: none; padding: 10px; border-radius: 8px; font-weight: bold; margin-top: 15px; cursor: pointer; transition: 0.3s; }
 .btn-sugg-add:hover { background: #FFFFFF; }
 
 .category-filter { display: flex; gap: 12px; justify-content: center; margin-bottom: 50px; flex-wrap: wrap; }
@@ -518,8 +518,8 @@ onMounted(async () => {
 }
 .category-filter button:hover { border-color: var(--primary); color: var(--primary); }
 .category-filter button.active {
-  background: var(--primary); color: #1A170F; border-color: var(--primary); font-weight: 800;
-  box-shadow: 0 0 20px rgba(90, 110, 69, 0.3);
+  background: var(--primary); color: var(--color-on-primary); border-color: var(--primary); font-weight: 800;
+  box-shadow: 0 0 20px color-mix(in srgb, var(--secondary) 30%, transparent);
 }
 
 .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 30px; }
@@ -565,16 +565,16 @@ onMounted(async () => {
 .product-card img { width: 150px; height: 150px; border-radius: 50%; object-fit: cover; margin-bottom: 20px; border: 4px solid rgba(255, 255, 255, 0.88); box-shadow: var(--shadow-md); transition: var(--transition); }
 .product-card:hover img { transform: scale(1.05) rotate(5deg); border-color: var(--primary); }
 .product-card h3 { color: var(--text-heading); font-size: 1.2rem; margin-bottom: 8px; font-weight: 800; }
-.product-rating { margin-bottom: 12px; color: #B98229; font-weight: 700; font-size: 0.95rem; }
+.product-rating { margin-bottom: 12px; color: var(--color-tertiary); font-weight: 700; font-size: 0.95rem; }
 .price { color: var(--primary); font-weight: 900; margin-bottom: 20px; font-size: 1.3rem; }
 .btn-add {
-  background: rgba(90, 110, 69, 0.1); color: var(--primary); border: 1px solid var(--primary);
+  background: color-mix(in srgb, var(--secondary) 10%, transparent); color: var(--primary); border: 1px solid var(--primary);
   width: 100%; padding: 12px; border-radius: 100px; cursor: pointer;
   font-weight: 800; transition: var(--transition);
 }
-.btn-add:hover { background: var(--primary); color: #1A170F; box-shadow: 0 5px 15px rgba(90, 110, 69, 0.4); }
+.btn-add:hover { background: var(--primary); color: var(--color-on-primary); box-shadow: 0 5px 15px color-mix(in srgb, var(--secondary) 40%, transparent); }
 .btn-disabled { opacity: 0.5; cursor: not-allowed !important; }
-.btn-disabled:hover { background: rgba(90, 110, 69, 0.1); color: var(--primary); box-shadow: none; }
+.btn-disabled:hover { background: color-mix(in srgb, var(--secondary) 10%, transparent); color: var(--primary); box-shadow: none; }
 
 /* Floating Cart */
 .floating-cart {
@@ -582,12 +582,12 @@ onMounted(async () => {
   background: linear-gradient(135deg, var(--primary), var(--primary-dark));
   padding: 15px 25px; border-radius: 50px;
   display: flex; align-items: center; gap: 15px;
-  cursor: pointer; box-shadow: 0 10px 30px rgba(90, 110, 69, 0.4);
-  color: #1A170F; font-weight: 800; transition: var(--transition);
+  cursor: pointer; box-shadow: 0 10px 30px color-mix(in srgb, var(--secondary) 40%, transparent);
+  color: var(--text-primary); font-weight: 800; transition: var(--transition);
 }
-.floating-cart:hover { transform: translateY(-5px); box-shadow: 0 15px 40px rgba(90, 110, 69, 0.6); }
+.floating-cart:hover { transform: translateY(-5px); box-shadow: 0 15px 40px color-mix(in srgb, var(--secondary) 60%, transparent); }
 .cart-icon { font-size: 1.5rem; }
-.cart-count { background: #1A170F; color: var(--primary); padding: 4px 10px; border-radius: 20px; font-size: 0.85rem; }
+.cart-count { background: var(--color-inverse-surface); color: var(--primary); padding: 4px 10px; border-radius: 20px; font-size: 0.85rem; }
 .cart-total { font-size: 1.1rem; }
 .cart-checkout { margin-left: 10px; background: rgba(26, 23, 15, 0.1); padding: 5px 15px; border-radius: 20px; }
 

@@ -8,6 +8,13 @@
 import axios from 'axios'
 import router from '@/router'
 import { captchaActionForRequest, executeCaptcha } from './captcha'
+import {
+  clearCustomerSession,
+  clearStaffSession,
+  getCustomerToken,
+  getCustomerUser,
+  getStaffToken
+} from './session'
 
 // Only this client is allowed to talk to the restaurant backend. Keeping the
 // base URL explicit prevents the authenticated interceptor from being reused
@@ -71,7 +78,7 @@ async function attachAuthAndCaptcha(config) {
     return config
   }
 
-  const token = localStorage.getItem(isStaffRequest(config) ? 'staff_token' : 'token')
+  const token = isStaffRequest(config) ? getStaffToken() : getCustomerToken()
   if (token && !config.headers.Authorization) {
     config.headers.Authorization = `Bearer ${token}`
     // Used by the response interceptor to distinguish a rejected session from
@@ -110,11 +117,9 @@ api.interceptors.response.use(
       if (status === 401 && error.config?.__sessionTokenAttached && !error.config?.preserveSessionOn401) {
         const isStaff = isStaffRequest(error.config || {})
         if (isStaff) {
-          localStorage.removeItem('staff_token')
-          localStorage.removeItem('staff_user')
+          clearStaffSession()
         } else {
-          localStorage.removeItem('token')
-          localStorage.removeItem('user')
+          clearCustomerSession()
         }
 
         // Redirect về đúng trang đăng nhập
@@ -135,20 +140,14 @@ api.interceptors.response.use(
  * Lấy thông tin user hiện tại từ localStorage
  */
 export function getCurrentUser() {
-  const stored = localStorage.getItem('staff_user') || localStorage.getItem('user')
-  if (!stored) return null
-  try {
-    return JSON.parse(stored)
-  } catch {
-    return null
-  }
+  return getCustomerUser()
 }
 
 /**
  * Kiểm tra user đã đăng nhập chưa
  */
 export function isAuthenticated() {
-  return !!(localStorage.getItem('staff_token') || localStorage.getItem('token'))
+  return Boolean(getCustomerToken())
 }
 
 /**
@@ -172,8 +171,7 @@ export function hasAnyRole(...roles) {
  * Logout - xóa token và redirect
  */
 export function logout() {
-  localStorage.removeItem('token')
-  localStorage.removeItem('user')
+  clearCustomerSession()
   window.location.href = '/'
 }
 

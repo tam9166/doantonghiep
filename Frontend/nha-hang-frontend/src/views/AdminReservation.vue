@@ -436,8 +436,8 @@ function connectRealtime() {
   if (stompClient?.active) return
   stompClient = new Client({
     webSocketFactory: () => new SockJS('/ws'),
-    connectHeaders: localStorage.getItem('staff_token') || localStorage.getItem('token')
-      ? { Authorization: `Bearer ${localStorage.getItem('staff_token') || localStorage.getItem('token')}` }
+    connectHeaders: localStorage.getItem('staff_token')
+      ? { Authorization: `Bearer ${localStorage.getItem('staff_token')}` }
       : {},
     reconnectDelay: 5000,
     onConnect: () => {
@@ -575,7 +575,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .admin-reservation {
-  color: #201D14;
+  color: var(--text-primary);
 }
 
 .toolbar {
@@ -589,7 +589,7 @@ onBeforeUnmount(() => {
 .realtime-alert {
   border: 1px solid #D7E3ED;
   background: #EEF3F6;
-  color: #5A6E45;
+  color: var(--secondary);
   border-radius: 8px;
   padding: 10px 12px;
   margin-bottom: 14px;
@@ -598,19 +598,19 @@ onBeforeUnmount(() => {
 
 h1 {
   margin: 0 0 6px;
-  color: #22301B;
+  color: var(--color-on-secondary-container);
 }
 
 p {
   margin: 0;
-  color: #7A7460;
+  color: var(--text-muted);
 }
 
 .primary-btn,
 .row-actions button,
 .detail-panel header button {
-  border: 1px solid #33422A;
-  background: #33422A;
+  border: 1px solid var(--secondary);
+  background: var(--secondary);
   color: #FFFFFF;
   border-radius: 8px;
   min-height: 36px;
@@ -683,33 +683,33 @@ p {
 }
 
 .status-tabs button {
-  border: 1px solid #CFC7A8;
+  border: 1px solid var(--border);
   background: #FFFFFF;
   border-radius: 8px;
   min-height: 40px;
   padding: 0 12px;
-  color: #55503E;
+  color: var(--text-secondary);
   font-weight: 800;
   cursor: pointer;
 }
 
 .status-tabs button.active {
-  border-color: #33422A;
-  color: #22301B;
+  border-color: var(--secondary);
+  color: var(--color-on-secondary-container);
 }
 
 .status-tabs span {
   display: inline-flex;
   margin-right: 8px;
-  background: #E7E3D2;
-  color: #33422A;
+  background: var(--bg-hover);
+  color: var(--secondary);
   border-radius: 999px;
   padding: 2px 8px;
 }
 
 .table-wrap {
   background: #FFFFFF;
-  border: 1px solid #CFC7A8;
+  border: 1px solid var(--border);
   border-radius: 8px;
   overflow: auto;
 }
@@ -728,12 +728,12 @@ p {
 
 .section-heading h2 {
   margin: 0 0 4px;
-  color: #22301B;
+  color: var(--color-on-secondary-container);
 }
 
 .section-heading strong {
   white-space: nowrap;
-  color: #33422A;
+  color: var(--secondary);
 }
 
 table {
@@ -745,7 +745,7 @@ table {
 th,
 td {
   padding: 13px 14px;
-  border-bottom: 1px solid #E2DCC2;
+  border-bottom: 1px solid var(--border);
   text-align: left;
   vertical-align: top;
 }
@@ -753,8 +753,8 @@ td {
 th {
   position: sticky;
   top: 0;
-  background: #DED8C2;
-  color: #55503E;
+  background: var(--bg-card2);
+  color: var(--text-secondary);
   font-size: 0.78rem;
   text-transform: uppercase;
 }
@@ -767,7 +767,7 @@ td small {
 
 td span,
 td small {
-  color: #7A7460;
+  color: var(--text-muted);
   margin-top: 4px;
 }
 
@@ -775,8 +775,8 @@ td small {
   display: inline-flex;
   border-radius: 999px;
   padding: 5px 10px;
-  background: #E7E3D2;
-  color: #33422A;
+  background: var(--bg-hover);
+  color: var(--secondary);
   font-weight: 900;
   font-size: 0.8rem;
 }
@@ -784,19 +784,19 @@ td small {
 .status-badge.REJECTED,
 .status-badge.CANCELLED {
   background: #F4E8E5;
-  color: #B23B2E;
+  color: var(--primary);
 }
 
 .status-badge.DEPOSIT_PENDING,
 .status-badge.DEPOSIT_REQUIRED {
   background: #F5F0E4;
-  color: #B98229;
+  color: var(--color-tertiary);
 }
 
 .status-badge.FULLY_PAID,
 .status-badge.DEPOSIT_PAID {
   background: #EEF5EF;
-  color: #33422A;
+  color: var(--secondary);
 }
 
 .row-actions {
@@ -806,20 +806,20 @@ td small {
 }
 
 .row-actions .danger {
-  background: #B23B2E;
-  border-color: #B23B2E;
+  background: var(--primary);
+  border-color: var(--primary);
 }
 
 .row-actions .ghost {
   background: #FFFFFF;
-  color: #55503E;
-  border-color: #CFC7A8;
+  color: var(--text-secondary);
+  border-color: var(--border);
 }
 
 .empty,
 .error {
   text-align: center;
-  color: #7A7460;
+  color: var(--text-muted);
   padding: 28px;
 }
 
@@ -866,7 +866,7 @@ td small {
 }
 
 .detail-grid div {
-  border: 1px solid #CFC7A8;
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 12px;
 }
@@ -881,11 +881,11 @@ td small {
 .detail-actions a {
   text-decoration: none;
 }
-.assignment-box{margin:18px 0;padding:16px;border:1px solid #d7b56d;border-radius:10px;background:#fffaf0}.recommendations{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:10px 0 16px}.option-card{display:grid;text-align:left;gap:4px;background:#7a3e16}.option-card small{color:#fff}.manual-tables{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}.manual-tables label{display:flex;gap:8px;border:1px solid #cfc7a8;border-radius:8px;padding:10px;cursor:pointer}.manual-tables label.chosen{border-color:#7a3e16;background:#f7eee6}.manual-tables label span{display:grid}.manual-tables small{color:#7a7460}.assignment-box textarea{width:100%;padding:10px;border:1px solid #cfc7a8;border-radius:8px;margin:8px 0}.capacity-error{color:#b42318;font-weight:700}
+.assignment-box{margin:18px 0;padding:16px;border:1px solid #d7b56d;border-radius:10px;background:#fffaf0}.recommendations{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:10px 0 16px}.option-card{display:grid;text-align:left;gap:4px;background:var(--warning)}.option-card small{color:#fff}.manual-tables{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}.manual-tables label{display:flex;gap:8px;border:1px solid var(--border);border-radius:8px;padding:10px;cursor:pointer}.manual-tables label.chosen{border-color:var(--warning);background:#f7eee6}.manual-tables label span{display:grid}.manual-tables small{color:var(--text-muted)}.assignment-box textarea{width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;margin:8px 0}.capacity-error{color:var(--danger);font-weight:700}
 
 .detail-grid span {
   display: block;
-  color: #7A7460;
+  color: var(--text-muted);
   margin-bottom: 4px;
 }
 
@@ -900,18 +900,18 @@ td small {
   grid-template-columns: 1.4fr 120px 120px;
   gap: 10px;
   align-items: center;
-  border: 1px solid #CFC7A8;
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 10px;
 }
 
 .preorder-row small {
   grid-column: 1 / -1;
-  color: #7A7460;
+  color: var(--text-muted);
 }
 
 .empty-inline {
-  border: 1px dashed #CFC7A8;
+  border: 1px dashed var(--border);
   border-radius: 8px;
   padding: 12px;
   margin: 8px 0 18px;

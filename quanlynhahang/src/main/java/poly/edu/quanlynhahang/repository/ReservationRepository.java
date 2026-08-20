@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Repository;
 import poly.edu.quanlynhahang.entity.Reservation;
@@ -13,6 +14,8 @@ import poly.edu.quanlynhahang.entity.ReservationStatus;
 import jakarta.persistence.LockModeType;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.Date;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -67,7 +70,42 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             @Param("tableId") Integer tableId,
             @Param("statuses") Collection<ReservationStatus> statuses);
 
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {
+            "area", "table", "tableAssignments", "tableAssignments.table"
+    })
     List<Reservation> findAllByOrderByCreatedAtDesc();
+
+    @Query("""
+            select r.id from Reservation r
+            where (r.depositExpiresAt is not null
+                   and r.depositExpiresAt <= :now
+                   and r.reservationStatus in :waitingStatuses)
+               or (r.createdAt is not null
+                   and r.createdAt <= :depositDeadline
+                   and r.depositAmount > 0
+                   and r.reservationStatus in :legacyDepositStatuses)
+               or (r.reservationStatus in :noShowStatuses
+                   and r.reservationDate is not null
+                   and r.arrivalTime is not null
+                   and (r.reservationDate < :noShowDate
+                        or (r.reservationDate = :noShowDate and r.arrivalTime <= :noShowTime)))
+            order by r.id
+            """)
+    List<Long> findExpiryCandidateIds(
+            @Param("now") Date now,
+            @Param("depositDeadline") Date depositDeadline,
+            @Param("noShowDate") LocalDate noShowDate,
+            @Param("noShowTime") LocalTime noShowTime,
+            @Param("waitingStatuses") Collection<ReservationStatus> waitingStatuses,
+            @Param("legacyDepositStatuses") Collection<ReservationStatus> legacyDepositStatuses,
+            @Param("noShowStatuses") Collection<ReservationStatus> noShowStatuses,
+            Pageable pageable);
+
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {
+            "area", "table", "tableAssignments", "tableAssignments.table"
+    })
+    @Query("select distinct r from Reservation r where r.id in :ids")
+    List<Reservation> findExpiryCandidatesByIdIn(@Param("ids") Collection<Long> ids);
 
     List<Reservation> findByCreatedByOrderByCreatedAtDesc(String createdBy);
 

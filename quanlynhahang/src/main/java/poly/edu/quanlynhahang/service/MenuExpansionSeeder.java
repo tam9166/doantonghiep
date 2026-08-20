@@ -97,7 +97,7 @@ public class MenuExpansionSeeder implements CommandLineRunner {
             product.setName(item.name());
             product.setPrice(item.price());
             product.setCostPrice(item.costPrice());
-            product.setTaxRate(8.0);
+        product.setTaxRate(new BigDecimal("8.00"));
             product.setImage(item.image());
             product.setDescription(item.description());
             product.setAvailable(true);

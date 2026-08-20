@@ -117,12 +117,11 @@ class OrderWorkflowGuardTest {
         order.setAddress("Định dạng địa chỉ cũ");
         order.setStatus(7);
         order.setIsPaid(false);
-        when(tableRepository.findByName("B05")).thenReturn(Optional.of(table));
-        when(orderRepository.findOpenDineInOrdersWithDetails(5, "B05")).thenReturn(List.of(order));
+        when(orderRepository.findOpenDineInOrdersByTableIdWithDetails(5)).thenReturn(List.of(order));
         ReflectionTestUtils.setField(controller, "tableRepository", tableRepository);
         ReflectionTestUtils.setField(controller, "orderRepository", orderRepository);
 
-        assertEquals(HttpStatus.OK, controller.getOpenDineInOrder("B05").getStatusCode());
+        assertEquals(HttpStatus.OK, controller.getOpenDineInOrder(5).getStatusCode());
     }
 
     @Test
@@ -169,7 +168,7 @@ class OrderWorkflowGuardTest {
         RestaurantTable table = new RestaurantTable();
         table.setId(8);
         when(tableRepository.findById(8)).thenReturn(Optional.of(table));
-        when(orderRepository.existsOpenUnpaidOrderForTable(8, table.getName())).thenReturn(true);
+        when(orderRepository.existsOpenUnpaidOrderForTable(8)).thenReturn(true);
         ReflectionTestUtils.setField(controller, "tableRepository", tableRepository);
         ReflectionTestUtils.setField(controller, "orderRepository", orderRepository);
 
@@ -189,7 +188,7 @@ class OrderWorkflowGuardTest {
         table.setName("B09");
         table.setIsOccupied(2);
         when(tableRepository.findById(9)).thenReturn(Optional.of(table));
-        when(orderRepository.existsOpenUnpaidOrderForTable(9, "B09")).thenReturn(true);
+        when(orderRepository.existsOpenUnpaidOrderForTable(9)).thenReturn(true);
         ReflectionTestUtils.setField(controller, "tableRepository", tableRepository);
         ReflectionTestUtils.setField(controller, "orderRepository", orderRepository);
 
@@ -210,7 +209,7 @@ class OrderWorkflowGuardTest {
         table.setName("B10");
         table.setIsOccupied(2);
         when(tableRepository.findById(10)).thenReturn(Optional.of(table));
-        when(orderRepository.existsOpenUnpaidOrderForTable(10, "B10")).thenReturn(false);
+        when(orderRepository.existsOpenUnpaidOrderForTable(10)).thenReturn(false);
         ReflectionTestUtils.setField(controller, "tableRepository", tableRepository);
         ReflectionTestUtils.setField(controller, "orderRepository", orderRepository);
 
@@ -279,7 +278,7 @@ class OrderWorkflowGuardTest {
     }
 
     @Test
-    void guestBookingKeepsVietnameseTextInTheStoredOrderAndResponse() {
+    void deprecatedGuestBookingCannotStoreGuestDataInOrderAddress() {
         OrderController controller = new OrderController();
         OrderRepository orderRepository = mock(OrderRepository.class);
         when(orderRepository.findAll()).thenReturn(List.of());
@@ -288,14 +287,7 @@ class OrderWorkflowGuardTest {
         var response = controller.guestBooking(
                 new GuestBookingRequest("Nguyễn Thị An", "0901234567", "Bàn B01", "19:00"));
 
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        @SuppressWarnings("unchecked")
-        Map<String, String> body = (Map<String, String>) response.getBody();
-        assertEquals("Đặt bàn thành công!", body.get("message"));
-
-        var orderCaptor = org.mockito.ArgumentCaptor.forClass(Order.class);
-        verify(orderRepository).save(orderCaptor.capture());
-        assertTrue(orderCaptor.getValue().getAddress().contains("Khách: Nguyễn Thị An"));
-        assertTrue(orderCaptor.getValue().getAddress().contains("SĐT: 0901234567"));
+        assertEquals(HttpStatus.GONE, response.getStatusCode());
+        verify(orderRepository, never()).save(any(Order.class));
     }
 }

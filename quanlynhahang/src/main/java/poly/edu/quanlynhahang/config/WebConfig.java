@@ -26,10 +26,10 @@ public class WebConfig implements WebMvcConfigurer {
 
     // P0-07: Explicitly define SPA routes - Vue Router handles catch-all on frontend
     private static final String[] SPA_ROUTES = {
-        "/", "/login", "/register", "/staff-login", "/menu", "/history", "/profile",
+        "/", "/login", "/register", "/staff-login", "/change-password", "/menu", "/history", "/profile",
         "/admin", "/admin/orders", "/admin/reservations", "/admin/reservation-reviews",
         "/admin/customer-history", "/admin/deposit-policies", "/admin/analytics",
-        "/reservation", "/reservation-lookup", "/admin/categories", "/admin/tables",
+        "/reservation", "/dat-su-kien", "/reservation-lookup", "/admin/categories", "/admin/tables",
         "/admin/table-areas", "/admin/staff", "/admin/posts", "/dine-in", "/kitchen",
         "/waiter", "/staff", "/admin/ingredients", "/admin/activity-log",
         "/admin/popular-items", "/admin/purchase-suggestions", "/admin/vouchers", "/cashier"
@@ -42,7 +42,7 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void extendMessageConverters(List<HttpMessageConverter<?>> converters) {
-        // Đảm bảo JSON response luôn dùng UTF-8.
+        // Äáº£m báº£o JSON response luÃ´n dÃ¹ng UTF-8.
         for (HttpMessageConverter<?> converter : converters) {
             if (converter instanceof MappingJackson2HttpMessageConverter jacksonConverter) {
                 jacksonConverter.setDefaultCharset(StandardCharsets.UTF_8);
@@ -67,8 +67,7 @@ public class WebConfig implements WebMvcConfigurer {
     }
 
     /**
-     * Enable path variable matching with slashes, for example admin detail paths
-     * that may contain encoded separators.
+     * Configure path matching for routes containing path variables
      */
     @Override
     public void configurePathMatch(PathMatchConfigurer configurer) {

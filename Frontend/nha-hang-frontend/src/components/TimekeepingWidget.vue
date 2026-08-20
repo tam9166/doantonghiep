@@ -57,7 +57,7 @@ const checkInTime = ref(null);
 const checkOutTime = ref(null);
 
 const configHeader = () => {
-  const token = localStorage.getItem('staff_token') || localStorage.getItem('token');
+  const token = localStorage.getItem('staff_token');
   return { headers: { Authorization: 'Bearer ' + token } };
 };
 
@@ -127,7 +127,7 @@ onMounted(() => {
   background: #FFFFFF;
   border-radius: 12px;
   box-shadow: 0 10px 25px rgba(0,0,0,0.15);
-  border: 1px solid #E2DCC2;
+  border: 1px solid var(--border);
   width: 250px;
   z-index: 1000;
   overflow: hidden;
@@ -135,7 +135,7 @@ onMounted(() => {
 }
 
 .widget-header {
-  background: #55503E;
+  background: var(--text-secondary);
   color: #FFFFFF;
   padding: 12px 15px;
   display: flex;
@@ -145,7 +145,7 @@ onMounted(() => {
   font-weight: bold;
 }
 .widget-header:hover {
-  background: #201D14;
+  background: var(--color-inverse-surface);
 }
 .title { flex: 1; margin-left: 10px; }
 
@@ -153,15 +153,15 @@ onMounted(() => {
   padding: 15px;
   background: #FFFFFF;
 }
-.date { text-align: center; color: #7A7460; font-size: 0.9rem; margin-bottom: 10px; margin-top: 0; border-bottom: 1px dashed #A6B0AA; padding-bottom: 5px; }
+.date { text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-bottom: 10px; margin-top: 0; border-bottom: 1px dashed var(--color-outline); padding-bottom: 5px; }
 
 .status-container { font-size: 0.95rem; }
 .current-status { margin-bottom: 10px; }
-.text-warning { color: #B98229; }
-.text-success { color: #2F8F5B; }
-.text-muted { color: #7A7460; }
+.text-warning { color: var(--color-tertiary); }
+.text-success { color: var(--success); }
+.text-muted { color: var(--text-muted); }
 
-.time-info { margin: 5px 0; color: #55503E; }
+.time-info { margin: 5px 0; color: var(--text-secondary); }
 .time-info p { margin: 0; }
 
 .actions { margin-top: 15px; text-align: center; }
@@ -175,13 +175,13 @@ onMounted(() => {
   transition: 0.2s;
   color: #FFFFFF;
 }
-.btn-checkin { background: #5A6E45; }
-.btn-checkin:hover { background: #33422A; }
-.btn-checkout { background: #C08A2E; }
-.btn-checkout:hover { background: #8A641F; }
+.btn-checkin { background: var(--secondary); }
+.btn-checkin:hover { background: var(--secondary); }
+.btn-checkout { background: var(--color-tertiary); }
+.btn-checkout:hover { background: var(--warning); }
 
 .done-msg {
-  color: #2F8F5B;
+  color: var(--success);
   font-weight: bold;
   padding: 10px;
   background: #EEF5EF;

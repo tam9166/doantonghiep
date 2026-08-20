@@ -36,7 +36,7 @@ public class AdminAccountController {
     // 1. Lấy danh sách nhân viên
     @GetMapping
     public ResponseEntity<?> getAllStaff() {
-        List<java.util.Map<String, Object>> result = accountRepository.findAll().stream()
+        List<java.util.Map<String, Object>> result = accountRepository.findAllWithAuthorities().stream()
             .filter(acc -> !Boolean.FALSE.equals(acc.getEnabled()))
             .filter(acc -> {
                 List<Authority> auths = acc.getAuthorities();
@@ -109,7 +109,7 @@ public class AdminAccountController {
     // 5. Lấy danh sách khách hàng
     @GetMapping("/customers")
     public ResponseEntity<?> getAllCustomers() {
-        List<java.util.Map<String, Object>> result = accountRepository.findAll().stream()
+        List<java.util.Map<String, Object>> result = accountRepository.findAllWithAuthorities().stream()
             .filter(acc -> {
                 List<Authority> auths = acc.getAuthorities();
                 if (auths == null || auths.isEmpty()) {

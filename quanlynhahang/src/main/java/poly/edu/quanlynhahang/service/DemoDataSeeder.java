@@ -87,7 +87,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                 changed.add(product);
             }
             if (product.getTaxRate() == null) {
-                product.setTaxRate(8.0);
+                product.setTaxRate(new BigDecimal("8.00"));
                 if (!changed.contains(product)) {
                     changed.add(product);
                 }
@@ -214,9 +214,9 @@ public class DemoDataSeeder implements CommandLineRunner {
                 Product product = products.get((day + i) % products.size());
                 int quantity = 1 + ((day + i) % 3);
                 BigDecimal price = product.getPrice() != null ? product.getPrice() : BigDecimal.ZERO;
-                double taxRate = product.getTaxRate() != null ? product.getTaxRate() : 8.0;
+            BigDecimal taxRate = product.getTaxRate() != null ? product.getTaxRate() : new BigDecimal("8.00");
                 BigDecimal lineSubtotal = price.multiply(BigDecimal.valueOf(quantity));
-                BigDecimal lineTax = lineSubtotal.multiply(BigDecimal.valueOf(taxRate))
+                BigDecimal lineTax = lineSubtotal.multiply(taxRate)
                         .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
 
                 OrderDetail detail = new OrderDetail();
@@ -224,7 +224,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                 detail.setProduct(product);
                 detail.setQuantity(quantity);
                 detail.setPrice(lineSubtotal);
-                detail.setTaxRate(taxRate);
+            detail.setTaxRate(taxRate);
                 detail.setTaxAmount(lineTax);
                 detail.setStatus(2);
                 details.add(detail);

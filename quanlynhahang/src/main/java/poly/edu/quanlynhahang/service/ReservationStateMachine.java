@@ -32,14 +32,12 @@ public class ReservationStateMachine {
                 ReservationStatus.CANCELLED,
                 ReservationStatus.EXPIRED);
         allow(ReservationStatus.PENDING,
-                ReservationStatus.CONFIRMED,
-                ReservationStatus.DEPOSIT_REQUIRED,
-                ReservationStatus.DEPOSIT_PAID,
-                ReservationStatus.FULLY_PAID,
+                ReservationStatus.WAITING_TABLE_ASSIGNMENT,  // P0: bắt buộc qua gán bàn
                 ReservationStatus.REJECTED,
                 ReservationStatus.CANCELLED,
                 ReservationStatus.EXPIRED);
         allow(ReservationStatus.DEPOSIT_REQUIRED,
+                ReservationStatus.CONFIRMED,        // P0: cho phép admin miễn cọc cho khách VIP
                 ReservationStatus.DEPOSIT_PENDING,
                 ReservationStatus.DEPOSIT_PAID,
                 ReservationStatus.FULLY_PAID,

@@ -120,8 +120,8 @@
                   <td><span class="category-chip">{{ p.category ? p.category.name : 'Chưa phân loại' }}</span></td>
                   <td class="price-text">{{ p.price.toLocaleString() }}đ</td>
                   <td>{{ p.taxRate !== null && p.taxRate !== undefined ? p.taxRate + '%' : '8%' }}</td>
-                  <td style="color: #B23B2E; font-weight: bold;">{{ p.costPrice > 0 ? p.costPrice.toLocaleString() + 'đ' : 'N/A' }}</td>
-                  <td><strong style="color: #B98229;">{{ p.averageRating > 0 ? '⭐ ' + p.averageRating : 'N/A' }}</strong></td>
+                  <td style="color: var(--primary); font-weight: bold;">{{ p.costPrice > 0 ? p.costPrice.toLocaleString() + 'đ' : 'N/A' }}</td>
+                  <td><strong style="color: var(--color-tertiary);">{{ p.averageRating > 0 ? '⭐ ' + p.averageRating : 'N/A' }}</strong></td>
                   <td>
                     <span :class="p.status === false ? 'g-badge g-badge-danger' : 'g-badge g-badge-success'">
                       {{ p.status === false ? 'Hết món' : 'Đang bán' }}
@@ -383,21 +383,21 @@ onMounted(() => {
 
 .action-buttons { display: flex; gap: 6px; }
 .btn-edit {
-  background: rgba(90, 110, 69, 0.15);
-  border: 1px solid rgba(90, 110, 69, 0.3);
-  color: #5A6E45;
+  background: color-mix(in srgb, var(--secondary) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--secondary) 30%, transparent);
+  color: var(--secondary);
   padding: 7px 12px; border-radius: var(--radius-sm);
   cursor: pointer; font-size: 0.88rem; transition: var(--transition);
 }
-.btn-edit:hover { background: rgba(90, 110, 69, 0.3); }
+.btn-edit:hover { background: color-mix(in srgb, var(--secondary) 30%, transparent); }
 .btn-toggle {
-  background: rgba(185,130,41,0.15);
-  border: 1px solid rgba(185,130,41,0.3);
-  color: #B98229;
+  background: color-mix(in srgb, var(--color-tertiary) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-tertiary) 30%, transparent);
+  color: var(--color-tertiary);
   padding: 7px 12px; border-radius: var(--radius-sm);
   cursor: pointer; font-size: 0.88rem; transition: var(--transition);
 }
-.btn-toggle:hover { background: rgba(185,130,41,0.3); }
+.btn-toggle:hover { background: color-mix(in srgb, var(--color-tertiary) 30%, transparent); }
 
 .row-disabled td { opacity: 0.5; }
 .empty-row { text-align: center; color: var(--text-muted); padding: 40px; font-style: italic; }

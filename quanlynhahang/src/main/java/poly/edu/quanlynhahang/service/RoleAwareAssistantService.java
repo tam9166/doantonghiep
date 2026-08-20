@@ -59,20 +59,41 @@ public class RoleAwareAssistantService {
                 .orElseThrow(() -> new org.springframework.security.access.AccessDeniedException("Vai trò không được phép dùng trợ lý vận hành"));
     }
 
+    private static final Map<String, List<String>> INTENT_KEYWORDS = Map.ofEntries(
+        Map.entry("UNPAID_INVOICE_SUMMARY", List.of(
+            "chua thanh toan", "chua thu", "con no", "hoa don chua",
+            "chua dong", "chua tra", "no tien", "con thieu",
+            "chua thanh toan het", "dang no", "chua dong tien",
+            "con no bao nhieu", "chuyen chua thanh toan")),
+        Map.entry("TODAY_COLLECTION_SUMMARY", List.of(
+            "doanh thu", "da thu", "thu hom nay", "hom nay thu",
+            "thu duoc", "tong thu", "bao nhieu tien", "tien hom nay",
+            "tong doanh thu", "hom nay thu duoc")),
+        Map.entry("EXPIRING_INGREDIENT_BATCHES", List.of(
+            "han su dung", "het han", "sap het han",
+            "ngay het han", "qua han", "su dung", "con han",
+            "sap qua han")),
+        Map.entry("AVAILABLE_PRODUCTS", List.of(
+            "mon", "thuc don", "kha dung", "con hang",
+            "phuc vu", "con mon", "dang ban", "co the goi",
+            "mon nao", "co mon gi", "menu", "thuc don hom nay"))
+    );
+
+    private static final List<String> INTENT_PRECEDENCE = List.of(
+        "UNPAID_INVOICE_SUMMARY",
+        "TODAY_COLLECTION_SUMMARY",
+        "EXPIRING_INGREDIENT_BATCHES",
+        "AVAILABLE_PRODUCTS"
+    );
+
     private String resolveIntent(String message) {
         String normalized = java.text.Normalizer.normalize(message, java.text.Normalizer.Form.NFD)
                 .replaceAll("\\p{M}", "").toLowerCase(Locale.ROOT);
-        if (normalized.contains("chua thanh toan") || normalized.contains("chua thu")
-                || normalized.contains("con no") || normalized.contains("hoa don chua")) {
-            return "UNPAID_INVOICE_SUMMARY";
-        }
-        if (normalized.contains("doanh thu") || normalized.contains("da thu")
-                || normalized.contains("thu hom nay")) {
-            return "TODAY_COLLECTION_SUMMARY";
-        }
-        if (normalized.contains("han") || normalized.contains("het han")) return "EXPIRING_INGREDIENT_BATCHES";
-        if (normalized.contains("mon") || normalized.contains("thuc don") || normalized.contains("kha dung")) return "AVAILABLE_PRODUCTS";
-        return "INVENTORY_SUMMARY";
+
+        return INTENT_PRECEDENCE.stream()
+            .filter(intent -> INTENT_KEYWORDS.get(intent).stream().anyMatch(normalized::contains))
+            .findFirst()
+            .orElse("INVENTORY_SUMMARY");
     }
 
     private List<String> suggestionsFor(String role) {

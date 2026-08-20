@@ -12,9 +12,11 @@ import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
-@Data
+@Getter
+@Setter
 @Entity
 @Table(name = "Accounts") // Hoá ra tên bảng của bạn có chữ "s", bảo sao lúc nãy SSMS báo lỗi không tìm thấy bảng Account! 😂
 public class Account {
@@ -62,6 +64,6 @@ public class Account {
     private Boolean mustChangePassword = false;
 
     @JsonIgnore
-    @OneToMany(mappedBy = "account", fetch = FetchType.EAGER)
+    @OneToMany(mappedBy = "account", fetch = FetchType.LAZY)
     private List<Authority> authorities;
 }

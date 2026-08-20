@@ -140,6 +140,7 @@ public class GlobalExceptionHandler {
                 Instant.now(), status.value(), code, message,
                 request.getRequestURI(), fieldErrors, correlationId);
         return ResponseEntity.status(status)
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
                 .header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, CORRELATION_HEADER)
                 .header(CORRELATION_HEADER, correlationId)
                 .body(body);

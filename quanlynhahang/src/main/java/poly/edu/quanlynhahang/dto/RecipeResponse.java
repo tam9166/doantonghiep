@@ -8,7 +8,7 @@ public record RecipeResponse(
         Long id,
         ProductSummary product,
         IngredientSummary ingredient,
-        Double amountRequired) {
+        BigDecimal amountRequired) {
 
     public static RecipeResponse from(Recipe recipe) {
         return new RecipeResponse(
@@ -26,6 +26,6 @@ public record RecipeResponse(
     public record ProductSummary(Integer id, String name) {
     }
 
-    public record IngredientSummary(Long id, String name, Double quantity, String unit, BigDecimal unitPrice) {
+    public record IngredientSummary(Long id, String name, BigDecimal quantity, String unit, BigDecimal unitPrice) {
     }
 }

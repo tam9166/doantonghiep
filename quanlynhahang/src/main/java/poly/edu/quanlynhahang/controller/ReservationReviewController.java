@@ -1,5 +1,6 @@
 package poly.edu.quanlynhahang.controller;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -9,6 +10,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 import jakarta.validation.Valid;
 import poly.edu.quanlynhahang.entity.Reservation;
 import poly.edu.quanlynhahang.entity.ReservationReview;
@@ -124,8 +126,13 @@ public class ReservationReviewController {
     }
 
     private Integer clampRating(Integer rating) {
-        if (rating == null) return 5;
-        return Math.max(1, Math.min(5, rating));
+        if (rating == null) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Rating không được để trống");
+        }
+        if (rating < 1 || rating > 5) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Rating phải từ 1 đến 5");
+        }
+        return rating;
     }
 
     private Integer optionalRating(Integer rating) {

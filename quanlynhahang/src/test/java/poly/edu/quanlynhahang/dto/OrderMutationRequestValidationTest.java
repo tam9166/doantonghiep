@@ -16,12 +16,12 @@ class OrderMutationRequestValidationTest {
     @Test
     void rejectsMalformedGuestBookingAndInvalidDetailIds() {
         assertFalse(validator.validate(new GuestBookingRequest("", "abc", "", "")).isEmpty());
-        assertFalse(validator.validate(new SplitTableRequest("B01", "B02", List.of(0))).isEmpty());
+        assertFalse(validator.validate(new SplitTableRequest(1, 2, List.of(0))).isEmpty());
     }
 
     @Test
     void acceptsBoundedTableMutations() {
-        assertTrue(validator.validate(new MergeTablesRequest("B01", "B02")).isEmpty());
-        assertTrue(validator.validate(new SplitTableRequest("B01", "B02", List.of(10, 11))).isEmpty());
+        assertTrue(validator.validate(new MergeTablesRequest(1, 2)).isEmpty());
+        assertTrue(validator.validate(new SplitTableRequest(1, 2, List.of(10, 11))).isEmpty());
     }
 }

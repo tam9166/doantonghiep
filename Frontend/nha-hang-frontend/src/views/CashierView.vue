@@ -17,7 +17,7 @@
           <button @click="activeTab = 'history'" :class="['tab-btn', { active: activeTab === 'history' }]">📜 Lịch Sử Hóa Đơn</button>
         </div>
         <button @click="openShiftModal" class="btn-primary" style="padding: 10px 20px; border-radius: 6px; font-weight: bold;">📋 Kết Ca</button>
-        <button @click="$router.push('/staff')" class="btn-profile" style="background:#8A641F; color:#FFFFFF; padding:10px 20px; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">👤 Cá Nhân</button>
+        <button @click="$router.push('/staff')" class="btn-profile" style="background:var(--warning); color:#FFFFFF; padding:10px 20px; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">👤 Cá Nhân</button>
         <button @click="logout" class="btn-logout">Đăng Xuất</button>
       </div>
     </header>
@@ -43,7 +43,7 @@
               <div class="tc-dot"></div>
               <h4>{{ table.name }}</h4>
               <p class="tc-subtitle">
-                <span v-if="getOpenOrderForTable(table)" style="color:#B98229; font-weight: bold;">
+                <span v-if="getOpenOrderForTable(table)" style="color:var(--color-tertiary); font-weight: bold;">
                   {{ getPendingTotalForTable(table).toLocaleString() }}đ
                 </span>
                 <span v-else>
@@ -119,22 +119,22 @@
           </div>
 
           <!-- Khu vực QR Code Thanh Toán -->
-          <div class="qr-payment-section hide-on-print" v-if="!selectedOrder.isPaid" style="margin-top: 20px; padding: 15px; background: rgba(90, 110, 69, 0.05); border: 1px dashed var(--primary); border-radius: 8px;">
+          <div class="qr-payment-section hide-on-print" v-if="!selectedOrder.isPaid" style="margin-top: 20px; padding: 15px; background: color-mix(in srgb, var(--secondary) 5%, transparent); border: 1px dashed var(--primary); border-radius: 8px;">
             <h4 style="text-align: center; margin-top: 0; margin-bottom: 10px; color: var(--primary); font-size: 1.1rem;">QR Chuyển Khoản Theo Hóa Đơn</h4>
-            <p v-if="paymentQrLoading" style="text-align: center; color: #55503E;">Đang tạo QR an toàn...</p>
+            <p v-if="paymentQrLoading" style="text-align: center; color: var(--text-secondary);">Đang tạo QR an toàn...</p>
             <div v-else-if="paymentQr" style="text-align: center;">
               <img :src="paymentQr.qrUrl" alt="QR chuyển khoản cho hóa đơn" style="width: 180px; height: 180px; border-radius: 8px; padding: 5px; background: #FFFFFF;" />
-              <p style="margin-top: 10px; margin-bottom: 2px; font-weight: bold; color: #201D14;">Chủ TK: {{ paymentQr.accountHolder }}</p>
-              <p style="color: #55503E; font-size: 0.85rem; margin: 0;">Ngân hàng: {{ paymentQr.bankCode }} · {{ paymentQr.accountNumber }}</p>
-              <p style="color: #201D14; font-size: 0.85rem; margin: 4px 0 0;">Nội dung: <strong>{{ paymentQr.transferContent }}</strong></p>
+              <p style="margin-top: 10px; margin-bottom: 2px; font-weight: bold; color: var(--text-primary);">Chủ TK: {{ paymentQr.accountHolder }}</p>
+              <p style="color: var(--text-secondary); font-size: 0.85rem; margin: 0;">Ngân hàng: {{ paymentQr.bankCode }} · {{ paymentQr.accountNumber }}</p>
+              <p style="color: var(--text-primary); font-size: 0.85rem; margin: 4px 0 0;">Nội dung: <strong>{{ paymentQr.transferContent }}</strong></p>
               <button class="btn-print" style="margin-top: 10px;" :disabled="paymentQrLoading" @click="regeneratePaymentQr">Tạo lại QR</button>
             </div>
             <div v-else style="text-align: center;">
-              <p style="color: #55503E;">QR được backend tạo riêng cho hóa đơn này và tự đối soát qua ngân hàng.</p>
+              <p style="color: var(--text-secondary);">QR được backend tạo riêng cho hóa đơn này và tự đối soát qua ngân hàng.</p>
               <button class="btn-pay" :disabled="paymentQrLoading" @click="createPaymentQr">Tạo QR chuyển khoản</button>
             </div>
-            <p v-if="paymentQrError" style="text-align: center; margin-top: 10px; color: #B23B2E;">{{ paymentQrError }}</p>
-            <p v-if="paymentQr" style="text-align: center; margin-top: 10px; font-size: 0.8rem; color: #B23B2E; font-style: italic;">Không xác nhận thủ công. Hệ thống sẽ tự ghi nhận khi ngân hàng báo giao dịch thành công.</p>
+            <p v-if="paymentQrError" style="text-align: center; margin-top: 10px; color: var(--primary);">{{ paymentQrError }}</p>
+            <p v-if="paymentQr" style="text-align: center; margin-top: 10px; font-size: 0.8rem; color: var(--primary); font-style: italic;">Không xác nhận thủ công. Hệ thống sẽ tự ghi nhận khi ngân hàng báo giao dịch thành công.</p>
           </div>
 
           <div class="invoice-footer" style="margin-top: 20px;">
@@ -229,7 +229,7 @@
               <span class="stat-value text-danger">{{ shiftStats.unpaidCount }}</span>
             </div>
           </div>
-          <p v-if="shiftStats.unpaidCount > 0" class="text-danger" style="margin-top: 15px; font-weight: bold; text-align: center; border: 1px dashed #B23B2E; padding: 10px;">
+          <p v-if="shiftStats.unpaidCount > 0" class="text-danger" style="margin-top: 15px; font-weight: bold; text-align: center; border: 1px dashed var(--primary); padding: 10px;">
             ⚠️ Cảnh báo: Vẫn còn {{ shiftStats.unpaidCount }} bàn đang có khách chưa thanh toán! Không nên kết ca lúc này.
           </p>
           
@@ -245,7 +245,7 @@
           </div>
         </div>
         <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
-          <button @click="printShiftReport" class="btn-primary" style="background: var(--primary); color: #201D14; border: none; padding: 10px 20px; border-radius: 6px;">🖨️ In Báo Cáo</button>
+          <button @click="printShiftReport" class="btn-primary" style="background: var(--primary); color: var(--color-on-primary); border: none; padding: 10px 20px; border-radius: 6px;">🖨️ In Báo Cáo</button>
           <button @click="showShiftModal = false" class="btn-logout" style="border: 1px solid var(--border); color: var(--text-primary); padding: 10px 20px;">Đóng</button>
         </div>
       </div>
@@ -259,7 +259,7 @@
           <button @click="historySelectedOrder = null" class="btn-close-modal">✖</button>
         </div>
         <div class="modal-body" id="printable-history-invoice" style="background: #FFFFFF; color: black; padding: 20px; border-radius: 8px;">
-          <div style="text-align: center; border-bottom: 2px dashed #A6B0AA; padding-bottom: 10px; margin-bottom: 15px;">
+          <div style="text-align: center; border-bottom: 2px dashed var(--color-outline); padding-bottom: 10px; margin-bottom: 15px;">
             <h2 style="margin: 0; font-size: 1.5rem;">Mộc Vị RESTAURANT</h2>
             <p style="margin: 5px 0 0; font-size: 0.9rem;">HÓA ĐƠN ĐÃ THANH TOÁN</p>
             <p style="margin: 5px 0 0; font-size: 0.8rem;">Ngày: {{ new Date(historySelectedOrder.createDate).toLocaleString('vi-VN') }}</p>
@@ -267,14 +267,14 @@
           </div>
           <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
             <thead>
-              <tr style="border-bottom: 1px solid #CFC7A8;">
+              <tr style="border-bottom: 1px solid var(--border);">
                 <th style="text-align: left; padding: 8px 0;">Món</th>
                 <th style="text-align: center; padding: 8px 0;">SL</th>
                 <th style="text-align: right; padding: 8px 0;">TTiền</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="item in historySelectedOrder.orderDetails" :key="item.id" style="border-bottom: 1px solid #E2DCC2;">
+              <tr v-for="item in historySelectedOrder.orderDetails" :key="item.id" style="border-bottom: 1px solid var(--border);">
                 <td style="padding: 8px 0;">{{ item.product.name }}</td>
                 <td style="text-align: center; padding: 8px 0;">{{ item.quantity }}</td>
                 <td style="text-align: right; padding: 8px 0;">{{ item.price.toLocaleString() }}đ</td>
@@ -306,6 +306,7 @@ import SockJS from 'sockjs-client';
 import { Stomp } from '@stomp/stompjs';
 import TimekeepingWidget from '../components/TimekeepingWidget.vue';
 import { foodImage, replaceFoodImage } from '@/utils/imageFallback';
+import { clearStaffSession, getStaffToken, getStaffUser } from '@/services/session';
 
 const router = useRouter();
 const pendingOrders = ref([]);
@@ -317,7 +318,7 @@ const paymentQrError = ref('');
 const paymentSubmitting = ref(false);
 let stompClient = null;
 
-const currentUser = ref(JSON.parse(localStorage.getItem('user')) || null);
+const currentUser = ref(getStaffUser());
 
 const showShiftModal = ref(false);
 
@@ -392,19 +393,19 @@ const printShiftReport = () => {
   const printContents = document.getElementById('printable-shift').innerHTML;
   const originalContents = document.body.innerHTML;
   
-  document.body.innerHTML = `<div style="padding: 20px; font-family: var(--font-primary); color: #201D14; background: #FFFFFF;">${printContents}</div>`;
+  document.body.innerHTML = `<div style="padding: 20px; font-family: var(--font-primary); color: var(--text-primary); background: #FFFFFF;">${printContents}</div>`;
   window.print();
   document.body.innerHTML = originalContents;
   window.location.reload(); 
 };
 
 const configHeader = () => {
-  const token = localStorage.getItem('token');
+  const token = getStaffToken();
   return { headers: { Authorization: 'Bearer ' + token } };
 };
 
 const logout = () => {
-  localStorage.clear();
+  clearStaffSession();
   router.push('/staff-login');
 };
 
@@ -590,7 +591,7 @@ const connectSocket = () => {
   const socket = new SockJS('/ws');
   stompClient = Stomp.over(socket);
   stompClient.debug = () => {};
-  const token = localStorage.getItem('token');
+  const token = getStaffToken();
   stompClient.connect(token ? { Authorization: `Bearer ${token}` } : {}, () => {
     stompClient.subscribe('/topic/kitchen', () => {
       fetchOrders();
@@ -636,8 +637,8 @@ onUnmounted(() => {
 .brand-icon { font-size: 2.5rem; }
 .brand h2 { margin: 0; font-size: 1.5rem; font-weight: 800; letter-spacing: 1px; color: var(--primary); }
 .brand p { margin: 5px 0 0; font-size: 0.9rem; color: var(--text-muted); }
-.btn-logout { background: transparent; border: 1px solid rgba(178,59,46,0.5); color: #B23B2E; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 1rem; transition: 0.3s; }
-.btn-logout:hover { background: rgba(178,59,46,0.1); border-color: #B23B2E; transform: translateY(-2px); }
+.btn-logout { background: transparent; border: 1px solid color-mix(in srgb, var(--primary) 50%, transparent); color: var(--primary); padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 1rem; transition: 0.3s; }
+.btn-logout:hover { background: color-mix(in srgb, var(--primary) 10%, transparent); border-color: var(--primary); transform: translateY(-2px); }
 
 .cashier-content {
   display: grid;
@@ -684,14 +685,14 @@ onUnmounted(() => {
   box-shadow: 0 8px 20px rgba(0,0,0,0.3);
 }
 .table-box.selected-table {
-  border-color: #5A6E45 !important;
-  box-shadow: 0 0 15px rgba(90, 110, 69, 0.5) !important;
+  border-color: var(--secondary) !important;
+  box-shadow: 0 0 15px color-mix(in srgb, var(--secondary) 50%, transparent) !important;
   transform: scale(1.02);
 }
-.table-box.table-empty { border-color: #2F8F5B; box-shadow: 0 0 10px rgba(47, 143, 91, 0.1); opacity: 0.7; }
-.table-box.table-booked { border-color: #B98229; box-shadow: 0 0 10px rgba(185, 130, 41, 0.1); }
-.table-box.table-occupied { border-color: #B23B2E; box-shadow: 0 0 10px rgba(178, 59, 46, 0.1); }
-.table-box.table-cleaning { border-color: #C08A2E; box-shadow: 0 0 10px rgba(192, 138, 46, 0.1); }
+.table-box.table-empty { border-color: var(--success); box-shadow: 0 0 10px color-mix(in srgb, var(--success) 10%, transparent); opacity: 0.7; }
+.table-box.table-booked { border-color: var(--color-tertiary); box-shadow: 0 0 10px color-mix(in srgb, var(--color-tertiary) 10%, transparent); }
+.table-box.table-occupied { border-color: var(--primary); box-shadow: 0 0 10px color-mix(in srgb, var(--primary) 10%, transparent); }
+.table-box.table-cleaning { border-color: var(--color-tertiary); box-shadow: 0 0 10px color-mix(in srgb, var(--color-tertiary) 10%, transparent); }
 
 .tc-top {
   display: flex;
@@ -701,7 +702,7 @@ onUnmounted(() => {
 }
 .tc-capacity {
   background: rgba(255,255,255,0.05);
-  color: #5A6E45;
+  color: var(--secondary);
   padding: 2px 8px;
   border-radius: 12px;
   font-size: 0.75rem;
@@ -724,10 +725,10 @@ onUnmounted(() => {
   border-radius: 50%;
   margin: 0 auto 8px auto;
 }
-.table-empty .tc-dot { background: #2F8F5B; box-shadow: 0 0 8px #2F8F5B; }
-.table-booked .tc-dot { background: #B98229; box-shadow: 0 0 8px #B98229; }
-.table-occupied .tc-dot { background: #B23B2E; box-shadow: 0 0 8px #B23B2E; }
-.table-cleaning .tc-dot { background: #C08A2E; box-shadow: 0 0 8px #C08A2E; }
+.table-empty .tc-dot { background: var(--success); box-shadow: 0 0 8px var(--success); }
+.table-booked .tc-dot { background: var(--color-tertiary); box-shadow: 0 0 8px var(--color-tertiary); }
+.table-occupied .tc-dot { background: var(--primary); box-shadow: 0 0 8px var(--primary); }
+.table-cleaning .tc-dot { background: var(--color-tertiary); box-shadow: 0 0 8px var(--color-tertiary); }
 
 .tc-center h4 {
   margin: 0 0 5px 0;
@@ -771,9 +772,9 @@ onUnmounted(() => {
   background: #FFFFFF;
   padding: 20px;
   font-family: var(--font-primary);
-  color: #201D14;
+  color: var(--text-primary);
   overflow-y: auto;
-  border: 1px dashed #A6B0AA;
+  border: 1px dashed var(--color-outline);
   margin-bottom: 20px;
   border-radius: var(--radius-sm);
 }
@@ -783,9 +784,9 @@ onUnmounted(() => {
 .invoice-header h3 { margin: 15px 0; font-size: 1.2rem; }
 
 .invoice-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 0.85rem; }
-.invoice-table th, .invoice-table td { padding: 8px 0; text-align: right; border-bottom: 1px dotted #A6B0AA; }
+.invoice-table th, .invoice-table td { padding: 8px 0; text-align: right; border-bottom: 1px dotted var(--color-outline); }
 .invoice-table th:first-child, .invoice-table td:first-child { text-align: left; }
-.invoice-table th { font-weight: bold; border-bottom: 1px solid #201D14; }
+.invoice-table th { font-weight: bold; border-bottom: 1px solid var(--text-primary); }
 
 .invoice-total { display: flex; justify-content: space-between; font-weight: bold; font-size: 1.1rem; margin: 10px 0; }
 .invoice-footer { text-align: center; font-size: 0.8rem; margin-top: 30px; font-style: italic; }
@@ -796,11 +797,11 @@ onUnmounted(() => {
 }
 .btn-print { background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border) !important; }
 .btn-print:hover { background: rgba(255,255,255,0.05); }
-.btn-pay { background: var(--primary); color: #201D14; }
-.btn-pay:hover:not(:disabled) { background: #33422A; transform: translateY(-2px); box-shadow: 0 4px 15px rgba(90, 110, 69, 0.4); }
-.btn-pay:disabled { background: #55503E; color: #7A7460; cursor: not-allowed; }
-.btn-primary { background: var(--primary); color: #201D14; border: none; cursor: pointer; transition: 0.3s; }
-.btn-primary:hover { background: #33422A; transform: translateY(-2px); }
+.btn-pay { background: var(--primary); color: var(--color-on-primary); }
+.btn-pay:hover:not(:disabled) { background: var(--secondary); transform: translateY(-2px); box-shadow: 0 4px 15px color-mix(in srgb, var(--secondary) 40%, transparent); }
+.btn-pay:disabled { background: var(--text-secondary); color: var(--text-muted); cursor: not-allowed; }
+.btn-primary { background: var(--primary); color: var(--color-on-primary); border: none; cursor: pointer; transition: 0.3s; }
+.btn-primary:hover { background: var(--secondary); transform: translateY(-2px); }
 
 /* Modal Styles */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(5px); }
@@ -808,13 +809,13 @@ onUnmounted(() => {
 .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 15px; }
 .modal-header h2 { margin: 0; color: var(--primary); }
 .btn-close-modal { background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; transition: 0.3s; }
-.btn-close-modal:hover { color: #B23B2E; transform: rotate(90deg); }
+.btn-close-modal:hover { color: var(--primary); transform: rotate(90deg); }
 .stats-box { display: flex; flex-direction: column; gap: 15px; margin-top: 20px; }
 .stat-item { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: rgba(255,255,255,0.03); border-radius: 8px; font-size: 1.1rem; border: 1px solid var(--border-light); }
 .stat-label { color: var(--text-secondary); }
 .stat-value { font-weight: bold; font-size: 1.3rem; }
 .text-primary { color: var(--primary); }
-.text-danger { color: #B23B2E; }
+.text-danger { color: var(--primary); }
 
 /* Tabs */
 .tab-btn { background: transparent; color: var(--text-muted); border: none; padding: 10px 20px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: 0.3s; position: relative; }

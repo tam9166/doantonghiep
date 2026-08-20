@@ -21,7 +21,7 @@ public class OrderRequest {
     @Deprecated(forRemoval = false)
     private BigDecimal deposit;
 
-    /** Type of order: DINE_IN (at table via QR session), TAKEAWAY, DELIVERY. Default is TAKEAWAY if not set. */
+    /** Type of order: DINE_IN (at table via QR session), TAKEAWAY, DELIVERY. Required for checkout. */
     private OrderType orderType;
 
     /** Table ID for DINE_IN orders - required when orderType=DINE_IN */

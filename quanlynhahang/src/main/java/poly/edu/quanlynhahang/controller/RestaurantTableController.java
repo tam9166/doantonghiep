@@ -95,7 +95,7 @@ public class RestaurantTableController {
                                           @RequestParam(required = false) String time) {
         return tableRepository.findById(id).map(table -> {
             if ((status == 0 || status == 3)
-                    && orderRepository.existsOpenUnpaidOrderForTable(table.getId(), table.getName())) {
+                    && orderRepository.existsOpenUnpaidOrderForTable(table.getId())) {
                 return ResponseEntity.status(409).body(
                         "Bàn còn hóa đơn chưa thanh toán. Thu ngân phải xác nhận thanh toán trước khi chuyển bàn.");
             }

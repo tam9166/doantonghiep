@@ -263,12 +263,12 @@ async function handleRegister() {
 }
 .visual-overlay {
   position: absolute; inset: 0;
-  background: linear-gradient(135deg, rgba(20,28,15,0.88) 0%, rgba(34, 48, 27, 0.4) 50%, rgba(20,28,15,0.92) 100%);
+  background: linear-gradient(135deg, rgba(20,28,15,0.88) 0%, color-mix(in srgb, var(--color-on-secondary-container) 40%, transparent) 50%, rgba(20,28,15,0.92) 100%);
 }
 .visual-content { position: relative; z-index: 1; padding: 60px; max-width: 520px; }
 .visual-badge {
-  display: inline-block; background: rgba(90, 110, 69, 0.15);
-  border: 1px solid rgba(192, 138, 46, 0.3); color: var(--secondary);
+  display: inline-block; background: color-mix(in srgb, var(--secondary) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-tertiary) 30%, transparent); color: var(--secondary);
   padding: 8px 20px; border-radius: 100px; font-size: 0.75rem;
   font-weight: 700; letter-spacing: 2px; margin-bottom: 32px;
 }
@@ -288,14 +288,14 @@ async function handleRegister() {
   backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.08);
   border-radius: 14px; transition: var(--transition);
 }
-.benefit-item:hover { background: rgba(90, 110, 69, 0.08); border-color: rgba(90, 110, 69, 0.2); }
+.benefit-item:hover { background: color-mix(in srgb, var(--secondary) 8%, transparent); border-color: color-mix(in srgb, var(--secondary) 20%, transparent); }
 .benefit-icon { font-size: 1.6rem; flex-shrink: 0; }
 .benefit-item strong { display: block; color: #FFFFFF; font-size: 0.88rem; }
 .benefit-item p { margin: 0; color: rgba(255,255,255,0.5); font-size: 0.78rem; }
 
-.deco-circle { position: absolute; border-radius: 50%; border: 1px solid rgba(90, 110, 69, 0.12); }
+.deco-circle { position: absolute; border-radius: 50%; border: 1px solid color-mix(in srgb, var(--secondary) 12%, transparent); }
 .c1 { width: 350px; height: 350px; top: -80px; right: -100px; }
-.c2 { width: 200px; height: 200px; bottom: -40px; left: -60px; background: rgba(90, 110, 69, 0.04); }
+.c2 { width: 200px; height: 200px; bottom: -40px; left: -60px; background: color-mix(in srgb, var(--secondary) 4%, transparent); }
 
 /* ===== RIGHT PANEL ===== */
 .register-form-panel {
@@ -305,7 +305,7 @@ async function handleRegister() {
 }
 .register-form-panel::before {
   content: ''; position: absolute; top: 0; left: 0; bottom: 0; width: 1px;
-  background: linear-gradient(180deg, transparent, rgba(90, 110, 69, 0.3), transparent);
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--secondary) 30%, transparent), transparent);
 }
 .form-wrapper { width: 100%; max-width: 440px; }
 
@@ -328,7 +328,7 @@ async function handleRegister() {
   font-size: 0.85rem; font-weight: 800; color: var(--text-muted);
   transition: var(--transition);
 }
-.step.active .step-circle { background: rgba(90, 110, 69, 0.15); border-color: var(--primary); color: var(--primary); }
+.step.active .step-circle { background: color-mix(in srgb, var(--secondary) 15%, transparent); border-color: var(--primary); color: var(--primary); }
 .step.done .step-circle { background: var(--primary); border-color: var(--primary); color: var(--bg-dark); }
 .step span { font-size: 0.75rem; color: var(--text-muted); font-weight: 600; }
 .step.active span { color: var(--primary); }
@@ -355,7 +355,7 @@ async function handleRegister() {
   border-radius: 14px; color: var(--text-primary); font-size: 0.95rem;
   font-family: inherit; transition: var(--transition);
 }
-.input-field input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(90, 110, 69, 0.15); }
+.input-field input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--secondary) 15%, transparent); }
 .input-field input::placeholder { color: var(--text-muted); }
 .toggle-pw { position: absolute; right: 14px; background: none; border: none; cursor: pointer; font-size: 1rem; }
 
@@ -363,10 +363,10 @@ async function handleRegister() {
 .pw-strength { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
 .pw-bar { flex: 1; height: 4px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden; }
 .pw-fill { height: 100%; border-radius: 4px; transition: width 0.4s ease, background 0.4s ease; }
-.pw-weak .pw-fill, .pw-weak { color: #B23B2E; }
-.pw-weak .pw-fill { background: #B23B2E; }
-.pw-medium .pw-fill, .pw-medium { color: #B98229; }
-.pw-medium .pw-fill { background: #B98229; }
+.pw-weak .pw-fill, .pw-weak { color: var(--primary); }
+.pw-weak .pw-fill { background: var(--primary); }
+.pw-medium .pw-fill, .pw-medium { color: var(--color-tertiary); }
+.pw-medium .pw-fill { background: var(--color-tertiary); }
 .pw-strong .pw-fill, .pw-strong { color: var(--primary); }
 .pw-strong .pw-fill { background: var(--primary); }
 .pw-label { font-size: 0.75rem; font-weight: 700; }
@@ -418,7 +418,7 @@ async function handleRegister() {
   transition: left 0.5s ease;
 }
 .btn-next:hover::after, .btn-register:hover::after { left: 100%; }
-.btn-next:hover, .btn-register:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(90, 110, 69, 0.4); }
+.btn-next:hover, .btn-register:hover { transform: translateY(-2px); box-shadow: 0 8px 30px color-mix(in srgb, var(--secondary) 40%, transparent); }
 .btn-register:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 .btn-register:disabled::after { display: none; }
 
@@ -443,11 +443,11 @@ async function handleRegister() {
 .error-alert {
   display: flex; align-items: flex-start; gap: 10px;
   margin-top: 16px; padding: 14px 16px;
-  background: rgba(178,59,46,0.1); border: 1px solid rgba(178,59,46,0.25);
+  background: color-mix(in srgb, var(--primary) 10%, transparent); border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent);
   border-radius: 12px;
 }
 .error-alert span { font-size: 1.1rem; flex-shrink: 0; }
-.error-alert p { margin: 0; color: #B23B2E; font-size: 0.88rem; }
+.error-alert p { margin: 0; color: var(--primary); font-size: 0.88rem; }
 .shake-enter-active { animation: shakeX 0.4s ease; }
 @keyframes shakeX {
   0%, 100% { transform: translateX(0); }

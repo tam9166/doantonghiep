@@ -63,7 +63,7 @@ public class ReservationController {
     @PostMapping("/api/reservations/lookup")
     public ResponseEntity<?> lookupPublic(@Valid @RequestBody ReservationLookupRequest request) {
         return ResponseEntity.ok(reservationService.lookupPublicReservation(
-                request.reservationCode(), request.customerPhone(), null));
+                request.reservationCode(), request.customerPhone()));
     }
 
     @GetMapping("/api/admin/reservations")

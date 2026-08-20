@@ -384,7 +384,7 @@
         <h3>Xem & Cập Nhật Nhân Viên</h3>
         <div class="form-group">
           <label>Tên Đăng Nhập</label>
-          <input type="text" class="g-form-control" v-model="editStaff.username" disabled style="background:#1A170F; color:#A6B0AA; cursor:not-allowed;" />
+          <input type="text" class="g-form-control" v-model="editStaff.username" disabled style="background: var(--color-inverse-surface); color:var(--color-outline); cursor:not-allowed;" />
         </div>
         <div class="form-group">
           <label>Mật Khẩu (Để trống nếu không đổi)</label>
@@ -440,8 +440,8 @@
             🤖 {{ isAnalyzing ? 'Đang phân tích...' : 'AI Phân Tích Khách Hàng' }}
           </button>
         </div>
-        <div v-if="aiCustomerAnalysis" style="margin-top:15px; padding:15px; background:rgba(185, 130, 41, 0.1); border:1px solid rgba(185, 130, 41, 0.4); border-radius:8px;">
-          <h4 style="margin:0 0 10px 0; color:#B98229;">🤖 Đánh Giá Từ AI:</h4>
+        <div v-if="aiCustomerAnalysis" style="margin-top:15px; padding:15px; background:color-mix(in srgb, var(--color-tertiary) 10%, transparent); border:1px solid color-mix(in srgb, var(--color-tertiary) 40%, transparent); border-radius:8px;">
+          <h4 style="margin:0 0 10px 0; color:var(--color-tertiary);">🤖 Đánh Giá Từ AI:</h4>
           <p style="margin:0; font-size:0.95rem; line-height:1.6; white-space:pre-wrap;">{{ aiCustomerAnalysis }}</p>
         </div>
         <div style="max-height: 400px; overflow-y: auto;">
@@ -486,14 +486,14 @@
       <div class="g-modal printable-area invoice-modal">
         <div class="modal-header hide-on-print" style="display:flex; justify-content:space-between;">
           <h2 style="color:var(--primary); margin:0;">Chi Tiết Hóa Đơn</h2>
-          <button @click="selectedCustomerOrder = null" style="background:transparent; border:none; font-size:1.5rem; cursor:pointer; color:#A6B0AA;">✖</button>
+          <button @click="selectedCustomerOrder = null" style="background:transparent; border:none; font-size:1.5rem; cursor:pointer; color:var(--color-outline);">✖</button>
         </div>
         
-        <div class="invoice-content" style="padding:20px; color:#1A170F; background:#FFFFFF;">
-          <div style="text-align:center; border-bottom:2px solid #1A170F; padding-bottom:15px; margin-bottom:20px;">
-            <h1 style="margin:0; font-size:2rem; letter-spacing:2px;">Mộc Vị <span style="color:#2F8F5B;">RESTAURANT</span></h1>
-            <p style="margin:5px 0 0; color:#55503E; text-transform:uppercase; font-size:0.8rem;">Luxury Dining Experience</p>
-            <p style="margin:5px 0 0; font-size:0.85rem; color:#7A7460;">137 Nguyễn Thị Thập, Đà Nẵng | Hotline: 0905.XXX.XXX</p>
+        <div class="invoice-content" style="padding:20px; color:var(--text-primary); background:#FFFFFF;">
+          <div style="text-align:center; border-bottom:2px solid var(--text-primary); padding-bottom:15px; margin-bottom:20px;">
+            <h1 style="margin:0; font-size:2rem; letter-spacing:2px;">Mộc Vị <span style="color:var(--success);">RESTAURANT</span></h1>
+            <p style="margin:5px 0 0; color:var(--text-secondary); text-transform:uppercase; font-size:0.8rem;">Luxury Dining Experience</p>
+            <p style="margin:5px 0 0; font-size:0.85rem; color:var(--text-muted);">137 Nguyễn Thị Thập, Đà Nẵng | Hotline: 0905.XXX.XXX</p>
           </div>
           
           <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
@@ -502,14 +502,14 @@
               <p style="margin:5px 0;"><strong>Ngày lập:</strong> {{ new Date(selectedCustomerOrder.createDate).toLocaleString('vi-VN') }}</p>
             </div>
             <div style="text-align:right;">
-              <h3 style="margin:0; color:#B23B2E;">HÓA ĐƠN THANH TOÁN</h3>
+              <h3 style="margin:0; color:var(--primary);">HÓA ĐƠN THANH TOÁN</h3>
               <p style="margin:5px 0; font-size:1.2rem; font-weight:bold; font-family:var(--font-primary);">#{{ selectedCustomerOrder.id }}</p>
             </div>
           </div>
           
           <table style="width:100%; border-collapse:collapse; margin-bottom:20px;">
             <thead>
-              <tr style="background:#1A170F; color:#FFFFFF;">
+              <tr style="background: var(--color-inverse-surface); color:#FFFFFF;">
                 <th style="padding:10px; text-align:left;">Tên Món Ăn</th>
                 <th style="padding:10px; text-align:right;">Đơn Giá</th>
                 <th style="padding:10px; text-align:center;">SL</th>
@@ -517,7 +517,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="item in selectedCustomerOrder.orderDetails" :key="item.id" style="border-bottom:1px solid #CFC7A8;">
+              <tr v-for="item in selectedCustomerOrder.orderDetails" :key="item.id" style="border-bottom:1px solid var(--border);">
                 <td style="padding:10px;">{{ item.product?.name }}</td>
                 <td style="padding:10px; text-align:right;">{{ (item.price / item.quantity).toLocaleString() }}đ</td>
                 <td style="padding:10px; text-align:center;">{{ item.quantity }}</td>
@@ -527,19 +527,19 @@
           </table>
           
           <div style="text-align:right; margin-bottom:20px;">
-            <div style="font-size:1.2rem; font-weight:bold; color:#B23B2E; border-top:2px solid #1A170F; display:inline-block; padding-top:10px;">
+            <div style="font-size:1.2rem; font-weight:bold; color:var(--primary); border-top:2px solid var(--text-primary); display:inline-block; padding-top:10px;">
               TỔNG CỘNG: {{ calculateOrderTotal(selectedCustomerOrder).toLocaleString() }} đ
             </div>
           </div>
           
-          <div style="text-align:center; font-size:0.9rem; color:#7A7460; border-top:1px solid #E2DCC2; padding-top:15px;">
-            <p style="margin:0 0 5px; color:#2F8F5B; font-size:1.1rem; font-style:italic;">Cảm ơn quý khách!</p>
+          <div style="text-align:center; font-size:0.9rem; color:var(--text-muted); border-top:1px solid var(--border); padding-top:15px;">
+            <p style="margin:0 0 5px; color:var(--success); font-size:1.1rem; font-style:italic;">Cảm ơn quý khách!</p>
             <p style="margin:0;">In từ hệ thống Mộc Vị Restaurant</p>
           </div>
         </div>
         
-        <div class="modal-actions hide-on-print" style="padding:15px; background:#DED8C2; text-align:center;">
-          <button class="g-btn-primary" @click="printInvoice" style="background:#2F8F5B; color:#FFFFFF; padding:10px 25px; border:none; font-weight:bold; cursor:pointer;">🖨️ Xuất Hóa Đơn PDF</button>
+        <div class="modal-actions hide-on-print" style="padding:15px; background:var(--bg-card2); text-align:center;">
+          <button class="g-btn-primary" @click="printInvoice" style="background:var(--success); color:#FFFFFF; padding:10px 25px; border:none; font-weight:bold; cursor:pointer;">🖨️ Xuất Hóa Đơn PDF</button>
         </div>
       </div>
     </div>
@@ -646,7 +646,7 @@ const salaryMonth = ref(todayStr.slice(0, 7)); // YYYY-MM
 const salaryList = ref([]);
 
 const configHeader = () => {
-  const token = localStorage.getItem('staff_token') || localStorage.getItem('token');
+  const token = localStorage.getItem('staff_token');
   return { headers: { Authorization: 'Bearer ' + token } };
 };
 
@@ -1021,7 +1021,7 @@ onMounted(() => {
     box-shadow: none !important;
     border-radius: 0 !important;
     background: #FFFFFF !important;
-    color: #1A170F !important;
+    color: var(--text-primary) !important;
     padding: 0 !important;
     z-index: 99999 !important;
   }
@@ -1064,21 +1064,21 @@ onMounted(() => {
 
 .data-table { width: 100%; border-collapse: collapse; color: var(--text-heading); }
 .data-table th, .data-table td { padding: 12px 15px; text-align: left; border-bottom: 1px solid var(--border); }
-.data-table th { background: rgba(90, 110, 69, 0.1); font-weight: bold; color: var(--primary); }
+.data-table th { background: color-mix(in srgb, var(--secondary) 10%, transparent); font-weight: bold; color: var(--primary); }
 .data-table tr:hover { background: rgba(255, 255, 255, 0.02); }
 
 .role-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: bold; color: #FFFFFF; }
-.role-badge.ROLE_ADMIN { background: #B23B2E; }
-.role-badge.ROLE_MANAGER { background: #8A641F; }
-.role-badge.ROLE_KITCHEN { background: #C08A2E; }
-.role-badge.ROLE_WAITER { background: #5A6E45; }
-.role-badge.ROLE_CASHIER { background: #2F8F5B; }
+.role-badge.ROLE_ADMIN { background: var(--primary); }
+.role-badge.ROLE_MANAGER { background: var(--warning); }
+.role-badge.ROLE_KITCHEN { background: var(--color-tertiary); }
+.role-badge.ROLE_WAITER { background: var(--secondary); }
+.role-badge.ROLE_CASHIER { background: var(--success); }
 
 .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: bold; color: #FFFFFF; }
-.status-warning { background: #B98229; }
-.status-success { background: #2F8F5B; }
-.status-danger { background: #B23B2E; }
-.status-default { background: #7A7460; }
+.status-warning { background: var(--color-tertiary); }
+.status-success { background: var(--success); }
+.status-danger { background: var(--primary); }
+.status-default { background: var(--text-muted); }
 
 .schedule-form { display: flex; gap: 15px; background: rgba(0, 0, 0, 0.2); padding: 15px; border-radius: 8px; align-items: center; border: 1px solid var(--border); }
 .mt-20 { margin-top: 20px; }
@@ -1096,8 +1096,8 @@ onMounted(() => {
 .zone-map-section {
   margin: 20px 0;
   padding: 20px;
-  background: rgba(90, 110, 69, 0.03);
-  border: 1px solid rgba(90, 110, 69, 0.15);
+  background: color-mix(in srgb, var(--secondary) 3%, transparent);
+  border: 1px solid color-mix(in srgb, var(--secondary) 15%, transparent);
   border-radius: 12px;
 }
 
@@ -1116,13 +1116,13 @@ onMounted(() => {
 }
 .zone-map-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(90, 110, 69, 0.15);
-  border-color: rgba(90, 110, 69, 0.3);
+  box-shadow: 0 4px 15px color-mix(in srgb, var(--secondary) 15%, transparent);
+  border-color: color-mix(in srgb, var(--secondary) 30%, transparent);
 }
 
 .zone-map-floor {
   padding: 12px 16px;
-  background: rgba(90, 110, 69, 0.1);
+  background: color-mix(in srgb, var(--secondary) 10%, transparent);
   font-weight: 800;
   font-size: 0.95rem;
   color: var(--primary);
@@ -1141,13 +1141,13 @@ onMounted(() => {
   align-items: center;
   gap: 10px;
   padding: 8px 12px;
-  background: rgba(90, 110, 69, 0.08);
-  border: 1px solid rgba(90, 110, 69, 0.15);
+  background: color-mix(in srgb, var(--secondary) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--secondary) 15%, transparent);
   border-radius: 8px;
   transition: 0.2s;
 }
 .zone-staff-chip:hover {
-  background: rgba(90, 110, 69, 0.15);
+  background: color-mix(in srgb, var(--secondary) 15%, transparent);
 }
 
 .zone-chip-avatar {
@@ -1157,7 +1157,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(90, 110, 69, 0.15);
+  background: color-mix(in srgb, var(--secondary) 15%, transparent);
   border-radius: 50%;
 }
 
@@ -1180,7 +1180,7 @@ onMounted(() => {
   font-weight: 700;
   color: #FFFFFF;
 }
-.shift-badge.shift-Sáng { background: #B98229; }
-.shift-badge.shift-Chiều { background: #C08A2E; }
-.shift-badge.shift-Tối { background: #8A641F; }
+.shift-badge.shift-Sáng { background: var(--color-tertiary); }
+.shift-badge.shift-Chiều { background: var(--color-tertiary); }
+.shift-badge.shift-Tối { background: var(--warning); }
 </style>

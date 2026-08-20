@@ -130,7 +130,7 @@ import { routeLoading } from '@/router/loadingState'
   padding: 18px;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.82);
-  border: 1px solid rgba(90, 110, 69, 0.18);
+  border: 1px solid color-mix(in srgb, var(--secondary) 18%, transparent);
 }
 
 .skeleton-row {

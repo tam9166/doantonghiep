@@ -85,7 +85,7 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         if ("POST".equals(method) && path.equals("/api/reservation-waitlist")) {
             return new RatePolicy("reservation-waitlist-create", 20, 60);
         }
-        if (path.startsWith("/api/reservations/lookup")) {
+        if ("POST".equals(method) && path.equals("/api/reservations/lookup")) {
             return new RatePolicy("reservation-lookup", 30, 60);
         }
         if ("GET".equals(method) && path.matches("^/api/reservations/[^/]+$")) {
@@ -102,6 +102,10 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         }
         if ("GET".equals(method) && path.matches("^/api/payments/[^/]+$")) {
             return new RatePolicy("payment-qr-status", 30, 60);
+        }
+        // Public chatbot is more expensive and intentionally has a tighter policy.
+        if ("POST".equals(method) && path.equals("/api/chatbot/chat")) {
+            return new RatePolicy("chatbot-public", 10, 60);
         }
         if (path.startsWith("/api/chatbot")
                 || path.startsWith("/api/admin/ai")

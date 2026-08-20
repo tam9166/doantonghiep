@@ -1,5 +1,7 @@
 package poly.edu.quanlynhahang.controller;
 
+import java.math.BigDecimal;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -109,13 +111,13 @@ public class RecipeController {
     public static class RecipeRequest {
         private Integer productId;
         private Long ingredientId;
-        private Double amountRequired;
+        private BigDecimal amountRequired;
 
         public Integer getProductId() { return productId; }
         public void setProductId(Integer productId) { this.productId = productId; }
         public Long getIngredientId() { return ingredientId; }
         public void setIngredientId(Long ingredientId) { this.ingredientId = ingredientId; }
-        public Double getAmountRequired() { return amountRequired; }
-        public void setAmountRequired(Double amountRequired) { this.amountRequired = amountRequired; }
+        public BigDecimal getAmountRequired() { return amountRequired; }
+        public void setAmountRequired(BigDecimal amountRequired) { this.amountRequired = amountRequired; }
     }
 }

@@ -1,5 +1,7 @@
 package poly.edu.quanlynhahang.service;
 
+import java.math.BigDecimal;
+
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -45,7 +47,8 @@ class StaffOperationsAssistantServiceTest {
     @Test
     void reportsLowStockFromRepositoryQuantity() {
         Ingredient ingredient = ingredient("Rau cải", 2D, 5D, 3);
-        when(ingredientRepository.findAll()).thenReturn(List.of(ingredient));
+        when(ingredientRepository.findAll()).thenReturn(List.of());
+        when(ingredientRepository.findLowStockIngredients()).thenReturn(List.of(ingredient));
 
         String reply = service.answer("Số lượng tồn kho");
 
@@ -58,7 +61,7 @@ class StaffOperationsAssistantServiceTest {
         Ingredient ingredient = ingredient("Thịt bò", 8D, 5D, 2);
         IngredientBatch batch = new IngredientBatch();
         batch.setIngredient(ingredient);
-        batch.setQuantity(3D);
+        batch.setQuantity(new BigDecimal("3.0000"));
         Calendar calendar = Calendar.getInstance();
         calendar.set(2026, Calendar.AUGUST, 5, 0, 0, 0);
         calendar.set(Calendar.MILLISECOND, 0);
@@ -76,8 +79,8 @@ class StaffOperationsAssistantServiceTest {
     private Ingredient ingredient(String name, Double quantity, Double minStock, Integer shelfLifeDays) {
         Ingredient ingredient = new Ingredient();
         ingredient.setName(name);
-        ingredient.setQuantity(quantity);
-        ingredient.setMinStock(minStock);
+        ingredient.setQuantity(BigDecimal.valueOf(quantity));
+        ingredient.setMinStock(BigDecimal.valueOf(minStock));
         ingredient.setUnit("kg");
         ingredient.setShelfLifeDays(shelfLifeDays);
         return ingredient;

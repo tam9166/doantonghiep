@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.Collections;
 import java.util.Date;
+import java.time.LocalDate;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.Authentication;
@@ -35,7 +36,7 @@ class SelfServiceIdentityTest {
 
         controller.getTodayStatus(authentication(ACTOR));
 
-        verify(repository).findByAccountUsernameAndWorkDate(eq(ACTOR), any(Date.class));
+        verify(repository).findByAccountUsernameAndWorkDate(eq(ACTOR), any(LocalDate.class));
     }
 
     @Test
@@ -81,7 +82,7 @@ class SelfServiceIdentityTest {
         controller.performCheck(authentication(ACTOR), new TimekeepingCheckRequest("IN"));
 
         verify(accountRepository).findById(ACTOR);
-        verify(timekeepingRepository).findByAccountUsernameAndWorkDate(eq(ACTOR), any(Date.class));
+        verify(timekeepingRepository).findByAccountUsernameAndWorkDate(eq(ACTOR), any(LocalDate.class));
     }
 
     private Authentication authentication(String username) {

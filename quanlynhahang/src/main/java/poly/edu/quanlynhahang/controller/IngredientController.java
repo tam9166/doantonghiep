@@ -1,5 +1,7 @@
 package poly.edu.quanlynhahang.controller;
 
+import java.math.BigDecimal;
+
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
@@ -68,8 +70,8 @@ public class IngredientController {
         ingredient.setUnitPrice(request.unitPrice());
         ingredient.setImage(request.image());
         ingredient.setShelfLifeDays(request.shelfLifeDays());
-        if (ingredient.getQuantity() == null) ingredient.setQuantity(0.0);
-        if (ingredient.getMinStock() == null) ingredient.setMinStock(5.0);
+        if (ingredient.getQuantity() == null) ingredient.setQuantity(BigDecimal.ZERO);
+        if (ingredient.getMinStock() == null) ingredient.setMinStock(new BigDecimal("5.0000"));
         Ingredient saved = ingredientRepository.save(ingredient);
         activityLogService.log("CREATE", "Ingredient", String.valueOf(saved.getId()),
                 "Thêm nguyên liệu mới: " + saved.getName() + " (" + saved.getUnit() + ")");
@@ -128,8 +130,7 @@ public class IngredientController {
             IngredientBatch savedBatch = ingredientBatchRepository.save(batch);
             
             // Cập nhật lại tổng tồn kho
-            double totalQuantity = ingredientBatchRepository.findAvailableBatchesOrderByExpirationAsc(ing)
-                    .stream().mapToDouble(IngredientBatch::getQuantity).sum();
+            BigDecimal totalQuantity = sumBatchQuantity(ing);
             ing.setQuantity(totalQuantity);
             
             // Cập nhật giá nhập mới nhất vào bảng nguyên liệu chính để tham khảo
@@ -176,8 +177,7 @@ public class IngredientController {
             ingredientBatchRepository.delete(batch);
             
             // Cập nhật lại số lượng tồn kho
-            double totalQuantity = ingredientBatchRepository.findAvailableBatchesOrderByExpirationAsc(ing)
-                    .stream().mapToDouble(IngredientBatch::getQuantity).sum();
+            BigDecimal totalQuantity = sumBatchQuantity(ing);
             ing.setQuantity(totalQuantity);
             ingredientRepository.save(ing);
             menuAvailabilityService.refreshForIngredient(ing);
@@ -190,7 +190,7 @@ public class IngredientController {
     // 5. Cập nhật số lượng trực tiếp
     @PutMapping("/{id}/quantity")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_KITCHEN')")
-    public ResponseEntity<?> setQuantity(@PathVariable Long id, @RequestParam Double quantity) {
+    public ResponseEntity<?> setQuantity(@PathVariable Long id, @RequestParam BigDecimal quantity) {
         var ingOpt = ingredientRepository.findById(id);
         if (ingOpt.isPresent()) {
             Ingredient ing = ingOpt.get();
@@ -220,13 +220,13 @@ public class IngredientController {
         List<Ingredient> all = ingredientRepository.findAll();
         long total = all.size();
         long lowStock = all.stream().filter(i -> {
-            double q = i.getQuantity() != null ? i.getQuantity() : 0.0;
-            double m = i.getMinStock() != null ? i.getMinStock() : 0.0;
-            return q <= m;
+            BigDecimal q = i.getQuantity() != null ? i.getQuantity() : BigDecimal.ZERO;
+            BigDecimal m = i.getMinStock() != null ? i.getMinStock() : BigDecimal.ZERO;
+            return q.compareTo(m) <= 0;
         }).count();
         long outOfStock = all.stream().filter(i -> {
-            double q = i.getQuantity() != null ? i.getQuantity() : 0.0;
-            return q <= 0;
+            BigDecimal q = i.getQuantity() != null ? i.getQuantity() : BigDecimal.ZERO;
+            return q.signum() <= 0;
         }).count();
 
         // Đếm số lô sắp hết hạn trong 3 ngày
@@ -240,5 +240,12 @@ public class IngredientController {
         stats.put("outOfStock", outOfStock);
         stats.put("expiringBatchesCount", expiringBatches.size());
         return ResponseEntity.ok(stats);
+    }
+
+    private BigDecimal sumBatchQuantity(Ingredient ingredient) {
+        return ingredientBatchRepository.findAvailableBatchesOrderByExpirationAsc(ingredient).stream()
+                .map(IngredientBatch::getQuantity)
+                .filter(java.util.Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 }

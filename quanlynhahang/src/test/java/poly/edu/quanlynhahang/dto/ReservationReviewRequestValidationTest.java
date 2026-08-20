@@ -27,4 +27,24 @@ class ReservationReviewRequestValidationTest {
 
         assertTrue(validator.validate(request).isEmpty());
     }
+
+    @Test
+    void rejectsContentThatExceedsStorageLimitOrContainsControlCharacters() {
+        ReservationReviewCreateRequest tooLong = new ReservationReviewCreateRequest(
+                "MV-20260801-0001", "0901234567", 5, null, null, null, null,
+                "a".repeat(1_001), null, false);
+        ReservationReviewCreateRequest controlCharacter = new ReservationReviewCreateRequest(
+                "MV-20260801-0001", "0901234567", 5, null, null, null, null,
+                "good\u0000bad", null, false);
+
+        assertFalse(validator.validate(tooLong).isEmpty());
+        assertFalse(validator.validate(controlCharacter).isEmpty());
+    }
+
+    @Test
+    void validatesModerationTextAgainstDatabaseLimits() {
+        assertFalse(validator.validate(new ReservationReviewReplyRequest("a".repeat(1_001))).isEmpty());
+        assertFalse(validator.validate(new ReservationReviewVisibilityRequest(true, "bad\u0000reason")).isEmpty());
+        assertTrue(validator.validate(new ReservationReviewReplyRequest("Cảm ơn quý khách.")).isEmpty());
+    }
 }

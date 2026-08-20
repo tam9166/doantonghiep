@@ -33,7 +33,7 @@ class ProductControllerPrivacyTest {
         product.setId(10);
         product.setName("Com sen");
         product.setPrice(new BigDecimal("125000.00"));
-        product.setTaxRate(8.0);
+        product.setTaxRate(new BigDecimal("8.00"));
         product.setDescription("Mon an nha hang");
         product.setImage("/uploads/com-sen.jpg");
         product.setStatus(true);

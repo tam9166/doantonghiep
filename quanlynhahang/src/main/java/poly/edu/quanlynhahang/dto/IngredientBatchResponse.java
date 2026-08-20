@@ -5,7 +5,7 @@ import java.util.Date;
 
 import poly.edu.quanlynhahang.entity.IngredientBatch;
 
-public record IngredientBatchResponse(Long id, Double quantity, Date importDate, Date expirationDate,
+public record IngredientBatchResponse(Long id, BigDecimal quantity, Date importDate, Date expirationDate,
                                       BigDecimal unitPrice, Long ingredientId) {
     public static IngredientBatchResponse from(IngredientBatch batch) {
         return new IngredientBatchResponse(batch.getId(), batch.getQuantity(), batch.getImportDate(),

@@ -25,7 +25,7 @@
             <tr v-for="v in vouchers" :key="v.id">
               <td>#{{ v.id }}</td>
               <td><span class="code-badge">{{ v.code }}</span></td>
-              <td style="color: #B23B2E; font-weight: bold;">{{ v.discountPercent }}%</td>
+              <td style="color: var(--primary); font-weight: bold;">{{ v.discountPercent }}%</td>
               <td>{{ v.account ? v.account.username : 'Tất cả khách hàng' }}</td>
               <td>
                 <span class="status-badge" :class="{'used': v.isUsed}">
@@ -82,7 +82,7 @@ const newVoucher = ref({ code: '', discountPercent: 10, accountUsername: '' });
 const fetchVouchers = async () => {
   try {
     const res = await api.get('/api/vouchers/admin', {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('staff_token') || localStorage.getItem('token')}` }
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('staff_token')}` }
     });
     vouchers.value = res.data;
   } catch (error) {
@@ -99,7 +99,7 @@ const createVoucher = async () => {
       account: newVoucher.value.accountUsername ? { username: newVoucher.value.accountUsername } : null
     };
     await api.post('/api/vouchers/admin/create', payload, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('staff_token') || localStorage.getItem('token')}` }
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('staff_token')}` }
     });
     alert('Tạo Voucher thành công!');
     showAddModal.value = false;
@@ -123,9 +123,9 @@ onMounted(fetchVouchers);
 .admin-wrapper { background: var(--bg-root); min-height: 100vh; }
 .admin-content { max-width: 1400px; margin: 0 auto; padding: 36px 24px; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-.code-badge { background: #B98229; color: #201D14; padding: 4px 10px; border-radius: 4px; font-weight: bold; font-family: var(--font-primary); letter-spacing: 1px;}
-.status-badge { background: rgba(47, 143, 91, 0.2); color: #2F8F5B; padding: 4px 10px; border-radius: 20px; font-weight: bold; font-size: 0.85rem;}
-.status-badge.used { background: rgba(111, 122, 115, 0.2); color: #7A7460; }
+.code-badge { background: var(--color-tertiary); color: var(--text-primary); padding: 4px 10px; border-radius: 4px; font-weight: bold; font-family: var(--font-primary); letter-spacing: 1px;}
+.status-badge { background: color-mix(in srgb, var(--success) 20%, transparent); color: var(--success); padding: 4px 10px; border-radius: 20px; font-weight: bold; font-size: 0.85rem;}
+.status-badge.used { background: rgba(111, 122, 115, 0.2); color: var(--text-muted); }
 .mt-3 { margin-top: 15px; }
 .mt-4 { margin-top: 20px; }
 </style>

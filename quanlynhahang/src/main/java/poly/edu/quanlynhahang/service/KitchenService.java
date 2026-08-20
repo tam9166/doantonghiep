@@ -1,5 +1,7 @@
 package poly.edu.quanlynhahang.service;
 
+import java.math.BigDecimal;
+
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,15 +47,15 @@ List<Recipe> recipes = recipeRepository.findByProduct(detail.getProduct());
                 Ingredient ing = r.getIngredient();
                 
                 // Số lượng nguyên liệu cần = (Nguyên liệu cho 1 món) x (Số lượng khách đặt)
-                double totalNeeded = r.getAmountRequired() * detail.getQuantity();
+                BigDecimal totalNeeded = r.getAmountRequired().multiply(BigDecimal.valueOf(detail.getQuantity()));
                 
                 // Kiểm tra xem kho còn đủ không
-                if (ing.getQuantity() < totalNeeded) {
+                if (ing.getQuantity().compareTo(totalNeeded) < 0) {
                     throw new RuntimeException("Hết nguyên liệu cho món: " + detail.getProduct().getName());
                 }
                 
                 // Trừ đi số nguyên liệu đã dùng và lưu lại vào Database
-                ing.setQuantity(ing.getQuantity() - totalNeeded);
+                ing.setQuantity(ing.getQuantity().subtract(totalNeeded));
                 ingredientRepository.save(ing);
             }
         }

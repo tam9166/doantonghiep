@@ -11,7 +11,7 @@ import java.util.regex.*;
 @Service
 public class AiSafeQueryToolService {
     private static final Pattern CODE=Pattern.compile("(?i)MV-\\d{8}-\\d{4}");
-    private static final Pattern PHONE=Pattern.compile("(?<!\\d)(?:\\+?84|0)[35789]\\d{8}(?!\\d)");
+    private static final Pattern PHONE=Pattern.compile("(?<!\\d)(?:\\+?84|0)\\d{9,10}(?!\\d)");
     private static final Set<String> STOP=Set.of("mon","nay","nao","cho","toi","gia","bao","nhieu","co","khong","tim","muon","an","xem","nha","hang");
     private final ProductRepository products; private final HotMenuItemService hotItems;
     private final ReservationRepository reservations; private final AiKnowledgeService knowledge;

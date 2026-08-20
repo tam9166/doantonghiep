@@ -142,7 +142,7 @@ const loading = ref(false);
 const saving = ref(false);
 
 const authHeader = () => ({
-  headers: { Authorization: `Bearer ${localStorage.getItem('staff_token') || localStorage.getItem('token')}` }
+  headers: { Authorization: `Bearer ${localStorage.getItem('staff_token')}` }
 });
 
 const sortedAreas = computed(() => {
@@ -259,8 +259,8 @@ onMounted(fetchAreas);
   font-weight: 700;
 }
 .btn-secondary:hover { border-color: var(--primary); color: var(--primary); }
-.btn-danger { border-color: rgba(178, 59, 46, 0.45); color: #B23B2E; }
-.btn-danger:hover { background: rgba(178, 59, 46, 0.12); }
+.btn-danger { border-color: color-mix(in srgb, var(--primary) 45%, transparent); color: var(--primary); }
+.btn-danger:hover { background: color-mix(in srgb, var(--primary) 12%, transparent); }
 .list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .list-header span { color: var(--text-muted); font-size: 0.86rem; font-weight: 700; }
 .area-list { display: grid; gap: 14px; }
@@ -275,7 +275,7 @@ onMounted(fetchAreas);
 .area-card.inactive { opacity: 0.65; }
 .area-media {
   min-height: 150px;
-  background: linear-gradient(135deg, rgba(90, 110, 69, 0.16), rgba(90, 110, 69, 0.12));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--secondary) 16%, transparent), color-mix(in srgb, var(--secondary) 12%, transparent));
   background-size: cover;
   background-position: center;
   display: flex;
@@ -289,8 +289,8 @@ onMounted(fetchAreas);
 .area-title-row h4 { margin: 0 0 4px; color: var(--text-heading); font-size: 1.05rem; }
 .area-title-row p { margin: 0; color: var(--text-muted); font-size: 0.82rem; }
 .status-pill { border-radius: 999px; padding: 5px 10px; font-size: 0.75rem; font-weight: 800; white-space: nowrap; }
-.status-pill.active { background: rgba(90, 110, 69, 0.12); color: var(--primary); }
-.status-pill.inactive { background: rgba(111, 122, 115, 0.16); color: #7A7460; }
+.status-pill.active { background: color-mix(in srgb, var(--secondary) 12%, transparent); color: var(--primary); }
+.status-pill.inactive { background: rgba(111, 122, 115, 0.16); color: var(--text-muted); }
 .area-desc { color: var(--text-secondary); line-height: 1.45; margin: 12px 0; }
 .area-meta { display: flex; flex-wrap: wrap; gap: 10px; color: var(--text-muted); font-size: 0.84rem; font-weight: 700; }
 .area-actions { display: flex; gap: 10px; margin-top: 14px; }

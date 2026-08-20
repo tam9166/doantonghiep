@@ -65,7 +65,7 @@ const replyDrafts = ref({});
 const loading = ref(false);
 
 const authHeader = () => ({
-  headers: { Authorization: `Bearer ${localStorage.getItem('staff_token') || localStorage.getItem('token')}` }
+  headers: { Authorization: `Bearer ${localStorage.getItem('staff_token')}` }
 });
 
 const visibleCount = computed(() => reviews.value.filter(review => !review.hidden).length);
@@ -139,10 +139,10 @@ onMounted(fetchReviews);
 .review-title h3, .review-title p { margin: 0; }
 .review-title h3 { color: var(--text-heading); }
 .review-title p, .content, .rating-breakdown { color: var(--text-muted); }
-.rating { border-radius: 999px; background: rgba(90, 110, 69, 0.12); color: var(--primary); padding: 6px 10px; font-weight: 900; height: fit-content; }
+.rating { border-radius: 999px; background: color-mix(in srgb, var(--secondary) 12%, transparent); color: var(--primary); padding: 6px 10px; font-weight: 900; height: fit-content; }
 .rating-breakdown { display: flex; flex-wrap: wrap; gap: 10px; font-size: 0.84rem; font-weight: 700; }
 .reply-box, .hidden-reason { margin-top: 12px; border-radius: var(--radius-md); padding: 10px; background: var(--bg-card2); color: var(--text-secondary); }
-.hidden-reason { color: #B23B2E; }
+.hidden-reason { color: var(--primary); }
 .review-actions { display: grid; gap: 10px; align-content: start; }
 .review-actions textarea { width: 100%; border: 1px solid var(--border-light); border-radius: var(--radius-md); background: var(--bg-input); color: var(--text-primary); padding: 10px; font: inherit; }
 .btn-secondary { border: 1px solid var(--border-light); border-radius: var(--radius-md); background: transparent; color: var(--text-secondary); padding: 10px 14px; font-weight: 800; cursor: pointer; }

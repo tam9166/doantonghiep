@@ -65,7 +65,7 @@ public class AdminProductController {
                             && recipe.getIngredient().getUnitPrice() != null
                             && recipe.getAmountRequired() != null)
                     .map(recipe -> recipe.getIngredient().getUnitPrice()
-                            .multiply(BigDecimal.valueOf(recipe.getAmountRequired())))
+                            .multiply(recipe.getAmountRequired()))
                     .reduce(BigDecimal.ZERO, BigDecimal::add)
                     .setScale(2, RoundingMode.HALF_UP);
             if (recipeCost.signum() > 0) {
@@ -138,7 +138,7 @@ public class AdminProductController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "CATEGORY_NOT_FOUND"));
         product.setName(request.name().trim());
         product.setPrice(request.price());
-        product.setTaxRate(request.taxRate() == null ? 8.0 : request.taxRate());
+        product.setTaxRate(request.taxRate() == null ? new BigDecimal("8.00") : request.taxRate());
         product.setDescription(request.description() == null ? null : request.description().trim());
         product.setImage(request.image() == null ? null : request.image().trim());
         product.setCategory(category);

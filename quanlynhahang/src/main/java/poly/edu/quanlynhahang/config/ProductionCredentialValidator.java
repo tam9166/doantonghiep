@@ -1,6 +1,7 @@
 package poly.edu.quanlynhahang.config;
 
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -13,8 +14,11 @@ import poly.edu.quanlynhahang.entity.Account;
 import poly.edu.quanlynhahang.repository.AccountRepository;
 
 @Component
-@Profile({"prod", "production"})
+@Profile({"prod", "production", "stage", "staging"})
 public class ProductionCredentialValidator implements ApplicationRunner {
+
+    private static final Set<String> FORBIDDEN_PASSWORDS = Set.of(
+            "123", "admin123", "password", "password123");
 
     private final AccountRepository accountRepository;
     private final PasswordEncoder passwordEncoder;
@@ -37,10 +41,14 @@ public class ProductionCredentialValidator implements ApplicationRunner {
                     "Production contains " + invalidHashes + " account password(s) that are not BCrypt hashes.");
         }
 
-        accountRepository.findById("manager")
-                .filter(account -> passwordEncoder.matches("123", account.getPassword()))
+        accounts.stream()
+                .filter(account -> FORBIDDEN_PASSWORDS.stream()
+                        .anyMatch(candidate -> passwordEncoder.matches(candidate, account.getPassword())))
+                .findFirst()
                 .ifPresent(account -> {
-                    throw new IllegalStateException("Demo credential manager/123 is forbidden in production.");
+                    throw new IllegalStateException(
+                            "A weak or demo credential is forbidden for production account: "
+                                    + account.getUsername());
                 });
     }
 

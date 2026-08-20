@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { routeLoading } from './loadingState'
 import i18n from '@/i18n'
-import { canAccessOperationalWorkspace, customerRouteRedirect } from './roleAccess'
+import { canAccessAdminRoute, canAccessOperationalWorkspace, customerRouteRedirect } from './roleAccess'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -97,25 +97,14 @@ router.beforeEach((to, from) => {
     return customerRedirect
   }
 
-  // 2. BẢO VỆ KHU VỰC QUẢN TRỊ CAO CẤP (Chỉ Admin / Manager)
-  if (to.path.startsWith('/admin') && to.path !== '/admin/ingredients') {
-    if (!token || (!userRoles.includes('ROLE_ADMIN') && !userRoles.includes('ROLE_MANAGER'))) {
+  // 2. BẢO VỆ KHU VỰC QUẢN TRỊ THEO CÙNG MA TRẬN QUYỀN VỚI BACKEND
+  if (to.path.startsWith('/admin')) {
+    if (!token || !canAccessAdminRoute(to.path, userRoles)) {
       if (!token) {
         // Chưa đăng nhập → chuyển về trang đăng nhập nhân sự
         return '/staff-login'
       }
       alert(i18n.global.t('access.adminDenied'))
-      return '/'
-    }
-  }
-
-  // 2.5 KHU VỰC NGUYÊN LIỆU (Cho phép Admin / Manager / Kitchen)
-  if (to.path === '/admin/ingredients') {
-    if (!token || (!userRoles.includes('ROLE_ADMIN') && !userRoles.includes('ROLE_MANAGER') && !userRoles.includes('ROLE_KITCHEN'))) {
-      if (!token) {
-        return '/staff-login'
-      }
-      alert(i18n.global.t('access.ingredientsDenied'))
       return '/'
     }
   }
@@ -179,4 +168,3 @@ router.onError(() => {
 })
 
 export default router
-

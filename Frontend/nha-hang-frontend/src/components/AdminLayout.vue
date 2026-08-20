@@ -217,8 +217,8 @@
 import StaffOperationsAssistant from './StaffOperationsAssistant.vue'
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { getCurrentUser } from '@/services/api'
 import api from '@/services/api'
+import { clearStaffSession, getStaffToken, getStaffUser } from '@/services/session'
 
 const router = useRouter()
 const sidebarCollapsed = ref(false)
@@ -256,7 +256,7 @@ const showNotifPanel = ref(false)
 const bellAnimating = ref(false)
 let notifInterval = null
 
-const getToken = () => localStorage.getItem('staff_token') || localStorage.getItem('token')
+const getToken = getStaffToken
 const configHeader = () => ({ headers: { 'Authorization': `Bearer ${getToken()}` } })
 
 const fetchNotifications = async () => {
@@ -354,16 +354,13 @@ function goToSearchResult() {
 
 function handleLogout() {
   if (confirm('Bạn có chắc muốn đăng xuất?')) {
-    localStorage.removeItem('staff_token')
-    localStorage.removeItem('staff_user')
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
+    clearStaffSession()
     router.push('/staff-login')
   }
 }
 
 onMounted(() => {
-  user.value = getCurrentUser()
+  user.value = getStaffUser()
   // Auto-collapse on small screens
   if (window.innerWidth < 1024) {
     sidebarCollapsed.value = true
@@ -394,7 +391,7 @@ onUnmounted(() => {
 /* ===== SIDEBAR ===== */
 .admin-sidebar {
   width: 260px;
-  background: rgba(90, 110, 69, 0.95);
+  background: color-mix(in srgb, var(--secondary) 95%, transparent);
   border-right: 1px solid rgba(255, 255, 255, 0.05);
   display: flex;
   flex-direction: column;
@@ -448,10 +445,10 @@ onUnmounted(() => {
 .admin-content :deep(.form-group label),
 .admin-content :deep(.form-card),
 .admin-content :deep(.table-card),
-.admin-content :deep(.floor-card) { color: #1b1212 !important; }
+.admin-content :deep(.floor-card) { color: var(--text-primary) !important; }
 .admin-content :deep(input),
 .admin-content :deep(select),
-.admin-content :deep(textarea) { color: #1b1212 !important; }
+.admin-content :deep(textarea) { color: var(--text-primary) !important; }
 .admin-content :deep(input::placeholder),
 .admin-content :deep(textarea::placeholder) { color: #5b403f !important; opacity: 1; }
 .admin-content :deep(.table-wrap td span),
@@ -482,7 +479,7 @@ onUnmounted(() => {
 .sidebar-brand-icon {
   font-size: 1.6rem;
   flex-shrink: 0;
-  filter: drop-shadow(0 0 8px rgba(90, 110, 69, 0.4));
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--secondary) 40%, transparent));
 }
 .sidebar-brand-text h3 {
   margin: 0;
@@ -567,7 +564,7 @@ onUnmounted(() => {
   color: #FFFFFF;
 }
 .nav-item.active {
-  background: rgba(34, 48, 27, 0.72);
+  background: color-mix(in srgb, var(--color-on-secondary-container) 72%, transparent);
   color: #FFFFFF;
   font-weight: 700;
 }
@@ -585,7 +582,7 @@ onUnmounted(() => {
   text-overflow: ellipsis;
 }
 .nav-item-danger { color: #FFD5D0; }
-.nav-item-danger:hover { background: rgba(178, 59, 46, 0.42); color: #FFFFFF; }
+.nav-item-danger:hover { background: color-mix(in srgb, var(--primary) 42%, transparent); color: #FFFFFF; }
 
 /* Sidebar Footer */
 .sidebar-footer {
@@ -830,7 +827,7 @@ onUnmounted(() => {
   position: absolute;
   top: -2px;
   right: -4px;
-  background: #B23B2E;
+  background: var(--primary);
   color: #FFFFFF;
   font-size: 0.6rem;
   font-weight: 900;
@@ -840,7 +837,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid rgba(90, 110, 69, 0.95);
+  border: 2px solid color-mix(in srgb, var(--secondary) 95%, transparent);
 }
 
 /* Bell Animation */
@@ -857,9 +854,9 @@ onUnmounted(() => {
 
 /* Ring Pulse */
 @keyframes ringPulse {
-  0% { box-shadow: 0 0 0 0 rgba(178, 59, 46, 0.6); }
-  70% { box-shadow: 0 0 0 8px rgba(178, 59, 46, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(178, 59, 46, 0); }
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 60%, transparent); }
+  70% { box-shadow: 0 0 0 8px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
 }
 .ring-pulse { animation: ringPulse 2s ease-in-out infinite; }
 
@@ -890,7 +887,7 @@ onUnmounted(() => {
 .notif-mark-all {
   background: none;
   border: none;
-  color: var(--primary, #33422A);
+  color: var(--primary, var(--secondary));
   font-size: 0.8rem;
   font-weight: 700;
   cursor: pointer;
@@ -910,8 +907,8 @@ onUnmounted(() => {
   transition: background 0.2s;
   border-bottom: 1px solid rgba(255,255,255,0.03);
 }
-.notif-item:hover { background: rgba(90, 110, 69, 0.05); }
-.notif-item.unread { background: rgba(90, 110, 69, 0.03); border-left: 3px solid var(--primary, #33422A); }
+.notif-item:hover { background: color-mix(in srgb, var(--secondary) 5%, transparent); }
+.notif-item.unread { background: color-mix(in srgb, var(--secondary) 3%, transparent); border-left: 3px solid var(--primary, var(--secondary)); }
 
 .notif-icon-dot {
   width: 10px;
@@ -920,9 +917,9 @@ onUnmounted(() => {
   margin-top: 6px;
   flex-shrink: 0;
 }
-.severity-critical { background: #B23B2E; box-shadow: 0 0 8px rgba(178, 59, 46, 0.5); }
-.severity-warning { background: #B98229; box-shadow: 0 0 8px rgba(185, 130, 41, 0.5); }
-.severity-info { background: #5A6E45; }
+.severity-critical { background: var(--primary); box-shadow: 0 0 8px color-mix(in srgb, var(--primary) 50%, transparent); }
+.severity-warning { background: var(--color-tertiary); box-shadow: 0 0 8px color-mix(in srgb, var(--color-tertiary) 50%, transparent); }
+.severity-info { background: var(--secondary); }
 
 .notif-content { flex: 1; min-width: 0; }
 .notif-title { margin: 0; font-size: 0.85rem; font-weight: 700; color: var(--text-heading); line-height: 1.3; }
@@ -948,7 +945,7 @@ onUnmounted(() => {
 .admin-sidebar .nav-section-title,
 .admin-sidebar .nav-item,
 .admin-sidebar .sidebar-toggle {
-  color: #1b1212;
+  color: var(--text-primary);
 }
 
 .admin-sidebar .sidebar-toggle {
@@ -958,7 +955,7 @@ onUnmounted(() => {
 
 .admin-sidebar .nav-item:hover {
   background: var(--color-surface-container);
-  color: #1b1212;
+  color: var(--text-primary);
 }
 
 .admin-sidebar .nav-item.active {
@@ -968,7 +965,7 @@ onUnmounted(() => {
 
 .admin-sidebar .nav-item-danger,
 .admin-sidebar .nav-item-danger:hover {
-  color: #1b1212;
+  color: var(--text-primary);
 }
 
 </style>

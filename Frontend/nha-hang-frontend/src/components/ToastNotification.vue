@@ -81,20 +81,20 @@ defineExpose({ addToast, removeToast })
 }
 
 .toast-success {
-  background: rgba(90, 110, 69, 0.12);
-  border-color: rgba(90, 110, 69, 0.25);
+  background: color-mix(in srgb, var(--secondary) 12%, transparent);
+  border-color: color-mix(in srgb, var(--secondary) 25%, transparent);
 }
 .toast-error {
-  background: rgba(178, 59, 46, 0.12);
-  border-color: rgba(178, 59, 46, 0.25);
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  border-color: color-mix(in srgb, var(--primary) 25%, transparent);
 }
 .toast-warning {
-  background: rgba(185, 130, 41, 0.12);
-  border-color: rgba(185, 130, 41, 0.25);
+  background: color-mix(in srgb, var(--color-tertiary) 12%, transparent);
+  border-color: color-mix(in srgb, var(--color-tertiary) 25%, transparent);
 }
 .toast-info {
-  background: rgba(90, 110, 69, 0.12);
-  border-color: rgba(90, 110, 69, 0.25);
+  background: color-mix(in srgb, var(--secondary) 12%, transparent);
+  border-color: color-mix(in srgb, var(--secondary) 25%, transparent);
 }
 
 .toast-icon {
@@ -146,10 +146,10 @@ defineExpose({ addToast, removeToast })
   animation: toastProgress linear forwards;
 }
 
-.toast-success .toast-progress { background: rgba(90, 110, 69, 0.6); }
-.toast-error .toast-progress { background: rgba(178, 59, 46, 0.6); }
-.toast-warning .toast-progress { background: rgba(185, 130, 41, 0.6); }
-.toast-info .toast-progress { background: rgba(90, 110, 69, 0.6); }
+.toast-success .toast-progress { background: color-mix(in srgb, var(--secondary) 60%, transparent); }
+.toast-error .toast-progress { background: color-mix(in srgb, var(--primary) 60%, transparent); }
+.toast-warning .toast-progress { background: color-mix(in srgb, var(--color-tertiary) 60%, transparent); }
+.toast-info .toast-progress { background: color-mix(in srgb, var(--secondary) 60%, transparent); }
 
 @keyframes toastProgress {
   from { width: 100%; }

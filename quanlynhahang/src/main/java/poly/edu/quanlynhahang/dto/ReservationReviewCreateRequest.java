@@ -14,7 +14,9 @@ public record ReservationReviewCreateRequest(
         @Min(1) @Max(5) Integer serviceRating,
         @Min(1) @Max(5) Integer ambienceRating,
         @Min(1) @Max(5) Integer cleanlinessRating,
-        @Size(max = 2_000) String content,
+        @Size(max = 1_000)
+        @Pattern(regexp = "^[\\P{Cc}\\r\\n\\t]*$", message = "content contains unsupported control characters")
+        String content,
         @Pattern(regexp = "^https?://[^\\s]{1,480}$", message = "imageUrl must be an HTTP(S) URL") String imageUrl,
         Boolean anonymous
 ) {

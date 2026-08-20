@@ -1,5 +1,8 @@
 package poly.edu.quanlynhahang.controller;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -57,7 +60,7 @@ public class PurchaseSuggestionController {
         }
 
         // Tính nguyên liệu tiêu thụ trong 7 ngày
-        Map<Long, Double> consumptionMap = new HashMap<>();
+        Map<Long, BigDecimal> consumptionMap = new HashMap<>();
         List<Order> recentOrders = orders.stream()
                 .filter(o -> o.getStatus() != null && o.getStatus() == 4)
                 .filter(o -> o.getCreateDate() != null && o.getCreateDate().getTime() >= sevenDaysAgo)
@@ -71,8 +74,9 @@ public class PurchaseSuggestionController {
                 List<Recipe> productRecipes = recipeMap.getOrDefault(detail.getProduct().getId(), Collections.emptyList());
                 for (Recipe r : productRecipes) {
                     if (r.getIngredient() == null) continue;
-                    double consumed = (r.getAmountRequired() != null ? r.getAmountRequired() : 0) * qty;
-                    consumptionMap.merge(r.getIngredient().getId(), consumed, Double::sum);
+                    BigDecimal consumed = (r.getAmountRequired() == null ? BigDecimal.ZERO : r.getAmountRequired())
+                            .multiply(BigDecimal.valueOf(qty));
+                    consumptionMap.merge(r.getIngredient().getId(), consumed, BigDecimal::add);
                 }
             }
         }
@@ -80,15 +84,17 @@ public class PurchaseSuggestionController {
         // Tạo danh sách đề xuất
         List<Map<String, Object>> suggestions = new ArrayList<>();
         for (Ingredient ing : allIngredients) {
-            double qty = ing.getQuantity() != null ? ing.getQuantity() : 0;
-            double minStock = ing.getMinStock() != null ? ing.getMinStock() : 0;
-            double dailyConsumption = consumptionMap.getOrDefault(ing.getId(), 0.0) / 7.0;
+            BigDecimal qty = ing.getQuantity() != null ? ing.getQuantity() : BigDecimal.ZERO;
+            BigDecimal minStock = ing.getMinStock() != null ? ing.getMinStock() : BigDecimal.ZERO;
+            BigDecimal dailyConsumption = consumptionMap.getOrDefault(ing.getId(), BigDecimal.ZERO)
+                    .divide(BigDecimal.valueOf(7), 8, RoundingMode.HALF_UP);
 
             // Tính số ngày còn dùng được
-            double daysLeft = dailyConsumption > 0 ? qty / dailyConsumption : 999;
+            double daysLeft = dailyConsumption.signum() > 0
+                    ? qty.divide(dailyConsumption, 8, RoundingMode.HALF_UP).doubleValue() : 999;
 
             // Chỉ đề xuất nếu: hết hàng, sắp hết, hoặc dùng trong vòng 5 ngày
-            if (qty <= 0 || qty <= minStock || daysLeft <= 5) {
+            if (qty.signum() <= 0 || qty.compareTo(minStock) <= 0 || daysLeft <= 5) {
                 Map<String, Object> suggestion = new LinkedHashMap<>();
                 suggestion.put("ingredientId", ing.getId());
                 suggestion.put("name", ing.getName());
@@ -96,23 +102,26 @@ public class PurchaseSuggestionController {
                 suggestion.put("image", ing.getImage());
                 suggestion.put("currentStock", qty);
                 suggestion.put("minStock", minStock);
-                suggestion.put("dailyConsumption", Math.round(dailyConsumption * 100.0) / 100.0);
+                suggestion.put("dailyConsumption", dailyConsumption.setScale(2, RoundingMode.HALF_UP));
                 suggestion.put("daysLeft", Math.round(daysLeft * 10.0) / 10.0);
                 suggestion.put("unitPrice", ing.getUnitPrice());
 
                 // Đề xuất mua: đủ dùng cho 7 ngày + bổ sung lên trên minStock
-                double suggestedAmount = Math.max(minStock * 2, dailyConsumption * 7) - qty;
-                if (suggestedAmount < 0) suggestedAmount = minStock;
-                suggestion.put("suggestedAmount", Math.round(suggestedAmount * 10.0) / 10.0);
-                suggestion.put("estimatedCost", java.math.BigDecimal.valueOf(suggestedAmount)
-                        .multiply(ing.getUnitPrice() == null ? java.math.BigDecimal.ZERO : ing.getUnitPrice())
-                        .setScale(0, java.math.RoundingMode.HALF_UP));
+                BigDecimal suggestedAmount = minStock.multiply(BigDecimal.valueOf(2))
+                        .max(dailyConsumption.multiply(BigDecimal.valueOf(7)))
+                        .subtract(qty);
+                if (suggestedAmount.signum() < 0) suggestedAmount = minStock;
+                suggestedAmount = suggestedAmount.setScale(1, RoundingMode.HALF_UP);
+                suggestion.put("suggestedAmount", suggestedAmount);
+                suggestion.put("estimatedCost", suggestedAmount
+                        .multiply(ing.getUnitPrice() == null ? BigDecimal.ZERO : ing.getUnitPrice())
+                        .setScale(0, RoundingMode.HALF_UP));
 
                 // Mức độ khẩn cấp
-                if (qty <= 0) {
+                if (qty.signum() <= 0) {
                     suggestion.put("urgency", "critical");
                     suggestion.put("urgencyLabel", "Hết hàng");
-                } else if (qty <= minStock) {
+                } else if (qty.compareTo(minStock) <= 0) {
                     suggestion.put("urgency", "warning");
                     suggestion.put("urgencyLabel", "Sắp hết");
                 } else {
@@ -152,7 +161,7 @@ public class PurchaseSuggestionController {
     @PostMapping("/approve/{ingredientId}")
     public ResponseEntity<?> approveSuggestion(
             @PathVariable Long ingredientId,
-            @RequestParam Double quantity) {
+            @RequestParam BigDecimal quantity) {
 
         Optional<Ingredient> ingOpt = ingredientRepository.findById(ingredientId);
         if (ingOpt.isEmpty()) {
@@ -176,8 +185,10 @@ public class PurchaseSuggestionController {
         ingredientBatchRepository.save(batch);
 
         // Cập nhật tổng tồn kho
-        double totalQuantity = ingredientBatchRepository.findAvailableBatchesOrderByExpirationAsc(ing)
-                .stream().mapToDouble(IngredientBatch::getQuantity).sum();
+        BigDecimal totalQuantity = ingredientBatchRepository.findAvailableBatchesOrderByExpirationAsc(ing)
+                .stream().map(IngredientBatch::getQuantity)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
         ing.setQuantity(totalQuantity);
         ingredientRepository.save(ing);
 

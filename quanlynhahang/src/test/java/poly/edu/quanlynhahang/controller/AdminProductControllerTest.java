@@ -37,7 +37,7 @@ class AdminProductControllerTest {
         ingredient.setUnitPrice(BigDecimal.valueOf(0.1));
         Recipe recipe = new Recipe();
         recipe.setIngredient(ingredient);
-        recipe.setAmountRequired(3.0);
+        recipe.setAmountRequired(new BigDecimal("3.0000"));
 
         when(productRepository.findAll()).thenReturn(List.of(product));
         when(recipeRepository.findByProduct(product)).thenReturn(List.of(recipe));

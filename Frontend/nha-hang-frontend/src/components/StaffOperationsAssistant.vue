@@ -74,11 +74,11 @@ async function ask() {
 .assistant-panel input { width: 100%; min-height: 42px; padding: 9px 10px; border: 1px solid var(--color-outline-variant); border-radius: 6px; box-sizing: border-box; color: var(--text-primary); background: var(--bg-root); }
 .assistant-reply, .assistant-error { margin: 10px 0; padding: 10px; border-radius: 6px; line-height: 1.45; white-space: pre-line; }
 .assistant-reply { color: var(--text-primary); background: var(--color-surface-container); }
-.assistant-error { color: #9f2c20; background: #fff0ed; }
+.assistant-error { color: var(--danger); background: var(--color-error-container); }
 .assistant-data { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; margin: 10px 0; padding: 10px; background: var(--bg-root); border: 1px solid var(--color-outline-variant); border-radius: 6px; }
 .assistant-data dt, .assistant-data dd { margin: 0; color: var(--text-primary); font-size: .85rem; }
 .assistant-data dd { font-weight: 800; text-align: right; }
-.assistant-submit { width: 100%; margin-top: 10px; background: var(--secondary); color: #201d14; }
+.assistant-submit { width: 100%; margin-top: 10px; background: var(--secondary); color: var(--color-on-secondary); }
 .assistant-submit:disabled { cursor: not-allowed; opacity: .65; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
 @media (max-width: 640px) { .staff-assistant { right: 12px; bottom: 12px; } }

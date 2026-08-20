@@ -69,7 +69,15 @@ public class RestaurantBusinessHoursService {
      * Orders must be placed before last order time.
      */
     public boolean acceptsOrders(LocalTime time) {
-        return isOpen(time) && !time.isAfter(lastOrderTime);
+        if (!isOpen(time)) {
+            return false;
+        }
+        if (!openingTime.isAfter(closingTime) || !lastOrderTime.isBefore(openingTime)) {
+            return time.isBefore(lastOrderTime);
+        }
+        // Overnight service with a cutoff after midnight, e.g. 23:00-06:00
+        // and last order at 05:30.
+        return !time.isBefore(openingTime) || time.isBefore(lastOrderTime);
     }
     
     /**

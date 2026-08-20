@@ -215,7 +215,7 @@ onMounted(() => {
   font-weight: 600; font-size: 0.95rem; padding: 10px 20px;
   border-radius: 100px; transition: var(--transition);
 }
-.nav-links a:hover { color: var(--primary); background: rgba(90, 110, 69, 0.1); }
+.nav-links a:hover { color: var(--primary); background: color-mix(in srgb, var(--secondary) 10%, transparent); }
 
 .nav-right { display: flex; gap: 10px; }
 .btn-nav-outline {
@@ -223,19 +223,19 @@ onMounted(() => {
   color: var(--text-secondary); padding: 10px 24px;
   border-radius: 100px; font-weight: 700; cursor: pointer; transition: var(--transition);
 }
-.btn-nav-outline:hover { border-color: var(--primary); color: var(--primary); background: rgba(90, 110, 69, 0.1); }
+.btn-nav-outline:hover { border-color: var(--primary); color: var(--primary); background: color-mix(in srgb, var(--secondary) 10%, transparent); }
 .btn-cart {
   background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-  color: #1A170F; border: none; padding: 10px 24px; border-radius: 100px;
+  color: var(--text-primary); border: none; padding: 10px 24px; border-radius: 100px;
   font-weight: 800; cursor: pointer; transition: var(--transition);
 }
 .btn-logout {
-  background: rgba(178, 59, 46, 0.15);
-  border: 1px solid rgba(178, 59, 46, 0.3);
-  color: #B23B2E; padding: 10px 20px;
+  background: color-mix(in srgb, var(--primary) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+  color: var(--primary); padding: 10px 20px;
   border-radius: 100px; font-weight: 700; cursor: pointer; transition: var(--transition);
 }
-.btn-logout:hover { background: rgba(178, 59, 46, 0.3); }
+.btn-logout:hover { background: color-mix(in srgb, var(--primary) 30%, transparent); }
 
 /* MAIN CONTENT */
 .profile-content {
@@ -264,11 +264,11 @@ onMounted(() => {
   width: 80px; height: 80px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-  color: #1A170F;
+  color: var(--text-primary);
   font-size: 2.5rem;
   font-weight: 900;
   display: flex; justify-content: center; align-items: center;
-  box-shadow: 0 10px 20px rgba(90, 110, 69, 0.3);
+  box-shadow: 0 10px 20px color-mix(in srgb, var(--secondary) 30%, transparent);
 }
 .header-info h2 { margin: 0 0 5px 0; font-size: 1.8rem; color: var(--text-heading); }
 .header-info p { margin: 0; color: var(--text-muted); font-size: 1rem; }
@@ -288,9 +288,9 @@ onMounted(() => {
 
 /* TIER COLORS */
 .tier-diamond .tier-name { color: var(--tier-diamond); text-shadow: 0 0 10px rgba(95,168,201,0.5); }
-.tier-gold .tier-name { color: #B98229; text-shadow: 0 0 10px rgba(185,130,41,0.5); }
-.tier-silver .tier-name { color: #A6B0AA; }
-.tier-bronze .tier-name { color: #C08A2E; }
+.tier-gold .tier-name { color: var(--color-tertiary); text-shadow: 0 0 10px color-mix(in srgb, var(--color-tertiary) 50%, transparent); }
+.tier-silver .tier-name { color: var(--color-outline); }
+.tier-bronze .tier-name { color: var(--color-tertiary); }
 
 /* TABS */
 .profile-tabs {
@@ -321,5 +321,5 @@ onMounted(() => {
   color: #FFFFFF; border-radius: 8px;
   font-size: 1rem;
 }
-.g-form-control:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 10px rgba(90, 110, 69, 0.2); }
+.g-form-control:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 10px color-mix(in srgb, var(--secondary) 20%, transparent); }
 </style>

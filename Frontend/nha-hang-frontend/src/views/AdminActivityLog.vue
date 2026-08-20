@@ -16,24 +16,24 @@
             <span class="stat-label">Tổng Thao Tác</span>
           </div>
         </div>
-        <div class="stat-card depth-card float-card" style="border-left: 3px solid #2F8F5B;">
+        <div class="stat-card depth-card float-card" style="border-left: 3px solid var(--success);">
           <div class="stat-icon">➕</div>
           <div class="stat-info">
-            <span class="stat-value" style="color: #2F8F5B;">{{ stats.creates }}</span>
+            <span class="stat-value" style="color: var(--success);">{{ stats.creates }}</span>
             <span class="stat-label">Tạo Mới</span>
           </div>
         </div>
-        <div class="stat-card depth-card float-card" style="border-left: 3px solid #5A6E45;">
+        <div class="stat-card depth-card float-card" style="border-left: 3px solid var(--secondary);">
           <div class="stat-icon">✏️</div>
           <div class="stat-info">
-            <span class="stat-value" style="color: #5A6E45;">{{ stats.updates }}</span>
+            <span class="stat-value" style="color: var(--secondary);">{{ stats.updates }}</span>
             <span class="stat-label">Cập Nhật</span>
           </div>
         </div>
-        <div class="stat-card depth-card float-card" style="border-left: 3px solid #B23B2E;">
+        <div class="stat-card depth-card float-card" style="border-left: 3px solid var(--primary);">
           <div class="stat-icon">🗑️</div>
           <div class="stat-info">
-            <span class="stat-value" style="color: #B23B2E;">{{ stats.deletes }}</span>
+            <span class="stat-value" style="color: var(--primary);">{{ stats.deletes }}</span>
             <span class="stat-label">Xóa</span>
           </div>
         </div>
@@ -128,7 +128,7 @@ const filterUser = ref('');
 const filterAction = ref('');
 const filterEntity = ref('');
 
-const getToken = () => localStorage.getItem('staff_token') || localStorage.getItem('token');
+const getToken = () => localStorage.getItem('staff_token');
 const configHeader = () => ({ headers: { 'Authorization': `Bearer ${getToken()}` } });
 
 const fetchLogs = async () => {
@@ -169,14 +169,14 @@ const formatTime = (ts) => {
 };
 
 const getActionColor = (action) => {
-  if (action === 'CREATE') return '#2F8F5B';
-  if (action === 'UPDATE') return '#5A6E45';
-  if (action === 'DELETE') return '#B23B2E';
-  return '#33422A';
+  if (action === 'CREATE') return 'var(--success)';
+  if (action === 'UPDATE') return 'var(--secondary)';
+  if (action === 'DELETE') return 'var(--primary)';
+  return 'var(--secondary)';
 };
 
 const getAvatarColor = (username) => {
-  const colors = ['#33422A', '#5A6E45', '#B23B2E', '#B98229', '#8A641F', '#5A6E45'];
+  const colors = ['var(--secondary)', 'var(--secondary)', 'var(--primary)', 'var(--color-tertiary)', 'var(--warning)', 'var(--secondary)'];
   let hash = 0;
   for (let i = 0; i < (username?.length || 0); i++) hash = username.charCodeAt(i) + ((hash << 5) - hash);
   return colors[Math.abs(hash) % colors.length];
@@ -220,7 +220,7 @@ onMounted(() => {
 
 .timeline-container { position: relative; }
 .timeline-entry { position: relative; border-radius: 12px; transition: all 0.3s ease; }
-.timeline-entry:hover { border-color: rgba(90, 110, 69, 0.2); }
+.timeline-entry:hover { border-color: color-mix(in srgb, var(--secondary) 20%, transparent); }
 
 .log-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .log-user-info { display: flex; align-items: center; gap: 10px; }
@@ -228,16 +228,16 @@ onMounted(() => {
 .log-username { display: block; font-size: 0.95rem; color: var(--text-heading); }
 .log-time { font-size: 0.75rem; color: var(--text-muted); }
 .log-action-badge { padding: 4px 12px; border-radius: 100px; font-size: 0.75rem; font-weight: 700; }
-.action-create { background: rgba(47, 143, 91, 0.15); color: #2F8F5B; border: 1px solid rgba(47, 143, 91, 0.3); }
-.action-update { background: rgba(90, 110, 69, 0.15); color: #5A6E45; border: 1px solid rgba(90, 110, 69, 0.3); }
-.action-delete { background: rgba(178, 59, 46, 0.15); color: #B23B2E; border: 1px solid rgba(178, 59, 46, 0.3); }
+.action-create { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); border: 1px solid color-mix(in srgb, var(--success) 30%, transparent); }
+.action-update { background: color-mix(in srgb, var(--secondary) 15%, transparent); color: var(--secondary); border: 1px solid color-mix(in srgb, var(--secondary) 30%, transparent); }
+.action-delete { background: color-mix(in srgb, var(--primary) 15%, transparent); color: var(--primary); border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent); }
 .log-description { margin: 0 0 8px; color: var(--text-primary); font-size: 0.92rem; line-height: 1.5; }
 .log-meta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.log-entity-badge { background: rgba(90, 110, 69, 0.1); color: var(--primary); padding: 3px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
+.log-entity-badge { background: color-mix(in srgb, var(--secondary) 10%, transparent); color: var(--primary); padding: 3px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
 .log-diff { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; }
-.diff-old { background: rgba(178, 59, 46, 0.1); color: #B23B2E; padding: 2px 8px; border-radius: 4px; text-decoration: line-through; }
+.diff-old { background: color-mix(in srgb, var(--primary) 10%, transparent); color: var(--primary); padding: 2px 8px; border-radius: 4px; text-decoration: line-through; }
 .diff-arrow { color: var(--text-muted); font-weight: bold; }
-.diff-new { background: rgba(47, 143, 91, 0.1); color: #2F8F5B; padding: 2px 8px; border-radius: 4px; }
+.diff-new { background: color-mix(in srgb, var(--success) 10%, transparent); color: var(--success); padding: 2px 8px; border-radius: 4px; }
 
 @media (max-width: 768px) {
   .stats-row { grid-template-columns: repeat(2, 1fr); }

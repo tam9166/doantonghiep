@@ -109,7 +109,7 @@ table,
 }
 .g-btn-nav:hover {
   border-color: var(--primary); color: var(--primary);
-  background: rgba(90, 110, 69, 0.1);
+  background: color-mix(in srgb, var(--secondary) 10%, transparent);
 }
 
 /* ===== FORM CONTROLS ===== */
@@ -153,7 +153,7 @@ table,
 }
 .g-btn-primary:hover {
   transform: translateY(-4px) scale(1.03);
-  box-shadow: 0 10px 25px rgba(90, 110, 69, 0.5), 0 0 15px rgba(90, 110, 69, 0.3);
+  box-shadow: 0 10px 25px color-mix(in srgb, var(--secondary) 50%, transparent), 0 0 15px color-mix(in srgb, var(--secondary) 30%, transparent);
 }
 .g-btn-primary:hover::before { opacity: 1; }
 
@@ -172,13 +172,13 @@ table,
 .g-btn-outline:hover {
   border-color: var(--primary);
   color: var(--primary);
-  background: rgba(90, 110, 69, 0.06);
+  background: color-mix(in srgb, var(--secondary) 6%, transparent);
 }
 
 .g-btn-danger {
-  background: rgba(178, 59, 46, 0.15);
-  color: #B23B2E;
-  border: 1px solid rgba(178, 59, 46, 0.3);
+  background: color-mix(in srgb, var(--primary) 15%, transparent);
+  color: var(--primary);
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
   padding: 7px 14px;
   border-radius: var(--radius-sm);
   font-weight: 600;
@@ -187,7 +187,7 @@ table,
   cursor: pointer;
   transition: var(--transition);
 }
-.g-btn-danger:hover { background: rgba(178,59,46,0.3); }
+.g-btn-danger:hover { background: color-mix(in srgb, var(--primary) 30%, transparent); }
 
 /* ===== CARDS ===== */
 .g-card {
@@ -208,7 +208,7 @@ table,
 .g-card:hover {
   border-color: var(--border-focus);
   transform: translateY(-5px);
-  box-shadow: var(--shadow-lg), 0 0 20px rgba(90, 110, 69, 0.15);
+  box-shadow: var(--shadow-lg), 0 0 20px color-mix(in srgb, var(--secondary) 15%, transparent);
 }
 .g-card:hover::after { opacity: 1; }
 
@@ -246,10 +246,10 @@ table,
   font-size: 0.78rem;
   font-weight: 700;
 }
-.g-badge-success { background: rgba(90, 110, 69, 0.15); color: var(--primary); border: 1px solid rgba(90, 110, 69, 0.3); }
-.g-badge-warning { background: rgba(185,130,41,0.15); color: #B98229; border: 1px solid rgba(185,130,41,0.3); }
-.g-badge-danger  { background: rgba(178,59,46,0.15);  color: #B23B2E; border: 1px solid rgba(178,59,46,0.3); }
-.g-badge-info    { background: rgba(90, 110, 69, 0.15); color: #5A6E45; border: 1px solid rgba(90, 110, 69, 0.3); }
+.g-badge-success { background: color-mix(in srgb, var(--secondary) 15%, transparent); color: var(--primary); border: 1px solid color-mix(in srgb, var(--secondary) 30%, transparent); }
+.g-badge-warning { background: color-mix(in srgb, var(--color-tertiary) 15%, transparent); color: var(--color-tertiary); border: 1px solid color-mix(in srgb, var(--color-tertiary) 30%, transparent); }
+.g-badge-danger  { background: color-mix(in srgb, var(--primary) 15%, transparent);  color: var(--primary); border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent); }
+.g-badge-info    { background: color-mix(in srgb, var(--secondary) 15%, transparent); color: var(--secondary); border: 1px solid color-mix(in srgb, var(--secondary) 30%, transparent); }
 
 /* ===== GLASSMORPHISM MODALS ===== */
 .g-modal-overlay {
@@ -266,14 +266,14 @@ table,
 }
 .g-modal-box {
   background: rgba(255, 255, 255, 0.95);
-  border: 1px solid rgba(90, 110, 69, 0.2);
+  border: 1px solid color-mix(in srgb, var(--secondary) 20%, transparent);
   border-radius: var(--radius-xl);
   padding: 36px;
   width: 100%;
   max-width: 500px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(90, 110, 69, 0.1);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 40px color-mix(in srgb, var(--secondary) 10%, transparent);
   animation: slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
 .g-modal-box h3 {
@@ -297,8 +297,8 @@ table,
   50% { transform: translateY(-10px); }
 }
 @keyframes pulseGlow {
-  0%, 100% { box-shadow: 0 0 10px rgba(90, 110, 69, 0.2); }
-  50% { box-shadow: 0 0 30px rgba(90, 110, 69, 0.5), 0 0 60px rgba(90, 110, 69, 0.2); }
+  0%, 100% { box-shadow: 0 0 10px color-mix(in srgb, var(--secondary) 20%, transparent); }
+  50% { box-shadow: 0 0 30px color-mix(in srgb, var(--secondary) 50%, transparent), 0 0 60px color-mix(in srgb, var(--secondary) 20%, transparent); }
 }
 @keyframes gradientShift {
   0% { background-position: 0% 50%; }
@@ -384,11 +384,11 @@ table,
   text-decoration: none;
 }
 .g-back-btn-floating:hover {
-  background: rgba(90, 110, 69, 0.15);
+  background: color-mix(in srgb, var(--secondary) 15%, transparent);
   border-color: var(--primary);
   color: var(--primary);
   transform: translateX(-5px) scale(1.05);
-  box-shadow: 0 10px 25px rgba(90, 110, 69, 0.3);
+  box-shadow: 0 10px 25px color-mix(in srgb, var(--secondary) 30%, transparent);
 }
 
 .font-display { font-family: var(--font-display); }

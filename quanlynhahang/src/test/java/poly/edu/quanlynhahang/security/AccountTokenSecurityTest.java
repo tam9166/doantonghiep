@@ -2,7 +2,9 @@ package poly.edu.quanlynhahang.security;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -10,8 +12,13 @@ import org.springframework.test.util.ReflectionTestUtils;
 import tools.jackson.databind.ObjectMapper;
 import poly.edu.quanlynhahang.config.ApiErrorWriter;
 import poly.edu.quanlynhahang.entity.Account;
+import poly.edu.quanlynhahang.entity.Authority;
+import poly.edu.quanlynhahang.entity.Role;
+import poly.edu.quanlynhahang.repository.AccountRepository;
 
+import java.lang.reflect.Method;
 import java.util.List;
+import java.util.Optional;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
@@ -20,7 +27,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AccountTokenSecurityTest {
@@ -35,6 +44,33 @@ class AccountTokenSecurityTest {
         account.setAuthorities(List.of());
 
         assertTrue(new CustomUserDetails(account).getAuthorities().isEmpty());
+    }
+
+    @Test
+    void authenticationLoadsAuthoritiesAndRolesBeforeTheRepositorySessionCloses() throws Exception {
+        Method repositoryMethod = AccountRepository.class.getMethod(
+                "findForAuthenticationByUsername", String.class);
+        EntityGraph graph = repositoryMethod.getAnnotation(EntityGraph.class);
+        assertNotNull(graph);
+        assertArrayEquals(new String[]{"authorities", "authorities.role"}, graph.attributePaths());
+
+        Account account = account("admin", 0L);
+        Role role = new Role();
+        role.setName("ADMIN");
+        Authority authority = new Authority();
+        authority.setAccount(account);
+        authority.setRole(role);
+        account.setAuthorities(List.of(authority));
+
+        AccountRepository repository = mock(AccountRepository.class);
+        when(repository.findForAuthenticationByUsername("admin")).thenReturn(Optional.of(account));
+        CustomUserDetailsService service = new CustomUserDetailsService();
+        ReflectionTestUtils.setField(service, "accountRepository", repository);
+
+        var details = service.loadUserByUsername("admin");
+
+        assertTrue(details.getAuthorities().contains(new SimpleGrantedAuthority("ROLE_ADMIN")));
+        verify(repository).findForAuthenticationByUsername("admin");
     }
 
     @Test

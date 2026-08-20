@@ -134,7 +134,7 @@ const router = useRouter();
 const currentTab = ref('schedule');
 const selectedMonth = ref(new Date().toISOString().substring(0, 7));
 
-const user = ref(JSON.parse(localStorage.getItem('user')) || {});
+const user = ref(JSON.parse(localStorage.getItem('staff_user')) || {});
 const userRole = computed(() => {
   if (!user.value || !user.value.roles) return '';
   return user.value.roles.find(r => r.startsWith('ROLE_')) || '';
@@ -154,7 +154,7 @@ const workedShifts = computed(() => {
 });
 
 const configHeader = () => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('staff_token');
   return { headers: { Authorization: 'Bearer ' + token } };
 };
 
@@ -323,12 +323,12 @@ onMounted(() => {
 .text-center { text-align: center !important; color: var(--text-muted); }
 
 /* BADGES */
-.shift-badge { background: #5A6E45; color: #FFFFFF; padding: 4px 10px; border-radius: 12px; font-size: 0.85rem; font-weight: 600; }
+.shift-badge { background: var(--secondary); color: #FFFFFF; padding: 4px 10px; border-radius: 12px; font-size: 0.85rem; font-weight: 600; }
 .status-badge { padding: 5px 10px; border-radius: 15px; font-size: 0.85rem; font-weight: bold; }
-.status-success { background: rgba(39, 174, 96, 0.2); color: #2F8F5B; }
-.status-warning { background: rgba(185, 130, 41, 0.2); color: #B98229; }
-.status-danger { background: rgba(178, 59, 46, 0.2); color: #B23B2E; }
-.status-secondary { background: rgba(111, 122, 115, 0.2); color: #A6B0AA; }
+.status-success { background: rgba(39, 174, 96, 0.2); color: var(--success); }
+.status-warning { background: color-mix(in srgb, var(--color-tertiary) 20%, transparent); color: var(--color-tertiary); }
+.status-danger { background: color-mix(in srgb, var(--primary) 20%, transparent); color: var(--primary); }
+.status-secondary { background: rgba(111, 122, 115, 0.2); color: var(--color-outline); }
 
 /* SALARY CARD */
 .salary-card {
@@ -350,7 +350,7 @@ onMounted(() => {
   margin-top: 15px;
 }
 .text-primary { color: var(--primary); }
-.text-success { color: #2F8F5B; }
+.text-success { color: var(--success); }
 .salary-note {
   margin-top: 25px;
   font-size: 0.9rem;

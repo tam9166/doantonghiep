@@ -85,7 +85,7 @@ const loading = ref(false);
 const detailLoading = ref(false);
 
 const authHeader = () => ({
-  headers: { Authorization: `Bearer ${localStorage.getItem('staff_token') || localStorage.getItem('token')}` }
+  headers: { Authorization: `Bearer ${localStorage.getItem('staff_token')}` }
 });
 
 const filteredHistory = computed(() => {
@@ -169,8 +169,8 @@ onMounted(fetchHistory);
 .reservation-list { display: grid; gap: 10px; }
 .reservation-row { display: grid; grid-template-columns: 1fr 160px auto; gap: 12px; align-items: center; border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 12px; background: var(--bg-card2); }
 .reservation-row div { display: grid; gap: 4px; }
-.status-pill { border-radius: 999px; padding: 6px 10px; font-weight: 900; background: rgba(90, 110, 69, 0.12); color: var(--primary); white-space: nowrap; }
-.status-pill.CANCELLED, .status-pill.NO_SHOW, .status-pill.EXPIRED, .status-pill.REJECTED { background: rgba(178, 59, 46, 0.12); color: #B23B2E; }
+.status-pill { border-radius: 999px; padding: 6px 10px; font-weight: 900; background: color-mix(in srgb, var(--secondary) 12%, transparent); color: var(--primary); white-space: nowrap; }
+.status-pill.CANCELLED, .status-pill.NO_SHOW, .status-pill.EXPIRED, .status-pill.REJECTED { background: color-mix(in srgb, var(--primary) 12%, transparent); color: var(--primary); }
 .empty-state { border: 1px dashed var(--border-light); border-radius: var(--radius-md); padding: 34px; text-align: center; color: var(--text-muted); }
 @media (max-width: 980px) {
   .history-layout, .reservation-row { grid-template-columns: 1fr; }

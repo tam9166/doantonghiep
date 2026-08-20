@@ -14,7 +14,6 @@ import poly.edu.quanlynhahang.repository.RecipeRepository;
 /** Keeps customer-facing dish availability aligned with recipes and stock. */
 @Service
 public class MenuAvailabilityService {
-    private static final double EPSILON = 0.000001;
 
     private final RecipeRepository recipeRepository;
     private final ProductRepository productRepository;
@@ -56,8 +55,8 @@ public class MenuAvailabilityService {
         Ingredient ingredient = recipe.getIngredient();
         return ingredient != null
                 && recipe.getAmountRequired() != null
-                && recipe.getAmountRequired() > 0
+                && recipe.getAmountRequired().signum() > 0
                 && ingredient.getQuantity() != null
-                && ingredient.getQuantity() + EPSILON >= recipe.getAmountRequired();
+                && ingredient.getQuantity().compareTo(recipe.getAmountRequired()) >= 0;
     }
 }

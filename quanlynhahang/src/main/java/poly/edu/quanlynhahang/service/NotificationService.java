@@ -1,5 +1,7 @@
 package poly.edu.quanlynhahang.service;
 
+import java.math.BigDecimal;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import poly.edu.quanlynhahang.entity.Ingredient;
@@ -58,16 +60,16 @@ public class NotificationService {
         // 1. Kiểm tra nguyên liệu dưới định mức (LOW_STOCK)
         List<Ingredient> allIngredients = ingredientRepository.findAll();
         for (Ingredient ing : allIngredients) {
-            double qty = ing.getQuantity() != null ? ing.getQuantity() : 0.0;
-            double minStock = ing.getMinStock() != null ? ing.getMinStock() : 0.0;
+            BigDecimal qty = ing.getQuantity() != null ? ing.getQuantity() : BigDecimal.ZERO;
+            BigDecimal minStock = ing.getMinStock() != null ? ing.getMinStock() : BigDecimal.ZERO;
 
-            if (qty <= 0) {
+            if (qty.signum() <= 0) {
                 createNotification("LOW_STOCK",
                         "🚫 Hết hàng: " + ing.getName(),
                         ing.getName() + " đã hết hàng hoàn toàn (tồn kho: 0). Cần nhập bổ sung ngay!",
                         "ROLE_ADMIN", "critical", "ingredient", String.valueOf(ing.getId()));
                 newAlerts++;
-            } else if (qty <= minStock) {
+            } else if (qty.compareTo(minStock) <= 0) {
                 createNotification("LOW_STOCK",
                         "⚠️ Sắp hết: " + ing.getName(),
                         ing.getName() + " chỉ còn " + qty + " " + ing.getUnit() +

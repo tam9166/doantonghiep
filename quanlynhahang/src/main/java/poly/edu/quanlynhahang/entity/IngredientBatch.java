@@ -36,7 +36,8 @@ public class IngredientBatch {
     @JoinColumn(name = "import_invoice_id")
     private ImportInvoice importInvoice;
 
-    private Double quantity; // Số lượng còn lại trong lô này
+    @Column(precision = 19, scale = 4)
+    private BigDecimal quantity; // Số lượng còn lại trong lô này
 
     @Column(name = "import_date")
     @Temporal(TemporalType.TIMESTAMP)

@@ -11,7 +11,7 @@ public record AdminProductResponse(
         Integer id,
         String name,
         BigDecimal price,
-        Double taxRate,
+        BigDecimal taxRate,
         String image,
         String description,
         Boolean status,

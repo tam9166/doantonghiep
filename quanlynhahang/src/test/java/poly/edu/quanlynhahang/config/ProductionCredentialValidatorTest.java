@@ -6,7 +6,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
-import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -31,10 +30,9 @@ class ProductionCredentialValidatorTest {
     }
 
     @Test
-    void rejectsManagerDemoCredential() {
-        Account manager = account("manager", passwordEncoder.encode("123"));
-        when(accountRepository.findAll()).thenReturn(List.of(manager));
-        when(accountRepository.findById("manager")).thenReturn(Optional.of(manager));
+    void rejectsDemoCredentialForAnyAccount() {
+        Account admin = account("admin", passwordEncoder.encode("admin123"));
+        when(accountRepository.findAll()).thenReturn(List.of(admin));
 
         assertThrows(IllegalStateException.class, () -> validator.run(null));
     }
@@ -43,7 +41,6 @@ class ProductionCredentialValidatorTest {
     void acceptsStrongBcryptCredentials() {
         Account manager = account("manager", passwordEncoder.encode("Strong-password-2026"));
         when(accountRepository.findAll()).thenReturn(List.of(manager));
-        when(accountRepository.findById("manager")).thenReturn(Optional.of(manager));
 
         assertDoesNotThrow(() -> validator.run(null));
     }

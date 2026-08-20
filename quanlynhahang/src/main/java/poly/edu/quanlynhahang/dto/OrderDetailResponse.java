@@ -6,7 +6,7 @@ import java.util.Date;
 
 import poly.edu.quanlynhahang.entity.OrderDetail;
 
-public record OrderDetailResponse(Integer id, BigDecimal price, Double taxRate, BigDecimal taxAmount,
+public record OrderDetailResponse(Integer id, BigDecimal price, BigDecimal taxRate, BigDecimal taxAmount,
         Integer quantity, Integer status, String note, String allergyNote, Integer priority,
         Date queuedAt, Date startedAt, Date completedAt, Date cancelledAt, String cancelReason,
         OrderProductResponse product) {

@@ -11,6 +11,7 @@ import poly.edu.quanlynhahang.entity.IngredientBatch;
 import poly.edu.quanlynhahang.entity.Order;
 import poly.edu.quanlynhahang.entity.OrderDetail;
 import poly.edu.quanlynhahang.entity.OrderItemOperation;
+import poly.edu.quanlynhahang.entity.OrderType;
 import poly.edu.quanlynhahang.entity.Product;
 import poly.edu.quanlynhahang.entity.Recipe;
 import poly.edu.quanlynhahang.repository.AccountRepository;
@@ -23,6 +24,7 @@ import poly.edu.quanlynhahang.repository.ProductRepository;
 import poly.edu.quanlynhahang.repository.RecipeRepository;
 import poly.edu.quanlynhahang.repository.RestaurantTableRepository;
 import poly.edu.quanlynhahang.repository.VoucherRepository;
+import poly.edu.quanlynhahang.repository.OrderVoucherUsageRepository;
 
 import java.util.List;
 import java.util.Optional;
@@ -48,6 +50,7 @@ class OrderCheckoutServiceTest {
     private final IngredientRepository ingredientRepository = mock(IngredientRepository.class);
     private final IngredientBatchRepository batchRepository = mock(IngredientBatchRepository.class);
     private final VoucherRepository voucherRepository = mock(VoucherRepository.class);
+    private final OrderVoucherUsageRepository orderVoucherUsageRepository = mock(OrderVoucherUsageRepository.class);
     private final ActivityLogService activityLogService = mock(ActivityLogService.class);
     private final OrderPaymentService orderPaymentService = mock(OrderPaymentService.class);
     private final MenuAvailabilityService menuAvailabilityService = mock(MenuAvailabilityService.class);
@@ -63,6 +66,7 @@ class OrderCheckoutServiceTest {
             ingredientRepository,
             batchRepository,
             voucherRepository,
+            orderVoucherUsageRepository,
             activityLogService,
             orderPaymentService,
             menuAvailabilityService);
@@ -93,6 +97,35 @@ class OrderCheckoutServiceTest {
     }
 
     @Test
+    void rejectsMissingOrderTypeBeforeWritingAnything() {
+        OrderRequest request = request(1, 1);
+        request.setOrderType(null);
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+                () -> service.checkout(request, "anonymousUser"));
+
+        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY, error.getStatusCode());
+        verify(orderRepository, never()).save(any());
+        verify(orderDetailRepository, never()).save(any());
+    }
+
+    @Test
+    void dineInCheckoutRequiresAnExistingTableIdBeforeWritingAnything() {
+        OrderRequest request = request(1, 1);
+        request.setOrderType(OrderType.DINE_IN);
+        request.setTableId(404);
+        request.setAddress("Bàn giả trong chuỗi địa chỉ");
+        when(tableRepository.findLockedById(404)).thenReturn(Optional.empty());
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+                () -> service.checkout(request, "anonymousUser"));
+
+        assertEquals(HttpStatus.NOT_FOUND, error.getStatusCode());
+        verify(tableRepository).findLockedById(404);
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
     void rejectsInsufficientInventoryBeforeCreatingOrder() {
         Product product = product(1, 100_000.0);
         Ingredient ingredient = ingredient(10L, "Thịt bò");
@@ -113,7 +146,7 @@ class OrderCheckoutServiceTest {
     @Test
     void calculatesServerPriceAndConsumesLockedInventory() {
         Product product = product(1, 100_000.0);
-        product.setTaxRate(8.0);
+        product.setTaxRate(new BigDecimal("8.00"));
         Ingredient ingredient = ingredient(10L, "Thịt bò");
         Recipe recipe = recipe(product, ingredient, 2.0);
         IngredientBatch batch = batch(10.0);
@@ -135,8 +168,8 @@ class OrderCheckoutServiceTest {
         assertEquals(new BigDecimal("200000.00"), result.subTotal());
         assertEquals(new BigDecimal("16000.00"), result.taxAmount());
         assertEquals(new BigDecimal("216000.00"), result.totalAmount());
-        assertEquals(6.0, batch.getQuantity());
-        assertEquals(6.0, ingredient.getQuantity());
+        assertEquals(0, new BigDecimal("6.0").compareTo(batch.getQuantity()));
+        assertEquals(0, new BigDecimal("6.0").compareTo(ingredient.getQuantity()));
         verify(batchRepository).findAvailableBatchesForUpdate(10L);
         verify(batchRepository).saveAll(List.of(batch));
         verify(menuAvailabilityService).refreshForIngredient(ingredient);
@@ -146,7 +179,7 @@ class OrderCheckoutServiceTest {
     @Test
     void rejectsProductWithoutRecipeBeforeCreatingOrder() {
         Product product = product(1, 0.10);
-        product.setTaxRate(8.0);
+        product.setTaxRate(new BigDecimal("8.00"));
         when(productRepository.findById(1)).thenReturn(Optional.of(product));
         when(recipeRepository.findByProduct(product)).thenReturn(List.of());
 
@@ -181,7 +214,7 @@ class OrderCheckoutServiceTest {
         assertEquals(new BigDecimal("200000.00"), result.subTotal());
         assertEquals(new BigDecimal("16000.00"), result.taxAmount());
         assertEquals(new BigDecimal("216000.00"), result.totalAmount());
-        assertEquals(0.0, batch.getQuantity());
+        assertEquals(0, BigDecimal.ZERO.compareTo(batch.getQuantity()));
         verify(orderRepository).findLockedById(22);
         verify(orderDetailRepository).save(any(OrderDetail.class));
         verify(batchRepository).saveAll(List.of(batch));
@@ -262,6 +295,7 @@ class OrderCheckoutServiceTest {
         OrderDetailRequest second = detail(1, 1, "Khong hanh", null, 0);
         OrderRequest request = new OrderRequest();
         request.setAddress("Giao hang");
+        request.setOrderType(OrderType.DELIVERY);
         request.setItems(List.of(first, second));
 
         service.checkout(request, "anonymousUser");
@@ -278,6 +312,7 @@ class OrderCheckoutServiceTest {
         OrderDetailRequest detail = detail(productId, quantity, null, null, 0);
         OrderRequest request = new OrderRequest();
         request.setAddress("Giao hàng");
+        request.setOrderType(OrderType.DELIVERY);
         request.setItems(List.of(detail));
         return request;
     }
@@ -313,14 +348,14 @@ class OrderCheckoutServiceTest {
         Recipe recipe = new Recipe();
         recipe.setProduct(product);
         recipe.setIngredient(ingredient);
-        recipe.setAmountRequired(amount);
+        recipe.setAmountRequired(BigDecimal.valueOf(amount));
         return recipe;
     }
 
     private IngredientBatch batch(double quantity) {
         IngredientBatch batch = new IngredientBatch();
         batch.setId(1L);
-        batch.setQuantity(quantity);
+        batch.setQuantity(BigDecimal.valueOf(quantity));
         return batch;
     }
 }

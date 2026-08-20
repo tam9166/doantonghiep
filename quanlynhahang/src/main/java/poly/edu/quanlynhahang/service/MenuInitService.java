@@ -46,7 +46,7 @@ public class MenuInitService implements CommandLineRunner {
             p1.setDescription("Phở bò Kobe thượng hạng nước trong");
             p1.setImage("https://images.unsplash.com/photo-1582878826629-29b7ad1cdc43?auto=format&fit=crop&w=600&q=80");
             p1.setCostPrice(BigDecimal.valueOf(35000));
-            p1.setTaxRate(8.0);
+        p1.setTaxRate(new BigDecimal("8.00"));
             p1.setAvailable(true);
             p1.setStatus(true);
             p1.setCategory(cat1);
@@ -57,7 +57,7 @@ public class MenuInitService implements CommandLineRunner {
             p2.setDescription("Cơm rang hạt giòn, dưa bò xào đậm vị");
             p2.setImage("https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=600&q=80");
             p2.setCostPrice(BigDecimal.valueOf(23000));
-            p2.setTaxRate(8.0);
+        p2.setTaxRate(new BigDecimal("8.00"));
             p2.setAvailable(true);
             p2.setStatus(true);
             p2.setCategory(cat1);
@@ -68,7 +68,7 @@ public class MenuInitService implements CommandLineRunner {
             p3.setDescription("Nước ngọt có ga lon 330ml");
             p3.setImage("https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=600&q=80");
             p3.setCostPrice(BigDecimal.valueOf(8000));
-            p3.setTaxRate(8.0);
+        p3.setTaxRate(new BigDecimal("8.00"));
             p3.setAvailable(true);
             p3.setStatus(true);
             p3.setCategory(cat2);

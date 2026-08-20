@@ -2,6 +2,7 @@ package poly.edu.quanlynhahang.config;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.access.AccessDeniedException;
@@ -26,6 +27,7 @@ class GlobalExceptionHandlerTest {
                 new ResponseStatusException(HttpStatus.CONFLICT, "IDEMPOTENCY_CONFLICT"), request);
 
         assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+        assertEquals(MediaType.APPLICATION_JSON, response.getHeaders().getContentType());
         assertNotNull(response.getBody());
         assertEquals(409, response.getBody().status());
         assertEquals("IDEMPOTENCY_CONFLICT", response.getBody().code());

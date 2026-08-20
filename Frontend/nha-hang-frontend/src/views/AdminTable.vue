@@ -104,7 +104,7 @@
               <span class="badge badge-reserved">🟡 Đã Đặt Trước</span>
               <span class="badge badge-occupied">🔴 Đang Phục Vụ</span>
               <span class="badge badge-cleaning">🟣 Chờ Dọn Bàn</span>
-              <span class="badge" style="background: rgba(90, 110, 69, 0.1); color: #33422A;">🔗 Đã Ghép</span>
+              <span class="badge" style="background: color-mix(in srgb, var(--secondary) 10%, transparent); color: var(--secondary);">🔗 Đã Ghép</span>
             </div>
             
             <div style="display: flex; gap: 10px;">
@@ -117,7 +117,7 @@
               <button @click="toggleHeatmap" class="btn-heatmap" :class="{'active': showHeatmap}">
                 🔥 {{ showHeatmap ? 'Tắt Bản Đồ Nhiệt' : 'Bật Bản Đồ Nhiệt' }}
               </button>
-              <button @click="toggleLayoutMode" class="btn-heatmap" :class="{'active': layoutEditMode}" style="border-color: #5A6E45; color: #5A6E45;">
+              <button @click="toggleLayoutMode" class="btn-heatmap" :class="{'active': layoutEditMode}" style="border-color: var(--secondary); color: var(--secondary);">
                 🧭 {{ layoutEditMode ? 'Tắt Chỉnh Layout' : 'Chỉnh Layout' }}
               </button>
               <button v-if="layoutEditMode" @click="saveLayouts" class="g-btn-primary" style="padding: 8px 16px; border-radius: 20px;">
@@ -218,10 +218,10 @@
             <option v-for="t in (mergeData.type === 'ORDER' ? activeTables : tablesList)" :key="t.id" :value="t.id" :disabled="t.id === mergeData.fromTable">{{ t.name }} ({{ t.floor }})</option>
           </select>
         </div>
-        <p v-if="mergeData.type === 'ORDER'" style="color: #B23B2E; font-size: 0.85rem; font-style: italic; margin-top: 15px;">
+        <p v-if="mergeData.type === 'ORDER'" style="color: var(--primary); font-size: 0.85rem; font-style: italic; margin-top: 15px;">
           Lưu ý: Toàn bộ món ăn của bàn nguồn sẽ được chuyển sang bàn đích. Bàn nguồn sẽ trở thành bàn trống.
         </p>
-        <p v-else style="color: #5A6E45; font-size: 0.85rem; font-style: italic; margin-top: 15px;">
+        <p v-else style="color: var(--secondary); font-size: 0.85rem; font-style: italic; margin-top: 15px;">
           Lưu ý: Bàn nguồn sẽ được đánh dấu là "Đã Ghép" vào bàn đích. Có thể tách ra sau này.
         </p>
         <div style="display:flex; gap:10px; margin-top:20px;">
@@ -400,12 +400,12 @@ const executeMerge = async () => {
   if (!confirm(`Bạn chắc chắn muốn ghép/gộp ${fromT.name} vào ${toT.name}?`)) return;
   
   try {
-    const token = localStorage.getItem('staff_token') || localStorage.getItem('token');
+    const token = localStorage.getItem('staff_token');
     
     if (mergeData.value.type === 'ORDER') {
       const res = await api.post('/api/orders/merge-tables', {
-        fromTable: fromT.name,
-        toTable: toT.name
+        fromTableId: fromT.id,
+        toTableId: toT.id
       }, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -428,7 +428,7 @@ const executeMerge = async () => {
 const unlinkTable = async (id) => {
   if (!confirm('Bạn có chắc chắn muốn tách bàn này ra không?')) return;
   try {
-    const token = localStorage.getItem('staff_token') || localStorage.getItem('token');
+    const token = localStorage.getItem('staff_token');
     const res = await api.put(`/api/tables/${id}/unlink`, {}, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
@@ -471,7 +471,7 @@ const downloadQRImage = () => {
 };
 
 const fetchTables = async () => {
-  const token = localStorage.getItem('staff_token') || localStorage.getItem('token');
+  const token = localStorage.getItem('staff_token');
   try {
     const res = await api.get('/api/tables', {
       headers: token ? { 'Authorization': `Bearer ${token}` } : {}
@@ -492,7 +492,7 @@ const fetchAreas = async () => {
 const fetchLayouts = async () => {
   try {
     const res = await api.get('/api/admin/table-layouts', {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('staff_token') || localStorage.getItem('token')}` }
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('staff_token')}` }
     });
     const next = {};
     (Array.isArray(res.data) ? res.data : []).forEach(layout => {
@@ -605,7 +605,7 @@ const saveLayouts = async () => {
   });
   try {
     await api.put('/api/admin/table-layouts/bulk', payload, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('staff_token') || localStorage.getItem('token')}` }
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('staff_token')}` }
     });
     alert('Đã lưu layout bàn.');
     await fetchLayouts();
@@ -656,7 +656,7 @@ const uploadTableImage = async (event, table) => {
 
 const handleAddTable = async () => {
   if (!newTable.value.name) return;
-  const token = localStorage.getItem('staff_token') || localStorage.getItem('token');
+  const token = localStorage.getItem('staff_token');
   try {
     await api.post('/api/tables', normalizeTablePayload(newTable.value), {
       headers: { 'Authorization': `Bearer ${token}` }
@@ -695,7 +695,7 @@ const submitEditTable = async () => {
   }
   try {
     await api.put(`/api/admin/tables/${editTable.value.id}`, normalizeTablePayload(editTable.value), {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('staff_token') || localStorage.getItem('token')}` }
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('staff_token')}` }
     });
     closeEditModal();
     fetchTables();
@@ -708,7 +708,7 @@ const updateStatus = async (tableId, newStatus) => {
   if (newStatus == 0 && !confirm('Dọn bàn sẽ ĐÓNG GÓI tất cả đơn hàng tại bàn này. Xác nhận?')) {
     fetchTables(); return;
   }
-  const token = localStorage.getItem('staff_token') || localStorage.getItem('token');
+  const token = localStorage.getItem('staff_token');
   try {
     await api.put(`/api/tables/${tableId}/status?status=${newStatus}`, {}, {
       headers: { 'Authorization': `Bearer ${token}` }
@@ -726,7 +726,7 @@ const toggleHeatmap = async () => {
   if (showHeatmap.value) {
     try {
       const res = await api.get('/api/orders/history', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('staff_token') || localStorage.getItem('token')}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('staff_token')}` }
       });
       const orders = res.data;
       
@@ -763,7 +763,7 @@ const deleteTable = async (id) => {
   if (!confirm('Xóa bàn này khỏi hệ thống?')) return;
   try {
     await api.delete(`/api/admin/tables/${id}`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('staff_token') || localStorage.getItem('token')}` }
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('staff_token')}` }
     });
     fetchTables();
   } catch { alert('Không thể xóa bàn đang có dữ liệu hóa đơn!'); }
@@ -870,10 +870,10 @@ onUnmounted(() => {
   border-bottom: 1px solid var(--border-light);
 }
 .badge { padding: 7px 16px; border-radius: 20px; font-size: 0.82rem; font-weight: 700; }
-.badge-empty { background: rgba(90, 110, 69, 0.1); color: var(--primary); }
-.badge-reserved { background: rgba(185,130,41,0.1); color: #B98229; }
-.badge-occupied { background: rgba(178,59,46,0.1); color: #B23B2E; }
-.badge-cleaning { background: rgba(192, 138, 46, 0.1); color: #C08A2E; }
+.badge-empty { background: color-mix(in srgb, var(--secondary) 10%, transparent); color: var(--primary); }
+.badge-reserved { background: color-mix(in srgb, var(--color-tertiary) 10%, transparent); color: var(--color-tertiary); }
+.badge-occupied { background: color-mix(in srgb, var(--primary) 10%, transparent); color: var(--primary); }
+.badge-cleaning { background: color-mix(in srgb, var(--color-tertiary) 10%, transparent); color: var(--color-tertiary); }
 
 .floor-title {
   font-size: 1rem; font-weight: 700; color: var(--primary);
@@ -884,7 +884,7 @@ onUnmounted(() => {
 .layout-canvas {
   position: relative;
   min-height: 680px;
-  border: 1px dashed rgba(90, 110, 69, 0.45);
+  border: 1px dashed color-mix(in srgb, var(--secondary) 45%, transparent);
   border-radius: var(--radius-lg);
   background:
     linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
@@ -948,34 +948,34 @@ onUnmounted(() => {
 
 /* Status Variants */
 .empty-bg {
-  border-color: rgba(90, 110, 69, 0.3);
-  background: linear-gradient(135deg, var(--bg-card2), rgba(90, 110, 69, 0.04));
+  border-color: color-mix(in srgb, var(--secondary) 30%, transparent);
+  background: linear-gradient(135deg, var(--bg-card2), color-mix(in srgb, var(--secondary) 4%, transparent));
 }
-.empty-bg .table-status-dot { background: var(--primary); box-shadow: 0 0 8px rgba(90, 110, 69, 0.6); }
+.empty-bg .table-status-dot { background: var(--primary); box-shadow: 0 0 8px color-mix(in srgb, var(--secondary) 60%, transparent); }
 
 .reserved-bg {
-  border-color: rgba(185,130,41,0.3);
-  background: linear-gradient(135deg, var(--bg-card2), rgba(185,130,41,0.04));
+  border-color: color-mix(in srgb, var(--color-tertiary) 30%, transparent);
+  background: linear-gradient(135deg, var(--bg-card2), color-mix(in srgb, var(--color-tertiary) 4%, transparent));
 }
-.reserved-bg .table-status-dot { background: #B98229; box-shadow: 0 0 8px rgba(185,130,41,0.6); }
+.reserved-bg .table-status-dot { background: var(--color-tertiary); box-shadow: 0 0 8px color-mix(in srgb, var(--color-tertiary) 60%, transparent); }
 
 .occupied-bg {
-  border-color: rgba(178,59,46,0.3);
-  background: linear-gradient(135deg, var(--bg-card2), rgba(178,59,46,0.04));
+  border-color: color-mix(in srgb, var(--primary) 30%, transparent);
+  background: linear-gradient(135deg, var(--bg-card2), color-mix(in srgb, var(--primary) 4%, transparent));
 }
-.occupied-bg .table-status-dot { background: #B23B2E; box-shadow: 0 0 8px rgba(178,59,46,0.6); }
+.occupied-bg .table-status-dot { background: var(--primary); box-shadow: 0 0 8px color-mix(in srgb, var(--primary) 60%, transparent); }
 
 .cleaning-bg {
-  border-color: rgba(192, 138, 46, 0.3);
-  background: linear-gradient(135deg, var(--bg-card2), rgba(192, 138, 46, 0.04));
+  border-color: color-mix(in srgb, var(--color-tertiary) 30%, transparent);
+  background: linear-gradient(135deg, var(--bg-card2), color-mix(in srgb, var(--color-tertiary) 4%, transparent));
 }
-.cleaning-bg .table-status-dot { background: #C08A2E; box-shadow: 0 0 8px rgba(192, 138, 46, 0.6); }
+.cleaning-bg .table-status-dot { background: var(--color-tertiary); box-shadow: 0 0 8px color-mix(in srgb, var(--color-tertiary) 60%, transparent); }
 
 .linked-bg {
-  border-color: rgba(90, 110, 69, 0.3);
-  background: linear-gradient(135deg, var(--bg-card2), rgba(90, 110, 69, 0.04));
+  border-color: color-mix(in srgb, var(--secondary) 30%, transparent);
+  background: linear-gradient(135deg, var(--bg-card2), color-mix(in srgb, var(--secondary) 4%, transparent));
 }
-.linked-bg .table-status-dot { background: #33422A; box-shadow: 0 0 8px rgba(90, 110, 69, 0.6); }
+.linked-bg .table-status-dot { background: var(--secondary); box-shadow: 0 0 8px color-mix(in srgb, var(--secondary) 60%, transparent); }
 
 .btn-del {
   position: absolute; top: 8px; left: 8px;
@@ -985,12 +985,12 @@ onUnmounted(() => {
   cursor: pointer; transition: var(--transition);
   display: flex; align-items: center; justify-content: center;
 }
-.btn-del:hover { background: rgba(178,59,46,0.4); color: #B23B2E; }
+.btn-del:hover { background: color-mix(in srgb, var(--primary) 40%, transparent); color: var(--primary); }
 
 .btn-unlink {
   position: absolute; top: 8px; left: 8px;
   background: rgba(41, 128, 185, 0.2); border: none;
-  color: #33422A; border-radius: 50%;
+  color: var(--secondary); border-radius: 50%;
   width: 24px; height: 24px; font-size: 0.9rem;
   cursor: pointer; transition: var(--transition);
   display: flex; align-items: center; justify-content: center;
@@ -999,27 +999,27 @@ onUnmounted(() => {
 
 .btn-qr {
   position: absolute; top: 8px; right: 8px;
-  background: rgba(47, 143, 91, 0.2); border: none;
-  color: #2F8F5B; border-radius: 50%;
+  background: color-mix(in srgb, var(--success) 20%, transparent); border: none;
+  color: var(--success); border-radius: 50%;
   width: 24px; height: 24px; font-size: 0.9rem;
   cursor: pointer; transition: var(--transition);
   display: flex; align-items: center; justify-content: center;
 }
-.btn-qr:hover { background: rgba(47, 143, 91, 0.4); transform: scale(1.1); }
+.btn-qr:hover { background: color-mix(in srgb, var(--success) 40%, transparent); transform: scale(1.1); }
 
 .btn-edit {
   position: absolute; top: 38px; right: 8px;
-  background: rgba(185, 130, 41, 0.2); border: none;
-  color: #B98229; border-radius: 50%;
+  background: color-mix(in srgb, var(--color-tertiary) 20%, transparent); border: none;
+  color: var(--color-tertiary); border-radius: 50%;
   width: 24px; height: 24px; font-size: 0.9rem;
   cursor: pointer; transition: var(--transition);
   display: flex; align-items: center; justify-content: center;
 }
-.btn-edit:hover { background: rgba(185, 130, 41, 0.4); transform: scale(1.1); }
+.btn-edit:hover { background: color-mix(in srgb, var(--color-tertiary) 40%, transparent); transform: scale(1.1); }
 
 .view-tag {
   position: absolute; top: 8px; right: 38px;
-  background: rgba(123,96,47,0.25); color: #C08A2E;
+  background: rgba(123,96,47,0.25); color: var(--color-tertiary);
   font-size: 0.68rem; padding: 2px 7px;
   border-radius: 10px; font-weight: 700;
   border: 1px solid rgba(123,96,47,0.3);
@@ -1027,10 +1027,10 @@ onUnmounted(() => {
 
 .capacity-tag {
   position: absolute; top: 8px; left: 36px;
-  background: rgba(90, 110, 69, 0.25); color: #33422A;
+  background: color-mix(in srgb, var(--secondary) 25%, transparent); color: var(--secondary);
   font-size: 0.68rem; padding: 2px 7px;
   border-radius: 10px; font-weight: 700;
-  border: 1px solid rgba(90, 110, 69, 0.3);
+  border: 1px solid color-mix(in srgb, var(--secondary) 30%, transparent);
 }
 
 .empty-floor { text-align: center; color: var(--text-muted); padding: 60px; font-style: italic; }
@@ -1057,11 +1057,11 @@ onUnmounted(() => {
 
 /* Heatmap Styles */
 .btn-heatmap {
-  background: transparent; border: 1px solid #B23B2E; color: #B23B2E; padding: 8px 20px; border-radius: 20px; font-weight: bold; cursor: pointer; transition: 0.3s; font-size: 0.9rem;
+  background: transparent; border: 1px solid var(--primary); color: var(--primary); padding: 8px 20px; border-radius: 20px; font-weight: bold; cursor: pointer; transition: 0.3s; font-size: 0.9rem;
 }
-.btn-heatmap:hover { background: rgba(178,59,46,0.1); }
+.btn-heatmap:hover { background: color-mix(in srgb, var(--primary) 10%, transparent); }
 .btn-heatmap.active {
-  background: #B23B2E; color: #FFFFFF; box-shadow: 0 0 15px rgba(178,59,46,0.6);
+  background: var(--primary); color: #FFFFFF; box-shadow: 0 0 15px color-mix(in srgb, var(--primary) 60%, transparent);
 }
 
 .table-box { overflow: hidden; }
@@ -1073,38 +1073,38 @@ onUnmounted(() => {
   z-index: 10; opacity: 0.85; pointer-events: none; transition: 0.5s;
 }
 
-.heat-high { background: linear-gradient(135deg, rgba(178,59,46,0.9), rgba(192,57,43,0.9)); }
-.heat-medium { background: linear-gradient(135deg, rgba(185,130,41,0.9), rgba(211,84,0,0.9)); }
-.heat-low { background: linear-gradient(135deg, rgba(185,130,41,0.8), rgba(185,130,41,0.8)); }
-.heat-none { background: rgba(111,122,115,0.8); color: #E2DCC2; font-size: 1.2rem; }
+.heat-high { background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 90%, transparent), rgba(192,57,43,0.9)); }
+.heat-medium { background: linear-gradient(135deg, color-mix(in srgb, var(--color-tertiary) 90%, transparent), rgba(211,84,0,0.9)); }
+.heat-low { background: linear-gradient(135deg, color-mix(in srgb, var(--color-tertiary) 80%, transparent), color-mix(in srgb, var(--color-tertiary) 80%, transparent)); }
+.heat-none { background: rgba(111,122,115,0.8); color: var(--border); font-size: 1.2rem; }
 
 /* Realistic View Styles */
 .realistic-hall {
   display: flex; flex-wrap: wrap; justify-content: center; gap: 30px;
-  background: url('https://www.transparenttextures.com/patterns/wood-pattern.png'), #DED8C2;
-  padding: 40px; border-radius: 12px; border: 8px solid #A6B0AA;
+  background: url('https://www.transparenttextures.com/patterns/wood-pattern.png'), var(--bg-card2);
+  padding: 40px; border-radius: 12px; border: 8px solid var(--color-outline);
   box-shadow: inset 0 0 20px rgba(0,0,0,0.1);
 }
 .realistic-vip {
   display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
-  background: #55503E; padding: 20px; border-radius: 8px;
+  background: var(--text-secondary); padding: 20px; border-radius: 8px;
 }
 .realistic-vip .table-box {
-  background: #E2DCC2; border: 4px solid #B98229; border-radius: 0;
+  background: var(--border); border: 4px solid var(--color-tertiary); border-radius: 0;
   position: relative; padding: 30px 10px;
 }
 .realistic-vip .table-box::before {
   content: "Cửa vào"; position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%);
-  background: #55503E; color: #FFFFFF; padding: 2px 10px; font-size: 0.6rem;
+  background: var(--text-secondary); color: #FFFFFF; padding: 2px 10px; font-size: 0.6rem;
 }
 .realistic-rooftop {
   display: flex; flex-wrap: wrap; justify-content: space-around; gap: 40px;
   background: #B9D8C2; padding: 50px 20px; border-radius: 50px;
-  border: 4px dashed #2F8F5B; position: relative;
+  border: 4px dashed var(--success); position: relative;
 }
 .realistic-rooftop::after {
   content: "🌴 Cây xanh & View Sông 🌊"; position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
-  color: #201D14; font-weight: bold; font-size: 1.2rem; opacity: 0.4;
+  color: var(--text-primary); font-weight: bold; font-size: 1.2rem; opacity: 0.4;
 }
 
 .realistic-table {

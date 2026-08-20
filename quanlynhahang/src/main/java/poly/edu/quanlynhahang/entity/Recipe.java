@@ -1,5 +1,7 @@
 package poly.edu.quanlynhahang.entity;
 
+import java.math.BigDecimal;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -26,6 +28,6 @@ public class Recipe {
     @JoinColumn(name = "ingredient_id")
     private Ingredient ingredient;
 
-    @Column(name = "amount_required")
-    private Double amountRequired;
+    @Column(name = "amount_required", precision = 19, scale = 4)
+    private BigDecimal amountRequired;
 }
