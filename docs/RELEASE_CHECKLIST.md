@@ -13,3 +13,4 @@
 - [x] Release ZIP contains no `.env`, `.git`, `node_modules`, `target`, backup, log or nested ZIP entries.
 - [x] Release-manifest secret scan passes for tracked and untracked files selected for packaging.
 - [x] Maven and shell wrappers retain Git executable mode; build scripts use `npm ci`.
+- [x] Verified release commit pushed to `tam9166/doantonghiep` `main`; pre-existing local report-DOCX deletion was excluded from the commit.

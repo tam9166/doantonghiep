@@ -130,7 +130,7 @@ The main payment/refund/table/kitchen flows already use the shared dialog. Remai
 - **ENVIRONMENT VERIFICATION:** Real payment provider, CAPTCHA, SMTP, storage, reverse proxy/TLS and AI integrations were not exercised with production credentials.
 - **P2 IMPROVEMENT:** 101 alerts, 15 confirms and one prompt remain; some administration screens still use native browser dialogs.
 - **P2 IMPROVEMENT:** Deprecated Spring MVC converter/path-matching APIs emit build warnings and should be migrated before a future framework upgrade.
-- **GIT HANDOFF:** Remote points to `tam9166/doantonghiep`, but push authentication did not complete. The working tree also contains a pre-existing deleted report DOCX, so no broad commit was created without owner confirmation. `CODE READY LOCALLY — GITHUB PUSH NOT VERIFIED`.
+- **GIT HANDOFF:** Commit `10bbdc4` was pushed successfully to `tam9166/doantonghiep` branch `main`. The pre-existing deleted report DOCX was deliberately excluded and remains only as an unstaged local deletion. `LATEST CODE PUSHED — USER FILE PRESERVED`.
 
 ## 12. Release Decision
 
