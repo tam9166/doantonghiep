@@ -23,6 +23,15 @@ public class ApplicationStartupValidator implements ApplicationRunner {
     @Value("${restaurant.payment.webhook-secret:}")
     private String paymentWebhookSecret;
 
+    @Value("${app.captcha.enabled:false}")
+    private boolean captchaEnabled;
+
+    @Value("${app.captcha.provider:mock}")
+    private String captchaProvider;
+
+    @Value("${app.captcha.secret:}")
+    private String captchaSecret;
+
     public ApplicationStartupValidator(Environment environment, PaymentProperties paymentProperties) {
         this.environment = environment;
         this.paymentProperties = paymentProperties;
@@ -49,6 +58,13 @@ public class ApplicationStartupValidator implements ApplicationRunner {
 
         requireSecret(jwtSecret, "JWT_SECRET");
         requireSecret(paymentWebhookSecret, "PAYMENT_WEBHOOK_SECRET");
+        if (!captchaEnabled) {
+            throw new IllegalStateException("CAPTCHA_ENABLED must be true in production.");
+        }
+        if ("mock".equalsIgnoreCase(captchaProvider == null ? "" : captchaProvider.trim())) {
+            throw new IllegalStateException("The mock CAPTCHA provider is forbidden in production.");
+        }
+        requireSecret(captchaSecret, "CAPTCHA_SECRET");
         paymentProperties.assertProductionReady();
     }
 

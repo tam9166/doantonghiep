@@ -116,4 +116,17 @@ public class RestaurantBusinessHoursService {
         // Allow if customer arrives before last order time but stays past closing
         return !arrivalTime.isAfter(lastOrderTime) && expectedEnd.isAfter(closingTime);
     }
+
+    public boolean isServiceWindow(LocalTime start, LocalTime end) {
+        if (start == null || end == null || start.equals(end)) return false;
+        int openingMinutes = openingTime.getHour() * 60 + openingTime.getMinute();
+        int closingMinutes = closingTime.getHour() * 60 + closingTime.getMinute();
+        int startMinutes = start.getHour() * 60 + start.getMinute();
+        int endMinutes = end.getHour() * 60 + end.getMinute();
+        int serviceSpan = Math.floorMod(closingMinutes - openingMinutes, 24 * 60);
+        int startOffset = Math.floorMod(startMinutes - openingMinutes, 24 * 60);
+        int endOffset = Math.floorMod(endMinutes - openingMinutes, 24 * 60);
+        return serviceSpan > 0 && startOffset < serviceSpan
+                && endOffset > startOffset && endOffset <= serviceSpan;
+    }
 }

@@ -60,7 +60,7 @@
                   <h4>{{ product.name }} <span v-if="product.suggestedQuantity > 1" style="color: var(--primary);">x{{ product.suggestedQuantity }}</span></h4>
                   <p class="price">{{ product.price.toLocaleString() }}đ</p>
                 </div>
-                <button v-if="!isAdminOrManager" class="btn-add-item" @click="addToCart(product, product.suggestedQuantity || 1)">Thêm</button>
+                <button v-if="!isAdminOrManager" class="btn-add-item" :disabled="product.availableQuantity <= 0" @click="addToCart(product, product.suggestedQuantity || 1)">{{ product.availableQuantity > 0 ? 'Thêm' : 'Tạm hết hàng' }}</button>
                 <button v-else class="btn-add-item btn-disabled" disabled>Chỉ xem</button>
               </div>
             </div>
@@ -83,7 +83,7 @@
                 <h4>{{ product.name }}</h4>
                 <p class="price">{{ product.price.toLocaleString() }}đ</p>
               </div>
-              <button v-if="!isAdminOrManager" class="btn-sugg-add" @click="addToCart(product, 1)">Thêm Ngay</button>
+              <button v-if="!isAdminOrManager" class="btn-sugg-add" :disabled="product.availableQuantity <= 0" @click="addToCart(product, 1)">{{ product.availableQuantity > 0 ? 'Thêm Ngay' : 'Tạm hết hàng' }}</button>
             </div>
           </div>
         </div>
@@ -94,8 +94,9 @@
           <div class="product-info">
             <h4>{{ product.name }}</h4>
             <p class="price">{{ product.price.toLocaleString() }}đ</p>
+            <small v-if="product.availableQuantity > 0">Còn tối đa {{ product.availableQuantity }} suất</small>
           </div>
-          <button v-if="!isAdminOrManager" class="btn-add-item" @click="addToCart(product)">Thêm</button>
+          <button v-if="!isAdminOrManager" class="btn-add-item" :disabled="product.availableQuantity <= 0" @click="addToCart(product)">{{ product.availableQuantity > 0 ? 'Thêm' : 'Tạm hết hàng' }}</button>
           <button v-else class="btn-add-item btn-disabled" disabled>Chỉ xem</button>
         </div>
         </div>
@@ -217,6 +218,8 @@ const toastMsg = ref('');
 const isSubmitting = ref(false);
 const userRoles = ref([]);
 const addItemsIdempotencyKey = ref(crypto.randomUUID());
+const tableSessionToken = ref(typeof route.query.cap === 'string' ? route.query.cap : '');
+const capabilityOrder = ref(null);
 
 const isAdminOrManager = computed(() => {
   return userRoles.value.includes('ROLE_ADMIN') || userRoles.value.includes('ROLE_MANAGER');
@@ -233,7 +236,7 @@ const userProfile = ref(null);
 const tierDiscount = ref(0);
 const voucherDiscountPercent = ref(0);
 
-const activeProducts = computed(() => products.value.filter(p => p.status !== false && p.available !== false));
+const activeProducts = computed(() => products.value.filter(p => p.status !== false));
 
 // Gom nhóm bàn theo tầng để khách dễ tìm trong thẻ <select>
 const groupedTables = computed(() => {
@@ -381,15 +384,29 @@ const loadData = async () => {
     ]);
     products.value = resProd.data;
     allTables.value = resTable.data;
-    
-    // Tự động chọn bàn nếu có truyền query param ?table=
-    if (route.query.table) {
+
+    if (tableSessionToken.value) {
+      try {
+        const resolved = (await api.get('/api/table-sessions/resolve', {
+          headers: { 'X-Table-Session-Token': tableSessionToken.value }
+        })).data;
+        const table = allTables.value.find(item => Number(item.id) === Number(resolved.tableId));
+        if (!table) throw new Error('Bàn trong mã QR không còn khả dụng.');
+        selectedTable.value = table.name;
+        capabilityOrder.value = resolved.currentOrder || null;
+        isTableLocked.value = true;
+      } catch (error) {
+        tableSessionToken.value = '';
+        toastMsg.value = error.response?.data?.message || error.message || 'Mã QR không hợp lệ hoặc đã hết hạn.';
+      }
+    } else if (route.query.table && sessionStorage.getItem('staff_token')) {
+      // Staff may open a table directly; public customers must use a capability QR.
       selectedTable.value = route.query.table;
       isTableLocked.value = true;
     }
 
     // Lấy thông tin User để áp dụng hạng thẻ
-    const token = localStorage.getItem('staff_token');
+    const token = sessionStorage.getItem('staff_token');
     if (token) {
       const resProfile = await api.get('/api/auth/profile', {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -400,21 +417,21 @@ const loadData = async () => {
       else if (userProfile.value.membershipTier === 'Bạc') tierDiscount.value = 0.05;
     }
     
-    const storedUser = localStorage.getItem('staff_user');
+    const storedUser = sessionStorage.getItem('staff_user');
     if (storedUser) {
       try {
         const parsed = JSON.parse(storedUser);
         if (parsed && parsed.roles) {
           userRoles.value = parsed.roles;
         }
-      } catch (e) {}
+      } catch (error) {
+        console.warn('Không thể đọc vai trò nhân viên đã lưu.', error)
+      }
     }
     
     // Tải Món Gợi Ý (Bán Chạy)
     try {
-      const response = await api.get('/api/admin/popular-items/products?limit=4', {
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-      });
+      const response = await api.get('/api/menu/hot?limit=4');
       if (response.data && response.data.length > 0) {
          suggestedProducts.value = response.data
            .map(item => products.value.find(p => p.id === item.productId))
@@ -427,13 +444,24 @@ const loadData = async () => {
 
 const addToCart = (product, qty = 1) => {
   const existing = cart.value.find(item => item.productId === product.id);
-  if (existing) existing.quantity += qty;
+  const availableQuantity = Math.max(0, Number(product.availableQuantity || 0));
+  const requestedQuantity = (existing?.quantity || 0) + qty;
+  if (requestedQuantity > availableQuantity) {
+    toastMsg.value = `Món này hiện chỉ còn tối đa ${availableQuantity} suất.`;
+    return;
+  }
+  if (existing) existing.quantity = requestedQuantity;
   else cart.value.push({ productId: product.id, name: product.name, price: product.price, quantity: qty,
-    taxRate: product.taxRate || 8, note: '', allergyNote: '' });
+    taxRate: product.taxRate || 8, note: '', allergyNote: '', availableQuantity });
 };
 
 const increaseQty = (idx) => {
-  cart.value[idx].quantity++;
+  const item = cart.value[idx];
+  if (item.quantity >= item.availableQuantity) {
+    toastMsg.value = `Món này hiện chỉ còn tối đa ${item.availableQuantity} suất.`;
+    return;
+  }
+  item.quantity++;
 };
 
 const decreaseQty = (idx) => {
@@ -544,7 +572,7 @@ const submitOrder = async () => {
   }
   if (isSubmitting.value) return;
   
-  const token = localStorage.getItem('staff_token') || '';
+  const token = sessionStorage.getItem('staff_token') || '';
   const formattedItems = cart.value.map(item => ({
     productId: item.productId,
     quantity: item.quantity,
@@ -555,8 +583,8 @@ const submitOrder = async () => {
   try {
     isSubmitting.value = true;
     const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-    let existingOrder = null;
-    if (token) {
+    let existingOrder = capabilityOrder.value;
+    if (!existingOrder && token) {
       const selectedTableRecord = allTables.value.find(table => table.name === selectedTable.value);
       if (!selectedTableRecord) throw new Error('Không tìm thấy bàn đã chọn.');
       try { existingOrder = (await api.get('/api/orders/open-by-table', { params: { tableId: selectedTableRecord.id }, headers })).data; } catch (lookupError) {
@@ -564,19 +592,34 @@ const submitOrder = async () => {
       }
     }
     if (existingOrder?.id) {
-      await api.put(`/api/orders/${existingOrder.id}/add-items`, { items: formattedItems }, {
-        headers: { ...headers, 'X-Idempotency-Key': addItemsIdempotencyKey.value }
+      const addItemsUrl = tableSessionToken.value
+        ? `/api/table-sessions/orders/${existingOrder.id}/add-items`
+        : `/api/orders/${existingOrder.id}/add-items`;
+      await api.put(addItemsUrl, { items: formattedItems }, {
+        headers: {
+          ...headers,
+          ...(tableSessionToken.value ? { 'X-Table-Session-Token': tableSessionToken.value } : {}),
+          'X-Idempotency-Key': addItemsIdempotencyKey.value
+        }
       });
     } else {
       const selectedTableRecord = allTables.value.find(table => table.name === selectedTable.value);
       if (!selectedTableRecord) throw new Error('Không tìm thấy bàn đã chọn.');
-      await api.post('/api/orders/checkout', {
+      const created = await api.post('/api/orders/checkout', {
       address: null,
       tableId: selectedTableRecord.id,
       orderType: 'DINE_IN',
       paymentOption: 'PAY_AT_RESTAURANT',
       items: formattedItems
-      }, { headers });
+      }, {
+        headers: {
+          ...headers,
+          ...(tableSessionToken.value ? { 'X-Table-Session-Token': tableSessionToken.value } : {})
+        }
+      });
+      if (tableSessionToken.value && created.data?.orderId) {
+        capabilityOrder.value = { id: created.data.orderId };
+      }
     }
 
     cart.value = [];

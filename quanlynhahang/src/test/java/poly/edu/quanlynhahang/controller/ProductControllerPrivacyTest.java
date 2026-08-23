@@ -6,6 +6,7 @@ import poly.edu.quanlynhahang.entity.Category;
 import poly.edu.quanlynhahang.entity.Product;
 import poly.edu.quanlynhahang.repository.ProductRepository;
 import poly.edu.quanlynhahang.repository.ReviewRepository;
+import poly.edu.quanlynhahang.service.MenuAvailabilityService;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
@@ -21,7 +22,9 @@ import static org.mockito.Mockito.when;
 class ProductControllerPrivacyTest {
     private final ProductRepository productRepository = mock(ProductRepository.class);
     private final ReviewRepository reviewRepository = mock(ReviewRepository.class);
-    private final ProductController controller = new ProductController(productRepository, reviewRepository);
+    private final MenuAvailabilityService menuAvailabilityService = mock(MenuAvailabilityService.class);
+    private final ProductController controller = new ProductController(
+            productRepository, reviewRepository, menuAvailabilityService);
 
     @Test
     void publicCatalogDoesNotExposeCostOrInternalProductFields() throws Exception {
@@ -46,6 +49,7 @@ class ProductControllerPrivacyTest {
         when(rating.getAverageRating()).thenReturn(4.26);
         when(productRepository.findAll()).thenReturn(List.of(product));
         when(reviewRepository.getAverageRatingsByProductIds(List.of(10))).thenReturn(List.of(rating));
+        when(menuAvailabilityService.availableQuantity(product)).thenReturn(7);
 
         List<PublicProductResponse> response = controller.getAllProducts();
         String json = new ObjectMapper().writeValueAsString(response);
@@ -54,6 +58,7 @@ class ProductControllerPrivacyTest {
         assertEquals(4.3, response.getFirst().averageRating());
         assertEquals("Mon chinh", response.getFirst().category().name());
         assertEquals(new BigDecimal("125000.00"), response.getFirst().price());
+        assertEquals(7, response.getFirst().availableQuantity());
         assertTrue(json.contains("\"price\":125000.00"));
         assertFalse(json.contains("costPrice"));
         assertFalse(json.contains("createDate"));

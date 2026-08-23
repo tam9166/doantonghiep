@@ -24,17 +24,6 @@ public class WebConfig implements WebMvcConfigurer {
     @Value("${app.upload.root:uploads}")
     private String uploadRoot;
 
-    // P0-07: Explicitly define SPA routes - Vue Router handles catch-all on frontend
-    private static final String[] SPA_ROUTES = {
-        "/", "/login", "/register", "/staff-login", "/change-password", "/menu", "/history", "/profile",
-        "/admin", "/admin/orders", "/admin/reservations", "/admin/reservation-reviews",
-        "/admin/customer-history", "/admin/deposit-policies", "/admin/analytics",
-        "/reservation", "/dat-su-kien", "/reservation-lookup", "/admin/categories", "/admin/tables",
-        "/admin/table-areas", "/admin/staff", "/admin/posts", "/dine-in", "/kitchen",
-        "/waiter", "/staff", "/admin/ingredients", "/admin/activity-log",
-        "/admin/popular-items", "/admin/purchase-suggestions", "/admin/vouchers", "/cashier"
-    };
-
     @Bean
     public HttpMessageConverter<String> responseBodyStringConverter() {
         return new StringHttpMessageConverter(StandardCharsets.UTF_8);
@@ -61,7 +50,7 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addViewControllers(ViewControllerRegistry registry) {
         // Forward only explicitly listed SPA routes to index.html
-        for (String route : SPA_ROUTES) {
+        for (String route : SpaRouteRegistry.ROUTES) {
             registry.addViewController(route).setViewName("forward:/index.html");
         }
     }

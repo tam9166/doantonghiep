@@ -4,9 +4,12 @@ import java.math.BigDecimal;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
+import java.util.Date;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import poly.edu.quanlynhahang.entity.DepositStatus;
 import poly.edu.quanlynhahang.entity.PaymentDirection;
@@ -37,6 +40,7 @@ public class PaymentLedgerService {
     private final ReservationRealtimeService realtimeService;
     private final ActivityLogService activityLogService;
     private final OrderPaymentService orderPaymentService;
+    private final SqlServerApplicationLockService applicationLockService;
 
     public PaymentLedgerService(PaymentIntentRepository intentRepository,
                                 PaymentTransactionRepository transactionRepository,
@@ -44,7 +48,8 @@ public class PaymentLedgerService {
                                 ReservationStateMachine stateMachine,
                                 ReservationRealtimeService realtimeService,
                                 ActivityLogService activityLogService,
-                                OrderPaymentService orderPaymentService) {
+                                OrderPaymentService orderPaymentService,
+                                SqlServerApplicationLockService applicationLockService) {
         this.intentRepository = intentRepository;
         this.transactionRepository = transactionRepository;
         this.reservationRepository = reservationRepository;
@@ -52,6 +57,7 @@ public class PaymentLedgerService {
         this.realtimeService = realtimeService;
         this.activityLogService = activityLogService;
         this.orderPaymentService = orderPaymentService;
+        this.applicationLockService = applicationLockService;
     }
 
     @Transactional
@@ -62,6 +68,12 @@ public class PaymentLedgerService {
                                             BigDecimal amount,
                                             String receiverAccount,
                                             String payloadHash) {
+        int lockResult = applicationLockService.acquireExclusive(
+                "payment-credit:" + provider + ":" + providerTransactionId, 10_000);
+        if (lockResult < 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Giao dịch đang được xử lý, vui lòng thử lại");
+        }
         PaymentTransaction duplicate = transactionRepository
                 .findByProviderTransactionId(providerTransactionId)
                 .orElse(null);
@@ -85,7 +97,14 @@ public class PaymentLedgerService {
         transaction.setAggregateType(intent.getAggregateType());
         transaction.setAggregateId(intent.getAggregateId());
 
+        boolean expiredByTime = intent.getExpiresAt() != null && !intent.getExpiresAt().after(new Date());
+        if (expiredByTime && "ORDER".equals(intent.getAggregateType())) {
+            intent.setStatus(PaymentStatus.EXPIRED);
+            intentRepository.save(intent);
+            orderPaymentService.expireInventoryHold(intent.getAggregateId().intValue());
+        }
         if (!matchesSnapshot(intent, transferContent, receiverAccount)
+                || expiredByTime
                 || PaymentStatus.REPLACED.equals(intent.getStatus())
                 || PaymentStatus.EXPIRED.equals(intent.getStatus())
                 || PaymentStatus.CANCELLED.equals(intent.getStatus())

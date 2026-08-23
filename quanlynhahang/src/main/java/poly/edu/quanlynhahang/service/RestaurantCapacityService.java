@@ -8,6 +8,7 @@ import poly.edu.quanlynhahang.entity.ReservationStatus;
 import poly.edu.quanlynhahang.repository.ReservationRepository;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.EnumSet;
 
@@ -32,9 +33,10 @@ public class RestaurantCapacityService {
     /** Called inside the booking transaction; locking the singleton setting row serializes capacity decisions. */
     public void requireCapacity(LocalDate date, LocalTime start, int durationMinutes, int requestedGuests) {
         int maximum = Integer.parseInt(settings.lockCapacitySetting().getValue().trim());
-        LocalTime end = start.plusMinutes(durationMinutes + CLEANUP_MINUTES);
-        int occupied = reservations.findByReservationDateAndReservationStatusIn(date, BLOCKING).stream()
-                .filter(existing -> overlaps(start, end, existing))
+        LocalDateTime requestedStart = LocalDateTime.of(date, start);
+        LocalDateTime requestedEnd = requestedStart.plusMinutes(durationMinutes + CLEANUP_MINUTES);
+        int occupied = candidates(date).stream()
+                .filter(existing -> overlaps(requestedStart, requestedEnd, existing))
                 .mapToInt(Reservation::getGuestCount)
                 .sum();
         int remaining = Math.max(0, maximum - occupied);
@@ -48,9 +50,11 @@ public class RestaurantCapacityService {
 
     public CapacitySnapshot checkCapacity(LocalDate date, LocalTime start, int durationMinutes, int requestedGuests) {
         int maximum = settings.maxCapacity();
-        LocalTime end = start.plusMinutes(durationMinutes + CLEANUP_MINUTES);
-        int occupied = reservations.findByReservationDateAndReservationStatusIn(date, BLOCKING).stream()
-                .filter(existing -> overlaps(start, end, existing)).mapToInt(Reservation::getGuestCount).sum();
+        LocalDateTime requestedStart = LocalDateTime.of(date, start);
+        LocalDateTime requestedEnd = requestedStart.plusMinutes(durationMinutes + CLEANUP_MINUTES);
+        int occupied = candidates(date).stream()
+                .filter(existing -> overlaps(requestedStart, requestedEnd, existing))
+                .mapToInt(Reservation::getGuestCount).sum();
         int remaining = Math.max(0, maximum - occupied);
         return new CapacitySnapshot(requestedGuests <= remaining, maximum, occupied, remaining, requestedGuests, date, start, durationMinutes);
     }
@@ -58,9 +62,18 @@ public class RestaurantCapacityService {
     public record CapacitySnapshot(boolean available, int maximumCapacity, int occupiedGuests, int remainingCapacity,
                                    int requestedGuests, LocalDate date, LocalTime startTime, int durationMinutes) {}
 
-    private boolean overlaps(LocalTime start, LocalTime end, Reservation existing) {
-        LocalTime otherStart = existing.getArrivalTime();
-        LocalTime otherEnd = otherStart.plusMinutes(existing.getExpectedDurationMinutes() + CLEANUP_MINUTES);
+    private java.util.List<Reservation> candidates(LocalDate date) {
+        java.util.List<Reservation> result = new java.util.ArrayList<>(
+                reservations.findByReservationDateAndReservationStatusIn(date.minusDays(1), BLOCKING));
+        result.addAll(reservations.findByReservationDateAndReservationStatusIn(date, BLOCKING));
+        return result;
+    }
+
+    private boolean overlaps(LocalDateTime start, LocalDateTime end, Reservation existing) {
+        LocalDateTime otherStart = LocalDateTime.of(
+                existing.getReservationDate(), existing.getArrivalTime());
+        LocalDateTime otherEnd = otherStart.plusMinutes(
+                existing.getExpectedDurationMinutes() + CLEANUP_MINUTES);
         return start.isBefore(otherEnd) && end.isAfter(otherStart);
     }
 }

@@ -9,12 +9,15 @@ import axios from 'axios'
 import router from '@/router'
 import { captchaActionForRequest, executeCaptcha } from './captcha'
 import {
+  AUTH_CONTEXT,
   clearCustomerSession,
   clearStaffSession,
+  getActiveAuthContext,
   getCustomerToken,
   getCustomerUser,
   getStaffToken
 } from './session'
+import { isStaffWorkspacePath } from '@/router/roleAccess'
 
 // Only this client is allowed to talk to the restaurant backend. Keeping the
 // base URL explicit prevents the authenticated interceptor from being reused
@@ -64,12 +67,7 @@ function isStaffRequest(config) {
   }
 
   const currentPath = router.currentRoute.value.path
-  return currentPath.startsWith('/admin')
-    || currentPath.startsWith('/kitchen')
-    || currentPath.startsWith('/waiter')
-    || currentPath.startsWith('/cashier')
-    || currentPath === '/staff'
-    || (currentPath === '/change-password' && Boolean(localStorage.getItem('staff_token')))
+  return isStaffWorkspacePath(currentPath, getActiveAuthContext() === AUTH_CONTEXT.STAFF)
 }
 
 async function attachAuthAndCaptcha(config) {
@@ -137,7 +135,7 @@ api.interceptors.response.use(
 // ========== HELPER FUNCTIONS ==========
 
 /**
- * Lấy thông tin user hiện tại từ localStorage
+ * Lấy thông tin user hiện tại từ phiên của cửa sổ hiện tại.
  */
 export function getCurrentUser() {
   return getCustomerUser()

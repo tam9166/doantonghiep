@@ -50,6 +50,12 @@ import poly.edu.quanlynhahang.entity.Recipe;
 import poly.edu.quanlynhahang.service.OrderCheckoutService;
 import poly.edu.quanlynhahang.service.KitchenOrderDetailService;
 import poly.edu.quanlynhahang.service.CustomerInvoiceEmailService;
+import poly.edu.quanlynhahang.service.TableSessionService;
+import poly.edu.quanlynhahang.service.OrderStateMachineService;
+import poly.edu.quanlynhahang.service.OrderFinancialMutationGuardService;
+import poly.edu.quanlynhahang.service.TableLifecycleService;
+import poly.edu.quanlynhahang.entity.OrderStatus;
+import poly.edu.quanlynhahang.entity.OrderType;
 
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.slf4j.Logger;
@@ -71,6 +77,10 @@ public class OrderController {
     @Autowired private OrderCheckoutService orderCheckoutService;
     @Autowired private KitchenOrderDetailService kitchenOrderDetailService;
     @Autowired private CustomerInvoiceEmailService customerInvoiceEmailService;
+    @Autowired private TableSessionService tableSessionService;
+    @Autowired private OrderStateMachineService orderStateMachineService;
+    @Autowired private OrderFinancialMutationGuardService orderFinancialMutationGuardService;
+    @Autowired private TableLifecycleService tableLifecycleService;
 
     @GetMapping("/history")
     public ResponseEntity<?> getMyOrders() {
@@ -106,11 +116,28 @@ public class OrderController {
     }
 
     @PostMapping("/checkout")
-    public ResponseEntity<?> checkout(@Valid @RequestBody OrderRequest orderRequest) {
+    public ResponseEntity<?> checkout(@Valid @RequestBody OrderRequest orderRequest,
+                                      @RequestHeader(value = "X-Table-Session-Token", required = false) String tableSessionToken) {
+        if (OrderType.DINE_IN.equals(orderRequest.getOrderType())) {
+            if (tableSessionToken != null && !tableSessionToken.isBlank()) {
+                tableSessionService.requireForTable(tableSessionToken, orderRequest.getTableId());
+            } else if (!hasOperationalStaffRole()) {
+                throw new org.springframework.web.server.ResponseStatusException(
+                        HttpStatus.UNAUTHORIZED, "Đơn tại bàn phải được tạo từ mã QR hợp lệ");
+            }
+        }
         String username = SecurityContextHolder.getContext().getAuthentication() == null
                 ? null
                 : SecurityContextHolder.getContext().getAuthentication().getName();
         return ResponseEntity.ok(orderCheckoutService.checkout(orderRequest, username));
+    }
+
+    private boolean hasOperationalStaffRole() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        return authentication != null && authentication.getAuthorities().stream()
+                .map(authority -> authority.getAuthority())
+                .anyMatch(role -> role.equals("ROLE_WAITER") || role.equals("ROLE_CASHIER")
+                        || role.equals("ROLE_MANAGER") || role.equals("ROLE_ADMIN"));
     }
 
     @PutMapping("/{id}/add-items")
@@ -173,12 +200,13 @@ public class OrderController {
         if (payload.fromTableId().equals(payload.toTableId())) {
             return ResponseEntity.badRequest().body("Source and destination tables must differ.");
         }
-        RestaurantTable fromTable = tableRepository.findById(payload.fromTableId())
-                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Không tìm thấy bàn nguồn."));
-        RestaurantTable toTable = tableRepository.findById(payload.toTableId())
-                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Không tìm thấy bàn đích."));
+        Map<Integer, RestaurantTable> lockedTables = lockTables(payload.fromTableId(), payload.toTableId());
+        RestaurantTable fromTable = lockedTables.get(payload.fromTableId());
+        RestaurantTable toTable = lockedTables.get(payload.toTableId());
+        if (Boolean.FALSE.equals(toTable.getActive())) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.CONFLICT, "Bàn đích đang ngừng hoạt động");
+        }
 
         Optional<Order> sourceOrderOpt = orderRepository
                 .findOpenDineInOrdersByTableIdWithDetails(fromTable.getId()).stream().findFirst();
@@ -192,8 +220,11 @@ public class OrderController {
             return ResponseEntity.badRequest().body("Bàn đích không có hóa đơn nào đang mở! Vui lòng order món cho bàn đích trước.");
         }
         
-        Order sourceOrder = sourceOrderOpt.get();
-        Order targetOrder = targetOrderOpt.get();
+        Map<Integer, Order> lockedOrders = lockOrders(
+                sourceOrderOpt.get().getId(), targetOrderOpt.get().getId());
+        Order sourceOrder = lockedOrders.get(sourceOrderOpt.get().getId());
+        Order targetOrder = lockedOrders.get(targetOrderOpt.get().getId());
+        orderFinancialMutationGuardService.requireSafeForTableComposition(sourceOrder, targetOrder);
         
         // Chuyển toàn bộ món từ hóa đơn cũ sang hóa đơn mới
         BigDecimal transferSub = BigDecimal.ZERO;
@@ -212,16 +243,22 @@ public class OrderController {
         targetOrder.setSubTotal(targetSubTotal);
         targetOrder.setTaxAmount(targetTaxAmount);
         targetOrder.setTotalAmount(targetSubTotal.add(targetTaxAmount));
+        targetOrder.setRemainingAmount(targetOrder.getTotalAmount().setScale(0, RoundingMode.HALF_UP));
         orderRepository.save(targetOrder);
         
         // Hủy hóa đơn cũ
-        sourceOrder.setStatus(3);
+        sourceOrder.setSubTotal(BigDecimal.ZERO.setScale(2));
+        sourceOrder.setTaxAmount(BigDecimal.ZERO.setScale(2));
+        sourceOrder.setTotalAmount(BigDecimal.ZERO.setScale(2));
+        sourceOrder.setRemainingAmount(BigDecimal.ZERO);
+        orderStateMachineService.transition(sourceOrder, OrderStatus.CANCELLED);
         orderRepository.save(sourceOrder);
         
         // Đánh dấu bàn cũ là Đã Ghép thay vì Trống
         fromTable.setIsOccupied(5);
         fromTable.setReservedTime("[GHÉP VỚI: " + toTable.getName() + "]");
         tableRepository.save(fromTable);
+        tableSessionService.revokeActiveForTable(fromTable.getId());
             
         messagingTemplate.convertAndSend("/topic/orders", "TABLE_MERGED");
         
@@ -235,12 +272,13 @@ public class OrderController {
         if (payload.fromTableId().equals(payload.toTableId())) {
             return ResponseEntity.badRequest().body("Source and destination tables must differ.");
         }
-        RestaurantTable fromTable = tableRepository.findById(payload.fromTableId())
-                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Không tìm thấy bàn nguồn."));
-        RestaurantTable toTable = tableRepository.findById(payload.toTableId())
-                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Không tìm thấy bàn đích."));
+        Map<Integer, RestaurantTable> lockedTables = lockTables(payload.fromTableId(), payload.toTableId());
+        RestaurantTable fromTable = lockedTables.get(payload.fromTableId());
+        RestaurantTable toTable = lockedTables.get(payload.toTableId());
+        if (Boolean.FALSE.equals(toTable.getActive())) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.CONFLICT, "Bàn đích đang ngừng hoạt động");
+        }
         List<Integer> detailIds = payload.detailIds();
 
         Optional<Order> sourceOrderOpt = orderRepository
@@ -250,49 +288,61 @@ public class OrderController {
             return ResponseEntity.badRequest().body("Bàn nguồn không có hóa đơn nào đang mở!");
         }
 
-        Order sourceOrder = sourceOrderOpt.get();
+        Order sourceOrder = orderRepository.findLockedById(sourceOrderOpt.get().getId()).orElseThrow();
         
         // Cố gắng tìm Order của bàn đích
         Optional<Order> targetOrderOpt = orderRepository
                 .findOpenDineInOrdersByTableIdWithDetails(toTable.getId()).stream().findFirst();
         
-        Order targetOrder;
         if (targetOrderOpt.isPresent()) {
-            targetOrder = targetOrderOpt.get();
-        } else {
-            // Tạo Order mới cho bàn đích
-            String uniqueOrderCode = generateUnique4DigitCode();
-            targetOrder = new Order();
-            targetOrder.setAccount(sourceOrder.getAccount()); // copy account
-            targetOrder.setTableId(toTable.getId());
-            targetOrder.setOrderType(poly.edu.quanlynhahang.entity.OrderType.DINE_IN);
-            targetOrder.setAddress(null);
-            targetOrder.setCreateDate(new Date());
-            targetOrder.setStatus(sourceOrder.getStatus()); // copy status
-            targetOrder = orderRepository.save(targetOrder);
-            
-            // Cập nhật trạng thái bàn đích
-            final String fUniqueOrderCode = uniqueOrderCode;
-            toTable.setIsOccupied(2);
-            toTable.setReservedTime("Đơn: #" + fUniqueOrderCode);
-            tableRepository.save(toTable);
+            throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.CONFLICT, "Bàn đích đang có đơn mở, không thể tách thêm vào bàn này");
+        }
+        // Tạo Order mới cho bàn đích
+        String uniqueOrderCode = generateUnique4DigitCode();
+        Order targetOrder = new Order();
+        targetOrder.setOrderCode("ORD-" + java.util.UUID.randomUUID().toString()
+                .substring(0, 12).toUpperCase(java.util.Locale.ROOT));
+        targetOrder.setAccount(sourceOrder.getAccount()); // copy account
+        targetOrder.setTableId(toTable.getId());
+        targetOrder.setOrderType(poly.edu.quanlynhahang.entity.OrderType.DINE_IN);
+        targetOrder.setAddress(null);
+        targetOrder.setCreateDate(new Date());
+        orderStateMachineService.initializeFrom(targetOrder, sourceOrder);
+        targetOrder = orderRepository.save(targetOrder);
+
+        // Cập nhật trạng thái bàn đích
+        final String fUniqueOrderCode = uniqueOrderCode;
+        toTable.setIsOccupied(2);
+        toTable.setReservedTime("Đơn: #" + fUniqueOrderCode);
+        tableRepository.save(toTable);
+        orderFinancialMutationGuardService.requireSafeForTableComposition(sourceOrder, targetOrder);
+
+        java.util.Set<Integer> uniqueDetailIds = new java.util.LinkedHashSet<>(detailIds);
+        if (uniqueDetailIds.size() != detailIds.size()) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Danh sách món tách bàn có ID trùng lặp");
+        }
+        List<OrderDetail> selectedDetails = orderDetailRepository.findAllById(uniqueDetailIds);
+        if (selectedDetails.size() != uniqueDetailIds.size()) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Danh sách món tách bàn chứa ID không tồn tại");
+        }
+        if (selectedDetails.stream().anyMatch(detail -> detail.getOrder() == null
+                || !sourceOrder.getId().equals(detail.getOrder().getId()))) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.CONFLICT, "Tất cả món được chọn phải thuộc đơn của bàn nguồn");
         }
         
         final Order finalTargetOrder = targetOrder;
         BigDecimal moveSub = BigDecimal.ZERO;
         BigDecimal moveTax = BigDecimal.ZERO;
         // Di chuyển các order detail
-        for (Integer detailId : detailIds) {
-            Optional<OrderDetail> detailOpt = orderDetailRepository.findById(detailId);
-            if (detailOpt.isPresent()) {
-                OrderDetail detail = detailOpt.get();
-                if (detail.getOrder().getId().equals(sourceOrder.getId())) {
-                    detail.setOrder(finalTargetOrder);
-                    orderDetailRepository.save(detail);
-                    moveSub = moveSub.add(money(detail.getPrice()));
-                    moveTax = moveTax.add(money(detail.getTaxAmount()));
-                }
-            }
+        for (OrderDetail detail : selectedDetails) {
+            detail.setOrder(finalTargetOrder);
+            orderDetailRepository.save(detail);
+            moveSub = moveSub.add(money(detail.getPrice()));
+            moveTax = moveTax.add(money(detail.getTaxAmount()));
         }
         
         BigDecimal sourceSubTotal = money(sourceOrder.getSubTotal()).subtract(moveSub).max(BigDecimal.ZERO);
@@ -300,6 +350,7 @@ public class OrderController {
         sourceOrder.setSubTotal(sourceSubTotal);
         sourceOrder.setTaxAmount(sourceTaxAmount);
         sourceOrder.setTotalAmount(sourceSubTotal.add(sourceTaxAmount));
+        sourceOrder.setRemainingAmount(sourceOrder.getTotalAmount().setScale(0, RoundingMode.HALF_UP));
         orderRepository.save(sourceOrder);
         
         BigDecimal finalTargetSubTotal = money(finalTargetOrder.getSubTotal()).add(moveSub);
@@ -307,19 +358,16 @@ public class OrderController {
         finalTargetOrder.setSubTotal(finalTargetSubTotal);
         finalTargetOrder.setTaxAmount(finalTargetTaxAmount);
         finalTargetOrder.setTotalAmount(finalTargetSubTotal.add(finalTargetTaxAmount));
+        finalTargetOrder.setRemainingAmount(finalTargetOrder.getTotalAmount().setScale(0, RoundingMode.HALF_UP));
         orderRepository.save(finalTargetOrder);
 
         // Nếu bàn nguồn không còn OrderDetail nào, thì Hủy order đó và giải phóng bàn
-        long remainingItems = orderDetailRepository.findAll().stream()
-            .filter(d -> d.getOrder().getId().equals(sourceOrder.getId()))
-            .count();
+        long remainingItems = orderDetailRepository.countByOrderId(sourceOrder.getId());
             
         if (remainingItems == 0) {
-            sourceOrder.setStatus(3); // Hủy
+            orderStateMachineService.transition(sourceOrder, OrderStatus.CANCELLED);
             orderRepository.save(sourceOrder);
-            fromTable.setIsOccupied(0);
-            fromTable.setReservedTime(null);
-            tableRepository.save(fromTable);
+            tableLifecycleService.release(fromTable.getId());
         }
 
         messagingTemplate.convertAndSend("/topic/orders", "TABLE_SPLIT");
@@ -333,44 +381,15 @@ public class OrderController {
         if (status == null || status < 0 || status > 2) {
             return ResponseEntity.badRequest().body("Invalid dish status.");
         }
-        return orderDetailRepository.findById(detailId).map(detail -> {
-            if (status == 1 && detail.getStartedAt() == null) {
-                return ResponseEntity.status(409).body("Món phải được bếp bắt đầu chế biến trước khi hoàn thành.");
-            }
-            if (status == 2 && (!Integer.valueOf(1).equals(detail.getStatus()) || detail.getCompletedAt() == null)) {
-                return ResponseEntity.status(409).body("Phục vụ chỉ được bưng món đã được bếp hoàn thành.");
-            }
-            detail.setStatus(status);
-            orderDetailRepository.save(detail);
-
-            Order order = detail.getOrder();
-            if (order != null) {
-                boolean allDone = true;
-                boolean anyReady = false;
-                if (order.getOrderDetails() != null) {
-                    for (OrderDetail d : order.getOrderDetails()) {
-                        if (d.getStatus() == null || d.getStatus() == 0) {
-                            allDone = false;
-                        }
-                        if (d.getStatus() != null && d.getStatus() == 1) {
-                            anyReady = true;
-                        }
-                    }
-                }
-                
-                if (allDone && (order.getStatus() == 1 || order.getStatus() == 6)) {
-                    order.setStatus(2); // Cả bàn đã xong, chờ bưng
-                    orderRepository.save(order);
-                } else if (anyReady && order.getStatus() == 1) {
-                    order.setStatus(6); // Đang nấu (có món xong trước)
-                    orderRepository.save(order);
-                }
-
-                messagingTemplate.convertAndSend("/topic/waiter", "DISH_STATUS_CHANGED");
-                messagingTemplate.convertAndSend("/topic/kitchen", "DISH_STATUS_CHANGED");
-            }
-            return ResponseEntity.ok("Cập nhật món thành công!");
-        }).orElse(ResponseEntity.badRequest().body("Lỗi không tìm thấy món!"));
+        if (status == 1) {
+            kitchenOrderDetailService.complete(detailId);
+        } else if (status == 2) {
+            kitchenOrderDetailService.serve(detailId);
+        } else {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body("Không được đưa món quay lại trạng thái chờ qua endpoint này.");
+        }
+        return ResponseEntity.ok("Cập nhật món thành công!");
     }
 
     private String generateSecureOrderCode() {
@@ -404,12 +423,31 @@ public class OrderController {
     @PutMapping("/details/{detailId}/kitchen/cancel")
     @PreAuthorize("hasAnyRole('KITCHEN', 'MANAGER', 'ADMIN')")
     public ResponseEntity<?> cancelKitchenDish(@PathVariable Integer detailId,
-                                                @Valid @RequestBody KitchenDishCancelRequest request) {
+                                                @Valid @RequestBody KitchenDishCancelRequest request,
+                                                org.springframework.security.core.Authentication authentication) {
         return ResponseEntity.ok(poly.edu.quanlynhahang.dto.OrderDetailResponse
-                .from(kitchenOrderDetailService.cancel(detailId, request.reason())));
+                .from(kitchenOrderDetailService.cancel(detailId, request.reason(), authentication.getName())));
     }
 
     private static BigDecimal money(BigDecimal value) {
         return (value == null ? BigDecimal.ZERO : value).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private Map<Integer, RestaurantTable> lockTables(Integer firstId, Integer secondId) {
+        List<RestaurantTable> tables = tableRepository.findLockedByIdIn(List.of(firstId, secondId));
+        if (tables.size() != 2) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.NOT_FOUND, "Không tìm thấy bàn nguồn hoặc bàn đích.");
+        }
+        return tables.stream().collect(java.util.stream.Collectors.toMap(RestaurantTable::getId, table -> table));
+    }
+
+    private Map<Integer, Order> lockOrders(Integer firstId, Integer secondId) {
+        List<Order> orders = orderRepository.findLockedByIdIn(List.of(firstId, secondId));
+        if (orders.size() != 2) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.CONFLICT, "Đơn tại bàn đã thay đổi, vui lòng tải lại.");
+        }
+        return orders.stream().collect(java.util.stream.Collectors.toMap(Order::getId, order -> order));
     }
 }

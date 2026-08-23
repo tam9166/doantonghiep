@@ -105,4 +105,22 @@ class RestaurantBusinessHoursServiceTest {
         assertEquals(LocalTime.of(22, 0), service.getClosingTime());
         assertEquals(LocalTime.of(21, 30), service.getLastOrderTime());
     }
+
+    @Test
+    void validatesCompleteWaitlistWindowAgainstConfiguredHours() {
+        assertTrue(service.isServiceWindow(LocalTime.of(9, 0), LocalTime.of(11, 0)));
+        assertTrue(service.isServiceWindow(LocalTime.of(20, 0), LocalTime.of(22, 0)));
+        assertFalse(service.isServiceWindow(LocalTime.of(8, 59), LocalTime.of(10, 0)));
+        assertFalse(service.isServiceWindow(LocalTime.of(21, 0), LocalTime.of(22, 1)));
+    }
+
+    @Test
+    void validatesOvernightServiceWindow() {
+        ReflectionTestUtils.setField(service, "openingTime", LocalTime.of(23, 0));
+        ReflectionTestUtils.setField(service, "closingTime", LocalTime.of(6, 0));
+
+        assertTrue(service.isServiceWindow(LocalTime.of(23, 30), LocalTime.of(1, 30)));
+        assertTrue(service.isServiceWindow(LocalTime.of(4, 0), LocalTime.of(6, 0)));
+        assertFalse(service.isServiceWindow(LocalTime.of(22, 0), LocalTime.of(1, 0)));
+    }
 }

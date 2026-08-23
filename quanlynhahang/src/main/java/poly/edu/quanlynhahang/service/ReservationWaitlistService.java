@@ -8,17 +8,19 @@ import poly.edu.quanlynhahang.dto.WaitlistActionRequest;
 import poly.edu.quanlynhahang.dto.WaitlistRequest;
 import poly.edu.quanlynhahang.dto.WaitlistResponse;
 import poly.edu.quanlynhahang.entity.ReservationWaitlist;
+import poly.edu.quanlynhahang.entity.Reservation;
 import poly.edu.quanlynhahang.entity.TableArea;
 import poly.edu.quanlynhahang.entity.WaitlistStatus;
 import poly.edu.quanlynhahang.repository.ReservationWaitlistRepository;
+import poly.edu.quanlynhahang.repository.ReservationRepository;
 import poly.edu.quanlynhahang.repository.TableAreaRepository;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 import java.util.regex.Pattern;
 
 @Service
@@ -26,22 +28,25 @@ public class ReservationWaitlistService {
     private static final Pattern PHONE_PATTERN = Pattern.compile("^(0|\\+84)(3|5|7|8|9)[0-9]{8}$");
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}$", Pattern.CASE_INSENSITIVE);
     private static final Pattern UNSAFE_TEXT_PATTERN = Pattern.compile("(?i)<\\s*script|javascript:|onerror\\s*=|onload\\s*=");
-    private static final LocalTime OPEN_TIME = LocalTime.of(9, 0);
-    private static final LocalTime CLOSE_TIME = LocalTime.of(22, 0);
-
     private final ReservationWaitlistRepository waitlistRepository;
+    private final ReservationRepository reservationRepository;
     private final TableAreaRepository areaRepository;
     private final NotificationService notificationService;
     private final ActivityLogService activityLogService;
+    private final RestaurantBusinessHoursService businessHoursService;
 
     public ReservationWaitlistService(ReservationWaitlistRepository waitlistRepository,
+                                      ReservationRepository reservationRepository,
                                       TableAreaRepository areaRepository,
                                       NotificationService notificationService,
-                                      ActivityLogService activityLogService) {
+                                      ActivityLogService activityLogService,
+                                      RestaurantBusinessHoursService businessHoursService) {
         this.waitlistRepository = waitlistRepository;
+        this.reservationRepository = reservationRepository;
         this.areaRepository = areaRepository;
         this.notificationService = notificationService;
         this.activityLogService = activityLogService;
+        this.businessHoursService = businessHoursService;
     }
 
     @Transactional
@@ -108,13 +113,41 @@ public class ReservationWaitlistService {
     public WaitlistResponse convert(Long id, WaitlistActionRequest request) {
         ReservationWaitlist entry = find(id);
         ensureWaitingOrContacted(entry);
+        String reservationCode = limit(trimToNull(
+                request == null ? null : request.getLinkedReservationCode()), 30);
+        if (reservationCode == null) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Vui lòng nhập mã đặt bàn đã tạo cho khách");
+        }
+        Reservation reservation = reservationRepository.findLockedByReservationCode(reservationCode)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Không tìm thấy mã đặt bàn liên kết"));
+        validateLinkedReservation(entry, reservation);
+        waitlistRepository.findByLinkedReservationCode(reservationCode)
+                .filter(existing -> !existing.getId().equals(entry.getId()))
+                .ifPresent(existing -> {
+                    throw new ResponseStatusException(HttpStatus.CONFLICT,
+                            "Đặt bàn này đã được liên kết với một yêu cầu chờ khác");
+                });
         entry.setStatus(WaitlistStatus.CONVERTED);
-        entry.setLinkedReservationCode(limit(trimToNull(request == null ? null : request.getLinkedReservationCode()), 30));
+        entry.setLinkedReservationCode(reservationCode);
         entry.setManagerNote(limit(trimToNull(request == null ? null : request.getNote()), 500));
         entry.setUpdatedAt(new Date());
         activityLogService.log("UPDATE", "ReservationWaitlist", String.valueOf(entry.getId()),
                 "Chuyển danh sách chờ thành đặt bàn " + entry.getWaitlistCode());
         return toResponse(waitlistRepository.save(entry), true);
+    }
+
+    private void validateLinkedReservation(ReservationWaitlist entry, Reservation reservation) {
+        boolean sameCustomer = entry.getCustomerPhone().equals(reservation.getCustomerPhone());
+        boolean sameDate = entry.getReservationDate().equals(reservation.getReservationDate());
+        boolean sameGuests = entry.getGuestCount().equals(reservation.getGuestCount());
+        boolean sameArea = entry.getArea() == null
+                || (reservation.getArea() != null && entry.getArea().getId().equals(reservation.getArea().getId()));
+        if (!sameCustomer || !sameDate || !sameGuests || !sameArea) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Đặt bàn không khớp khách, ngày, số người hoặc khu vực của yêu cầu chờ");
+        }
     }
 
     @Transactional
@@ -130,7 +163,7 @@ public class ReservationWaitlistService {
     }
 
     private ReservationWaitlist find(Long id) {
-        return waitlistRepository.findById(id).orElseThrow(() -> notFound());
+        return waitlistRepository.findLockedById(id).orElseThrow(() -> notFound());
     }
 
     private void ensureWaitingOrContacted(ReservationWaitlist entry) {
@@ -161,8 +194,9 @@ public class ReservationWaitlistService {
         if (date.isBefore(LocalDate.now())) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Ngày đặt bàn không được ở quá khứ");
         }
-        if (start.isBefore(OPEN_TIME) || end.isAfter(CLOSE_TIME) || !end.isAfter(start)) {
-            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Khung giờ chờ phải nằm trong giờ mở cửa");
+        if (!businessHoursService.isServiceWindow(start, end)) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Khung giờ chờ phải nằm trong giờ mở cửa " + businessHoursService.getFormattedHours());
         }
         int guests = request.getGuestCount() == null ? 0 : request.getGuestCount();
         if (guests < 1 || guests > 30) {
@@ -177,8 +211,12 @@ public class ReservationWaitlistService {
     }
 
     private String generateCode(LocalDate date) {
-        long count = waitlistRepository.countByReservationDate(date) + 1;
-        return "WL" + date.format(DateTimeFormatter.BASIC_ISO_DATE) + "-" + String.format(Locale.ROOT, "%03d", count);
+        for (int attempt = 0; attempt < 5; attempt++) {
+            String code = "WL" + date.toString().replace("-", "") + "-"
+                    + UUID.randomUUID().toString().substring(0, 10).toUpperCase(Locale.ROOT);
+            if (waitlistRepository.findByWaitlistCode(code).isEmpty()) return code;
+        }
+        throw new ResponseStatusException(HttpStatus.CONFLICT, "Không thể cấp mã danh sách chờ, vui lòng thử lại");
     }
 
     private WaitlistResponse toResponse(ReservationWaitlist entry, boolean includePrivate) {

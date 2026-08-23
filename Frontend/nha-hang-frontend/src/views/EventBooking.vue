@@ -53,7 +53,7 @@
             type="date"
             required /></label
         ><label
-          >Giờ<input v-model="form.arrivalTime" type="time" required /></label
+          >Giờ<input v-model="form.arrivalTime" type="time" :min="businessHours.openingTime" :max="latestArrivalTime" required /></label
         ><label
           >Số giờ thuê<input
             v-model.number="form.durationHours"
@@ -101,6 +101,15 @@
           Tiền cọc cần thanh toán:
           <strong>{{ money(result.depositAmount) }}</strong>
         </p>
+        <article v-if="paymentQr" class="event-payment-qr">
+          <div>
+            <h3>QR thanh toán tiền cọc</h3>
+            <p>Nội dung: <strong>{{ paymentQr.transferContent }}</strong></p>
+            <p>Hết hạn: {{ new Date(paymentQr.expiresAt).toLocaleString('vi-VN') }}</p>
+          </div>
+          <img :src="paymentQr.qrUrl" alt="QR thanh toán tiền cọc sự kiện" />
+        </article>
+        <p v-if="paymentError" class="error">{{ paymentError }}</p>
         <RouterLink :to="`/reservation-lookup?code=${result.reservationCode}`"
           >Theo dõi yêu cầu</RouterLink
         >
@@ -112,6 +121,8 @@
 import { computed, onMounted, ref } from "vue";
 import { RouterLink } from "vue-router";
 import api from "@/services/api";
+import { toBusinessDate } from "@/utils/businessDate";
+import { minuteBefore } from "@/utils/businessHours";
 const form = ref({
   customerName: "",
   customerPhone: "",
@@ -119,7 +130,7 @@ const form = ref({
   areaId: null,
   eventType: "WEDDING",
   guestCount: 30,
-  reservationDate: new Date().toISOString().slice(0, 10),
+  reservationDate: toBusinessDate(),
   arrivalTime: "",
   durationHours: 4,
   decorationRequired: false,
@@ -133,6 +144,11 @@ const cart = ref([]);
 const error = ref("");
 const submitting = ref(false);
 const result = ref(null);
+const paymentQr = ref(null);
+const paymentError = ref("");
+const idempotencyKey = ref(crypto.randomUUID());
+const businessHours = ref({ openingTime: "09:00", lastOrderTime: "21:30" });
+const latestArrivalTime = computed(() => minuteBefore(businessHours.value.lastOrderTime));
 const halls = computed(() =>
   areas.value.filter(
     (a) => a.areaType === "EVENT_HALL" && a.status === "ACTIVE",
@@ -156,6 +172,11 @@ onMounted(async () => {
       sessionStorage.getItem("event-booking-draft") || "null",
     );
     if (draft) form.value = { ...form.value, ...draft };
+    const settings = (await api.get("/api/settings/public")).data || {};
+    businessHours.value = {
+      openingTime: settings.openingTime || businessHours.value.openingTime,
+      lastOrderTime: settings.lastOrderTime || businessHours.value.lastOrderTime,
+    };
     areas.value = (await api.get("/api/areas")).data || [];
     menu.value = (await api.get("/api/menu-items/preorder")).data || [];
   } catch {
@@ -163,6 +184,7 @@ onMounted(async () => {
   }
 });
 async function submit() {
+  if (submitting.value) return;
   submitting.value = true;
   error.value = "";
   try {
@@ -173,8 +195,29 @@ async function submit() {
           productId: x.productId,
           quantity: x.quantity,
         })),
+      }, {
+        headers: { 'X-Idempotency-Key': idempotencyKey.value }
       })
     ).data;
+    const capability = result.value.paymentCapabilityToken || "";
+    if (capability && result.value.reservationCode) {
+      sessionStorage.setItem(`reservation-capability:${result.value.reservationCode}`, capability);
+    }
+    if (capability && Number(result.value.depositAmount || 0) > 0) {
+      try {
+        paymentQr.value = (await api.post("/api/payments/qr", {
+          reservationCode: result.value.reservationCode,
+          paymentOption: result.value.paymentOption,
+        }, { headers: {
+          "X-Payment-Capability": capability,
+          "X-Idempotency-Key": crypto.randomUUID(),
+        } })).data;
+      } catch (paymentFailure) {
+        paymentError.value = paymentFailure.response?.data?.message
+          || "Yêu cầu đã được lưu nhưng chưa tạo được QR. Bạn có thể tạo QR tại trang theo dõi.";
+      }
+    }
+    idempotencyKey.value = crypto.randomUUID();
   } catch (e) {
     error.value = e.response?.data?.message || "Không thể gửi yêu cầu.";
   } finally {
@@ -343,6 +386,22 @@ button:disabled {
   border-radius: 10px;
   background: #fff7f6;
 }
+.event-payment-qr {
+  display: grid;
+  grid-template-columns: 1fr 190px;
+  gap: 18px;
+  align-items: center;
+  margin: 18px 0;
+  padding: 16px;
+  border: 1px solid var(--color-outline-variant);
+  border-radius: 10px;
+  background: var(--color-surface);
+}
+.event-payment-qr img {
+  width: 190px;
+  height: 190px;
+  object-fit: contain;
+}
 @media (max-width: 720px) {
   .hall-preview{grid-template-columns:1fr}
   .event-page {
@@ -354,6 +413,8 @@ button:disabled {
   form {
     grid-template-columns: 1fr;
   }
+  .event-payment-qr { grid-template-columns: 1fr; }
+  .event-payment-qr img { width: 100%; height: auto; }
   form > *,
   label:has(input[type="checkbox"]) {
     grid-column: 1 !important;

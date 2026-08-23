@@ -12,6 +12,7 @@ import poly.edu.quanlynhahang.entity.Account;
 import poly.edu.quanlynhahang.entity.ServiceZoneAssignment;
 import poly.edu.quanlynhahang.entity.Timekeeping;
 import poly.edu.quanlynhahang.entity.WorkSchedule;
+import poly.edu.quanlynhahang.entity.WorkShiftDefinition;
 import poly.edu.quanlynhahang.repository.AccountRepository;
 import poly.edu.quanlynhahang.repository.ServiceZoneAssignmentRepository;
 import poly.edu.quanlynhahang.repository.TimekeepingRepository;
@@ -139,7 +140,7 @@ class SelfServiceDataIsolationIntegrationTest {
         WorkSchedule schedule = new WorkSchedule();
         schedule.setAccount(account);
         schedule.setWorkDate(legacyDate);
-        schedule.setShift("Sáng");
+        schedule.applyShift(WorkShiftDefinition.MORNING);
         workScheduleRepository.save(schedule);
 
         ServiceZoneAssignment zone = new ServiceZoneAssignment();

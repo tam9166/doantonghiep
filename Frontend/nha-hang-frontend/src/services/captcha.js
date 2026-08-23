@@ -17,6 +17,9 @@ export function captchaActionForRequest(config) {
   if (method === 'POST' && path === '/api/reservations') {
     return 'reservation-create'
   }
+  if (method === 'POST' && path === '/api/event-bookings') {
+    return 'event-booking-create'
+  }
   if (method === 'POST' && path === '/api/reservation-waitlist') {
     return 'reservation-waitlist-create'
   }

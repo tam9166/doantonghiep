@@ -166,7 +166,7 @@ onUnmounted(() => {
 }
 
 .navbar-scrolled {
-  background: rgba(26, 23, 15, 0.92);
+  background: rgba(39, 23, 23, 0.92);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
@@ -175,13 +175,13 @@ onUnmounted(() => {
 }
 
 .navbar-transparent {
-  background: rgba(26, 23, 15, 0.72);
+  background: rgba(39, 23, 23, 0.72);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
 
 .app-navbar:not(.navbar-transparent):not(.navbar-scrolled) {
-  background: rgba(26, 23, 15, 0.85);
+  background: rgba(39, 23, 23, 0.85);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
 }
@@ -343,7 +343,7 @@ onUnmounted(() => {
 .mobile-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(26, 23, 15, 0.9);
+  background: rgba(39, 23, 23, 0.9);
   backdrop-filter: blur(20px);
   z-index: 999;
   display: flex;

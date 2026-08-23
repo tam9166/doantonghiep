@@ -17,7 +17,7 @@
           <button @click="activeTab = 'history'" :class="['tab-btn', { active: activeTab === 'history' }]">📜 Lịch Sử Hóa Đơn</button>
         </div>
         <button @click="openShiftModal" class="btn-primary" style="padding: 10px 20px; border-radius: 6px; font-weight: bold;">📋 Kết Ca</button>
-        <button @click="$router.push('/staff')" class="btn-profile" style="background:var(--warning); color:#FFFFFF; padding:10px 20px; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">👤 Cá Nhân</button>
+        <button @click="$router.push('/staff/profile')" class="btn-profile" style="background:var(--warning); color:#FFFFFF; padding:10px 20px; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">👤 Cá Nhân</button>
         <button @click="logout" class="btn-logout">Đăng Xuất</button>
       </div>
     </header>
@@ -70,7 +70,7 @@
             <hr />
             <h3>HÓA ĐƠN THANH TOÁN</h3>
             <p>Mã HĐ: #{{ selectedOrder.id }}</p>
-            <p>Bàn: {{ getTableName(selectedOrder.address) }}</p>
+            <p>Bàn: {{ getTableName(selectedOrder) }}</p>
             <p>Ngày: {{ new Date(selectedOrder.createDate).toLocaleString('vi-VN') }}</p>
           </div>
           <table class="invoice-table">
@@ -186,7 +186,7 @@
             <tr v-for="order in filteredHistoryOrders" :key="order.id" style="border-bottom: 1px solid var(--border-light); transition: 0.2s;">
               <td style="padding: 15px 10px;">#{{ order.id }}</td>
               <td style="padding: 15px 10px;">{{ new Date(order.createDate).toLocaleString('vi-VN') }}</td>
-              <td style="padding: 15px 10px;">{{ getTableName(order.address) }}</td>
+              <td style="padding: 15px 10px;">{{ getTableName(order) }}</td>
               <td style="padding: 15px 10px; font-weight: bold; color: var(--primary);">{{ calculateTotal(order).toLocaleString() }}đ</td>
               <td style="padding: 15px 10px; text-align: center;">
                 <button @click="viewHistoryInvoice(order)" style="padding: 6px 15px; border-radius: 6px; border: 1px solid var(--primary); background: transparent; color: var(--primary); cursor: pointer; font-weight: bold;">👁️ Xem Lại</button>
@@ -263,7 +263,7 @@
             <h2 style="margin: 0; font-size: 1.5rem;">Mộc Vị RESTAURANT</h2>
             <p style="margin: 5px 0 0; font-size: 0.9rem;">HÓA ĐƠN ĐÃ THANH TOÁN</p>
             <p style="margin: 5px 0 0; font-size: 0.8rem;">Ngày: {{ new Date(historySelectedOrder.createDate).toLocaleString('vi-VN') }}</p>
-            <p style="margin: 5px 0 0; font-size: 0.8rem;">Bàn: {{ getTableName(historySelectedOrder.address) }} | Mã HĐ: #{{ historySelectedOrder.id }}</p>
+            <p style="margin: 5px 0 0; font-size: 0.8rem;">Bàn: {{ getTableName(historySelectedOrder) }} | Mã HĐ: #{{ historySelectedOrder.id }}</p>
           </div>
           <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
             <thead>
@@ -307,6 +307,12 @@ import { Stomp } from '@stomp/stompjs';
 import TimekeepingWidget from '../components/TimekeepingWidget.vue';
 import { foodImage, replaceFoodImage } from '@/utils/imageFallback';
 import { clearStaffSession, getStaffToken, getStaffUser } from '@/services/session';
+import { useDialog } from '@/composables/useDialog';
+import { useToast } from '@/composables/useToast';
+import { printElement } from '@/utils/printElement';
+
+const { confirmDialog } = useDialog();
+const toast = useToast();
 
 const router = useRouter();
 const pendingOrders = ref([]);
@@ -344,7 +350,7 @@ const filteredHistoryOrders = computed(() => {
     const sq = searchQuery.value.toLowerCase();
     filtered = filtered.filter(o => 
       String(o.id).includes(sq) || 
-      (o.address && getTableName(o.address).toLowerCase().includes(sq))
+      getTableName(o).toLowerCase().includes(sq)
     );
   }
 
@@ -356,13 +362,7 @@ const viewHistoryInvoice = (order) => {
 };
 
 const printHistoryInvoice = () => {
-  const printContents = document.getElementById('printable-history-invoice').innerHTML;
-  const originalContents = document.body.innerHTML;
-  
-  document.body.innerHTML = printContents;
-  window.print();
-  document.body.innerHTML = originalContents;
-  window.location.reload(); 
+  printElement('printable-history-invoice', 'Hóa đơn lịch sử - Mộc Vị');
 };
 
 const shiftStats = computed(() => {
@@ -376,7 +376,7 @@ const shiftStats = computed(() => {
       if (o.isPaid) {
         paidCount++;
         revenue += calculateTotal(o);
-      } else if (o.address && o.address.includes('Bàn')) {
+      } else if (o.orderType === 'DINE_IN' && o.tableId) {
         unpaidCount++;
       }
     }
@@ -390,13 +390,7 @@ const openShiftModal = () => {
 };
 
 const printShiftReport = () => {
-  const printContents = document.getElementById('printable-shift').innerHTML;
-  const originalContents = document.body.innerHTML;
-  
-  document.body.innerHTML = `<div style="padding: 20px; font-family: var(--font-primary); color: var(--text-primary); background: #FFFFFF;">${printContents}</div>`;
-  window.print();
-  document.body.innerHTML = originalContents;
-  window.location.reload(); 
+  printElement('printable-shift', 'Báo cáo kết ca - Mộc Vị');
 };
 
 const configHeader = () => {
@@ -409,10 +403,9 @@ const logout = () => {
   router.push('/staff-login');
 };
 
-const getTableName = (address) => {
-  if (!address) return "Mang đi";
-  const match = address.match(/Bàn:\s*(.*?)\s*\|/);
-  return match ? match[1].trim() : address;
+const getTableName = (order) => {
+  if (order?.orderType === 'DINE_IN') return order.tableName || `Bàn #${order.tableId}`;
+  return order?.orderType === 'DELIVERY' ? 'Giao hàng' : 'Mang đi';
 };
 
 const calculateTotal = (order) => {
@@ -458,14 +451,13 @@ const selectOrderForTable = (table) => {
     paymentQrError.value = '';
   } else {
     selectedOrder.value = null;
-    alert("Bàn này chưa gọi món hoặc đã thanh toán xong!");
+    toast.info('Bàn này chưa gọi món hoặc đã thanh toán xong!');
   }
 };
 
 const orderMatchesTable = (order, table) => {
   if (!order || !table) return false;
-  return Number(order.tableId) === Number(table.id)
-    || (order.address && getTableName(order.address) === table.name);
+  return order.orderType === 'DINE_IN' && Number(order.tableId) === Number(table.id);
 };
 
 const getOpenOrderForTable = (table) => pendingOrders.value.find(order => orderMatchesTable(order, table));
@@ -482,7 +474,7 @@ const fetchOrders = async () => {
     // Thu ngân chỉ quan tâm đơn ăn tại quán, chưa thanh toán (hoặc đã giao = cần thanh toán)
     // address chứa "Bàn", isPaid == false hoặc null, status != 3 (Đã hủy)
     pendingOrders.value = res.data.filter(o => 
-      (o.tableId || (o.address && o.address.includes('Bàn'))) &&
+      o.orderType === 'DINE_IN' && o.tableId &&
       !o.isPaid && 
       Number(o.status) !== 3
     );
@@ -499,7 +491,12 @@ const fetchOrders = async () => {
 
 const payOrder = async () => {
   if (!selectedOrder.value || paymentSubmitting.value) return;
-  if (!confirm('Xác nhận khách đã thanh toán tiền cho đơn hàng này?')) return;
+  const confirmed = await confirmDialog({
+    title: 'Xác nhận thanh toán',
+    message: 'Xác nhận khách đã thanh toán tiền cho đơn hàng này?',
+    confirmLabel: 'Đã nhận tiền',
+  });
+  if (!confirmed) return;
   paymentSubmitting.value = true;
   try {
     await api.put(`/api/admin/orders/${selectedOrder.value.id}/pay`, {}, configHeader());
@@ -508,26 +505,20 @@ const payOrder = async () => {
       await api.put(`/api/tables/${table.id}/status?status=3`, {}, configHeader());
     }
 
-    alert('Thanh toán thành công! Bàn đang chờ dọn dẹp.');
+    toast.success('Thanh toán thành công! Bàn đang chờ dọn dẹp.');
     selectedOrder.value.isPaid = true;
     selectedOrder.value = null;
     
     fetchOrders();
   } catch (err) {
-    alert(err.response?.data?.message || err.response?.data || 'Không thể xác nhận thanh toán.');
+    toast.error(err.response?.data?.message || err.response?.data || 'Không thể xác nhận thanh toán.');
   } finally {
     paymentSubmitting.value = false;
   }
 };
 
 const printInvoice = () => {
-  const printContents = document.getElementById('printable-invoice').innerHTML;
-  const originalContents = document.body.innerHTML;
-  
-  document.body.innerHTML = printContents;
-  window.print();
-  document.body.innerHTML = originalContents;
-  window.location.reload(); // reload lại trang để khôi phục event listeners của vue
+  printElement('printable-invoice', 'Hóa đơn thanh toán - Mộc Vị');
 };
 
 const createPaymentQr = async () => {
@@ -569,7 +560,13 @@ const regeneratePaymentQr = async () => {
 };
 
 const cancelOrderAndRefund = async (order) => {
-  if (!confirm('Bạn có chắc muốn HỦY BÀN này? Nếu hủy, khách sẽ được hoàn lại 50% tiền cọc (Thu ngân tự chuyển khoản ngoài).')) return;
+  const confirmed = await confirmDialog({
+    title: 'Hủy đơn và xử lý hoàn tiền',
+    message: 'Bạn có chắc muốn hủy đơn này? Số tiền có thể hoàn sẽ do hệ thống tính từ giao dịch đã ghi nhận.',
+    confirmLabel: 'Hủy đơn',
+    danger: true,
+  });
+  if (!confirmed) return;
   try {
     const res = await api.put(`/api/admin/orders/${order.id}/cancel-with-refund`, {}, configHeader());
     
@@ -578,11 +575,13 @@ const cancelOrderAndRefund = async (order) => {
       stompClient.send("/app/order/cancel", {}, JSON.stringify({ message: "ORDER_CANCELLED" }));
     }
 
-    alert(res.data.message || 'Hủy bàn thành công!');
+    const refundAmount = Number(res.data.refundAmount || 0).toLocaleString('vi-VN');
+    const refundStatus = res.data.refundStatus || 'KHÔNG CÓ';
+    toast.success(`${res.data.message || 'Đã hủy đơn.'} Số tiền hoàn: ${refundAmount} VNĐ. Trạng thái hoàn: ${refundStatus}`);
     selectedOrder.value = null;
     fetchOrders();
   } catch (e) {
-    alert('Lỗi hủy bàn: ' + (e.response?.data?.message || e.message));
+    toast.error('Lỗi hủy bàn: ' + (e.response?.data?.message || e.message));
   }
 };
 
@@ -825,5 +824,106 @@ onUnmounted(() => {
 
 @media print {
   .hide-on-print { display: none !important; }
+}
+
+@media (max-width: 900px) {
+  .cashier-wrapper {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
+  .cashier-header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 14px;
+    padding: 14px 20px;
+  }
+
+  .header-right {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .header-right .tabs {
+    margin-right: 0 !important;
+    flex: 1 1 300px;
+  }
+
+  .cashier-content {
+    grid-template-columns: minmax(0, 1fr);
+    overflow: visible;
+    flex: none;
+  }
+
+  .orders-list-panel,
+  .invoice-panel {
+    overflow: visible;
+    min-width: 0;
+  }
+
+  .empty-invoice {
+    min-height: 260px;
+  }
+
+  .history-panel {
+    overflow-x: auto;
+  }
+
+  .shift-modal {
+    width: min(550px, calc(100vw - 32px));
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 600px) {
+  .cashier-header {
+    padding: 12px 14px;
+  }
+
+  .brand-icon {
+    font-size: 2rem;
+  }
+
+  .brand h2 {
+    font-size: 1.2rem;
+  }
+
+  .header-right .tabs {
+    flex-basis: 100%;
+    width: 100%;
+  }
+
+  .tab-btn,
+  .btn-logout,
+  .header-right .btn-primary,
+  .header-right .btn-profile {
+    padding: 9px 11px !important;
+    font-size: 0.9rem;
+  }
+
+  .cashier-content {
+    gap: 14px;
+    padding: 12px;
+  }
+
+  .orders-list-panel,
+  .invoice-panel {
+    padding: 14px;
+  }
+
+  .table-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .action-buttons {
+    flex-direction: column;
+  }
+
+  .invoice-paper {
+    padding: 12px;
+  }
 }
 </style>

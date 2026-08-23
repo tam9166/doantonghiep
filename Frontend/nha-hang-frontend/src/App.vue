@@ -33,11 +33,13 @@
     
     <!-- Global Toast (luôn hiển thị) -->
     <ToastGlobal />
+    <AppDialog />
   </div>
 </template>
 
 <script setup>
 import ToastGlobal from '@/components/ToastGlobal.vue'
+import AppDialog from '@/components/AppDialog.vue'
 import { routeLoading } from '@/router/loadingState'
 </script>
 
@@ -52,17 +54,17 @@ import { routeLoading } from '@/router/loadingState'
   z-index: 3000;
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr);
-  background: #f6f1df;
-  color: #1f2b1a;
+  background: var(--color-background);
+  color: var(--color-on-background);
 }
 
 .admin-skeleton-sidebar {
-  background: #24331f;
+  background: var(--color-secondary);
   padding: 24px 18px;
   display: flex;
   flex-direction: column;
   gap: 14px;
-  box-shadow: 12px 0 28px rgba(31, 43, 26, 0.14);
+  box-shadow: 12px 0 28px var(--secondary-glow);
 }
 
 .admin-skeleton-main {
@@ -105,13 +107,13 @@ import { routeLoading } from '@/router/loadingState'
 .skeleton-title {
   width: 320px;
   height: 42px;
-  background-color: rgba(36, 51, 31, 0.12);
+  background-color: color-mix(in srgb, var(--secondary) 12%, transparent);
 }
 
 .skeleton-action {
   width: 160px;
   height: 42px;
-  background-color: rgba(36, 51, 31, 0.12);
+  background-color: color-mix(in srgb, var(--secondary) 12%, transparent);
 }
 
 .skeleton-grid {
@@ -123,7 +125,7 @@ import { routeLoading } from '@/router/loadingState'
 
 .skeleton-card {
   height: 104px;
-  background-color: rgba(36, 51, 31, 0.1);
+  background-color: color-mix(in srgb, var(--secondary) 10%, transparent);
 }
 
 .skeleton-table {
@@ -136,7 +138,7 @@ import { routeLoading } from '@/router/loadingState'
 .skeleton-row {
   height: 38px;
   margin-bottom: 12px;
-  background-color: rgba(36, 51, 31, 0.1);
+  background-color: color-mix(in srgb, var(--secondary) 10%, transparent);
 }
 
 .skeleton-row:last-child {

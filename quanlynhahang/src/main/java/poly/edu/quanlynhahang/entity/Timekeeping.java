@@ -2,6 +2,7 @@ package poly.edu.quanlynhahang.entity;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.math.BigDecimal;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -35,6 +36,9 @@ public class Timekeeping {
 
     @Column(name = "check_out_time")
     private LocalTime checkOutTime;
+
+    @Column(name = "total_hours", precision = 5, scale = 2, nullable = false)
+    private BigDecimal totalHours = BigDecimal.ZERO;
 
     // Trạng thái: "Đúng giờ", "Đi trễ", "Về sớm", "Hoàn thành"
     @Column(columnDefinition = "nvarchar(50)")

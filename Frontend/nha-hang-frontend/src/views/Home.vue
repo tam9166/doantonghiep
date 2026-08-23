@@ -417,7 +417,7 @@ const spinWheel = async () => {
 
   let reward;
   try {
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     const response = await api.post('/api/vouchers/spin', null, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
@@ -681,8 +681,8 @@ const sendInterviewMessage = async () => {
 };
 
 onMounted(async () => {
-  const token = localStorage.getItem('token');
-  const storedUser = localStorage.getItem('user');
+  const token = sessionStorage.getItem('token');
+  const storedUser = sessionStorage.getItem('user');
   if (token && storedUser) {
     isLoggedIn.value = true;
     user.value = JSON.parse(storedUser);

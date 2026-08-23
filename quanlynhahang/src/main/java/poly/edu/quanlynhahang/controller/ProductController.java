@@ -14,6 +14,7 @@ import poly.edu.quanlynhahang.dto.PublicProductResponse;
 import poly.edu.quanlynhahang.entity.Product;
 import poly.edu.quanlynhahang.repository.ProductRepository;
 import poly.edu.quanlynhahang.repository.ReviewRepository;
+import poly.edu.quanlynhahang.service.MenuAvailabilityService;
 
 @RestController
 @RequestMapping("/api/products")
@@ -21,10 +22,13 @@ public class ProductController {
 
     private final ProductRepository productRepository;
     private final ReviewRepository reviewRepository;
+    private final MenuAvailabilityService menuAvailabilityService;
 
-    public ProductController(ProductRepository productRepository, ReviewRepository reviewRepository) {
+    public ProductController(ProductRepository productRepository, ReviewRepository reviewRepository,
+                             MenuAvailabilityService menuAvailabilityService) {
         this.productRepository = productRepository;
         this.reviewRepository = reviewRepository;
+        this.menuAvailabilityService = menuAvailabilityService;
     }
 
     @GetMapping
@@ -51,7 +55,8 @@ public class ProductController {
                         Function.identity()));
 
         return products.stream()
-                .map(product -> PublicProductResponse.from(product, roundRating(ratings.get(product.getId()))))
+                .map(product -> PublicProductResponse.from(product, roundRating(ratings.get(product.getId())),
+                        menuAvailabilityService.availableQuantity(product)))
                 .toList();
     }
 

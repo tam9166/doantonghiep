@@ -25,12 +25,29 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     Optional<Reservation> findByReservationCode(String reservationCode);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select r from Reservation r where r.id = :id")
+    Optional<Reservation> findLockedById(@Param("id") Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select r from Reservation r where r.reservationCode = :reservationCode")
     Optional<Reservation> findLockedByReservationCode(@Param("reservationCode") String reservationCode);
 
     Optional<Reservation> findByIdempotencyKey(String idempotencyKey);
 
     Optional<Reservation> findByReservationCodeAndCustomerPhone(String reservationCode, String customerPhone);
+
+    @Query("""
+            select r from Reservation r
+            where (:code is not null and upper(r.reservationCode) = :code)
+               or (:phone is not null and r.customerPhone = :phone)
+               or (:email is not null and lower(r.customerEmail) = :email)
+               or (:name is not null and lower(r.customerName) = :name)
+            """)
+    List<Reservation> findCancellationVerificationCandidates(
+            @Param("code") String code,
+            @Param("name") String name,
+            @Param("phone") String phone,
+            @Param("email") String email);
 
     Optional<Reservation> findFirstByCustomerEmailIgnoreCaseOrderByCreatedAtDesc(String customerEmail);
 
@@ -88,7 +105,8 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
                    and r.reservationDate is not null
                    and r.arrivalTime is not null
                    and (r.reservationDate < :noShowDate
-                        or (r.reservationDate = :noShowDate and r.arrivalTime <= :noShowTime)))
+                        or (r.reservationDate = :noShowDate
+                            and r.arrivalTime <= cast(:noShowTime as LocalTime))))
             order by r.id
             """)
     List<Long> findExpiryCandidateIds(

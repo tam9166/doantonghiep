@@ -10,6 +10,7 @@ import java.time.LocalTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -31,6 +32,25 @@ class AutoTableAssignmentServiceTest {
                 .assign(7, 3, LocalDate.now().plusDays(1), LocalTime.of(18, 0), 120);
 
         assertEquals(3, selected.getId());
+    }
+
+    @Test
+    void previousDayOvernightReservationBlocksTheTableAfterMidnight() {
+        RestaurantTableRepository tables = mock(RestaurantTableRepository.class);
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        RestaurantTable onlyTable = table(1, "B01", 4, 1);
+        LocalDate date = LocalDate.now().plusDays(2);
+        poly.edu.quanlynhahang.entity.Reservation overnight = new poly.edu.quanlynhahang.entity.Reservation();
+        overnight.setReservationDate(date.minusDays(1));
+        overnight.setArrivalTime(LocalTime.of(23, 30));
+        overnight.setExpectedDurationMinutes(120);
+        when(tables.findLockedActiveByAreaId(7)).thenReturn(List.of(onlyTable));
+        when(reservations.findLockedByReservationDateAndTableIdAndReservationStatusIn(
+                eq(date.minusDays(1)), eq(1), any())).thenReturn(List.of(overnight));
+
+        assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                () -> new AutoTableAssignmentService(tables, reservations)
+                        .assign(7, 2, date, LocalTime.of(0, 30), 60));
     }
 
     private RestaurantTable table(int id, String name, int capacity, int order) {

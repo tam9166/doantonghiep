@@ -41,19 +41,25 @@ public class OrderPaymentService {
     private final ActivityLogService activityLogService;
     private final SimpMessagingTemplate messagingTemplate;
     private final RestaurantTableRepository tableRepository;
+    private final InventoryReservationService inventoryReservationService;
+    private final OrderStateMachineService orderStateMachineService;
 
     public OrderPaymentService(PaymentIntentRepository intentRepository,
                                OrderRepository orderRepository,
                                PaymentProperties properties,
                                ActivityLogService activityLogService,
                                SimpMessagingTemplate messagingTemplate,
-                               RestaurantTableRepository tableRepository) {
+                               RestaurantTableRepository tableRepository,
+                               InventoryReservationService inventoryReservationService,
+                               OrderStateMachineService orderStateMachineService) {
         this.intentRepository = intentRepository;
         this.orderRepository = orderRepository;
         this.properties = properties;
         this.activityLogService = activityLogService;
         this.messagingTemplate = messagingTemplate;
         this.tableRepository = tableRepository;
+        this.inventoryReservationService = inventoryReservationService;
+        this.orderStateMachineService = orderStateMachineService;
     }
 
     @Transactional
@@ -139,6 +145,7 @@ public class OrderPaymentService {
 
         existing.setStatus(PaymentStatus.REPLACED);
         intentRepository.saveAndFlush(existing);
+        inventoryReservationService.renew(orderId, nextExpiry());
         PaymentIntent replacement = createIntent(order, normalizedKey, requestHash);
         existing.setReplacedById(replacement.getId());
         intentRepository.save(existing);
@@ -167,7 +174,7 @@ public class OrderPaymentService {
             active.setStatus(PaymentStatus.EXPIRED);
             intentRepository.saveAndFlush(active);
         }
-
+        inventoryReservationService.renew(order.getId(), nextExpiry());
         return toResponse(createIntent(order, idempotencyKey, requestHash));
     }
 
@@ -193,7 +200,7 @@ public class OrderPaymentService {
         intent.setAccountHolder(properties.getAccountHolder().trim().toUpperCase(Locale.ROOT));
         intent.setQrProvider(properties.getQrProvider().trim().toUpperCase(Locale.ROOT));
         intent.setTransferContent(transferContent(order.getId(), intent.getPaymentCode()));
-        intent.setExpiresAt(Date.from(Instant.now().plusSeconds(properties.getQrExpirationMinutes() * 60L)));
+        intent.setExpiresAt(nextExpiry());
         intent.setIdempotencyKey(idempotencyKey);
         intent.setRequestHash(requestHash);
         intent.setCreatedBy(order.getAccount() == null ? "GUEST" : order.getAccount().getUsername());
@@ -223,7 +230,8 @@ public class OrderPaymentService {
         if (!Integer.valueOf(0).equals(order.getStatus()) && !Integer.valueOf(5).equals(order.getStatus())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Trạng thái đơn không cho phép xác nhận");
         }
-        order.setStatus(1);
+        inventoryReservationService.consume(orderId);
+        orderStateMachineService.transition(order, poly.edu.quanlynhahang.entity.OrderStatus.IN_PREPARATION);
         Order saved = orderRepository.save(order);
         if (order.getTableId() != null) {
             tableRepository.findById(order.getTableId()).ifPresent(table -> {
@@ -251,10 +259,21 @@ public class OrderPaymentService {
                 || PaymentStatus.OVERPAID.equals(effectiveStatus);
         order.setIsPaid(fullyPaid);
         if (fullyPaid && Integer.valueOf(0).equals(order.getStatus())) {
-            order.setStatus(1);
+            inventoryReservationService.consume(orderId);
+            orderStateMachineService.transition(order, poly.edu.quanlynhahang.entity.OrderStatus.IN_PREPARATION);
             messagingTemplate.convertAndSend("/topic/kitchen", "NEW_ORDER");
         }
         return orderRepository.save(order);
+    }
+
+    @Transactional
+    public void expireInventoryHold(Integer orderId) {
+        inventoryReservationService.release(orderId,
+                poly.edu.quanlynhahang.entity.InventoryReservationStatus.EXPIRED);
+    }
+
+    private Date nextExpiry() {
+        return Date.from(Instant.now().plusSeconds(properties.getQrExpirationMinutes() * 60L));
     }
 
     private void validatePayableOrder(Order order) {

@@ -82,16 +82,25 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         if ("POST".equals(method) && path.equals("/api/reservations")) {
             return new RatePolicy("reservation-create", 20, 60);
         }
+        if ("POST".equals(method) && path.equals("/api/event-bookings")) {
+            return new RatePolicy("event-booking-create", 10, 60);
+        }
         if ("POST".equals(method) && path.equals("/api/reservation-waitlist")) {
             return new RatePolicy("reservation-waitlist-create", 20, 60);
         }
         if ("POST".equals(method) && path.equals("/api/reservations/lookup")) {
             return new RatePolicy("reservation-lookup", 30, 60);
         }
+        if ("POST".equals(method) && path.equals("/api/reservation-cancellations")) {
+            return new RatePolicy("reservation-cancellation-create", 5, 900);
+        }
+        if ("POST".equals(method) && path.equals("/api/orders/checkout")) {
+            return new RatePolicy("public-order-checkout", 10, 60);
+        }
         if ("GET".equals(method) && path.matches("^/api/reservations/[^/]+$")) {
             return new RatePolicy("reservation-lookup", 30, 60);
         }
-        if ("GET".equals(method) && path.matches("^/api/reservation-waitlist/[^/]+$")) {
+        if ("POST".equals(method) && path.equals("/api/reservation-waitlist/lookup")) {
             return new RatePolicy("reservation-waitlist-lookup", 30, 60);
         }
         if ("POST".equals(method) && path.equals("/api/payments/qr")) {

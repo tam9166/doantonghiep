@@ -200,6 +200,7 @@ import SkeletonLoader from '@/components/SkeletonLoader.vue';
 
 import { ref, onMounted, computed, watch } from 'vue';
 import api from '@/services/api';
+import { toBusinessDate } from '@/utils/businessDate';
 import {
   Chart as ChartJS,
   Title,
@@ -332,13 +333,13 @@ const fetchData = async () => {
   isLoading.value = true;
   fetchError.value = '';
   try {
-    const token = localStorage.getItem('staff_token');
+    const token = sessionStorage.getItem('staff_token');
     const headers = { 'Authorization': `Bearer ${token}` };
 
     const today = new Date();
     const lastYear = new Date(); lastYear.setFullYear(today.getFullYear() - 1);
-    const endStr = today.toISOString().split('T')[0];
-    const startStr = lastYear.toISOString().split('T')[0];
+    const endStr = toBusinessDate(today);
+    const startStr = toBusinessDate(lastYear);
 
     const [resOrders, resRecipes, resIngredients, resSchedules, resStaff] = await Promise.all([
       api.get('/api/admin/orders', { headers }),

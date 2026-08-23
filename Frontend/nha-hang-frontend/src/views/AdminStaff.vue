@@ -28,7 +28,7 @@
             <button class="g-btn-primary" @click="showAddModal = true">➕ Thêm Nhân Viên</button>
           </div>
         </div>
-        <table class="data-table">
+        <table class="data-table staff-table">
           <thead>
             <tr>
               <th>Username</th>
@@ -42,15 +42,15 @@
           </thead>
           <tbody>
             <tr v-for="staff in filteredStaffList" :key="staff.username">
-              <td>{{ staff.username }}</td>
-              <td>{{ staff.fullname }}</td>
-              <td>{{ staff.email }}</td>
-              <td>{{ staff.shift || 'N/A' }}</td>
-              <td>{{ staff.assignedArea || 'N/A' }}</td>
-              <td>
+              <td data-label="Username"><span class="staff-value">{{ staff.username }}</span></td>
+              <td data-label="Họ tên"><span class="staff-value">{{ staff.fullname }}</span></td>
+              <td data-label="Email"><span class="staff-value">{{ staff.email }}</span></td>
+              <td data-label="Ca làm"><span class="staff-value">{{ staff.shift || 'N/A' }}</span></td>
+              <td data-label="Khu vực"><span class="staff-value">{{ staff.assignedArea || 'N/A' }}</span></td>
+              <td data-label="Vị trí">
                 <span class="role-badge" :class="staff.role">{{ translateRole(staff.role) }}</span>
               </td>
-              <td>
+              <td data-label="Hành động" class="staff-actions">
                 <button class="g-btn-primary" @click="openEditModal(staff)" style="margin-right: 5px;">Xem/Sửa</button>
                 <button class="g-btn-danger" @click="deleteStaff(staff.username)" v-if="staff.username !== 'admin'">Xóa</button>
               </td>
@@ -552,6 +552,7 @@ import AdminLayout from '@/components/AdminLayout.vue';
 
 import { ref, computed, onMounted } from 'vue';
 import api from '@/services/api';
+import { toBusinessDate } from '@/utils/businessDate';
 
 const currentTab = ref('staff');
 const staffList = ref([]);
@@ -633,7 +634,7 @@ const showEditModal = ref(false);
 const editStaff = ref({ username: '', password: '', fullname: '', email: '', role: '', shift: '', assignedArea: '' });
 
 // Lấy ngày hôm nay định dạng yyyy-MM-dd
-const todayStr = new Date().toISOString().split('T')[0];
+const todayStr = toBusinessDate();
 const scheduleStartDate = ref(todayStr);
 const scheduleEndDate = ref(todayStr);
 const timekeepingStartDate = ref(todayStr);
@@ -646,7 +647,7 @@ const salaryMonth = ref(todayStr.slice(0, 7)); // YYYY-MM
 const salaryList = ref([]);
 
 const configHeader = () => {
-  const token = localStorage.getItem('staff_token');
+  const token = sessionStorage.getItem('staff_token');
   return { headers: { Authorization: 'Bearer ' + token } };
 };
 
@@ -824,7 +825,7 @@ const addSchedule = async () => {
     for (let i = 0; i < daysToAdd; i++) {
       const d = new Date(baseDate);
       d.setDate(d.getDate() + i);
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr = toBusinessDate(d);
       const payload = { ...newSchedule.value, workDate: dateStr };
       requests.push(api.post('/api/schedules', payload, configHeader()));
     }
@@ -963,7 +964,7 @@ const addZoneAssignment = async () => {
     for (let i = 0; i < daysToAdd; i++) {
       const d = new Date(baseDate);
       d.setDate(d.getDate() + i);
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr = toBusinessDate(d);
       requests.push(
         api.post('/api/service-zones', {
           username: newZone.value.username,
@@ -1183,4 +1184,72 @@ onMounted(() => {
 .shift-badge.shift-Sáng { background: var(--color-tertiary); }
 .shift-badge.shift-Chiều { background: var(--color-tertiary); }
 .shift-badge.shift-Tối { background: var(--warning); }
+
+@media (max-width: 600px) {
+  .staff-table,
+  .staff-table tbody,
+  .staff-table tr,
+  .staff-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .staff-table thead {
+    display: none;
+  }
+
+  .staff-table tbody {
+    display: grid;
+    gap: 12px;
+  }
+
+  .staff-table tr {
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg-card);
+  }
+
+  .staff-table td {
+    display: grid;
+    grid-template-columns: minmax(82px, 0.8fr) minmax(0, 1.2fr);
+    gap: 10px;
+    padding: 8px 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
+    min-width: 0;
+  }
+
+  .staff-table td::before {
+    content: attr(data-label);
+    color: var(--text-muted);
+    font-weight: 700;
+  }
+
+  .staff-table .staff-value {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .staff-table .staff-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .staff-table .staff-actions::before {
+    grid-column: 1 / -1;
+  }
+
+  .staff-table .staff-actions button {
+    width: 100%;
+    min-width: 0;
+    margin-right: 0 !important;
+    padding: 9px 8px;
+  }
+
+  .staff-table td[colspan]::before {
+    display: none;
+  }
+}
 </style>

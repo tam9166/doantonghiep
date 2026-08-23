@@ -31,22 +31,7 @@ public class PopularItemsController {
     public ResponseEntity<?> getTopProducts(
             @RequestParam(defaultValue = "week") String period) {
 
-        List<Order> orders = orderRepository.findAllWithDetails();
-        Date now = new Date();
-
-        // Lọc theo thời gian
-        List<Order> filtered = orders.stream()
-                .filter(o -> o.getStatus() != null && o.getStatus() == 4) // Chỉ đơn hoàn thành
-                .filter(o -> {
-                    if (o.getCreateDate() == null) return false;
-                    long diff = now.getTime() - o.getCreateDate().getTime();
-                    long days = diff / (1000 * 60 * 60 * 24);
-                    if ("week".equals(period)) return days <= 7;
-                    if ("month".equals(period)) return days <= 30;
-                    if ("year".equals(period)) return days <= 365;
-                    return true;
-                })
-                .collect(Collectors.toList());
+        List<Order> filtered = findCompletedOrders(period);
 
         // Tổng hợp theo sản phẩm
         Map<String, Map<String, Object>> productMap = new LinkedHashMap<>();
@@ -92,23 +77,18 @@ public class PopularItemsController {
     public ResponseEntity<?> getTopIngredients(
             @RequestParam(defaultValue = "week") String period) {
 
-        List<Order> orders = orderRepository.findAllWithDetails();
-        List<Recipe> recipes = recipeRepository.findAll();
-        Date now = new Date();
-
-        // Lọc đơn hàng theo thời gian
-        List<Order> filtered = orders.stream()
-                .filter(o -> o.getStatus() != null && o.getStatus() == 4)
-                .filter(o -> {
-                    if (o.getCreateDate() == null) return false;
-                    long diff = now.getTime() - o.getCreateDate().getTime();
-                    long days = diff / (1000 * 60 * 60 * 24);
-                    if ("week".equals(period)) return days <= 7;
-                    if ("month".equals(period)) return days <= 30;
-                    if ("year".equals(period)) return days <= 365;
-                    return true;
-                })
-                .collect(Collectors.toList());
+        List<Order> filtered = findCompletedOrders(period);
+        List<Integer> productIds = filtered.stream()
+                .filter(order -> order.getOrderDetails() != null)
+                .flatMap(order -> order.getOrderDetails().stream())
+                .filter(detail -> detail.getProduct() != null)
+                .map(detail -> detail.getProduct().getId())
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        List<Recipe> recipes = productIds.isEmpty()
+                ? List.of()
+                : recipeRepository.findByProductIdsWithIngredient(productIds);
 
         // Build recipe map: productId -> List<Recipe>
         Map<Integer, List<Recipe>> recipeMap = new HashMap<>();
@@ -152,10 +132,22 @@ public class PopularItemsController {
         }
 
         List<Map<String, Object>> result = ingredientMap.values().stream()
-                .sorted((a, b) -> Double.compare((double) b.get("totalConsumed"), (double) a.get("totalConsumed")))
+                .sorted((a, b) -> ((BigDecimal) b.get("totalConsumed"))
+                        .compareTo((BigDecimal) a.get("totalConsumed")))
                 .limit(20)
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(result);
+    }
+
+    private List<Order> findCompletedOrders(String period) {
+        Calendar calendar = Calendar.getInstance();
+        switch (period == null ? "" : period.toLowerCase(Locale.ROOT)) {
+            case "week" -> calendar.add(Calendar.DAY_OF_YEAR, -7);
+            case "month" -> calendar.add(Calendar.DAY_OF_YEAR, -30);
+            case "year" -> calendar.add(Calendar.DAY_OF_YEAR, -365);
+            default -> calendar.setTimeInMillis(0L);
+        }
+        return orderRepository.findByStatusSinceWithDetails(4, calendar.getTime());
     }
 }

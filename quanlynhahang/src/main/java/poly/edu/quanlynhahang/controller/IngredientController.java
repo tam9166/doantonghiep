@@ -191,13 +191,12 @@ public class IngredientController {
     @PutMapping("/{id}/quantity")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_KITCHEN')")
     public ResponseEntity<?> setQuantity(@PathVariable Long id, @RequestParam BigDecimal quantity) {
-        var ingOpt = ingredientRepository.findById(id);
-        if (ingOpt.isPresent()) {
-            Ingredient ing = ingOpt.get();
-            ing.setQuantity(quantity);
-            return ResponseEntity.ok(IngredientResponse.from(ingredientRepository.save(ing)));
+        if (!ingredientRepository.existsById(id)) {
+            return ResponseEntity.badRequest().body("Không tìm thấy nguyên liệu!");
         }
-        return ResponseEntity.badRequest().body("Không tìm thấy nguyên liệu!");
+        return ResponseEntity.status(409).body(Map.of(
+                "code", "BATCH_STOCK_IS_SOURCE_OF_TRUTH",
+                "message", "Không thể sửa tổng tồn trực tiếp. Hãy nhập hoặc điều chỉnh lô nguyên liệu."));
     }
 
     // 6. Xóa nguyên liệu

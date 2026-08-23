@@ -16,6 +16,18 @@ public class OrderRequest {
     private String address;
 
     @Size(max = 100)
+    private String recipientName;
+
+    @Size(max = 20)
+    private String recipientPhone;
+
+    @Size(max = 500)
+    private String deliveryAddress;
+
+    @Size(max = 500)
+    private String deliveryNote;
+
+    @Size(max = 100)
     private String voucherCode;
 
     @Deprecated(forRemoval = false)

@@ -28,6 +28,9 @@ public class KitchenService {
     @Autowired
     private IngredientRepository ingredientRepository;
 
+    @Autowired
+    private OrderStateMachineService orderStateMachineService;
+
     // Hàm xử lý khi Bếp bấm "Bắt đầu nấu" hoặc "Xác nhận nấu"
     @Transactional
     public void cookOrder(Integer orderId) {
@@ -62,7 +65,7 @@ List<Recipe> recipes = recipeRepository.findByProduct(detail.getProduct());
 
         // 3. Cập nhật trạng thái đơn hàng thành 1 (Đang nấu)
         // Lưu ý: Tùy vào luồng của bạn, nếu nút này là "Nấu xong", bạn có thể set status = 2
-        order.setStatus(1); 
+        orderStateMachineService.transition(order, poly.edu.quanlynhahang.entity.OrderStatus.IN_PREPARATION);
         orderRepository.save(order);
     }
 }

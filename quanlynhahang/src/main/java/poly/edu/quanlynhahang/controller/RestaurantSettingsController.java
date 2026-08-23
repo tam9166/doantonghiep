@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import poly.edu.quanlynhahang.service.RestaurantSettingsService;
+import poly.edu.quanlynhahang.service.RestaurantBusinessHoursService;
 
 import java.util.Map;
 
@@ -14,16 +15,23 @@ import java.util.Map;
 @RequestMapping("/api/settings")
 public class RestaurantSettingsController {
     private final RestaurantSettingsService settings;
+    private final RestaurantBusinessHoursService businessHours;
 
-    public RestaurantSettingsController(RestaurantSettingsService settings) {
+    public RestaurantSettingsController(RestaurantSettingsService settings,
+                                        RestaurantBusinessHoursService businessHours) {
         this.settings = settings;
+        this.businessHours = businessHours;
     }
 
     @GetMapping("/public")
     public ResponseEntity<?> publicSettings() {
         return ResponseEntity.ok(Map.of(
                 "largePartyThreshold", settings.largePartyThreshold(),
-                "restaurantMaxCapacity", settings.maxCapacity()));
+                "restaurantMaxCapacity", settings.maxCapacity(),
+                "openingTime", businessHours.getOpeningTime().toString(),
+                "closingTime", businessHours.getClosingTime().toString(),
+                "lastOrderTime", businessHours.getLastOrderTime().toString(),
+                "timeZone", "Asia/Ho_Chi_Minh"));
     }
 
     @GetMapping("/admin")

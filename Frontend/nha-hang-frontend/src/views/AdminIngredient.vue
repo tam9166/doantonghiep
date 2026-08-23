@@ -554,7 +554,7 @@ import { foodImage, ingredientImage, replaceFoodImage, replaceIngredientImage } 
 
 // Kiểm tra quyền để hiển thị Navbar phù hợp
 const userRoles = computed(() => {
-  const storedUser = localStorage.getItem('staff_user');
+  const storedUser = sessionStorage.getItem('staff_user');
   if (storedUser) {
     try {
       return JSON.parse(storedUser).roles || [];
@@ -657,7 +657,7 @@ const exportInvoiceToPDF = () => {
   window.print();
 };
 
-const getToken = () => localStorage.getItem('staff_token');
+const getToken = () => sessionStorage.getItem('staff_token');
 const configHeader = () => ({ headers: { 'Authorization': `Bearer ${getToken()}` } });
 
 // === CHUNG ===

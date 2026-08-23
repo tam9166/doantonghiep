@@ -2,6 +2,7 @@ package poly.edu.quanlynhahang.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -11,6 +12,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.Date;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,6 +37,7 @@ class PaymentLedgerServiceTest {
     private final ReservationRealtimeService realtimeService = mock(ReservationRealtimeService.class);
     private final ActivityLogService activityLogService = mock(ActivityLogService.class);
     private final OrderPaymentService orderPaymentService = mock(OrderPaymentService.class);
+    private final SqlServerApplicationLockService applicationLockService = mock(SqlServerApplicationLockService.class);
     private final PaymentLedgerService service = new PaymentLedgerService(
             intentRepository,
             transactionRepository,
@@ -42,13 +45,15 @@ class PaymentLedgerServiceTest {
             stateMachine,
             realtimeService,
             activityLogService,
-            orderPaymentService);
+            orderPaymentService,
+            applicationLockService);
 
     private PaymentIntent intent;
     private AtomicReference<PaymentTransaction> savedTransaction;
 
     @BeforeEach
     void setUp() {
+        when(applicationLockService.acquireExclusive(any(), anyInt())).thenReturn(0);
         intent = intent();
         savedTransaction = new AtomicReference<>();
         when(transactionRepository.findByProviderTransactionId(any())).thenReturn(Optional.empty());
@@ -159,6 +164,22 @@ class PaymentLedgerServiceTest {
         verify(orderPaymentService).applyLedgerPayment(
                 12, new BigDecimal("100000"), PaymentStatus.PAID);
         verify(reservationRepository, never()).save(any());
+    }
+
+    @Test
+    void expiredOrderIntentGoesToManualReviewAndReleasesInventoryHold() {
+        intent.setReservation(null);
+        intent.setAggregateType("ORDER");
+        intent.setAggregateId(12L);
+        intent.setExpiresAt(new Date(System.currentTimeMillis() - 1_000));
+
+        PaymentLedgerResult result = record(new BigDecimal("100000"), "TX-LATE-ORDER");
+
+        assertEquals("PAYMENT_MANUAL_REVIEW", result.code());
+        assertEquals(PaymentStatus.EXPIRED, intent.getStatus());
+        assertEquals(PaymentTransactionStatus.MANUAL_REVIEW, savedTransaction.get().getStatus());
+        verify(orderPaymentService).expireInventoryHold(12);
+        verify(orderPaymentService, never()).applyLedgerPayment(any(), any(), any());
     }
 
     private PaymentLedgerResult record(BigDecimal amount, String transactionId) {

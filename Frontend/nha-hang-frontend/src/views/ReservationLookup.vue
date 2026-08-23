@@ -24,6 +24,26 @@
 
         <div v-if="error" class="error-box">{{ error }}</div>
 
+        <section class="cancel-card">
+          <div>
+            <p class="eyebrow">Yêu cầu hủy đặt bàn / hoàn cọc</p>
+            <h2>Không nhớ mã đặt bàn vẫn có thể gửi yêu cầu</h2>
+            <p>Nhập ít nhất hai thông tin chính xác của cùng một đặt bàn. Nhà hàng sẽ xem xét trước khi hủy.</p>
+          </div>
+          <form class="cancel-form" @submit.prevent="submitCancellationRequest">
+            <label>Mã đặt bàn (không bắt buộc)<input v-model="cancelForm.reservationCode" maxlength="30" /></label>
+            <label>Họ tên<input v-model="cancelForm.customerName" maxlength="150" autocomplete="name" /></label>
+            <label>Số điện thoại<input v-model="cancelForm.customerPhone" maxlength="30" autocomplete="tel" /></label>
+            <label>Email<input v-model="cancelForm.customerEmail" maxlength="150" type="email" autocomplete="email" /></label>
+            <label class="cancel-reason">Lý do hủy<textarea v-model="cancelForm.reason" maxlength="1000" rows="3" /></label>
+            <button class="danger-btn" type="submit" :disabled="cancelLoading">
+              {{ cancelLoading ? 'Đang gửi...' : 'Gửi yêu cầu hủy' }}
+            </button>
+          </form>
+          <div v-if="cancelMessage" class="success-box">{{ cancelMessage }}</div>
+          <div v-if="cancelError" class="error-box">{{ cancelError }}</div>
+        </section>
+
         <section v-if="reservation" class="result-card">
           <div class="realtime-box" :class="{ connected: realtimeConnected }">
             <span>{{ realtimeConnected ? 'Đang theo dõi realtime' : 'Đang kết nối realtime...' }}</span>
@@ -143,8 +163,12 @@ const router = useRouter()
 const loading = ref(false)
 const qrLoading = ref(false)
 const error = ref('')
+const cancelError = ref('')
+const cancelMessage = ref('')
+const cancelLoading = ref(false)
 const reservation = ref(null)
 const form = ref({ code: '', phone: '' })
+const cancelForm = ref({ reservationCode: '', customerName: '', customerPhone: '', customerEmail: '', reason: '' })
 const realtimeConnected = ref(false)
 const realtimeMessage = ref('')
 const reviewLoading = ref(false)
@@ -165,7 +189,7 @@ const latestPayment = computed(() => reservation.value?.payments?.[0] || null)
 const paymentCapability = computed(() => reservation.value?.reservationCode
   ? sessionStorage.getItem(`reservation-capability:${reservation.value.reservationCode}`)
   : '')
-const hasPaymentAccess = computed(() => Boolean(paymentCapability.value || localStorage.getItem('token')))
+const hasPaymentAccess = computed(() => Boolean(paymentCapability.value || sessionStorage.getItem('token')))
 const activeStatuses = ['PENDING', 'CONFIRMED', 'DEPOSIT_REQUIRED', 'DEPOSIT_PENDING', 'DEPOSIT_PAID']
 const canCreateQr = computed(() => reservation.value
   && Number(reservation.value.amountDueNow || 0) > 0
@@ -230,15 +254,46 @@ async function lookupReservation() {
     })
     reservation.value = res.data
     router.replace({ path: '/reservation-lookup', query: {
-      code: form.value.code || undefined,
-      phone: form.value.phone || undefined
+      code: form.value.code || undefined
     } })
+    cancelForm.value = {
+      ...cancelForm.value,
+      reservationCode: reservation.value.reservationCode || '',
+      customerName: reservation.value.customerName || '',
+      customerPhone: form.value.phone || '',
+      customerEmail: reservation.value.customerEmail || ''
+    }
     connectRealtime(reservation.value.reservationCode)
     await loadMyReview()
   } catch (err) {
     error.value = err.response?.data?.message || err.response?.data || 'Không tìm thấy đặt bàn phù hợp.'
   } finally {
     loading.value = false
+  }
+}
+
+async function submitCancellationRequest() {
+  cancelError.value = ''
+  cancelMessage.value = ''
+  const verificationValues = [
+    cancelForm.value.reservationCode,
+    cancelForm.value.customerName,
+    cancelForm.value.customerPhone,
+    cancelForm.value.customerEmail
+  ].filter(value => String(value || '').trim())
+  if (verificationValues.length < 2) {
+    cancelError.value = 'Vui lòng nhập ít nhất 2 trong 4 thông tin xác minh.'
+    return
+  }
+  cancelLoading.value = true
+  try {
+    const response = await api.post('/api/reservation-cancellations', cancelForm.value)
+    cancelMessage.value = `Đã ghi nhận yêu cầu ${response.data.requestCode}. Nhà hàng sẽ liên hệ sau khi xem xét.`
+  } catch (err) {
+    cancelError.value = err.response?.data?.message
+      || 'Không thể xác minh thông tin đặt bàn. Vui lòng kiểm tra lại thông tin đã nhập.'
+  } finally {
+    cancelLoading.value = false
   }
 }
 
@@ -316,8 +371,8 @@ function connectRealtime(code) {
   if (!code) return
   stompClient = new Client({
     webSocketFactory: () => new SockJS('/ws'),
-    connectHeaders: localStorage.getItem('token')
-      ? { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    connectHeaders: sessionStorage.getItem('token')
+      ? { Authorization: `Bearer ${sessionStorage.getItem('token')}` }
       : {},
     reconnectDelay: 5000,
     onConnect: () => {
@@ -385,8 +440,7 @@ function paymentRequestHeaders() {
 
 onMounted(() => {
   form.value.code = String(route.query.code || '')
-  form.value.phone = String(route.query.phone || '')
-  if (form.value.code && form.value.phone) lookupReservation()
+  cancelForm.value.reservationCode = form.value.code
 })
 
 onBeforeUnmount(() => {
@@ -707,6 +761,48 @@ textarea {
   font-weight: 800;
 }
 
+.cancel-card {
+  margin-top: 22px;
+  padding: 24px;
+  border: 1px solid var(--color-outline-variant);
+  border-radius: 18px;
+  background: var(--color-surface);
+}
+.cancel-card h2 { margin: 4px 0 8px; }
+.cancel-card p { color: var(--color-on-surface-variant); }
+.cancel-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+.cancel-form label { display: grid; gap: 7px; font-weight: 700; }
+.cancel-form input, .cancel-form textarea {
+  border: 1px solid var(--color-outline-variant);
+  border-radius: 10px;
+  padding: 11px 12px;
+  font: inherit;
+}
+.cancel-reason { grid-column: 1 / -1; }
+.danger-btn {
+  justify-self: start;
+  border: 0;
+  border-radius: 10px;
+  padding: 12px 18px;
+  background: var(--color-error);
+  color: var(--color-on-error);
+  font-weight: 800;
+  cursor: pointer;
+}
+.danger-btn:disabled { opacity: .6; cursor: wait; }
+.success-box {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--color-secondary-fixed);
+  color: var(--success);
+}
+
 @media (max-width: 780px) {
   .lookup-card,
   .summary-grid,
@@ -735,5 +831,8 @@ textarea {
   .qr-card dl div {
     grid-template-columns: 1fr;
   }
+
+  .cancel-form { grid-template-columns: 1fr; }
+  .cancel-reason { grid-column: auto; }
 }
 </style>

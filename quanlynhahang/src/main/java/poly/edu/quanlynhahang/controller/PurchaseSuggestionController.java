@@ -13,7 +13,6 @@ import poly.edu.quanlynhahang.service.ActivityLogService;
 import poly.edu.quanlynhahang.service.NotificationService;
 
 import java.util.*;
-import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/admin/purchase-suggestions")
 @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
@@ -44,12 +43,19 @@ public class PurchaseSuggestionController {
     @GetMapping
     public ResponseEntity<?> getSuggestions() {
         List<Ingredient> allIngredients = ingredientRepository.findAll();
-        List<Order> orders = orderRepository.findAll();
-        List<Recipe> recipes = recipeRepository.findAll();
-
-        // Tính tốc độ tiêu thụ 7 ngày qua
         Date now = new Date();
         long sevenDaysAgo = now.getTime() - (7L * 24 * 60 * 60 * 1000);
+        List<Order> recentOrders = orderRepository.findByStatusSinceWithDetails(4, new Date(sevenDaysAgo));
+        List<Integer> productIds = recentOrders.stream()
+                .filter(order -> order.getOrderDetails() != null)
+                .flatMap(order -> order.getOrderDetails().stream())
+                .filter(detail -> detail.getProduct() != null && detail.getProduct().getId() != null)
+                .map(detail -> detail.getProduct().getId())
+                .distinct()
+                .toList();
+        List<Recipe> recipes = productIds.isEmpty()
+                ? List.of()
+                : recipeRepository.findByProductIdsWithIngredient(productIds);
 
         // Build recipe map: productId -> List<Recipe>
         Map<Integer, List<Recipe>> recipeMap = new HashMap<>();
@@ -61,11 +67,6 @@ public class PurchaseSuggestionController {
 
         // Tính nguyên liệu tiêu thụ trong 7 ngày
         Map<Long, BigDecimal> consumptionMap = new HashMap<>();
-        List<Order> recentOrders = orders.stream()
-                .filter(o -> o.getStatus() != null && o.getStatus() == 4)
-                .filter(o -> o.getCreateDate() != null && o.getCreateDate().getTime() >= sevenDaysAgo)
-                .collect(Collectors.toList());
-
         for (Order order : recentOrders) {
             if (order.getOrderDetails() == null) continue;
             for (OrderDetail detail : order.getOrderDetails()) {

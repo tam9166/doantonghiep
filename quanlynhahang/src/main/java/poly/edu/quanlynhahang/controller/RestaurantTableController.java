@@ -23,7 +23,14 @@ import poly.edu.quanlynhahang.dto.PublicRestaurantTableResponse;
 import poly.edu.quanlynhahang.entity.Order;
 import poly.edu.quanlynhahang.entity.RestaurantTable;
 import poly.edu.quanlynhahang.repository.OrderRepository;
+import poly.edu.quanlynhahang.entity.OrderStatus;
+import poly.edu.quanlynhahang.service.OrderStateMachineService;
 import poly.edu.quanlynhahang.repository.RestaurantTableRepository;
+import poly.edu.quanlynhahang.service.TableSessionService;
+import poly.edu.quanlynhahang.service.TableReleaseGuardService;
+import poly.edu.quanlynhahang.service.TableLifecycleService;
+import poly.edu.quanlynhahang.service.ReservationService;
+import org.springframework.transaction.annotation.Transactional;
 
 @RestController
 @RequestMapping("/api/tables")
@@ -34,6 +41,21 @@ public class RestaurantTableController {
 
     @Autowired
     private OrderRepository orderRepository;
+
+    @Autowired
+    private TableSessionService tableSessionService;
+
+    @Autowired
+    private OrderStateMachineService orderStateMachineService;
+
+    @Autowired
+    private TableReleaseGuardService tableReleaseGuardService;
+
+    @Autowired
+    private TableLifecycleService tableLifecycleService;
+
+    @Autowired
+    private ReservationService reservationService;
 
     @GetMapping
     public ResponseEntity<?> getAllTables() {
@@ -76,10 +98,14 @@ public class RestaurantTableController {
     }
 
     @GetMapping("/check-availability")
-    public ResponseEntity<?> checkAvailability(@RequestParam String date, @RequestParam String time) {
-        return ResponseEntity.ok(tableRepository.findAll().stream()
-                .map(PublicRestaurantTableResponse::from)
-                .toList());
+    public ResponseEntity<?> checkAvailability(@RequestParam String date,
+                                               @RequestParam String time,
+                                               @RequestParam(required = false) Integer durationMinutes,
+                                               @RequestParam(required = false) Integer guestCount,
+                                               @RequestParam(required = false) Integer areaId,
+                                               @RequestParam(required = false) Boolean lateDiningConfirmed) {
+        return ResponseEntity.ok(reservationService.findAvailableTables(
+                date, time, durationMinutes, guestCount, areaId, lateDiningConfirmed));
     }
 
     @PostMapping
@@ -90,30 +116,25 @@ public class RestaurantTableController {
 
     @PutMapping("/{id}/status")
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('CASHIER') or hasRole('WAITER')")
+    @Transactional
     public ResponseEntity<?> updateStatus(@PathVariable Integer id,
                                           @RequestParam Integer status,
                                           @RequestParam(required = false) String time) {
         return tableRepository.findById(id).map(table -> {
-            if ((status == 0 || status == 3)
-                    && orderRepository.existsOpenUnpaidOrderForTable(table.getId())) {
-                return ResponseEntity.status(409).body(
-                        "Bàn còn hóa đơn chưa thanh toán. Thu ngân phải xác nhận thanh toán trước khi chuyển bàn.");
+            if (status == 0) {
+                tableLifecycleService.release(table.getId());
+                return ResponseEntity.ok("Cập nhật thành công.");
+            }
+            if (status == 3) {
+                tableReleaseGuardService.prepareForRelease(table.getId());
             }
             table.setIsOccupied(status);
             table.setReservedTime(status == 0 ? null : time);
             tableRepository.save(table);
-
-            if (status == 3) {
-                List<Order> activeOrders = orderRepository.findAll().stream()
-                        .filter(o -> table.getId().equals(o.getTableId()))
-                        .filter(o -> Boolean.TRUE.equals(o.getIsPaid()))
-                        .filter(o -> o.getStatus() != null && o.getStatus() < 4)
-                        .collect(Collectors.toList());
-                for (Order order : activeOrders) {
-                    order.setStatus(4);
-                    orderRepository.save(order);
-                }
+            if (status == 0 || status == 3) {
+                revokeTableSession(table.getId());
             }
+
             return ResponseEntity.ok("Cập nhật thành công.");
         }).orElse(ResponseEntity.badRequest().body("Không tìm thấy bàn."));
     }
@@ -140,12 +161,16 @@ public class RestaurantTableController {
 
     @PutMapping("/{id}/unlink")
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER') or hasRole('CASHIER') or hasRole('WAITER')")
+    @Transactional
     public ResponseEntity<?> unlinkTable(@PathVariable Integer id) {
         return tableRepository.findById(id).map(table -> {
-            table.setIsOccupied(0);
-            table.setReservedTime(null);
-            tableRepository.save(table);
+            tableLifecycleService.release(table.getId());
             return ResponseEntity.ok("Tách bàn thành công.");
         }).orElse(ResponseEntity.badRequest().body("Không tìm thấy bàn."));
+    }
+
+    private void revokeTableSession(Integer tableId) {
+        // Direct controller unit tests construct this class without Spring injection.
+        if (tableSessionService != null) tableSessionService.revokeActiveForTable(tableId);
     }
 }

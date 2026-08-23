@@ -25,12 +25,26 @@ class CorsProfileConfigurationTest {
         assertTrue(property("application-test.properties").contains("localhost:5173"));
     }
 
+    @Test
+    void productionProfilesEnableRealCaptchaByDefault() throws IOException {
+        for (String profile : new String[] {"application-prod.properties", "application-production.properties"}) {
+            Properties properties = properties(profile);
+            assertEquals("${CAPTCHA_ENABLED:true}", properties.getProperty("app.captcha.enabled"));
+            assertEquals("${CAPTCHA_PROVIDER:turnstile}", properties.getProperty("app.captcha.provider"));
+            assertEquals("${CAPTCHA_SECRET:}", properties.getProperty("app.captcha.secret"));
+        }
+    }
+
     private String property(String resourceName) throws IOException {
+        return properties(resourceName).getProperty("app.cors.allowed-origins");
+    }
+
+    private Properties properties(String resourceName) throws IOException {
         Properties properties = new Properties();
         try (InputStream input = getClass().getClassLoader().getResourceAsStream(resourceName)) {
             if (input == null) throw new IOException("Missing resource " + resourceName);
             properties.load(input);
         }
-        return properties.getProperty("app.cors.allowed-origins");
+        return properties;
     }
 }

@@ -8,5 +8,5 @@ import java.util.*;
 public class StringListJsonConverter implements AttributeConverter<List<String>,String>{
  private static final ObjectMapper JSON=new ObjectMapper();
  public String convertToDatabaseColumn(List<String> value){try{return JSON.writeValueAsString(value==null?List.of():value);}catch(Exception e){throw new IllegalArgumentException("Danh sách JSON không hợp lệ",e);}}
- public List<String> convertToEntityAttribute(String value){if(value==null||value.isBlank())return new ArrayList<>();try{return new ArrayList<>(JSON.readValue(value,new TypeReference<List<String>>(){}));}catch(Exception e){return new ArrayList<>();}}
+ public List<String> convertToEntityAttribute(String value){if(value==null||value.isBlank())return new ArrayList<>();try{return new ArrayList<>(JSON.readValue(value,new TypeReference<List<String>>(){}));}catch(Exception e){throw new IllegalArgumentException("Dữ liệu danh sách JSON trong database không hợp lệ",e);}}
 }

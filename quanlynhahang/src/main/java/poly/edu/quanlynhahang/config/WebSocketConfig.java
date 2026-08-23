@@ -93,13 +93,14 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         });
     }
 
-    private void authorizeClientSend(StompHeaderAccessor accessor) {
+    void authorizeClientSend(StompHeaderAccessor accessor) {
         String destination = accessor.getDestination();
-        if (!StringUtils.hasText(destination) || !destination.startsWith("/app/")) {
-            throw new AccessDeniedException("Clients may only send messages to application destinations");
+        if ("/app/order/cancel".equals(destination)) {
+            requireAnyRole(accessor.getUser(), destination,
+                    "ROLE_ADMIN", "ROLE_MANAGER", "ROLE_CASHIER");
+            return;
         }
-        requireAnyRole(accessor.getUser(), destination,
-                "ROLE_ADMIN", "ROLE_MANAGER", "ROLE_KITCHEN", "ROLE_WAITER", "ROLE_CASHIER");
+        throw new AccessDeniedException("Client send destination is not allowed");
     }
 
     private void authenticate(StompHeaderAccessor accessor) {
@@ -128,13 +129,25 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
             requireAnyRole(accessor.getUser(), destination, "ROLE_ADMIN", "ROLE_MANAGER");
             return;
         }
-        if (destination.startsWith("/topic/kitchen")
-                || destination.startsWith("/topic/waiter")
-                || destination.startsWith("/topic/orders")
-                || destination.startsWith("/queue/")
-                || destination.startsWith("/user/queue/")) {
+        if (destination.equals("/topic/kitchen")) {
             requireAnyRole(accessor.getUser(), destination,
-                    "ROLE_ADMIN", "ROLE_MANAGER", "ROLE_KITCHEN", "ROLE_WAITER", "ROLE_CASHIER");
+                    "ROLE_ADMIN", "ROLE_MANAGER", "ROLE_KITCHEN", "ROLE_CASHIER");
+            return;
+        }
+        if (destination.equals("/topic/waiter")) {
+            requireAnyRole(accessor.getUser(), destination,
+                    "ROLE_ADMIN", "ROLE_MANAGER", "ROLE_WAITER");
+            return;
+        }
+        if (destination.equals("/topic/orders")) {
+            requireAnyRole(accessor.getUser(), destination,
+                    "ROLE_ADMIN", "ROLE_MANAGER", "ROLE_WAITER", "ROLE_CASHIER");
+            return;
+        }
+        if (destination.startsWith("/user/queue/")) {
+            requireAnyRole(accessor.getUser(), destination,
+                    "ROLE_ADMIN", "ROLE_MANAGER", "ROLE_KITCHEN", "ROLE_WAITER",
+                    "ROLE_CASHIER", "ROLE_STAFF", "ROLE_CUSTOMER");
             return;
         }
         throw new AccessDeniedException("Subscription destination is not allowed: " + destination);

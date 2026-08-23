@@ -29,7 +29,14 @@ import poly.edu.quanlynhahang.repository.OrderRepository;
 import poly.edu.quanlynhahang.repository.RestaurantTableRepository;
 import poly.edu.quanlynhahang.service.CustomerInvoiceEmailService;
 import poly.edu.quanlynhahang.service.OrderCheckoutService;
+import poly.edu.quanlynhahang.service.OrderStateMachineService;
+import poly.edu.quanlynhahang.service.KitchenOrderDetailService;
 import poly.edu.quanlynhahang.dto.GuestBookingRequest;
+import poly.edu.quanlynhahang.dto.SplitTableRequest;
+import poly.edu.quanlynhahang.service.OrderFinancialMutationGuardService;
+import poly.edu.quanlynhahang.service.TableSessionService;
+import poly.edu.quanlynhahang.entity.OrderType;
+import poly.edu.quanlynhahang.service.TableReleaseGuardService;
 
 class OrderWorkflowGuardTest {
 
@@ -49,8 +56,13 @@ class OrderWorkflowGuardTest {
         OrderRepository orderRepository = mock(OrderRepository.class);
         Order order = new Order();
         order.setId(15);
-        when(orderRepository.findById(15)).thenReturn(Optional.of(order));
+        order.setStatus(2);
+        OrderDetail ready = new OrderDetail();
+        ready.setStatus(1);
+        order.setOrderDetails(List.of(ready));
+        when(orderRepository.findLockedById(15)).thenReturn(Optional.of(order));
         ReflectionTestUtils.setField(controller, "orderRepository", orderRepository);
+        ReflectionTestUtils.setField(controller, "orderStateMachineService", new OrderStateMachineService());
 
         assertEquals(HttpStatus.OK, controller.confirmServed(15).getStatusCode());
         assertEquals(7, order.getStatus());
@@ -66,6 +78,7 @@ class OrderWorkflowGuardTest {
         order.setOrderDetails(List.of());
         when(orderRepository.findById(21)).thenReturn(Optional.of(order));
         ReflectionTestUtils.setField(controller, "orderRepository", orderRepository);
+        ReflectionTestUtils.setField(controller, "orderStateMachineService", new OrderStateMachineService());
 
         var exception = org.junit.jupiter.api.Assertions.assertThrows(
                 org.springframework.web.server.ResponseStatusException.class,
@@ -93,6 +106,7 @@ class OrderWorkflowGuardTest {
                 mock(poly.edu.quanlynhahang.service.ActivityLogService.class));
         ReflectionTestUtils.setField(controller, "messagingTemplate",
                 mock(org.springframework.messaging.simp.SimpMessagingTemplate.class));
+        ReflectionTestUtils.setField(controller, "orderStateMachineService", new OrderStateMachineService());
 
         var response = controller.updateOrderStatus(22, 7);
 
@@ -148,16 +162,101 @@ class OrderWorkflowGuardTest {
     @Test
     void rejectsServingADishThatTheKitchenHasNotCompleted() {
         OrderController controller = new OrderController();
+        KitchenOrderDetailService kitchenService = mock(KitchenOrderDetailService.class);
+        doThrow(new org.springframework.web.server.ResponseStatusException(
+                HttpStatus.CONFLICT, "Món chưa hoàn thành"))
+                .when(kitchenService).serve(44);
+        ReflectionTestUtils.setField(controller, "kitchenOrderDetailService", kitchenService);
+
+        var exception = org.junit.jupiter.api.Assertions.assertThrows(
+                org.springframework.web.server.ResponseStatusException.class,
+                () -> controller.updateOrderDetailStatus(44, 2));
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+    }
+
+    @Test
+    void splitRejectsAnUnknownDetailInsteadOfSilentlySkippingIt() {
+        OrderController controller = new OrderController();
+        OrderRepository orderRepository = mock(OrderRepository.class);
         OrderDetailRepository detailRepository = mock(OrderDetailRepository.class);
-        OrderDetail detail = new OrderDetail();
-        detail.setStatus(0);
-        when(detailRepository.findById(44)).thenReturn(Optional.of(detail));
+        RestaurantTableRepository tableRepository = mock(RestaurantTableRepository.class);
+        RestaurantTable sourceTable = new RestaurantTable();
+        sourceTable.setId(1);
+        RestaurantTable targetTable = new RestaurantTable();
+        targetTable.setId(2);
+        targetTable.setActive(true);
+        Order source = new Order();
+        source.setId(10);
+        source.setStatus(1);
+        when(tableRepository.findLockedByIdIn(List.of(1, 2)))
+                .thenReturn(List.of(sourceTable, targetTable));
+        when(orderRepository.findOpenDineInOrdersByTableIdWithDetails(1)).thenReturn(List.of(source));
+        when(orderRepository.findOpenDineInOrdersByTableIdWithDetails(2)).thenReturn(List.of());
+        when(orderRepository.findLockedById(10)).thenReturn(Optional.of(source));
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> {
+            Order saved = invocation.getArgument(0);
+            if (saved.getId() == null) saved.setId(11);
+            return saved;
+        });
+        when(detailRepository.findAllById(any())).thenReturn(List.of());
+        ReflectionTestUtils.setField(controller, "orderRepository", orderRepository);
         ReflectionTestUtils.setField(controller, "orderDetailRepository", detailRepository);
+        ReflectionTestUtils.setField(controller, "tableRepository", tableRepository);
+        ReflectionTestUtils.setField(controller, "orderFinancialMutationGuardService",
+                mock(OrderFinancialMutationGuardService.class));
+        ReflectionTestUtils.setField(controller, "orderStateMachineService", new OrderStateMachineService());
 
-        var response = controller.updateOrderDetailStatus(44, 2);
+        var error = org.junit.jupiter.api.Assertions.assertThrows(
+                org.springframework.web.server.ResponseStatusException.class,
+                () -> controller.splitTable(new SplitTableRequest(1, 2, List.of(999))));
 
-        assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+        assertEquals(HttpStatus.BAD_REQUEST, error.getStatusCode());
         verify(detailRepository, never()).save(any(OrderDetail.class));
+    }
+
+    @Test
+    void movingAnOrderLocksTablesRejectsConflictsAndRevokesOldAndTargetQrSessions() {
+        AdminOrderController controller = new AdminOrderController();
+        OrderRepository orderRepository = mock(OrderRepository.class);
+        RestaurantTableRepository tableRepository = mock(RestaurantTableRepository.class);
+        TableSessionService tableSessions = mock(TableSessionService.class);
+        poly.edu.quanlynhahang.service.TableLifecycleService tableLifecycle =
+                mock(poly.edu.quanlynhahang.service.TableLifecycleService.class);
+        Order order = new Order();
+        order.setId(20);
+        order.setStatus(1);
+        order.setOrderType(OrderType.DINE_IN);
+        order.setTableId(1);
+        RestaurantTable source = new RestaurantTable();
+        source.setId(1);
+        source.setIsOccupied(2);
+        RestaurantTable target = new RestaurantTable();
+        target.setId(2);
+        target.setActive(true);
+        target.setIsOccupied(0);
+        when(orderRepository.findById(20)).thenReturn(Optional.of(order));
+        when(orderRepository.findLockedById(20)).thenReturn(Optional.of(order));
+        when(tableRepository.findLockedByIdIn(List.of(1, 2))).thenReturn(List.of(source, target));
+        when(orderRepository.existsActiveOrderForTableExcludingOrder(2, 20)).thenReturn(false);
+        when(orderRepository.existsActiveOrderForTableExcludingOrder(1, 20)).thenReturn(false);
+        ReflectionTestUtils.setField(controller, "orderRepository", orderRepository);
+        ReflectionTestUtils.setField(controller, "tableRepository", tableRepository);
+        ReflectionTestUtils.setField(controller, "tableSessionService", tableSessions);
+        org.mockito.Mockito.doAnswer(invocation -> {
+            source.setIsOccupied(0);
+            return source;
+        }).when(tableLifecycle).release(1);
+        ReflectionTestUtils.setField(controller, "tableLifecycleService", tableLifecycle);
+        ReflectionTestUtils.setField(controller, "activityLogService",
+                mock(poly.edu.quanlynhahang.service.ActivityLogService.class));
+
+        assertEquals(HttpStatus.OK, controller.moveOrderToTable(20, 2).getStatusCode());
+        assertEquals(2, order.getTableId());
+        assertEquals(0, source.getIsOccupied());
+        assertEquals(2, target.getIsOccupied());
+        verify(tableSessions).revokeActiveForTable(1);
+        verify(tableSessions).revokeActiveForTable(2);
+        verify(tableRepository).findLockedByIdIn(List.of(1, 2));
     }
 
     @Test
@@ -169,12 +268,24 @@ class OrderWorkflowGuardTest {
         table.setId(8);
         when(tableRepository.findById(8)).thenReturn(Optional.of(table));
         when(orderRepository.existsOpenUnpaidOrderForTable(8)).thenReturn(true);
+        TableReleaseGuardService releaseGuard = mock(TableReleaseGuardService.class);
+        poly.edu.quanlynhahang.service.TableLifecycleService tableLifecycle =
+                mock(poly.edu.quanlynhahang.service.TableLifecycleService.class);
+        doThrow(new org.springframework.web.server.ResponseStatusException(
+                HttpStatus.CONFLICT, "Bàn còn hóa đơn chưa thanh toán đủ"))
+                .when(releaseGuard).prepareForRelease(8);
+        doThrow(new org.springframework.web.server.ResponseStatusException(
+                HttpStatus.CONFLICT, "Bàn còn hóa đơn chưa thanh toán đủ"))
+                .when(tableLifecycle).release(8);
         ReflectionTestUtils.setField(controller, "tableRepository", tableRepository);
         ReflectionTestUtils.setField(controller, "orderRepository", orderRepository);
+        ReflectionTestUtils.setField(controller, "tableReleaseGuardService", releaseGuard);
+        ReflectionTestUtils.setField(controller, "tableLifecycleService", tableLifecycle);
 
-        var response = controller.updateStatus(8, 0, null);
-
-        assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+        var error = org.junit.jupiter.api.Assertions.assertThrows(
+                org.springframework.web.server.ResponseStatusException.class,
+                () -> controller.updateStatus(8, 0, null));
+        assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
         verify(tableRepository, never()).save(any(RestaurantTable.class));
     }
 
@@ -189,12 +300,18 @@ class OrderWorkflowGuardTest {
         table.setIsOccupied(2);
         when(tableRepository.findById(9)).thenReturn(Optional.of(table));
         when(orderRepository.existsOpenUnpaidOrderForTable(9)).thenReturn(true);
+        TableReleaseGuardService releaseGuard = mock(TableReleaseGuardService.class);
+        doThrow(new org.springframework.web.server.ResponseStatusException(
+                HttpStatus.CONFLICT, "Bàn còn hóa đơn chưa thanh toán đủ"))
+                .when(releaseGuard).prepareForRelease(9);
         ReflectionTestUtils.setField(controller, "tableRepository", tableRepository);
         ReflectionTestUtils.setField(controller, "orderRepository", orderRepository);
+        ReflectionTestUtils.setField(controller, "tableReleaseGuardService", releaseGuard);
 
-        var response = controller.updateStatus(9, 3, null);
-
-        assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+        var error = org.junit.jupiter.api.Assertions.assertThrows(
+                org.springframework.web.server.ResponseStatusException.class,
+                () -> controller.updateStatus(9, 3, null));
+        assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
         assertEquals(2, table.getIsOccupied());
         verify(tableRepository, never()).save(any(RestaurantTable.class));
     }
@@ -212,6 +329,14 @@ class OrderWorkflowGuardTest {
         when(orderRepository.existsOpenUnpaidOrderForTable(10)).thenReturn(false);
         ReflectionTestUtils.setField(controller, "tableRepository", tableRepository);
         ReflectionTestUtils.setField(controller, "orderRepository", orderRepository);
+        ReflectionTestUtils.setField(controller, "tableReleaseGuardService", mock(TableReleaseGuardService.class));
+        poly.edu.quanlynhahang.service.TableLifecycleService tableLifecycle =
+                mock(poly.edu.quanlynhahang.service.TableLifecycleService.class);
+        org.mockito.Mockito.doAnswer(invocation -> {
+            table.setIsOccupied(0);
+            return table;
+        }).when(tableLifecycle).release(10);
+        ReflectionTestUtils.setField(controller, "tableLifecycleService", tableLifecycle);
 
         var cleaningResponse = controller.updateStatus(10, 3, null);
         assertEquals(HttpStatus.OK, cleaningResponse.getStatusCode());
@@ -220,7 +345,8 @@ class OrderWorkflowGuardTest {
         var emptyResponse = controller.updateStatus(10, 0, null);
         assertEquals(HttpStatus.OK, emptyResponse.getStatusCode());
         assertEquals(0, table.getIsOccupied());
-        verify(tableRepository, times(2)).save(table);
+        verify(tableRepository, times(1)).save(table);
+        verify(tableLifecycle).release(10);
     }
 
     @Test
@@ -289,5 +415,29 @@ class OrderWorkflowGuardTest {
 
         assertEquals(HttpStatus.GONE, response.getStatusCode());
         verify(orderRepository, never()).save(any(Order.class));
+    }
+
+    @Test
+    void scheduledActivationUsesIndexedStructuredTimeInsteadOfScanningOrParsingAddress() {
+        AdminOrderController controller = new AdminOrderController();
+        OrderRepository orderRepository = mock(OrderRepository.class);
+        Order due = new Order();
+        due.setId(41);
+        due.setStatus(5);
+        due.setAddress("free-form text that must not be parsed");
+        when(orderRepository.findByStatusAndScheduledAtLessThanEqualOrderByScheduledAtAsc(
+                org.mockito.ArgumentMatchers.eq(5),
+                any(java.time.LocalDateTime.class))).thenReturn(List.of(due));
+        ReflectionTestUtils.setField(controller, "orderRepository", orderRepository);
+        ReflectionTestUtils.setField(controller, "messagingTemplate",
+                mock(org.springframework.messaging.simp.SimpMessagingTemplate.class));
+        ReflectionTestUtils.setField(controller, "orderStateMachineService", new OrderStateMachineService());
+
+        var response = controller.activateScheduledOrders();
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(1, due.getStatus());
+        verify(orderRepository, never()).findAll();
+        verify(orderRepository).save(due);
     }
 }

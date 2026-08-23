@@ -9,6 +9,7 @@ import poly.edu.quanlynhahang.entity.PaymentTransaction;
 import poly.edu.quanlynhahang.entity.PaymentTransactionStatus;
 
 public interface PaymentTransactionRepository extends JpaRepository<PaymentTransaction, Long> {
+    boolean existsByAggregateTypeAndAggregateId(String aggregateType, Long aggregateId);
     Optional<PaymentTransaction> findByProviderTransactionId(String providerTransactionId);
 
     List<PaymentTransaction> findByPaymentIntentIdAndStatus(

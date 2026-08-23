@@ -22,8 +22,10 @@ import org.springframework.web.multipart.MultipartFile;
 import jakarta.validation.Valid;
 import poly.edu.quanlynhahang.dto.ApplicationCreateRequest;
 import poly.edu.quanlynhahang.dto.ApplicationResponse;
+import poly.edu.quanlynhahang.dto.ApplicationUploadRequest;
 import poly.edu.quanlynhahang.entity.Application;
 import poly.edu.quanlynhahang.repository.ApplicationRepository;
+import poly.edu.quanlynhahang.repository.PostRepository;
 import poly.edu.quanlynhahang.service.CvFileStorageService;
 
 @RestController
@@ -37,8 +39,14 @@ public class ApplicationController {
     @Autowired
     private CvFileStorageService cvFileStorageService;
 
+    @Autowired
+    private PostRepository postRepository;
+
     @PostMapping
     public ResponseEntity<?> submitApplication(@Valid @RequestBody ApplicationCreateRequest request) {
+        if (!postRepository.existsById(request.postId())) {
+            return ResponseEntity.badRequest().body("Tin tuyển dụng không tồn tại.");
+        }
         Application app = new Application();
         app.setFullname(request.fullname().trim());
         app.setPhone(request.phone().trim());
@@ -58,25 +66,20 @@ public class ApplicationController {
     }
 
     @PostMapping("/upload")
-    public ResponseEntity<?> submitApplicationWithFile(
-            @org.springframework.web.bind.annotation.RequestParam("fullname") String fullname,
-            @org.springframework.web.bind.annotation.RequestParam("phone") String phone,
-            @org.springframework.web.bind.annotation.RequestParam(value = "email", required = false) String email,
-            @org.springframework.web.bind.annotation.RequestParam(value = "message", required = false) String message,
-            @org.springframework.web.bind.annotation.RequestParam(value = "postId", required = false) Integer postId,
-            @org.springframework.web.bind.annotation.RequestParam(value = "file", required = false) MultipartFile file) {
-
-        if (fullname == null || fullname.isBlank()) return ResponseEntity.badRequest().body("Vui lòng nhập họ tên!");
-        if (phone == null || phone.isBlank()) return ResponseEntity.badRequest().body("Vui lòng nhập số điện thoại!");
+    public ResponseEntity<?> submitApplicationWithFile(@Valid ApplicationUploadRequest request) {
+        if (!postRepository.existsById(request.getPostId())) {
+            return ResponseEntity.badRequest().body("Tin tuyển dụng không tồn tại.");
+        }
 
         Application app = new Application();
-        app.setFullname(fullname);
-        app.setPhone(phone);
-        app.setEmail(email);
-        app.setMessage(message);
-        app.setPostId(postId);
+        app.setFullname(request.getFullname().trim());
+        app.setPhone(request.getPhone().trim());
+        app.setEmail(normalizeOptional(request.getEmail()));
+        app.setMessage(normalizeOptional(request.getMessage()));
+        app.setPostId(request.getPostId());
         app.setCreateDate(new Date());
 
+        MultipartFile file = request.getFile();
         if (file != null && !file.isEmpty()) {
             try {
                 app.setCvFile("/api/applications/cv/" + cvFileStorageService.store(file));

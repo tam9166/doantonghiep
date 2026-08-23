@@ -1,7 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { routeLoading } from './loadingState'
 import i18n from '@/i18n'
-import { canAccessAdminRoute, canAccessOperationalWorkspace, customerRouteRedirect } from './roleAccess'
+import { canAccessAdminRoute, canAccessOperationalWorkspace, customerRouteRedirect, isStaffWorkspacePath } from './roleAccess'
+import { AUTH_CONTEXT, getActiveAuthContext, getCustomerToken, getCustomerUser, getStaffToken, getStaffUser } from '@/services/session'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -17,6 +18,7 @@ const router = createRouter({
     { path: '/admin', name: 'admin', component: () => import('@/views/AdminProduct.vue') },
     { path: '/admin/orders', name: 'admin-orders', component: () => import('@/views/AdminOrder.vue') },
     { path: '/admin/reservations', name: 'admin-reservations', component: () => import('@/views/AdminReservation.vue') },
+    { path: '/admin/reservation-cancellations', name: 'admin-reservation-cancellations', component: () => import('@/views/AdminCancellationRequests.vue') },
     { path: '/admin/reservation-reviews', name: 'admin-reservation-reviews', component: () => import('@/views/AdminReservationReview.vue') },
     { path: '/admin/customer-history', name: 'admin-customer-history', component: () => import('@/views/AdminCustomerHistory.vue') },
     { path: '/admin/deposit-policies', name: 'admin-deposit-policies', component: () => import('@/views/AdminDepositPolicy.vue') },
@@ -33,7 +35,8 @@ const router = createRouter({
     { path: '/dine-in', name: 'DineInOrder', component: () => import('../views/DineInOrder.vue') },
     { path: '/kitchen', name: 'Kitchen', component: () => import('../views/Kitchen.vue') },
     { path: '/waiter', name: 'Waiter', component: () => import('../views/Waiter.vue') },
-    { path: '/staff', name: 'Staff', component: () => import('../views/Staff.vue') },
+    { path: '/staff', redirect: '/staff/profile' },
+    { path: '/staff/profile', name: 'StaffProfile', component: () => import('../views/Staff.vue') },
     { path: '/admin/ingredients', name: 'AdminIngredient', component: () => import('../views/AdminIngredient.vue') },
     { path: '/admin/activity-log', name: 'AdminActivityLog', component: () => import('../views/AdminActivityLog.vue') },
     { path: '/admin/popular-items', name: 'AdminPopularItems', component: () => import('../views/AdminPopularItems.vue') },
@@ -49,26 +52,16 @@ const router = createRouter({
 router.beforeEach((to, from) => {
   routeLoading.value = to.path.startsWith('/admin') && from.path !== to.path
 
-  const hasStaffSession = Boolean(localStorage.getItem('staff_token'))
-  const isStaffWorkspace = to.path.startsWith('/admin')
-    || to.path.startsWith('/kitchen')
-    || to.path.startsWith('/waiter')
-    || to.path.startsWith('/cashier')
-    || to.path === '/staff'
-    || (to.path === '/change-password' && hasStaffSession)
-  const token = localStorage.getItem(isStaffWorkspace ? 'staff_token' : 'token')
-  const storedUser = localStorage.getItem(isStaffWorkspace ? 'staff_user' : 'user')
+  const hasStaffSession = getActiveAuthContext() === AUTH_CONTEXT.STAFF
+  const isStaffWorkspace = isStaffWorkspacePath(to.path, hasStaffSession)
+  const token = isStaffWorkspace ? getStaffToken() : getCustomerToken()
+  const storedUser = isStaffWorkspace ? getStaffUser() : getCustomerUser()
   let userRoles = []
   let mustChangePassword = false
 
   if (storedUser) {
-    try {
-      const user = JSON.parse(storedUser)
-      userRoles = user.roles || []
-      mustChangePassword = Boolean(user.mustChangePassword)
-    } catch {
-      userRoles = []
-    }
+    userRoles = storedUser.roles || []
+    mustChangePassword = Boolean(storedUser.mustChangePassword)
   }
 
   // Danh sách role nhân sự
@@ -143,7 +136,7 @@ router.beforeEach((to, from) => {
   }
 
   // 6. KHU VỰC NHÂN VIÊN CHUNG
-  if (to.path === '/staff') {
+  if (to.path === '/staff' || to.path.startsWith('/staff/')) {
     if (!token || !isStaff) {
       if (!token) {
         return '/staff-login'

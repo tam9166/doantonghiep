@@ -95,7 +95,7 @@
                 <td class="col-detail">
                   <div class="address-text">{{ cleanAddress(order.address) }}</div>
                   <div v-if="order.status === 5" class="scheduled-badge">
-                    ⏰ {{ getCountdown(order.address) }}
+                    ⏰ {{ getCountdown(order.scheduledAt) }}
                   </div>
                   <div class="food-tags">
                     <span v-for="detail in order.orderDetails" :key="detail.id" class="food-tag">
@@ -221,17 +221,23 @@
 <script setup>
 import AdminLayout from '@/components/AdminLayout.vue';
 
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import api from '@/services/api';
 import { foodImage, replaceFoodImage } from '@/utils/imageFallback';
+import { useDialog } from '@/composables/useDialog';
+import { useToast } from '@/composables/useToast';
+
+const { confirmDialog } = useDialog();
+const toast = useToast();
 
 const orders = ref([]);
 const searchCode = ref('');
 const timeFilter = ref('all');
 const selectedOrder = ref(null);
+let scheduledActivationInterval = null;
 
 const configHeader = () => {
-  const token = localStorage.getItem('staff_token');
+  const token = sessionStorage.getItem('staff_token');
   return { headers: { 'Authorization': `Bearer ${token}` } };
 };
 
@@ -243,13 +249,18 @@ const loadData = async () => {
 };
 
 const approveOrderToKitchen = async (orderId) => {
-  if (confirm('Xác nhận chuyển đơn hàng này xuống bếp để chuẩn bị?')) {
+  const confirmed = await confirmDialog({
+    title: 'Chuyển đơn xuống bếp',
+    message: 'Xác nhận chuyển đơn hàng này xuống bếp để chuẩn bị?',
+    confirmLabel: 'Chuyển xuống bếp',
+  });
+  if (confirmed) {
     try {
       await api.put(`/api/admin/orders/${orderId}/status?status=1`, {}, configHeader());
-      alert('Đã chuyển đơn xuống Bếp thành công!');
+      toast.success('Đã chuyển đơn xuống Bếp thành công!');
       loadData();
     } catch (error) {
-      alert('Lỗi! Không thể chuyển đơn xuống bếp. Vui lòng kiểm tra quyền.');
+      toast.error('Không thể chuyển đơn xuống bếp. Vui lòng kiểm tra quyền.');
     }
   }
 };
@@ -295,12 +306,7 @@ const resetFilters = () => { searchCode.value = ''; timeFilter.value = 'all'; };
 
 const getOrderCode = (order) => {
   if (!order) return '----';
-  if (order.address) {
-    const matchHash = order.address.match(/#(\d{4})/);
-    if (matchHash) return matchHash[1];
-    const matchGD = order.address.match(/MãGD:\s*(\d+)/);
-    if (matchGD) return matchGD[1].padStart(4, '0');
-  }
+  if (order.orderCode) return order.orderCode;
   if (order.id) return String(order.id).padStart(4, '0');
   return '0000';
 };
@@ -337,12 +343,10 @@ const calculateTotal = (order) => {
 };
 const exportToPDF = () => { window.print(); };
 
-// 🌟 Parse giờ hẹn từ address và hiện countdown
-const getCountdown = (address) => {
-  if (!address) return '';
-  const match = address.match(/Lúc:\s*(\d{2}:\d{2})\s*ngày\s*(\d{4}-\d{2}-\d{2})/);
-  if (!match) return '';
-  const arrivalTime = new Date(`${match[2]}T${match[1]}:00`);
+const getCountdown = (scheduledAt) => {
+  if (!scheduledAt) return 'Chưa có giờ hẹn';
+  const arrivalTime = new Date(scheduledAt);
+  if (Number.isNaN(arrivalTime.getTime())) return 'Giờ hẹn không hợp lệ';
   const now = new Date();
   const diffMs = arrivalTime.getTime() - now.getTime();
   const diffMin = Math.round(diffMs / 60000);
@@ -354,7 +358,7 @@ const getCountdown = (address) => {
 // 🌟 Auto-activate scheduled reservation orders every 30s
 const activateScheduled = async () => {
   try {
-    const token = localStorage.getItem('staff_token');
+    const token = sessionStorage.getItem('staff_token');
     if (!token || token === 'null' || token === 'undefined') return; // Skip if no valid token
     await api.put('/api/admin/orders/activate-scheduled', {}, configHeader());
     loadData(); // Refresh list
@@ -363,7 +367,14 @@ const activateScheduled = async () => {
 
 onMounted(() => {
   loadData();
-  setInterval(activateScheduled, 30000); // Mỗi 30 giây check 1 lần
+  scheduledActivationInterval = window.setInterval(activateScheduled, 30000);
+});
+
+onUnmounted(() => {
+  if (scheduledActivationInterval) {
+    window.clearInterval(scheduledActivationInterval);
+    scheduledActivationInterval = null;
+  }
 });
 </script>
 

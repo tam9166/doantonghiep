@@ -7,11 +7,7 @@ BACKEND="$ROOT/quanlynhahang"
 
 cd "$FRONTEND"
 rm -rf dist
-if [ -d node_modules ]; then
-  npm install
-else
-  npm ci
-fi
+npm ci
 npm run lint
 npm run test
 npm run build

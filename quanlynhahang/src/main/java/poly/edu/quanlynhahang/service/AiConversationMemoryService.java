@@ -8,6 +8,8 @@ import java.time.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * AI conversation memory service with proper TTL, timezone handling, and bounded caching.
@@ -16,6 +18,7 @@ import java.util.regex.*;
  */
 @Service
 public class AiConversationMemoryService {
+    private static final Logger log = LoggerFactory.getLogger(AiConversationMemoryService.class);
     private static final Duration SESSION_TTL = Duration.ofHours(2);
     private static final int MAX_SESSIONS = 5000;
     private static final Pattern GUESTS = Pattern.compile("(?i)(\\d{1,3})\\s*(khách|người|nguoi)");
@@ -118,7 +121,8 @@ public class AiConversationMemoryService {
                         m.group(3) == null ? today.getYear() : Integer.parseInt(m.group(3)),
                         Integer.parseInt(m.group(2)),
                         Integer.parseInt(m.group(1)));
-            } catch (DateTimeException ignored) {
+            } catch (DateTimeException exception) {
+                log.debug("Ignoring invalid date candidate in AI conversation: {}", m.group(), exception);
                 return fallback;
             }
         }

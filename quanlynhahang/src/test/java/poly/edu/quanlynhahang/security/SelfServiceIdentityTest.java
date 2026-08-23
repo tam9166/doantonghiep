@@ -69,7 +69,7 @@ class SelfServiceIdentityTest {
         AccountRepository accountRepository = mock(AccountRepository.class);
         Account account = new Account();
         account.setUsername(ACTOR);
-        when(accountRepository.findById(ACTOR)).thenReturn(java.util.Optional.of(account));
+        when(accountRepository.findLockedByUsername(ACTOR)).thenReturn(java.util.Optional.of(account));
         when(workScheduleRepository.findByAccountUsernameAndWorkDate(eq(ACTOR), any(Date.class)))
                 .thenReturn(Collections.emptyList());
         when(timekeepingRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -81,7 +81,8 @@ class SelfServiceIdentityTest {
 
         controller.performCheck(authentication(ACTOR), new TimekeepingCheckRequest("IN"));
 
-        verify(accountRepository).findById(ACTOR);
+        verify(accountRepository).findLockedByUsername(ACTOR);
+        verify(accountRepository, org.mockito.Mockito.never()).findById(ACTOR);
         verify(timekeepingRepository).findByAccountUsernameAndWorkDate(eq(ACTOR), any(LocalDate.class));
     }
 

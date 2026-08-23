@@ -141,7 +141,7 @@
                 @pointerdown="startDragLayout($event, t, index, floorName)"
               >
                 <button @click.stop="openEditModal(t)" class="btn-edit" title="Sửa bàn">✎</button>
-                <button @click.stop="openQrModal(t.name)" class="btn-qr" title="Mã QR gọi món">📱</button>
+                <button @click.stop="openQrModal(t)" class="btn-qr" title="Mã QR gọi món">📱</button>
                 <span v-if="t.capacity" class="capacity-tag">👥 {{ t.capacity }}</span>
                 <div class="table-status-dot"></div>
                 <h3 class="t-name">{{ t.name }}</h3>
@@ -162,7 +162,7 @@
                 <button v-if="t.isOccupied !== 5" @click="deleteTable(t.id)" class="btn-del" title="Xóa bàn">✖</button>
                 <button v-if="t.isOccupied === 5" @click="unlinkTable(t.id)" class="btn-unlink" title="Tách bàn">✂️</button>
                 <button @click="openEditModal(t)" class="btn-edit" title="Sửa bàn">✎</button>
-                <button @click="openQrModal(t.name)" class="btn-qr" title="Mã QR gọi món">📱</button>
+                <button @click="openQrModal(t)" class="btn-qr" title="Mã QR gọi món">📱</button>
                 <span v-if="t.viewType" class="view-tag">★ {{ t.viewType }}</span>
                 <span v-if="t.capacity" class="capacity-tag">👥 {{ t.capacity }}</span>
 
@@ -343,6 +343,11 @@ import AdminLayout from '@/components/AdminLayout.vue';
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import api from '@/services/api';
 import QrcodeVue from 'qrcode.vue';
+import { useDialog } from '@/composables/useDialog';
+import { useToast } from '@/composables/useToast';
+
+const { confirmDialog } = useDialog();
+const toast = useToast();
 
 const tablesList = ref([]);
 const areas = ref([]);
@@ -390,17 +395,23 @@ const activeTables = computed(() => {
 
 const executeMerge = async () => {
   if (!mergeData.value.fromTable || !mergeData.value.toTable) {
-    alert('Vui lòng chọn đầy đủ bàn nguồn và bàn đích!');
+    toast.warning('Vui lòng chọn đầy đủ bàn nguồn và bàn đích!');
     return;
   }
   
   const fromT = tablesList.value.find(t => t.id === mergeData.value.fromTable);
   const toT = tablesList.value.find(t => t.id === mergeData.value.toTable);
   
-  if (!confirm(`Bạn chắc chắn muốn ghép/gộp ${fromT.name} vào ${toT.name}?`)) return;
+  const confirmed = await confirmDialog({
+    title: 'Xác nhận gộp bàn',
+    message: `Bạn chắc chắn muốn ghép/gộp ${fromT.name} vào ${toT.name}?`,
+    confirmLabel: 'Gộp bàn',
+    danger: true,
+  });
+  if (!confirmed) return;
   
   try {
-    const token = localStorage.getItem('staff_token');
+    const token = sessionStorage.getItem('staff_token');
     
     if (mergeData.value.type === 'ORDER') {
       const res = await api.post('/api/orders/merge-tables', {
@@ -409,33 +420,39 @@ const executeMerge = async () => {
       }, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      alert(res.data.message || 'Gộp bàn thành công!');
+      toast.success(res.data.message || 'Gộp bàn thành công!');
     } else {
       const res = await api.put(`/api/tables/${fromT.id}/link/${toT.id}`, {}, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      alert(res.data || 'Ghép bàn vật lý thành công!');
+      toast.success(res.data || 'Ghép bàn vật lý thành công!');
     }
     
     showMergeModal.value = false;
     mergeData.value = { type: 'PHYSICAL', fromTable: '', toTable: '' };
     fetchTables();
   } catch (err) {
-    alert(err.response?.data || 'Lỗi khi thao tác. Vui lòng kiểm tra lại!');
+    toast.error(err.response?.data?.message || err.response?.data || 'Lỗi khi thao tác. Vui lòng kiểm tra lại!');
   }
 };
 
 const unlinkTable = async (id) => {
-  if (!confirm('Bạn có chắc chắn muốn tách bàn này ra không?')) return;
+  const confirmed = await confirmDialog({
+    title: 'Xác nhận tách bàn',
+    message: 'Bạn có chắc chắn muốn tách bàn này ra không?',
+    confirmLabel: 'Tách bàn',
+    danger: true,
+  });
+  if (!confirmed) return;
   try {
-    const token = localStorage.getItem('staff_token');
+    const token = sessionStorage.getItem('staff_token');
     const res = await api.put(`/api/tables/${id}/unlink`, {}, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    alert(res.data || 'Tách bàn thành công!');
+    toast.success(res.data || 'Tách bàn thành công!');
     fetchTables();
   } catch {
-    alert('Lỗi khi tách bàn!');
+    toast.error('Lỗi khi tách bàn!');
   }
 };
 
@@ -448,13 +465,25 @@ const getRealisticClass = (floor) => {
 
 const showQrModal = ref(false);
 const qrTable = ref('');
+const qrCapability = ref('');
 const qrValue = computed(() => {
-  return `/dine-in?table=${encodeURIComponent(qrTable.value)}`;
+  return qrCapability.value
+    ? `${window.location.origin}/dine-in?cap=${encodeURIComponent(qrCapability.value)}`
+    : '';
 });
 
-const openQrModal = (tableName) => {
-  qrTable.value = tableName;
-  showQrModal.value = true;
+const openQrModal = async (table) => {
+  try {
+    const token = sessionStorage.getItem('staff_token');
+    const response = await api.post(`/api/table-sessions/admin/${table.id}`, {}, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    qrTable.value = response.data.tableName || table.name;
+    qrCapability.value = response.data.token;
+    showQrModal.value = true;
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Không thể cấp mã QR an toàn cho bàn này.');
+  }
 };
 
 const downloadQRImage = () => {
@@ -466,12 +495,12 @@ const downloadQRImage = () => {
     link.download = `QR_Code_${qrTable.value}.png`;
     link.click();
   } else {
-    alert('Lỗi tạo ảnh QR! Vui lòng thử lại.');
+    toast.error('Lỗi tạo ảnh QR! Vui lòng thử lại.');
   }
 };
 
 const fetchTables = async () => {
-  const token = localStorage.getItem('staff_token');
+  const token = sessionStorage.getItem('staff_token');
   try {
     const res = await api.get('/api/tables', {
       headers: token ? { 'Authorization': `Bearer ${token}` } : {}
@@ -492,7 +521,7 @@ const fetchAreas = async () => {
 const fetchLayouts = async () => {
   try {
     const res = await api.get('/api/admin/table-layouts', {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('staff_token')}` }
+      headers: { 'Authorization': `Bearer ${sessionStorage.getItem('staff_token')}` }
     });
     const next = {};
     (Array.isArray(res.data) ? res.data : []).forEach(layout => {
@@ -510,7 +539,7 @@ const fetchLayouts = async () => {
     });
     tableLayouts.value = next;
   } catch {
-    alert('Không thể tải layout bàn. Vui lòng đăng nhập bằng Admin/Manager.');
+    toast.error('Không thể tải layout bàn. Vui lòng đăng nhập bằng Admin/Manager.');
   }
 };
 
@@ -605,12 +634,12 @@ const saveLayouts = async () => {
   });
   try {
     await api.put('/api/admin/table-layouts/bulk', payload, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('staff_token')}` }
+      headers: { 'Authorization': `Bearer ${sessionStorage.getItem('staff_token')}` }
     });
-    alert('Đã lưu layout bàn.');
+    toast.success('Đã lưu layout bàn.');
     await fetchLayouts();
   } catch (error) {
-    alert(error.response?.data?.message || 'Không thể lưu layout bàn.');
+    toast.error(error.response?.data?.message || 'Không thể lưu layout bàn.');
   }
 };
 
@@ -642,13 +671,13 @@ const uploadTableImage = async (event, table) => {
   try {
     const response = await api.post('/api/admin/tables/images', formData, {
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('staff_token')}`,
+        'Authorization': `Bearer ${sessionStorage.getItem('staff_token')}`,
         'Content-Type': 'multipart/form-data'
       }
     });
     table.imageUrl = response.data.imageUrl;
   } catch (error) {
-    alert(error.response?.data?.message || error.response?.data || 'Không thể tải ảnh bàn lên.');
+    toast.error(error.response?.data?.message || error.response?.data || 'Không thể tải ảnh bàn lên.');
   } finally {
     event.target.value = '';
   }
@@ -656,14 +685,14 @@ const uploadTableImage = async (event, table) => {
 
 const handleAddTable = async () => {
   if (!newTable.value.name) return;
-  const token = localStorage.getItem('staff_token');
+  const token = sessionStorage.getItem('staff_token');
   try {
     await api.post('/api/tables', normalizeTablePayload(newTable.value), {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     newTable.value = defaultNewTable();
     fetchTables();
-  } catch { alert('Lỗi thêm bàn!'); }
+  } catch { toast.error('Lỗi thêm bàn!'); }
 };
 
 const openEditModal = (table) => {
@@ -690,25 +719,33 @@ const closeEditModal = () => {
 
 const submitEditTable = async () => {
   if (!editTable.value.id || !editTable.value.name) {
-    alert('Vui lòng nhập đầy đủ tên bàn.');
+    toast.warning('Vui lòng nhập đầy đủ tên bàn.');
     return;
   }
   try {
     await api.put(`/api/admin/tables/${editTable.value.id}`, normalizeTablePayload(editTable.value), {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('staff_token')}` }
+      headers: { 'Authorization': `Bearer ${sessionStorage.getItem('staff_token')}` }
     });
     closeEditModal();
     fetchTables();
   } catch (error) {
-    alert(error.response?.data || 'Lỗi cập nhật bàn!');
+    toast.error(error.response?.data?.message || error.response?.data || 'Lỗi cập nhật bàn!');
   }
 };
 
 const updateStatus = async (tableId, newStatus) => {
-  if (newStatus == 0 && !confirm('Dọn bàn sẽ ĐÓNG GÓI tất cả đơn hàng tại bàn này. Xác nhận?')) {
-    fetchTables(); return;
+  if (newStatus == 0) {
+    const confirmed = await confirmDialog({
+      title: 'Xác nhận dọn và giải phóng bàn',
+      message: 'Dọn bàn sẽ đóng các đơn đủ điều kiện tại bàn này. Xác nhận?',
+      confirmLabel: 'Dọn bàn',
+      danger: true,
+    });
+    if (!confirmed) {
+      fetchTables(); return;
+    }
   }
-  const token = localStorage.getItem('staff_token');
+  const token = sessionStorage.getItem('staff_token');
   try {
     await api.put(`/api/tables/${tableId}/status?status=${newStatus}`, {}, {
       headers: { 'Authorization': `Bearer ${token}` }
@@ -726,7 +763,7 @@ const toggleHeatmap = async () => {
   if (showHeatmap.value) {
     try {
       const res = await api.get('/api/orders/history', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('staff_token')}` }
+        headers: { 'Authorization': `Bearer ${sessionStorage.getItem('staff_token')}` }
       });
       const orders = res.data;
       
@@ -744,7 +781,7 @@ const toggleHeatmap = async () => {
       tableHeat.value = heatCount;
     } catch (e) {
       console.error(e);
-      alert('Không thể tải dữ liệu để phân tích bản đồ nhiệt.');
+      toast.error('Không thể tải dữ liệu để phân tích bản đồ nhiệt.');
       showHeatmap.value = false;
     }
   }
@@ -760,13 +797,19 @@ const getHeatLevel = (tName) => {
 };
 
 const deleteTable = async (id) => {
-  if (!confirm('Xóa bàn này khỏi hệ thống?')) return;
+  const confirmed = await confirmDialog({
+    title: 'Xóa bàn',
+    message: 'Xóa bàn này khỏi hệ thống? Thao tác không thể hoàn tác.',
+    confirmLabel: 'Xóa bàn',
+    danger: true,
+  });
+  if (!confirmed) return;
   try {
     await api.delete(`/api/admin/tables/${id}`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('staff_token')}` }
+      headers: { 'Authorization': `Bearer ${sessionStorage.getItem('staff_token')}` }
     });
     fetchTables();
-  } catch { alert('Không thể xóa bàn đang có dữ liệu hóa đơn!'); }
+  } catch { toast.error('Không thể xóa bàn đang có dữ liệu hóa đơn!'); }
 };
 
 const groupedTables = computed(() => {

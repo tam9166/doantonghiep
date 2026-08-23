@@ -129,12 +129,13 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '@/services/api';
+import { getStaffToken, getStaffUser } from '@/services/session';
 
 const router = useRouter();
 const currentTab = ref('schedule');
 const selectedMonth = ref(new Date().toISOString().substring(0, 7));
 
-const user = ref(JSON.parse(localStorage.getItem('staff_user')) || {});
+const user = ref(getStaffUser() || {});
 const userRole = computed(() => {
   if (!user.value || !user.value.roles) return '';
   return user.value.roles.find(r => r.startsWith('ROLE_')) || '';
@@ -154,7 +155,7 @@ const workedShifts = computed(() => {
 });
 
 const configHeader = () => {
-  const token = localStorage.getItem('staff_token');
+  const token = getStaffToken();
   return { headers: { Authorization: 'Bearer ' + token } };
 };
 
@@ -217,7 +218,7 @@ const fetchData = async () => {
 
 onMounted(() => {
   if (!user.value.username) {
-    router.push('/login');
+    router.push('/staff-login');
     return;
   }
   fetchData();

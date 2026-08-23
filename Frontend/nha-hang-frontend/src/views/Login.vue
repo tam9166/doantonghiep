@@ -127,6 +127,7 @@
 <script setup>
 import { ref } from 'vue'
 import api from '@/services/api'
+import { setCustomerSession } from '@/services/session'
 import { getApiErrorMessage } from '@/services/errorMessage'
 import { useToast } from '@/composables/useToast'
 
@@ -149,12 +150,11 @@ const handleLogin = async () => {
   try {
     const res = await api.post('/api/auth/login', form.value)
 
-    localStorage.setItem('token', res.data.token)
-    localStorage.setItem('user', JSON.stringify({
+    setCustomerSession(res.data.token, {
       username: res.data.username,
       roles: res.data.roles,
       mustChangePassword: res.data.mustChangePassword
-    }))
+    })
 
     toast.success(`Chào mừng ${res.data.username}!`, 'Đăng nhập thành công')
 
@@ -355,7 +355,7 @@ const handleLogin = async () => {
 .input-field input {
   width: 100%;
   padding: 14px 48px 14px 48px;
-  background: rgba(26, 23, 15, 0.5);
+  background: var(--overlay-dark);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   color: var(--text-primary);
@@ -367,7 +367,7 @@ const handleLogin = async () => {
   outline: none;
   border-color: var(--primary);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--secondary) 15%, transparent);
-  background: rgba(26, 23, 15, 0.7);
+  background: rgba(39, 23, 23, 0.7);
 }
 .input-field input::placeholder { color: var(--text-muted); }
 .toggle-pw {
@@ -464,7 +464,7 @@ const handleLogin = async () => {
 .spinner {
   width: 18px;
   height: 18px;
-  border: 2px solid rgba(26, 23, 15, 0.3);
+  border: 2px solid rgba(39, 23, 23, 0.3);
   border-top-color: var(--bg-dark);
   border-radius: 50%;
   animation: spin 0.6s linear infinite;

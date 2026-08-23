@@ -1,5 +1,6 @@
 param(
-  [string]$Root = (Split-Path -Parent $PSScriptRoot)
+  [string]$Root = (Split-Path -Parent $PSScriptRoot),
+  [string[]]$Paths = @()
 )
 
 $ErrorActionPreference = 'Stop'
@@ -15,8 +16,12 @@ $findings = [System.Collections.Generic.List[string]]::new()
 
 Push-Location $Root
 try {
-  $tracked = & git -c core.quotepath=false ls-files
-  foreach ($relativePath in $tracked) {
+  $scanPaths = $Paths
+  if (-not $scanPaths -or $scanPaths.Count -eq 0) {
+    $scanPaths = & git -c core.quotepath=false ls-files
+    if ($LASTEXITCODE -ne 0) { throw 'Could not enumerate tracked files for secret scan.' }
+  }
+  foreach ($relativePath in $scanPaths) {
     if ($relativePath -match '(^|/)\.env($|\.)' -and $relativePath -notmatch '\.example$') {
       $findings.Add("Tracked environment file: $relativePath")
       continue
@@ -36,7 +41,7 @@ try {
     }
   }
 
-  $frontendEnvFiles = $tracked | Where-Object { $_ -match '^Frontend/nha-hang-frontend/\.env' }
+  $frontendEnvFiles = $scanPaths | Where-Object { $_ -match '^Frontend/nha-hang-frontend/\.env' }
   foreach ($relativePath in $frontendEnvFiles) {
     $content = [System.IO.File]::ReadAllText((Join-Path $Root $relativePath))
     if ($content -match '(?mi)^VITE_[A-Z0-9_]*(SECRET|PASSWORD|PRIVATE|API_KEY)\s*=') {

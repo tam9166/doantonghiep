@@ -55,6 +55,9 @@ public class CaptchaFilter extends OncePerRequestFilter {
         if ("POST".equals(method) && path.equals("/api/reservations")) {
             return "reservation-create";
         }
+        if ("POST".equals(method) && path.equals("/api/event-bookings")) {
+            return "event-booking-create";
+        }
         if ("POST".equals(method) && path.equals("/api/reservation-waitlist")) {
             return "reservation-waitlist-create";
         }

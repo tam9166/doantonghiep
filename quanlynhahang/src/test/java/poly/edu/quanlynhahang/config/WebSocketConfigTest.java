@@ -69,6 +69,48 @@ class WebSocketConfigTest {
                 new TestingAuthenticationToken("manager", null, "ROLE_MANAGER"), null)));
     }
 
+    @Test
+    void operationalTopicsUseLeastPrivilegeRoleMatrix() {
+        assertDoesNotThrow(() -> config.authorizeSubscription(
+                subscription("/topic/kitchen", auth("admin", "ROLE_ADMIN"), null)));
+        assertDoesNotThrow(() -> config.authorizeSubscription(
+                subscription("/topic/orders", auth("manager", "ROLE_MANAGER"), null)));
+        assertDoesNotThrow(() -> config.authorizeSubscription(
+                subscription("/topic/kitchen", auth("kitchen", "ROLE_KITCHEN"), null)));
+        assertThrows(AccessDeniedException.class, () -> config.authorizeSubscription(
+                subscription("/topic/kitchen", auth("waiter", "ROLE_WAITER"), null)));
+        assertDoesNotThrow(() -> config.authorizeSubscription(
+                subscription("/topic/waiter", auth("waiter", "ROLE_WAITER"), null)));
+        assertThrows(AccessDeniedException.class, () -> config.authorizeSubscription(
+                subscription("/topic/waiter", auth("cashier", "ROLE_CASHIER"), null)));
+        assertDoesNotThrow(() -> config.authorizeSubscription(
+                subscription("/topic/orders", auth("cashier", "ROLE_CASHIER"), null)));
+        assertThrows(AccessDeniedException.class, () -> config.authorizeSubscription(
+                subscription("/topic/orders", auth("kitchen", "ROLE_KITCHEN"), null)));
+        assertThrows(AccessDeniedException.class, () -> config.authorizeSubscription(
+                subscription("/topic/orders", auth("staff", "ROLE_STAFF"), null)));
+    }
+
+    @Test
+    void customerAndAnonymousCannotSubscribeToOperationalOrGlobalQueueDestinations() {
+        assertThrows(AccessDeniedException.class, () -> config.authorizeSubscription(
+                subscription("/topic/orders", auth("customer", "ROLE_CUSTOMER"), null)));
+        assertThrows(AccessDeniedException.class, () -> config.authorizeSubscription(
+                subscription("/topic/orders", null, null)));
+        assertThrows(AccessDeniedException.class, () -> config.authorizeSubscription(
+                subscription("/queue/internal", auth("admin", "ROLE_ADMIN"), null)));
+    }
+
+    @Test
+    void clientSendAllowsOnlyCashierCancellationDestination() {
+        assertDoesNotThrow(() -> config.authorizeClientSend(
+                send("/app/order/cancel", auth("cashier", "ROLE_CASHIER"))));
+        assertThrows(AccessDeniedException.class, () -> config.authorizeClientSend(
+                send("/app/order/cancel", auth("waiter", "ROLE_WAITER"))));
+        assertThrows(AccessDeniedException.class, () -> config.authorizeClientSend(
+                send("/app/arbitrary", auth("admin", "ROLE_ADMIN"))));
+    }
+
     private StompHeaderAccessor subscription(String destination,
                                              TestingAuthenticationToken authentication,
                                              String capability) {
@@ -79,6 +121,17 @@ class WebSocketConfigTest {
             accessor.setNativeHeader("X-Reservation-Capability", capability);
         }
         return accessor;
+    }
+
+    private StompHeaderAccessor send(String destination, TestingAuthenticationToken authentication) {
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SEND);
+        accessor.setDestination(destination);
+        accessor.setUser(authentication);
+        return accessor;
+    }
+
+    private TestingAuthenticationToken auth(String username, String role) {
+        return new TestingAuthenticationToken(username, null, role);
     }
 
     private Reservation reservation(String code, String owner) {

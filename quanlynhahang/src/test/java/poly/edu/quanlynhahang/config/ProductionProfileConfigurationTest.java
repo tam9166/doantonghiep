@@ -25,6 +25,8 @@ class ProductionProfileConfigurationTest {
         assertEquals("${RESTAURANT_PAYMENT_DEMO_MODE:false}",
                 properties.getProperty("restaurant.payment.demo-mode"));
         assertEquals("${CAPTCHA_ENABLED:true}", properties.getProperty("app.captcha.enabled"));
+        assertEquals("${FORWARD_HEADERS_STRATEGY:none}",
+                properties.getProperty("server.forward-headers-strategy"));
     }
 
     private Properties loadProductionTemplate() throws IOException {

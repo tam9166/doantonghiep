@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import poly.edu.quanlynhahang.dto.WaitlistActionRequest;
 import poly.edu.quanlynhahang.dto.WaitlistRequest;
+import poly.edu.quanlynhahang.dto.WaitlistLookupRequest;
+import jakarta.validation.Valid;
 import poly.edu.quanlynhahang.service.ReservationWaitlistService;
 
 @RestController
@@ -23,14 +25,13 @@ public class ReservationWaitlistController {
     }
 
     @PostMapping("/api/reservation-waitlist")
-    public ResponseEntity<?> create(@RequestBody WaitlistRequest request) {
+    public ResponseEntity<?> create(@Valid @RequestBody WaitlistRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(waitlistService.create(request));
     }
 
-    @GetMapping("/api/reservation-waitlist/{code}")
-    public ResponseEntity<?> getPublic(@PathVariable String code,
-                                       @RequestParam String phone) {
-        return ResponseEntity.ok(waitlistService.getPublic(code, phone));
+    @PostMapping("/api/reservation-waitlist/lookup")
+    public ResponseEntity<?> getPublic(@Valid @RequestBody WaitlistLookupRequest request) {
+        return ResponseEntity.ok(waitlistService.getPublic(request.waitlistCode(), request.customerPhone()));
     }
 
     @GetMapping("/api/admin/reservation-waitlist")

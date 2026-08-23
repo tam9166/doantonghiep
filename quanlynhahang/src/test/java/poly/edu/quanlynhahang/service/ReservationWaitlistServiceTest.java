@@ -14,8 +14,10 @@ import poly.edu.quanlynhahang.dto.WaitlistActionRequest;
 import poly.edu.quanlynhahang.dto.WaitlistRequest;
 import poly.edu.quanlynhahang.dto.WaitlistResponse;
 import poly.edu.quanlynhahang.entity.ReservationWaitlist;
+import poly.edu.quanlynhahang.entity.Reservation;
 import poly.edu.quanlynhahang.entity.WaitlistStatus;
 import poly.edu.quanlynhahang.repository.ReservationWaitlistRepository;
+import poly.edu.quanlynhahang.repository.ReservationRepository;
 import poly.edu.quanlynhahang.repository.TableAreaRepository;
 
 import java.time.LocalDate;
@@ -26,11 +28,19 @@ import java.util.concurrent.atomic.AtomicReference;
 class ReservationWaitlistServiceTest {
 
     private final ReservationWaitlistRepository waitlistRepository = mock(ReservationWaitlistRepository.class);
+    private final ReservationRepository reservationRepository = mock(ReservationRepository.class);
     private final TableAreaRepository areaRepository = mock(TableAreaRepository.class);
     private final NotificationService notificationService = mock(NotificationService.class);
     private final ActivityLogService activityLogService = mock(ActivityLogService.class);
+    private final RestaurantBusinessHoursService businessHoursService = mock(RestaurantBusinessHoursService.class);
     private final ReservationWaitlistService service = new ReservationWaitlistService(
-            waitlistRepository, areaRepository, notificationService, activityLogService);
+            waitlistRepository, reservationRepository, areaRepository,
+            notificationService, activityLogService, businessHoursService);
+
+    private ReservationWaitlistServiceTest() {
+        when(businessHoursService.isServiceWindow(any(), any())).thenReturn(true);
+        when(businessHoursService.getFormattedHours()).thenReturn("09:00 - 22:00");
+    }
 
     @Test
     void createsWaitingEntryWithNormalizedPhone() {
@@ -69,15 +79,44 @@ class ReservationWaitlistServiceTest {
         entry.setGuestCount(4);
         entry.setStatus(WaitlistStatus.CANCELLED);
 
-        when(waitlistRepository.findById(20L)).thenReturn(Optional.of(entry));
+        when(waitlistRepository.findLockedById(20L)).thenReturn(Optional.of(entry));
 
         assertThrows(ResponseStatusException.class, () -> service.contact(20L, new WaitlistActionRequest()));
+        verify(waitlistRepository).findLockedById(20L);
     }
 
     @Test
     void publicLookupRequiresMatchingPhoneNumber() {
         assertThrows(ResponseStatusException.class, () -> service.getPublic("WL20260704-001", " "));
         org.mockito.Mockito.verifyNoInteractions(waitlistRepository);
+    }
+
+    @Test
+    void conversionRequiresAnExistingMatchingUnclaimedReservation() {
+        ReservationWaitlist entry = waitingEntry(30L);
+        when(waitlistRepository.findLockedById(30L)).thenReturn(Optional.of(entry));
+
+        assertThrows(ResponseStatusException.class,
+                () -> service.convert(30L, new WaitlistActionRequest()));
+
+        WaitlistActionRequest action = new WaitlistActionRequest();
+        action.setLinkedReservationCode("MV-20260823-ABCDEF12");
+        Reservation reservation = new Reservation();
+        reservation.setReservationCode(action.getLinkedReservationCode());
+        reservation.setCustomerPhone(entry.getCustomerPhone());
+        reservation.setReservationDate(entry.getReservationDate());
+        reservation.setGuestCount(entry.getGuestCount());
+        when(reservationRepository.findLockedByReservationCode(action.getLinkedReservationCode()))
+                .thenReturn(Optional.of(reservation));
+        when(waitlistRepository.findByLinkedReservationCode(action.getLinkedReservationCode()))
+                .thenReturn(Optional.empty());
+        when(waitlistRepository.save(entry)).thenReturn(entry);
+
+        WaitlistResponse converted = service.convert(30L, action);
+
+        assertEquals(WaitlistStatus.CONVERTED, converted.getStatus());
+        assertEquals(action.getLinkedReservationCode(), converted.getLinkedReservationCode());
+        verify(reservationRepository).findLockedByReservationCode(action.getLinkedReservationCode());
     }
 
     @Test
@@ -103,5 +142,19 @@ class ReservationWaitlistServiceTest {
         service.create(request);
 
         assertEquals("GROUP_TOO_LARGE", savedEntry.get().getOverflowReason());
+    }
+
+    private ReservationWaitlist waitingEntry(Long id) {
+        ReservationWaitlist entry = new ReservationWaitlist();
+        entry.setId(id);
+        entry.setWaitlistCode("WL20260823-" + id);
+        entry.setCustomerName("Nguyen Van A");
+        entry.setCustomerPhone("0912345678");
+        entry.setReservationDate(LocalDate.now().plusDays(1));
+        entry.setPreferredStartTime(LocalTime.of(18, 0));
+        entry.setPreferredEndTime(LocalTime.of(20, 0));
+        entry.setGuestCount(4);
+        entry.setStatus(WaitlistStatus.WAITING);
+        return entry;
     }
 }

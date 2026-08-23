@@ -149,7 +149,7 @@ const showAiModal = ref(false);
 const aiLoading = ref(false);
 const aiResponse = ref('');
 
-const getToken = () => localStorage.getItem('staff_token');
+const getToken = () => sessionStorage.getItem('staff_token');
 const configHeader = () => ({ headers: { 'Authorization': `Bearer ${getToken()}` } });
 
 const fetchSuggestions = async () => {

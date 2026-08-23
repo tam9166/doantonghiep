@@ -82,7 +82,7 @@ const newVoucher = ref({ code: '', discountPercent: 10, accountUsername: '' });
 const fetchVouchers = async () => {
   try {
     const res = await api.get('/api/vouchers/admin', {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('staff_token')}` }
+      headers: { 'Authorization': `Bearer ${sessionStorage.getItem('staff_token')}` }
     });
     vouchers.value = res.data;
   } catch (error) {
@@ -99,7 +99,7 @@ const createVoucher = async () => {
       account: newVoucher.value.accountUsername ? { username: newVoucher.value.accountUsername } : null
     };
     await api.post('/api/vouchers/admin/create', payload, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('staff_token')}` }
+      headers: { 'Authorization': `Bearer ${sessionStorage.getItem('staff_token')}` }
     });
     alert('Tạo Voucher thành công!');
     showAddModal.value = false;

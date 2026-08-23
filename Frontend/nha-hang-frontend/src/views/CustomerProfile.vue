@@ -99,7 +99,7 @@ const passwordForm = ref({
 });
 
 const loadProfile = async () => {
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('token');
   if (!token) {
     alert("Vui lòng đăng nhập!");
     router.push('/login');
@@ -118,7 +118,7 @@ const loadProfile = async () => {
 };
 
 const saveProfile = async () => {
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('token');
   if (!editProfile.value.fullname) {
     alert("Họ tên không được để trống!");
     return;
@@ -138,7 +138,7 @@ const saveProfile = async () => {
 };
 
 const changePassword = async () => {
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('token');
   if (!passwordForm.value.oldPassword || !passwordForm.value.newPassword) {
     alert("Vui lòng điền đủ mật khẩu cũ và mới!");
     return;
@@ -162,7 +162,7 @@ const changePassword = async () => {
 };
 
 const handleLogout = () => {
-  localStorage.removeItem('token');
+  sessionStorage.removeItem('token');
   localStorage.removeItem('roles');
   localStorage.removeItem('username');
   router.push('/login');

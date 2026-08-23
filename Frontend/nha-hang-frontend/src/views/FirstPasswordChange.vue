@@ -49,17 +49,24 @@
 <script setup>
 import { reactive, ref } from 'vue'
 import api from '@/services/api'
+import {
+  AUTH_CONTEXT,
+  clearCustomerSession,
+  clearStaffSession,
+  getActiveAuthContext,
+  getCustomerUser,
+  getStaffUser
+} from '@/services/session'
 
 const form = reactive({ oldPassword: '', newPassword: '', confirmPassword: '' })
 const submitting = ref(false)
 const errorMessage = ref('')
 
-const isStaffSession = () => Boolean(localStorage.getItem('staff_token'))
+const isStaffSession = () => getActiveAuthContext() === AUTH_CONTEXT.STAFF
 
 const loginPath = () => {
   try {
-    const userKey = isStaffSession() ? 'staff_user' : 'user'
-    const roles = JSON.parse(localStorage.getItem(userKey) || '{}').roles || []
+    const roles = (isStaffSession() ? getStaffUser() : getCustomerUser())?.roles || []
     return roles.some(role => ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_KITCHEN', 'ROLE_WAITER', 'ROLE_CASHIER'].includes(role))
       ? '/staff-login'
       : '/login'
@@ -87,11 +94,9 @@ const submitPasswordChange = async () => {
     })
     const destination = loginPath()
     if (isStaffSession()) {
-      localStorage.removeItem('staff_token')
-      localStorage.removeItem('staff_user')
+      clearStaffSession()
     } else {
-      localStorage.removeItem('token')
-      localStorage.removeItem('user')
+      clearCustomerSession()
     }
     window.location.href = destination
   } catch (error) {

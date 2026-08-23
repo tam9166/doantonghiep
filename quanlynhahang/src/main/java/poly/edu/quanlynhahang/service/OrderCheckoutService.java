@@ -50,11 +50,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 @Service
 public class OrderCheckoutService {
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
+    private static final Pattern VIETNAM_PHONE = Pattern.compile("^(?:0|\\+84)(?:3|5|7|8|9)\\d{8}$");
 
     private final OrderRepository orderRepository;
     private final OrderDetailRepository orderDetailRepository;
@@ -70,6 +72,8 @@ public class OrderCheckoutService {
     private final ActivityLogService activityLogService;
     private final OrderPaymentService orderPaymentService;
     private final MenuAvailabilityService menuAvailabilityService;
+    private final InventoryReservationService inventoryReservationService;
+    private final OrderStateMachineService orderStateMachineService;
 
     public OrderCheckoutService(OrderRepository orderRepository,
                                 OrderDetailRepository orderDetailRepository,
@@ -84,7 +88,9 @@ public class OrderCheckoutService {
                                 OrderVoucherUsageRepository orderVoucherUsageRepository,
                                 ActivityLogService activityLogService,
                                 OrderPaymentService orderPaymentService,
-                                MenuAvailabilityService menuAvailabilityService) {
+                                MenuAvailabilityService menuAvailabilityService,
+                               InventoryReservationService inventoryReservationService,
+                               OrderStateMachineService orderStateMachineService) {
         this.orderRepository = orderRepository;
         this.orderDetailRepository = orderDetailRepository;
         this.orderItemOperationRepository = orderItemOperationRepository;
@@ -99,15 +105,19 @@ public class OrderCheckoutService {
         this.activityLogService = activityLogService;
         this.orderPaymentService = orderPaymentService;
         this.menuAvailabilityService = menuAvailabilityService;
+        this.inventoryReservationService = inventoryReservationService;
+        this.orderStateMachineService = orderStateMachineService;
     }
 
     private String generateSecureOrderCode() {
         String alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-        StringBuilder code = new StringBuilder(8);
-        for (int i = 0; i < 8; i++) {
-            code.append(alphabet.charAt(SECURE_RANDOM.nextInt(alphabet.length())));
+        for (int attempt = 0; attempt < 5; attempt++) {
+            StringBuilder code = new StringBuilder(12);
+            code.append("ORD-");
+            for (int i = 0; i < 8; i++) code.append(alphabet.charAt(SECURE_RANDOM.nextInt(alphabet.length())));
+            if (!orderRepository.existsByOrderCode(code.toString())) return code.toString();
         }
-        return code.toString();
+        throw new ResponseStatusException(HttpStatus.CONFLICT, "Không thể cấp mã đơn hàng, vui lòng thử lại");
     }
 
     @Transactional
@@ -122,6 +132,7 @@ public class OrderCheckoutService {
                     "Vui lòng chọn loại đơn hàng (DINE_IN, TAKEAWAY hoặc DELIVERY).");
         }
         boolean dineIn = OrderType.DINE_IN.equals(orderType);
+        DeliveryDetails delivery = validateDeliveryDetails(request, orderType);
         if (dineIn && request.getTableId() == null) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
                     "Đơn tại quán (DINE_IN) bắt buộc phải có tableId.");
@@ -130,24 +141,35 @@ public class OrderCheckoutService {
                 ? tableRepository.findLockedById(request.getTableId())
                         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy bàn."))
                 : null;
+        if (dineIn && !orderRepository.findOpenDineInOrdersByTableIdWithDetails(request.getTableId()).isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Bàn đã có đơn đang mở. Vui lòng gọi thêm món vào đơn hiện tại.");
+        }
         OrderPaymentOption paymentOption = resolvePaymentOption(request.getPaymentOption(), dineIn);
 
         List<RequestedItem> requestedItems = normalizeItems(request.getItems());
         List<CheckoutLine> lines = loadProducts(requestedItems);
+        validateAvailableQuantities(lines);
         // Validate voucher trước (chưa ghi usage, chưa set isUsed)
         Voucher validatedVoucher = validateVoucher(request.getVoucherCode(), account, dineIn);
-        double discountRate = calculateBaseDiscount(account, dineIn)
-                + (validatedVoucher != null ? validatedVoucher.getDiscountPercent() / 100.0 : 0.0);
-        discountRate = Math.min(discountRate, 1.0);
+        BigDecimal membershipRate = calculateBaseDiscount(account, dineIn);
+        BigDecimal voucherRate = validatedVoucher == null ? BigDecimal.ZERO
+                : BigDecimal.valueOf(validatedVoucher.getDiscountPercent()).divide(HUNDRED, 4, RoundingMode.HALF_UP);
         Map<Long, IngredientRequirement> requirements = inventoryRequirements(lines);
-        Map<Long, List<IngredientBatch>> lockedBatches = lockAndValidateInventory(requirements);
 
         String orderCode = generateSecureOrderCode();
         Order order = new Order();
+        order.setOrderCode(orderCode);
         order.setAccount(account);
-        order.setAddress(dineIn ? null : safeAddress(request.getAddress()));
+        order.setAddress(delivery == null ? normalizedNullable(request.getAddress()) : delivery.address());
+        if (delivery != null) {
+            order.setRecipientName(delivery.recipientName());
+            order.setRecipientPhone(delivery.recipientPhone());
+            order.setDeliveryAddress(delivery.address());
+            order.setDeliveryNote(delivery.note());
+        }
         order.setCreateDate(new Date());
-        order.setStatus(0);
+        orderStateMachineService.initialize(order, poly.edu.quanlynhahang.entity.OrderStatus.PENDING);
         order.setIsPaid(false);
         order.setDeposit(BigDecimal.ZERO);
         order.setPaymentOption(paymentOption);
@@ -161,11 +183,19 @@ public class OrderCheckoutService {
 
         BigDecimal subTotal = BigDecimal.ZERO;
         BigDecimal taxAmount = BigDecimal.ZERO;
-        BigDecimal discountMultiplier = BigDecimal.ONE.subtract(BigDecimal.valueOf(discountRate));
+        BigDecimal originalSubtotal = BigDecimal.ZERO;
+        BigDecimal membershipDiscount = BigDecimal.ZERO;
+        BigDecimal voucherDiscount = BigDecimal.ZERO;
         for (CheckoutLine line : lines) {
             Product product = line.product();
-            BigDecimal lineSubtotal = money(product.getPrice()).multiply(BigDecimal.valueOf(line.quantity()))
-                    .multiply(discountMultiplier).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal originalLine = money(product.getPrice()).multiply(BigDecimal.valueOf(line.quantity()))
+                    .setScale(2, RoundingMode.HALF_UP);
+            BigDecimal membershipLineDiscount = originalLine.multiply(membershipRate)
+                    .setScale(2, RoundingMode.HALF_UP);
+            BigDecimal afterMembership = originalLine.subtract(membershipLineDiscount);
+            BigDecimal voucherLineDiscount = afterMembership.multiply(voucherRate)
+                    .setScale(2, RoundingMode.HALF_UP);
+            BigDecimal lineSubtotal = afterMembership.subtract(voucherLineDiscount);
             BigDecimal taxRate = decimal(product.getTaxRate(), 8.0);
             BigDecimal lineTax = lineSubtotal.multiply(taxRate).divide(HUNDRED, 2, RoundingMode.HALF_UP);
 
@@ -182,16 +212,23 @@ public class OrderCheckoutService {
             detail.setPriority(line.priority());
             detail.setQueuedAt(new Date());
             orderDetailRepository.save(detail);
+            originalSubtotal = originalSubtotal.add(originalLine);
+            membershipDiscount = membershipDiscount.add(membershipLineDiscount);
+            voucherDiscount = voucherDiscount.add(voucherLineDiscount);
             subTotal = subTotal.add(lineSubtotal);
             taxAmount = taxAmount.add(lineTax);
         }
 
         BigDecimal totalAmount = subTotal.add(taxAmount).setScale(2, RoundingMode.HALF_UP);
+        savedOrder.setOriginalSubtotal(originalSubtotal);
+        savedOrder.setMembershipDiscount(membershipDiscount);
+        savedOrder.setVoucherDiscount(voucherDiscount);
         savedOrder.setSubTotal(subTotal);
         savedOrder.setTaxAmount(taxAmount);
         savedOrder.setTotalAmount(totalAmount);
         savedOrder.setRemainingAmount(totalAmount.setScale(0, RoundingMode.HALF_UP));
-        consumeInventory(requirements, lockedBatches);
+        inventoryReservationService.reserve(savedOrder, requirementAmounts(requirements),
+                inventoryReservationService.defaultExpiry());
         if (dineInTable != null) {
             markTablePending(savedOrder, orderCode, dineInTable);
         }
@@ -199,7 +236,7 @@ public class OrderCheckoutService {
 
         // Ghi VoucherUsage sau khi đã có orderId
         if (validatedVoucher != null) {
-            recordVoucherUsage(validatedVoucher, savedOrder, account, discountRate);
+            recordVoucherUsage(validatedVoucher, savedOrder, account, voucherDiscount);
         }
 
         PaymentQrResponse payment = orderPaymentService.createForOrder(savedOrder);
@@ -207,7 +244,7 @@ public class OrderCheckoutService {
                 "Tạo đơn chờ xác nhận #" + orderCode);
 
         return new CheckoutResult(savedOrder.getId(), orderCode, savedOrder.getStatus(),
-                subTotal, taxAmount, totalAmount,
+                originalSubtotal, membershipDiscount, voucherDiscount, subTotal, taxAmount, totalAmount,
                 savedOrder.getPaymentOption(), savedOrder.getPaymentStatus(), payment);
     }
 
@@ -228,16 +265,18 @@ public class OrderCheckoutService {
                         normalizedText(item.getNote()), "", 0))
                 .toList();
         List<CheckoutLine> lines = loadProducts(requestedItems);
+        validateAvailableQuantities(lines);
         Map<Long, IngredientRequirement> requirements = inventoryRequirements(lines);
         Map<Long, List<IngredientBatch>> lockedBatches = lockAndValidateInventory(requirements);
 
         Order order = new Order();
+        order.setOrderCode(generateSecureOrderCode());
         order.setAccount(authenticatedAccount(reservation.getCreatedBy()));
         order.setAddress("ĐẶT BÀN: " + reservation.getReservationCode() + " | Bàn: "
                 + reservation.getTable().getName() + " | [TẠI QUÁN]");
         order.setTableId(reservation.getTable().getId());
         order.setCreateDate(new Date());
-        order.setStatus(1);
+        orderStateMachineService.initialize(order, poly.edu.quanlynhahang.entity.OrderStatus.IN_PREPARATION);
         order.setDeposit(money(reservation.getPaidAmount()));
         order.setPaymentOption(OrderPaymentOption.PAY_AT_RESTAURANT);
         order.setPaymentStatus(reservation.getPaymentStatus() == null
@@ -310,6 +349,7 @@ public class OrderCheckoutService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Order cannot accept more items");
         }
         List<CheckoutLine> lines = loadProducts(requestedItems);
+        validateAvailableQuantities(lines);
         Map<Long, IngredientRequirement> requirements = inventoryRequirements(lines);
         Map<Long, List<IngredientBatch>> lockedBatches = lockAndValidateInventory(requirements);
         BigDecimal subTotal = money(order.getSubTotal());
@@ -433,6 +473,21 @@ public class OrderCheckoutService {
         return lines;
     }
 
+    private void validateAvailableQuantities(List<CheckoutLine> lines) {
+        Map<Product, Integer> requestedByProduct = new LinkedHashMap<>();
+        for (CheckoutLine line : lines) {
+            requestedByProduct.merge(line.product(), line.quantity(), Integer::sum);
+        }
+        Map<String, String> shortages = new LinkedHashMap<>();
+        requestedByProduct.forEach((product, requested) -> {
+            int available = menuAvailabilityService.availableQuantity(product);
+            if (requested > available) {
+                shortages.put(product.getName(), "requested=" + requested + ", availableQuantity=" + available);
+            }
+        });
+        if (!shortages.isEmpty()) throw new InsufficientInventoryException(shortages);
+    }
+
     private String normalizedText(String value) {
         return value == null || value.isBlank() ? "" : value.trim();
     }
@@ -486,34 +541,27 @@ public class OrderCheckoutService {
         return voucher;
     }
 
-    private double calculateBaseDiscount(Account account, boolean dineIn) {
+    private BigDecimal calculateBaseDiscount(Account account, boolean dineIn) {
         if (dineIn || account == null) {
-            return 0.0;
+            return BigDecimal.ZERO;
         }
         return switch (account.getMembershipTier() == null ? "" : account.getMembershipTier()) {
-            case "Kim Cương" -> 0.15;
-            case "Vàng" -> 0.10;
-            case "Bạc" -> 0.05;
-            default -> 0.0;
+            case "Kim Cương" -> new BigDecimal("0.15");
+            case "Vàng" -> new BigDecimal("0.10");
+            case "Bạc" -> new BigDecimal("0.05");
+            default -> BigDecimal.ZERO;
         };
     }
 
-    private void recordVoucherUsage(Voucher voucher, Order order, Account account, double discountRate) {
-        // Tính số tiền giảm thực tế
-        BigDecimal discountAmount = BigDecimal.ZERO;
-        if (order.getTotalAmount() != null && discountRate > 0) {
-            discountAmount = order.getTotalAmount()
-                    .multiply(BigDecimal.valueOf(discountRate))
-                    .setScale(0, RoundingMode.HALF_UP);
-        }
-
+    private void recordVoucherUsage(Voucher voucher, Order order, Account account, BigDecimal discountAmount) {
         OrderVoucherUsage usage = new OrderVoucherUsage();
         usage.setVoucherId(voucher.getId());
         usage.setVoucherCode(voucher.getCode());
         usage.setOrderId(order.getId());
         usage.setAccountUsername(account != null ? account.getUsername() : null);
-        usage.setDiscountAmount(discountAmount);
-        usage.setOriginalAmount(order.getTotalAmount());
+        usage.setDiscountAmount(discountAmount.setScale(0, RoundingMode.HALF_UP));
+        usage.setOriginalAmount(order.getOriginalSubtotal().subtract(order.getMembershipDiscount())
+                .setScale(0, RoundingMode.HALF_UP));
         usage.setUsedAt(new Date());
         orderVoucherUsageRepository.save(usage);
 
@@ -555,6 +603,9 @@ public class OrderCheckoutService {
         requirements.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())
                 .forEach(entry -> {
+                    ingredientRepository.findLockedById(entry.getKey())
+                            .orElseThrow(() -> new ResponseStatusException(
+                                    HttpStatus.CONFLICT, "Nguyên liệu không còn tồn tại"));
                     List<IngredientBatch> batches = ingredientBatchRepository
                             .findAvailableBatchesForUpdate(entry.getKey());
                     BigDecimal available = batches.stream()
@@ -572,6 +623,12 @@ public class OrderCheckoutService {
             throw new InsufficientInventoryException(shortages);
         }
         return result;
+    }
+
+    private Map<Long, BigDecimal> requirementAmounts(Map<Long, IngredientRequirement> requirements) {
+        Map<Long, BigDecimal> amounts = new LinkedHashMap<>();
+        requirements.forEach((ingredientId, requirement) -> amounts.put(ingredientId, requirement.amount()));
+        return amounts;
     }
 
     private void consumeInventory(Map<Long, IngredientRequirement> requirements,
@@ -612,11 +669,24 @@ public class OrderCheckoutService {
         order.setTableId(table.getId());
     }
 
-    private String safeAddress(String address) {
-        if (address == null || address.isBlank()) {
-            return "Không cung cấp địa chỉ";
+    private DeliveryDetails validateDeliveryDetails(OrderRequest request, OrderType orderType) {
+        if (!OrderType.DELIVERY.equals(orderType)) return null;
+        String name = normalizedText(request.getRecipientName());
+        String phone = normalizedText(request.getRecipientPhone()).replace(" ", "");
+        String address = normalizedText(request.getDeliveryAddress());
+        if (name.isEmpty() || phone.isEmpty() || address.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Đơn giao hàng bắt buộc có tên, số điện thoại và địa chỉ người nhận.");
         }
-        return address.trim();
+        if (!VIETNAM_PHONE.matcher(phone).matches()) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Số điện thoại người nhận không hợp lệ.");
+        }
+        return new DeliveryDetails(name, phone, address, normalizedNullable(request.getDeliveryNote()));
+    }
+
+    private String normalizedNullable(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private record RequestedItem(int productId, int quantity, String note, String allergyNote, int priority) {
@@ -628,9 +698,15 @@ public class OrderCheckoutService {
     private record IngredientRequirement(Ingredient ingredient, BigDecimal amount) {
     }
 
+    private record DeliveryDetails(String recipientName, String recipientPhone, String address, String note) {
+    }
+
     public record CheckoutResult(Integer orderId,
                                  String orderCode,
                                  Integer status,
+                                 BigDecimal originalSubtotal,
+                                 BigDecimal membershipDiscount,
+                                 BigDecimal voucherDiscount,
                                  BigDecimal subTotal,
                                  BigDecimal taxAmount,
                                  BigDecimal totalAmount,

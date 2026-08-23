@@ -3,10 +3,19 @@ package poly.edu.quanlynhahang.repository;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.jpa.repository.Lock;
+import jakarta.persistence.LockModeType;
 
 import poly.edu.quanlynhahang.entity.OrderDetail;
 
 public interface OrderDetailRepository extends JpaRepository<OrderDetail, Integer> {
+    long countByOrderId(Integer orderId);
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select od from OrderDetail od join fetch od.order join fetch od.product where od.id = :id")
+    java.util.Optional<OrderDetail> findLockedWithOrderAndProductById(@Param("id") Integer id);
+
+    long countByOrderIdAndStatusNot(Integer orderId, Integer status);
+
     @Query(value = """
             SELECT TOP (:limit)
                    p.id AS productId, p.name AS name, p.image AS image, p.price AS price,
@@ -16,7 +25,7 @@ public interface OrderDetailRepository extends JpaRepository<OrderDetail, Intege
                    CAST(SUM(CASE WHEN o.create_date >= DATEADD(day, -7, GETDATE()) THEN COALESCE(od.quantity, 0) ELSE 0 END) * 0.50
                       + SUM(CASE WHEN o.create_date >= DATEADD(day, -30, GETDATE()) THEN COALESCE(od.quantity, 0) ELSE 0 END) * 0.30
                       + SUM(CASE WHEN o.create_date >= DATEADD(day, -90, GETDATE()) THEN COALESCE(od.quantity, 0) ELSE 0 END) * 0.20 AS float) AS weightedScore
-            FROM OrderDetails od
+            FROM order_details od
             JOIN Orders o ON o.id = od.order_id
             JOIN Products p ON p.id = od.product_id
             WHERE o.status = 4 AND (o.is_paid = 1 OR o.payment_status = 'PAID')

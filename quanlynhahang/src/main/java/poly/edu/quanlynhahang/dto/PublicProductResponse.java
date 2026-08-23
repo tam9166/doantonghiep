@@ -17,6 +17,7 @@ public record PublicProductResponse(
         String description,
         Boolean status,
         Boolean available,
+        Integer availableQuantity,
         Double averageRating,
         DietType dietType,
         CookingMethod cookingMethod,
@@ -25,6 +26,11 @@ public record PublicProductResponse(
         CategorySummary category) {
 
     public static PublicProductResponse from(Product product, Double averageRating) {
+        return from(product, averageRating, Boolean.TRUE.equals(product.getAvailable()) ? 1 : 0);
+    }
+
+    public static PublicProductResponse from(Product product, Double averageRating, Integer availableQuantity) {
+        int safeAvailableQuantity = availableQuantity == null ? 0 : Math.max(0, availableQuantity);
         return new PublicProductResponse(
                 product.getId(),
                 product.getName(),
@@ -33,7 +39,8 @@ public record PublicProductResponse(
                 product.getImage(),
                 product.getDescription(),
                 product.getStatus(),
-                product.getAvailable(),
+                safeAvailableQuantity > 0,
+                safeAvailableQuantity,
                 averageRating,
                 product.getDietType(),
                 product.getCookingMethod(),

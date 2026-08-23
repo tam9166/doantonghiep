@@ -23,7 +23,9 @@
               <h3>{{ productName(product) }}</h3>
               <p class="price">{{ formatCurrency(product.price) }}</p>
             </div>
-            <button v-if="!isAdminOrManager" class="btn-sugg-add" @click="addToCart(product)">{{ text.addNow }}</button>
+            <button v-if="!isAdminOrManager" class="btn-sugg-add" :disabled="product.availableQuantity <= 0" @click="addToCart(product)">
+              {{ product.availableQuantity > 0 ? text.addNow : 'Tạm hết hàng' }}
+            </button>
           </div>
         </div>
       </div>
@@ -67,7 +69,10 @@
             <span style="color: var(--text-secondary); font-size: 0.8rem">{{ text.noRatings }}</span>
           </div>
           <p class="price">{{ formatCurrency(product.price) }}</p>
-          <button v-if="!isAdminOrManager" class="btn-add" @click="addToCart(product)">+ {{ text.addToCart }}</button>
+          <small v-if="product.availableQuantity > 0">Còn tối đa {{ product.availableQuantity }} suất</small>
+          <button v-if="!isAdminOrManager" class="btn-add" :disabled="product.availableQuantity <= 0" @click="addToCart(product)">
+            {{ product.availableQuantity > 0 ? `+ ${text.addToCart}` : 'Tạm hết hàng' }}
+          </button>
           <button v-else class="btn-add btn-disabled" disabled>{{ text.viewOnly }}</button>
         </div>
       </div>
@@ -149,6 +154,10 @@
             <label>{{ text.address }}</label>
             <input v-model="orderInfo.address" type="text" :placeholder="text.addressPlaceholder" class="g-form-control" />
           </div>
+          <div class="form-group mt-3">
+            <label>{{ text.deliveryNote }}</label>
+            <textarea v-model="orderInfo.note" :placeholder="text.deliveryNotePlaceholder" class="g-form-control" maxlength="500"></textarea>
+          </div>
 
           <div class="payment-banking-box mt-4" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); padding: 15px; border-radius: 12px;">
             <h4 style="color: var(--primary); margin: 0 0 10px 0;">{{ text.bankTransfer }}</h4>
@@ -187,6 +196,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
 import api from '@/services/api';
+import { createDeliveryCheckoutRequest } from '@/services/orderCheckout';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import CustomerLayout from '@/components/CustomerLayout.vue';
@@ -215,7 +225,7 @@ const showCheckoutModal = ref(false);
 const selectedCategory = ref(null);
 const menuQuery = ref('');
 
-const orderInfo = ref({ fullname: '', phone: '', address: '' });
+const orderInfo = ref({ fullname: '', phone: '', address: '', note: '' });
 const paymentQr = ref(null);
 const checkoutSubmitting = ref(false);
 const cartRecommendations = ref([]);
@@ -291,7 +301,7 @@ const fetchSuggested = async () => {
 };
 
 const filteredProducts = computed(() => {
-  const activeProducts = products.value.filter(p => p.status !== false && p.available !== false);
+  const activeProducts = products.value.filter(p => p.status !== false);
   const byCategory = selectedCategory.value === null
     ? activeProducts
     : activeProducts.filter(p => p.category && p.category.id === selectedCategory.value);
@@ -310,10 +320,17 @@ const filteredProducts = computed(() => {
 
 const addToCart = (product) => {
   const existing = cart.value.find(item => item.productId === product.id);
+  const availableQuantity = Math.max(0, Number(product.availableQuantity || 0));
+  const requestedQuantity = (existing?.quantity || 0) + 1;
+  if (requestedQuantity > availableQuantity) {
+    alert(`Món này hiện chỉ còn tối đa ${availableQuantity} suất.`);
+    return;
+  }
   if (existing) {
     existing.quantity++;
   } else {
-    cart.value.push({ productId: product.id, quantity: 1, name: productName(product), price: product.price, taxRate: product.taxRate || 8 });
+    cart.value.push({ productId: product.id, quantity: 1, name: productName(product), price: product.price,
+      taxRate: product.taxRate || 8, availableQuantity });
   }
   alert(t('menu.addedToCart', { name: productName(product) }));
 };
@@ -372,15 +389,12 @@ watch([cartRecommendationKey, recommendationProfileKey], () => {
 });
 
 const submitShipOrder = async () => {
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('token');
 
   if(!orderInfo.value.fullname || !orderInfo.value.phone || !orderInfo.value.address) {
     alert(t('menu.requiredDeliveryInfo'));
     return;
   }
-
-  // Cấu trúc infoFull để Admin dùng In hóa đơn sau này
-  const infoFull = `[GIAO HÀNG] Khách: ${orderInfo.value.fullname} | SĐT: ${orderInfo.value.phone} | ĐC: ${orderInfo.value.address}`;
 
   const formattedItems = cart.value.map(item => ({
     productId: item.productId,
@@ -389,11 +403,13 @@ const submitShipOrder = async () => {
 
   try {
     checkoutSubmitting.value = true;
-    const response = await api.post('/api/orders/checkout', {
-      address: infoFull,
-      paymentOption: 'PREPAID_TRANSFER',
+    const response = await api.post('/api/orders/checkout', createDeliveryCheckoutRequest({
+      recipientName: orderInfo.value.fullname.trim(),
+      recipientPhone: orderInfo.value.phone.trim(),
+      deliveryAddress: orderInfo.value.address.trim(),
+      deliveryNote: orderInfo.value.note,
       items: formattedItems
-    }, { headers: token ? { 'Authorization': `Bearer ${token}` } : {} });
+    }), { headers: token ? { 'Authorization': `Bearer ${token}` } : {} });
 
     paymentQr.value = response.data.payment;
     cart.value = [];
@@ -436,17 +452,19 @@ const loadMenu = async () => {
 
 onMounted(async () => {
   await loadMenu();
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('token');
   if (token) isLoggedIn.value = true;
 
-  const storedUser = localStorage.getItem('user');
+  const storedUser = sessionStorage.getItem('user');
   if (storedUser) {
     try {
       const parsed = JSON.parse(storedUser);
       if (parsed && parsed.roles) {
         userRoles.value = parsed.roles;
       }
-    } catch (e) {}
+    } catch (error) {
+      console.warn('Không thể đọc vai trò khách hàng đã lưu.', error)
+    }
   }
 });
 </script>
@@ -589,7 +607,7 @@ onMounted(async () => {
 .cart-icon { font-size: 1.5rem; }
 .cart-count { background: var(--color-inverse-surface); color: var(--primary); padding: 4px 10px; border-radius: 20px; font-size: 0.85rem; }
 .cart-total { font-size: 1.1rem; }
-.cart-checkout { margin-left: 10px; background: rgba(26, 23, 15, 0.1); padding: 5px 15px; border-radius: 20px; }
+.cart-checkout { margin-left: 10px; background: color-mix(in srgb, var(--color-on-background) 10%, transparent); padding: 5px 15px; border-radius: 20px; }
 
 .payment-result {
   padding: 18px;

@@ -3,12 +3,13 @@ package poly.edu.quanlynhahang.controller;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,10 +28,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.data.domain.PageRequest;
 import jakarta.validation.Valid;
 
 import poly.edu.quanlynhahang.entity.Order;
 import poly.edu.quanlynhahang.dto.OrderResponse;
+import poly.edu.quanlynhahang.dto.RefundCompletionRequest;
 import poly.edu.quanlynhahang.entity.PointsEventType;
 import poly.edu.quanlynhahang.entity.PaymentStatus;
 import poly.edu.quanlynhahang.entity.OrderPaymentOption;
@@ -40,11 +43,18 @@ import poly.edu.quanlynhahang.repository.RestaurantTableRepository;
 import poly.edu.quanlynhahang.service.ActivityLogService;
 import poly.edu.quanlynhahang.service.PointsLedgerService;
 import poly.edu.quanlynhahang.service.OrderPaymentService;
+import poly.edu.quanlynhahang.service.OrderStateMachineService;
+import poly.edu.quanlynhahang.entity.OrderStatus;
+import poly.edu.quanlynhahang.service.OrderRefundService;
+import poly.edu.quanlynhahang.service.TableSessionService;
+import poly.edu.quanlynhahang.service.TableLifecycleService;
+import poly.edu.quanlynhahang.entity.OrderType;
 @RestController
 @RequestMapping("/api/admin/orders")
 // ✅ FIX: Dùng hasAnyAuthority với ROLE_ prefix đầy đủ
 @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_KITCHEN', 'ROLE_WAITER', 'ROLE_CASHIER')")
 public class AdminOrderController {
+    private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
     @Autowired
     private OrderRepository orderRepository;
@@ -64,12 +74,38 @@ public class AdminOrderController {
     @Autowired
     private OrderPaymentService orderPaymentService;
 
+    @Autowired
+    private OrderRefundService orderRefundService;
+
+    @Autowired
+    private OrderStateMachineService orderStateMachineService;
+
+    @Autowired
+    private TableSessionService tableSessionService;
+
+    @Autowired
+    private TableLifecycleService tableLifecycleService;
+
     @GetMapping
     @Transactional(readOnly = true)
-    public ResponseEntity<?> getAllOrders() {
-        List<Order> orders = orderRepository.findAllWithDetails().stream()
+    public ResponseEntity<?> getAllOrders(@RequestParam(defaultValue = "200") int limit) {
+        int safeLimit = Math.max(1, Math.min(limit, 500));
+        List<Integer> ids = orderRepository.findRecentOrderIds(PageRequest.of(0, safeLimit));
+        List<Order> orders = (ids.isEmpty() ? List.<Order>of() : orderRepository.findAllWithDetailsByIdIn(ids)).stream()
                 .sorted((o1, o2) -> o2.getId().compareTo(o1.getId()))
                 .collect(Collectors.toList());
+        return ResponseEntity.ok(orders.stream().map(OrderResponse::from).toList());
+    }
+
+    @GetMapping("/kitchen/board")
+    @PreAuthorize("hasAnyRole('KITCHEN', 'ADMIN', 'MANAGER')")
+    @Transactional(readOnly = true)
+    public ResponseEntity<?> getKitchenBoard() {
+        Date startOfDay = Date.from(LocalDate.now(BUSINESS_ZONE).atStartOfDay(BUSINESS_ZONE).toInstant());
+        List<Order> orders = orderRepository.findKitchenBoardOrdersWithDetails(
+                List.of(OrderStatus.IN_PREPARATION.code(), OrderStatus.PARTIALLY_READY.code()),
+                List.of(OrderStatus.READY.code(), OrderStatus.COMPLETED.code(), OrderStatus.SERVED.code()),
+                startOfDay);
         return ResponseEntity.ok(orders.stream().map(OrderResponse::from).toList());
     }
 
@@ -78,10 +114,7 @@ public class AdminOrderController {
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     @Transactional(readOnly = true)
     public ResponseEntity<?> getRevenueAnalytics() {
-        List<Order> allOrders = orderRepository.findAllWithDetails();
-        List<Order> completedOrders = allOrders.stream()
-                .filter(o -> o.getStatus() != null && o.getStatus() == 4)
-                .collect(Collectors.toList());
+        List<Order> completedOrders = orderRepository.findByStatusWithDetails(OrderStatus.COMPLETED.code());
         BigDecimal totalRevenue = BigDecimal.ZERO;
         int totalItemsSold = 0;
         for (Order order : completedOrders) {
@@ -94,7 +127,7 @@ public class AdminOrderController {
         statistics.put("totalRevenue", totalRevenue);
         statistics.put("completedOrdersCount", completedOrders.size());
         statistics.put("totalItemsSold", totalItemsSold);
-        statistics.put("pendingOrdersCount", allOrders.stream().filter(o -> o.getStatus() == 0).count());
+        statistics.put("pendingOrdersCount", orderRepository.countByStatus(OrderStatus.PENDING.code()));
         return ResponseEntity.ok(statistics);
     }
 
@@ -102,9 +135,7 @@ public class AdminOrderController {
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     @Transactional(readOnly = true)
     public ResponseEntity<?> getDashboardStats() {
-        List<Order> completedOrders = orderRepository.findAllWithDetails().stream()
-                .filter(o -> o.getStatus() != null && o.getStatus() == 4)
-                .collect(Collectors.toList());
+        List<Order> completedOrders = orderRepository.findByStatusWithDetails(OrderStatus.COMPLETED.code());
 
         // 1. Doanh thu 7 ngày qua
         Map<String, BigDecimal> revenueByDate = new HashMap<>();
@@ -154,20 +185,21 @@ public class AdminOrderController {
             }
         }
         return orderRepository.findById(id).map(order -> {
-            validateOrderStatusTransition(order, status);
-            if (status == 4 && order.getStatus() != 4 && Boolean.TRUE.equals(order.getIsPaid())) {
-                awardOrderPoints(order);
-            }
+            boolean shouldAwardPoints = status == OrderStatus.COMPLETED.code()
+                    && order.getStatus() != OrderStatus.COMPLETED.code()
+                    && Boolean.TRUE.equals(order.getIsPaid());
             if (status == 7 && order.getOrderDetails() != null) {
                 order.getOrderDetails().stream()
                         .filter(detail -> Integer.valueOf(1).equals(detail.getStatus()))
                         .forEach(detail -> detail.setStatus(2));
             }
-            order.setStatus(status);
+            orderStateMachineService.transition(order, status);
             orderRepository.save(order);
+            if (shouldAwardPoints) {
+                awardOrderPoints(order);
+            }
             
-            String[] statusLabels = {"Đang chờ", "Đang làm món", "Đã gửi bếp", "Đã hủy", "Hoàn thành", "Đặt trước", "Gửi lại bếp"};
-            String statusText = status >= 0 && status < statusLabels.length ? statusLabels[status] : "status=" + status;
+            String statusText = OrderStatus.fromCode(status).name();
             activityLogService.log("UPDATE", "Order", String.valueOf(id),
                     "Cập nhật trạng thái đơn #" + id + " → " + statusText);
             
@@ -179,24 +211,6 @@ public class AdminOrderController {
             
             return ResponseEntity.ok("Cập nhật trạng thái thành công!");
         }).orElse(ResponseEntity.badRequest().body("Không tìm thấy đơn hàng!"));
-    }
-
-    private void validateOrderStatusTransition(Order order, Integer status) {
-        boolean hasItems = order.getOrderDetails() != null && !order.getOrderDetails().isEmpty();
-        if ((status == 2 || status == 6 || status == 7) && !hasItems) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Đơn chưa có món, không thể chuyển sang trạng thái bếp hoặc phục vụ.");
-        }
-        if (status == 2 && order.getOrderDetails().stream()
-                .anyMatch(detail -> detail.getStatus() == null || detail.getStatus() < 1)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Bếp chỉ được hoàn thành đơn khi tất cả món đã nấu xong.");
-        }
-        if (status == 7 && order.getOrderDetails().stream()
-                .anyMatch(detail -> detail.getStatus() == null || detail.getStatus() < 1)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Phục vụ chỉ được hoàn thành khi tất cả món đã nấu xong.");
-        }
     }
 
     @PutMapping("/{id}/pay")
@@ -222,7 +236,7 @@ public class AdminOrderController {
             order.setPaymentConfirmedBy(org.springframework.security.core.context.SecurityContextHolder
                     .getContext().getAuthentication().getName());
             order.setPaymentConfirmedAt(new Date());
-            order.setStatus(4); 
+            orderStateMachineService.transition(order, OrderStatus.COMPLETED);
             orderRepository.save(order);
             if (firstPaymentConfirmation) {
                 awardOrderPoints(order);
@@ -314,89 +328,99 @@ public class AdminOrderController {
     @Transactional
     public ResponseEntity<?> cancelOrder(@PathVariable Integer id,
                                           @Valid @RequestBody poly.edu.quanlynhahang.dto.OrderCancelRequest body) {
-        return orderRepository.findById(id).map(order -> {
-            reverseOrderPointsIfAwarded(order, "ORDER_CANCELLED");
-            order.setStatus(3);
-            orderRepository.save(order);
-            return ResponseEntity.ok("Hủy đơn hàng thành công!");
-        }).orElse(ResponseEntity.badRequest().body("Không tìm thấy đơn hàng!"));
+        String actor = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication().getName();
+        return ResponseEntity.ok(orderRefundService.cancelAndRequestRefund(id, actor));
     }
 
     @PutMapping("/{id}/cancel-with-refund")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'CASHIER')")
     @Transactional
     public ResponseEntity<?> cancelOrderWithRefund(@PathVariable Integer id) {
-        return orderRepository.findById(id).map(order -> {
-            reverseOrderPointsIfAwarded(order, "ORDER_REFUNDED");
-            order.setStatus(3);
-            BigDecimal refundAmount = money(order.getDeposit())
-                    .divide(BigDecimal.valueOf(2), 2, RoundingMode.HALF_UP);
-            orderRepository.save(order);
-            
-            // Giải phóng đúng bàn bằng khóa ngoại, không suy luận từ chuỗi địa chỉ.
-            if (order.getTableId() != null) {
-                tableRepository.findById(order.getTableId()).ifPresent(table -> {
-                    table.setIsOccupied(0);
-                    table.setReservedTime(null);
-                    tableRepository.save(table);
-                });
-            }
+        String actor = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication().getName();
+        return ResponseEntity.ok(orderRefundService.cancelAndRequestRefund(id, actor));
+    }
 
-            return ResponseEntity.ok(java.util.Map.of(
-                "message", "Hủy bàn thành công. Cần hoàn lại: " + refundAmount + "đ",
-                "refundAmount", refundAmount
-            ));
-        }).orElse(ResponseEntity.badRequest().body(java.util.Map.of("message", "Không tìm thấy đơn hàng!")));
+    @org.springframework.web.bind.annotation.PatchMapping("/{id}/refund-complete")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'CASHIER')")
+    public ResponseEntity<?> completeOrderRefund(@PathVariable Integer id,
+                                                  @Valid @RequestBody RefundCompletionRequest request) {
+        String actor = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication().getName();
+        return ResponseEntity.ok(orderRefundService.completeRefund(
+                id, request.providerReference(), request.note(), actor));
+    }
+
+    @PutMapping("/{id}/table")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'WAITER')")
+    @Transactional
+    public ResponseEntity<?> moveOrderToTable(@PathVariable Integer id, @RequestParam Integer newTableId) {
+        Order snapshot = orderRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy đơn hàng"));
+        if (!OrderType.DINE_IN.equals(snapshot.getOrderType())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Chỉ đơn tại bàn mới được chuyển bàn");
+        }
+        if (Integer.valueOf(3).equals(snapshot.getStatus()) || Integer.valueOf(4).equals(snapshot.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Không thể chuyển bàn cho đơn đã đóng");
+        }
+        Integer oldTableId = snapshot.getTableId();
+        if (newTableId.equals(oldTableId)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Đơn đã ở bàn này");
+        }
+        List<Integer> tableIds = oldTableId == null
+                ? List.of(newTableId)
+                : java.util.stream.Stream.of(oldTableId, newTableId).distinct().sorted().toList();
+        List<RestaurantTable> lockedTables = tableRepository.findLockedByIdIn(tableIds);
+        if (lockedTables.size() != tableIds.size()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy bàn nguồn hoặc bàn đích");
+        }
+        Map<Integer, RestaurantTable> tablesById = lockedTables.stream()
+                .collect(Collectors.toMap(RestaurantTable::getId, table -> table));
+        RestaurantTable target = tablesById.get(newTableId);
+        Order order = orderRepository.findLockedById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy đơn hàng"));
+        if (!java.util.Objects.equals(oldTableId, order.getTableId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Bàn của đơn vừa được thay đổi, vui lòng tải lại");
+        }
+        if (Boolean.FALSE.equals(target.getActive())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Bàn đích đang ngừng hoạt động");
+        }
+        if ((target.getIsOccupied() != null && target.getIsOccupied() != 0)
+                || orderRepository.existsActiveOrderForTableExcludingOrder(newTableId, order.getId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Bàn đích đang được sử dụng");
+        }
+        order.setTableId(newTableId);
+        order.setRestaurantTable(target);
+        orderRepository.save(order);
+        target.setIsOccupied(2);
+        tableRepository.save(target);
+        if (oldTableId != null && !oldTableId.equals(newTableId)) {
+            tableSessionService.revokeActiveForTable(oldTableId);
+            if (!orderRepository.existsActiveOrderForTableExcludingOrder(oldTableId, order.getId())) {
+                tableLifecycleService.release(tablesById.get(oldTableId).getId());
+            }
+        }
+        tableSessionService.revokeActiveForTable(newTableId);
+        activityLogService.log("MOVE_TABLE", "Order", String.valueOf(id),
+                "Chuyển đơn từ bàn " + oldTableId + " sang bàn " + newTableId);
+        return ResponseEntity.ok(OrderResponse.from(order));
     }
 
     // 🌟 API MỚI: TỰ ĐỘNG KÍCH HOẠT ĐƠN ĐẶT BÀN HẸN GIờ
     // Frontend gọi mỗi 30 giây. Nếu có đơn status=5 và hiện tại ≥ giờ hẹn - 15 phút → chuyển status=1
-    private void reverseOrderPointsIfAwarded(Order order, String eventPrefix) {
-        if (order.getAccount() == null || order.getId() == null) {
-            return;
-        }
-        pointsLedgerService.reverseIfPresent(
-                order.getAccount().getUsername(),
-                "ORDER_COMPLETED:" + order.getId(),
-                eventPrefix + ":" + order.getId(),
-                "Thu hoi diem do huy/hoan tien don #" + order.getId());
-    }
-
     @PutMapping("/activate-scheduled")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    @Transactional
     public ResponseEntity<?> activateScheduledOrders() {
-        List<Order> scheduledOrders = orderRepository.findAll().stream()
-                .filter(o -> o.getStatus() != null && o.getStatus() == 5)
-                .collect(Collectors.toList());
-
+        List<Order> scheduledOrders = orderRepository
+                .findByStatusAndScheduledAtLessThanEqualOrderByScheduledAtAsc(5, LocalDateTime.now().plusMinutes(15));
         int activated = 0;
-        Date now = new Date();
-
         for (Order order : scheduledOrders) {
-            if (order.getAddress() == null) continue;
-
-            // Parse giờ hẹn từ address: "Lúc: HH:mm ngày yyyy-MM-dd"
-            Pattern pattern = Pattern.compile("Lúc:\\s*(\\d{2}:\\d{2})\\s*ngày\\s*(\\d{4}-\\d{2}-\\d{2})");
-            Matcher matcher = pattern.matcher(order.getAddress());
-
-            if (matcher.find()) {
-                try {
-                    String timeStr = matcher.group(1);
-                    String dateStr = matcher.group(2);
-                    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm");
-                    Date arrivalTime = sdf.parse(dateStr + " " + timeStr);
-
-                    // Nếu hiện tại ≥ giờ hẹn - 15 phút → kích hoạt
-                    long diffMinutes = (arrivalTime.getTime() - now.getTime()) / (1000 * 60);
-                    if (diffMinutes <= 15) {
-                        order.setStatus(1); // Chuyển xuống bếp
-                        orderRepository.save(order);
-                        activated++;
-                    }
-                } catch (Exception e) {
-                    // Skip lỗi parse
-                }
-            }
+            orderStateMachineService.transition(order, OrderStatus.IN_PREPARATION);
+            orderRepository.save(order);
+            activated++;
         }
 
         if (activated > 0) {

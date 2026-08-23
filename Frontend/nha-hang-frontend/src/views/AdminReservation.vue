@@ -253,7 +253,10 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Client } from '@stomp/stompjs'
 import SockJS from 'sockjs-client'
 import AdminLayout from '@/components/AdminLayout.vue'
+import { useDialog } from '@/composables/useDialog'
 import api from '@/services/api'
+
+const { promptDialog } = useDialog()
 
 const reservations = ref([])
 const waitlist = ref([])
@@ -436,8 +439,8 @@ function connectRealtime() {
   if (stompClient?.active) return
   stompClient = new Client({
     webSocketFactory: () => new SockJS('/ws'),
-    connectHeaders: localStorage.getItem('staff_token')
-      ? { Authorization: `Bearer ${localStorage.getItem('staff_token')}` }
+    connectHeaders: sessionStorage.getItem('staff_token')
+      ? { Authorization: `Bearer ${sessionStorage.getItem('staff_token')}` }
       : {},
     reconnectDelay: 5000,
     onConnect: () => {
@@ -500,7 +503,12 @@ async function confirmAssignment() {
 }
 
 async function updateContact(item, status) {
-  const note = window.prompt('Ghi chú cuộc gọi:', item.contactCallNote || '')
+  const note = await promptDialog({
+    title: 'Cập nhật liên hệ',
+    message: 'Ghi lại nội dung cuộc gọi với khách.',
+    inputLabel: 'Ghi chú cuộc gọi',
+    defaultValue: item.contactCallNote || '',
+  })
   if (note === null) return
   const res = await api.patch(`/api/admin/reservations/${item.id}/contact-status`, { status, note })
   selected.value = res.data
@@ -514,14 +522,27 @@ async function resendReceipt(item) {
 }
 
 async function confirmReservation(item) {
-  const note = window.prompt('Ghi chú xác nhận (không bắt buộc):') || ''
+  const note = await promptDialog({
+    title: 'Xác nhận đặt bàn',
+    message: `Xác nhận yêu cầu ${item.reservationCode || ''}.`,
+    inputLabel: 'Ghi chú (không bắt buộc)',
+    confirmLabel: 'Xác nhận',
+  })
+  if (note === null) return
   await api.patch(`/api/admin/reservations/${item.id}/confirm`, { note })
   await fetchReservations()
 }
 
 async function rejectReservation(item) {
-  const reason = window.prompt('Nhập lý do từ chối:')
-  if (!reason || !reason.trim()) return
+  const reason = await promptDialog({
+    title: 'Từ chối đặt bàn',
+    message: `Nhập lý do từ chối yêu cầu ${item.reservationCode || ''}.`,
+    inputLabel: 'Lý do từ chối',
+    required: true,
+    danger: true,
+    confirmLabel: 'Từ chối',
+  })
+  if (reason === null) return
   await api.patch(`/api/admin/reservations/${item.id}/reject`, { reason })
   await fetchReservations()
 }
@@ -537,26 +558,61 @@ async function checkIn(item) {
 }
 
 async function cancelReservation(item) {
-  const note = window.prompt('Lý do/ghi chú hủy đặt bàn:') || ''
+  const note = await promptDialog({
+    title: 'Hủy đặt bàn',
+    message: `Nhập lý do hủy yêu cầu ${item.reservationCode || ''}.`,
+    inputLabel: 'Lý do hoặc ghi chú',
+    required: true,
+    danger: true,
+    confirmLabel: 'Hủy đặt bàn',
+  })
+  if (note === null) return
   await api.patch(`/api/admin/reservations/${item.id}/cancel`, { note })
   await fetchReservations()
 }
 
 async function contactWaitlist(item) {
-  const note = window.prompt('Ghi chú liên hệ khách:', item.managerNote || '') || ''
+  const note = await promptDialog({
+    title: 'Liên hệ khách chờ',
+    inputLabel: 'Ghi chú liên hệ',
+    defaultValue: item.managerNote || '',
+  })
+  if (note === null) return
   await api.patch(`/api/admin/reservation-waitlist/${item.id}/contact`, { note })
   await fetchWaitlist()
 }
 
 async function convertWaitlist(item) {
-  const linkedReservationCode = window.prompt('Nhập mã đặt bàn đã tạo cho khách (nếu có):', item.linkedReservationCode || '') || ''
-  const note = window.prompt('Ghi chú chuyển đổi:', item.managerNote || '') || ''
+  const linkedReservationCode = await promptDialog({
+    title: 'Chuyển thành đặt bàn',
+    message: 'Nhập mã đặt bàn đã tạo đúng cho khách trong danh sách chờ.',
+    inputLabel: 'Mã đặt bàn',
+    defaultValue: item.linkedReservationCode || '',
+    required: true,
+    confirmLabel: 'Tiếp tục',
+  })
+  if (linkedReservationCode === null) return
+  const note = await promptDialog({
+    title: 'Ghi chú chuyển đổi',
+    inputLabel: 'Ghi chú (không bắt buộc)',
+    defaultValue: item.managerNote || '',
+    confirmLabel: 'Hoàn tất',
+  })
+  if (note === null) return
   await api.patch(`/api/admin/reservation-waitlist/${item.id}/convert`, { linkedReservationCode, note })
   await fetchWaitlist()
 }
 
 async function cancelWaitlist(item) {
-  const note = window.prompt('Lý do hủy danh sách chờ:', item.managerNote || '') || ''
+  const note = await promptDialog({
+    title: 'Hủy yêu cầu chờ',
+    inputLabel: 'Lý do hủy',
+    defaultValue: item.managerNote || '',
+    required: true,
+    danger: true,
+    confirmLabel: 'Hủy yêu cầu',
+  })
+  if (note === null) return
   await api.patch(`/api/admin/reservation-waitlist/${item.id}/cancel`, { note })
   await fetchWaitlist()
 }
@@ -834,7 +890,7 @@ td small {
 .modal {
   position: fixed;
   inset: 0;
-  background: rgba(26, 23, 15, 0.45);
+  background: var(--overlay-dark);
   display: flex;
   align-items: center;
   justify-content: center;

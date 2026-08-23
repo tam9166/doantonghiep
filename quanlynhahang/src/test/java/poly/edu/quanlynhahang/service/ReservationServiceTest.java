@@ -2,6 +2,7 @@ package poly.edu.quanlynhahang.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -36,6 +37,9 @@ import poly.edu.quanlynhahang.repository.ProductRepository;
 import poly.edu.quanlynhahang.repository.ReservationPreorderItemRepository;
 import poly.edu.quanlynhahang.repository.ReservationRepository;
 import poly.edu.quanlynhahang.repository.ReservationStatusHistoryRepository;
+import poly.edu.quanlynhahang.repository.ReservationContactLogRepository;
+import poly.edu.quanlynhahang.dto.ReservationContactUpdateRequest;
+import poly.edu.quanlynhahang.entity.ContactStatus;
 import poly.edu.quanlynhahang.repository.ReservationVoucherUsageRepository;
 import poly.edu.quanlynhahang.repository.RestaurantTableRepository;
 import poly.edu.quanlynhahang.repository.TableAreaRepository;
@@ -49,6 +53,16 @@ class ReservationServiceTest {
     private final SimpMessagingTemplate messagingTemplate = mock(SimpMessagingTemplate.class);
     private final DepositPolicyService depositPolicyService = mock(DepositPolicyService.class);
     private final RestaurantBusinessHoursService businessHoursService = mock(RestaurantBusinessHoursService.class);
+    private final ReservationContactLogRepository contactLogRepository = mock(ReservationContactLogRepository.class);
+    private final TableAreaRepository areaRepository = mock(TableAreaRepository.class);
+    private final NotificationService notificationService = mock(NotificationService.class);
+    private final ActivityLogService activityLogService = mock(ActivityLogService.class);
+    private final ReservationRealtimeService realtimeService = mock(ReservationRealtimeService.class);
+    private final PaymentCapabilityService paymentCapabilityService = mock(PaymentCapabilityService.class);
+    private final RestaurantCapacityService capacityService = mock(RestaurantCapacityService.class);
+    private final RestaurantSettingsService settingsService = mock(RestaurantSettingsService.class);
+    private final TableLifecycleService tableLifecycleService = mock(TableLifecycleService.class);
+    private final SqlServerApplicationLockService applicationLockService = mock(SqlServerApplicationLockService.class);
     private ReservationService service;
 
     @BeforeEach
@@ -67,23 +81,42 @@ class ReservationServiceTest {
                 mock(PaymentIntentRepository.class),
                 mock(ReservationStatusHistoryRepository.class),
                 tableRepository,
-                mock(TableAreaRepository.class),
+                areaRepository,
                 mock(ProductRepository.class),
                 mock(VoucherRepository.class),
                 mock(ReservationVoucherUsageRepository.class),
-                mock(NotificationService.class),
-                mock(ActivityLogService.class),
-                mock(ReservationRealtimeService.class),
+                notificationService,
+                activityLogService,
+                realtimeService,
                 messagingTemplate,
                 depositPolicyService,
                 new ReservationStateMachine(),
-                mock(PaymentCapabilityService.class),
+                paymentCapabilityService,
                 orderCheckoutService,
                 mock(AutoTableAssignmentService.class),
-                mock(RestaurantCapacityService.class),
-                mock(RestaurantSettingsService.class),
+                capacityService,
+                settingsService,
                 businessHoursService,
+                contactLogRepository,
+                tableLifecycleService,
+                applicationLockService,
                 new BigDecimal("0.50"), 15, 15);
+    }
+
+    @Test
+    void everyContactAttemptAppendsAHistoryLog() {
+        Reservation reservation = new Reservation();
+        reservation.setId(9L);
+        when(reservationRepository.findById(9L)).thenReturn(java.util.Optional.of(reservation));
+        when(reservationRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.updateContactStatus(9L,
+                new ReservationContactUpdateRequest(ContactStatus.UNREACHABLE, "Không bắt máy"));
+        service.updateContactStatus(9L,
+                new ReservationContactUpdateRequest(ContactStatus.CONFIRMED_BY_CUSTOMER, "Đã xác nhận lại"));
+
+        org.mockito.Mockito.verify(contactLogRepository, org.mockito.Mockito.times(2)).save(any());
+        assertEquals(ContactStatus.CONFIRMED_BY_CUSTOMER, reservation.getContactStatus());
     }
 
     @Test
@@ -109,6 +142,115 @@ class ReservationServiceTest {
         codes.forEach(code -> org.junit.jupiter.api.Assertions.assertTrue(
                 code.matches("MV-20260820-[0-9A-F]{8}")));
         verify(reservationRepository, org.mockito.Mockito.times(100)).findByReservationCode(any());
+    }
+
+    @Test
+    void availabilityDetectsAReservationFromThePreviousDateThatRunsPastMidnight() {
+        LocalDate requestedDate = LocalDate.now().plusDays(30);
+        RestaurantTable table = new RestaurantTable();
+        table.setId(7);
+        table.setName("Bàn đêm");
+        table.setActive(true);
+        table.setIsOccupied(0);
+        table.setCapacity(4);
+
+        Reservation overnight = new Reservation();
+        overnight.setId(70L);
+        overnight.setReservationDate(requestedDate.minusDays(1));
+        overnight.setArrivalTime(LocalTime.of(23, 30));
+        overnight.setExpectedDurationMinutes(120);
+        overnight.setReservationStatus(ReservationStatus.CONFIRMED);
+
+        when(businessHoursService.getClosingTime()).thenReturn(LocalTime.of(6, 0));
+        when(tableRepository.findOperationalTables()).thenReturn(List.of(table));
+        when(reservationRepository.findLockedByReservationDateAndTableIdAndReservationStatusIn(
+                org.mockito.ArgumentMatchers.eq(requestedDate), org.mockito.ArgumentMatchers.eq(7), any())).thenReturn(List.of());
+        when(reservationRepository.findLockedByReservationDateAndTableIdAndReservationStatusIn(
+                org.mockito.ArgumentMatchers.eq(requestedDate.minusDays(1)), org.mockito.ArgumentMatchers.eq(7), any())).thenReturn(List.of(overnight));
+
+        var result = service.findAvailableTables(
+                requestedDate.toString(), "00:30", 60, 2, null, false);
+
+        assertEquals(1, result.size());
+        assertEquals("RESERVED", result.getFirst().getAvailabilityStatus());
+        assertTrue(result.getFirst().getFitScore() >= 0);
+    }
+
+    @Test
+    void eventBookingRetryWithSameKeyReturnsOriginalAndRejectsChangedPayload() {
+        var request = new poly.edu.quanlynhahang.dto.EventBookingRequest(
+                "Nguyễn An", "0901234567", "an@example.test", 2,
+                poly.edu.quanlynhahang.entity.EventType.WEDDING,
+                "2026-08-25", "18:00", 4, 80,
+                true, false, "Tiệc tối", false, List.of());
+        Reservation existing = new Reservation();
+        existing.setId(91L);
+        existing.setReservationCode("MV-20260825-ABCDEF12");
+        existing.setRequestFingerprint(ReflectionTestUtils.invokeMethod(service, "eventFingerprint", request));
+        existing.setReservationStatus(ReservationStatus.WAITING_TABLE_ASSIGNMENT);
+        when(reservationRepository.findByIdempotencyKey("event-key-91")).thenReturn(Optional.of(existing));
+
+        var retry = service.createEventBooking(request, "event-key-91");
+
+        assertEquals("MV-20260825-ABCDEF12", retry.getReservationCode());
+        verify(reservationRepository, never()).save(any(Reservation.class));
+
+        var changed = new poly.edu.quanlynhahang.dto.EventBookingRequest(
+                request.customerName(), request.customerPhone(), request.customerEmail(), request.areaId(),
+                request.eventType(), request.reservationDate(), request.arrivalTime(), request.durationHours(),
+                81, request.decorationRequired(), request.mcRequired(), request.eventNote(),
+                request.preorderEnabled(), request.preorderItems());
+        ResponseStatusException conflict = assertThrows(ResponseStatusException.class,
+                () -> service.createEventBooking(changed, "event-key-91"));
+        assertEquals(HttpStatus.CONFLICT, conflict.getStatusCode());
+    }
+
+    @Test
+    void eventBookingCreatesDepositCapabilityExpiryAndRealtimeNotification() {
+        poly.edu.quanlynhahang.entity.TableArea area = new poly.edu.quanlynhahang.entity.TableArea();
+        area.setId(2);
+        area.setNameVi("Sảnh cưới");
+        area.setAreaType(poly.edu.quanlynhahang.entity.AreaType.EVENT_HALL);
+        area.setStatus("ACTIVE");
+        area.setMinGuestCount(20);
+        area.setMaxGuestCount(200);
+        area.setMinBookingHours(2);
+        area.setHourlyRate(new BigDecimal("1000000"));
+        area.setPackagePrice(BigDecimal.ZERO);
+        poly.edu.quanlynhahang.dto.DepositPolicyResponse policy =
+                new poly.edu.quanlynhahang.dto.DepositPolicyResponse();
+        policy.setPolicyCode("EVENT-50");
+        policy.setExplanation("Cọc sự kiện");
+        when(areaRepository.findById(2)).thenReturn(Optional.of(area));
+        when(reservationRepository.findByReservationCode(any())).thenReturn(Optional.empty());
+        when(depositPolicyService.calculate(any(), any(Integer.class), any(), any(), any(),
+                org.mockito.ArgumentMatchers.isNull(), any()))
+                .thenReturn(new DepositPolicyService.DepositCalculation(
+                        new BigDecimal("2000000"), new BigDecimal("0.50"), policy));
+        when(paymentCapabilityService.issue(any(), org.mockito.ArgumentMatchers.isNull()))
+                .thenReturn("event-capability");
+        when(reservationRepository.save(any())).thenAnswer(invocation -> {
+            Reservation saved = invocation.getArgument(0);
+            saved.setId(92L);
+            return saved;
+        });
+        var request = new poly.edu.quanlynhahang.dto.EventBookingRequest(
+                "Nguyễn An", "0901234567", "an@example.test", 2,
+                poly.edu.quanlynhahang.entity.EventType.WEDDING,
+                "2026-08-25", "18:00", 4, 80,
+                true, false, "Tiệc tối", false, List.of());
+
+        var response = service.createEventBooking(request, "event-key-92");
+
+        assertEquals("event-capability", response.getPaymentCapabilityToken());
+        org.junit.jupiter.api.Assertions.assertNotNull(response.getDepositAmount());
+        org.mockito.ArgumentCaptor<Reservation> saved = org.mockito.ArgumentCaptor.forClass(Reservation.class);
+        verify(reservationRepository).save(saved.capture());
+        org.junit.jupiter.api.Assertions.assertNotNull(saved.getValue().getDepositExpiresAt());
+        verify(notificationService).createNotification(
+                org.mockito.ArgumentMatchers.eq("EVENT_BOOKING_NEW"), any(), any(), any(), any(), any(), any());
+        verify(realtimeService).publish(
+                org.mockito.ArgumentMatchers.eq("EVENT_BOOKING_CREATED"), any(), any(), any(), any(), any());
     }
     
     @Test
@@ -256,7 +398,7 @@ class ReservationServiceTest {
 
         assertEquals(ReservationStatus.NO_SHOW, reservation.getReservationStatus());
         assertEquals(DepositStatus.FORFEITED, reservation.getDepositStatus());
-        assertEquals(0, reservation.getTable().getIsOccupied());
+        verify(tableLifecycleService).releaseReservationTables(reservation);
         verify(depositPolicyService).calculateNoShowForfeiture(reservation);
         verify(reservationRepository).save(reservation);
     }

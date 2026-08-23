@@ -160,7 +160,7 @@ const requestInvoice = async (order) => {
   if (invoiceRequesting.value || order.invoiceRequested) return;
   invoiceRequesting.value = order.id;
   try {
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     const response = await api.post(`/api/orders/${order.id}/invoice-request`, {}, {
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -178,7 +178,7 @@ const printInvoice = () => {
 };
 
 const fetchHistory = async () => {
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('token');
   if (!token) return;
   try {
     const res = await api.get('/api/orders/history', {
@@ -191,7 +191,7 @@ const fetchHistory = async () => {
 };
 
 const fetchReservationHistory = async () => {
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('token');
   if (!token) return;
   try {
     const res = await api.get('/api/reservations/history', {
@@ -216,7 +216,7 @@ const reservationStatusText = (status) => ({
 }[status] || status || '-');
 
 const fetchProfile = async () => {
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('token');
   if (!token) return;
   try {
     const res = await api.get('/api/auth/profile', {
@@ -254,7 +254,7 @@ const openReviewModal = (order) => {
 };
 
 const submitReview = async (productId) => {
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('token');
   const data = reviewData.value[productId];
   try {
     const res = await api.post(`/api/reviews/product/${productId}`, {

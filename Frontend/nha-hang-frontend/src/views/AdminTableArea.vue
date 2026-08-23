@@ -142,7 +142,7 @@ const loading = ref(false);
 const saving = ref(false);
 
 const authHeader = () => ({
-  headers: { Authorization: `Bearer ${localStorage.getItem('staff_token')}` }
+  headers: { Authorization: `Bearer ${sessionStorage.getItem('staff_token')}` }
 });
 
 const sortedAreas = computed(() => {
@@ -189,7 +189,10 @@ const editArea = (area) => {
 };
 
 const normalizePayload = () => {
-  const { galleryText, id, ...base } = form.value
+  const galleryText = form.value.galleryText
+  const base = { ...form.value }
+  delete base.galleryText
+  delete base.id
   return { ...base, basePrice: Number(form.value.basePrice || 0), capacity: Number(form.value.capacity || 0),
     status: form.value.status || 'ACTIVE', gallery: galleryText.split(/\r?\n/).map(v => v.trim()).filter(Boolean),
     suitableEventTypes: form.value.suitableEventTypes || [] }

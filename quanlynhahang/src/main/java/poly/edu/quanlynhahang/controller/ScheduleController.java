@@ -1,7 +1,8 @@
 package poly.edu.quanlynhahang.controller;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeParseException;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -11,15 +12,18 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 import poly.edu.quanlynhahang.entity.Account;
 import poly.edu.quanlynhahang.entity.WorkSchedule;
+import poly.edu.quanlynhahang.entity.WorkShiftDefinition;
 import poly.edu.quanlynhahang.dto.WorkScheduleResponse;
 import poly.edu.quanlynhahang.repository.AccountRepository;
 import poly.edu.quanlynhahang.repository.WorkScheduleRepository;
 @RestController
 @RequestMapping("/api/schedules")
 public class ScheduleController {
+    private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
     @Autowired
     private WorkScheduleRepository workScheduleRepository;
@@ -32,11 +36,11 @@ public class ScheduleController {
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
     public ResponseEntity<?> getSchedules(@RequestParam String startDate, @RequestParam String endDate) {
         try {
-            Date start = new SimpleDateFormat("yyyy-MM-dd").parse(startDate);
-            Date end = new SimpleDateFormat("yyyy-MM-dd").parse(endDate);
+            Date start = parseBusinessDate(startDate);
+            Date end = parseBusinessDate(endDate);
             List<WorkSchedule> schedules = workScheduleRepository.findByWorkDateBetweenOrderByWorkDateAsc(start, end);
             return ResponseEntity.ok(schedules.stream().map(WorkScheduleResponse::from).toList());
-        } catch (ParseException e) {
+        } catch (DateTimeParseException e) {
             return ResponseEntity.badRequest().body("Định dạng ngày không hợp lệ. Vui lòng dùng yyyy-MM-dd");
         }
     }
@@ -47,11 +51,11 @@ public class ScheduleController {
     public ResponseEntity<?> getMySchedules(Authentication authentication, @RequestParam String startDate, @RequestParam String endDate) {
         try {
             String username = authentication.getName();
-            Date start = new SimpleDateFormat("yyyy-MM-dd").parse(startDate);
-            Date end = new SimpleDateFormat("yyyy-MM-dd").parse(endDate);
+            Date start = parseBusinessDate(startDate);
+            Date end = parseBusinessDate(endDate);
             List<WorkSchedule> schedules = workScheduleRepository.findByAccountUsernameAndWorkDateBetweenOrderByWorkDateAsc(username, start, end);
             return ResponseEntity.ok(schedules.stream().map(WorkScheduleResponse::from).toList());
-        } catch (ParseException e) {
+        } catch (DateTimeParseException e) {
             return ResponseEntity.badRequest().body("Định dạng ngày không hợp lệ.");
         }
     }
@@ -59,14 +63,14 @@ public class ScheduleController {
     // Admin tạo/cập nhật lịch làm
     @PostMapping
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
-    public ResponseEntity<?> createSchedule(@RequestBody poly.edu.quanlynhahang.dto.WorkScheduleRequest request) {
+    public ResponseEntity<?> createSchedule(@Valid @RequestBody poly.edu.quanlynhahang.dto.WorkScheduleRequest request) {
         Optional<Account> accOpt = accountRepository.findById(request.getUsername());
         if (!accOpt.isPresent()) {
             return ResponseEntity.badRequest().body("Tài khoản không tồn tại!");
         }
 
         try {
-            Date workDate = new SimpleDateFormat("yyyy-MM-dd").parse(request.getWorkDate());
+            Date workDate = parseBusinessDate(request.getWorkDate());
             
             // Kiểm tra xem ngày đó nhân viên đã có ca này chưa
             List<WorkSchedule> existing = workScheduleRepository.findByAccountUsernameAndWorkDate(request.getUsername(), workDate);
@@ -79,10 +83,10 @@ public class ScheduleController {
             WorkSchedule ws = new WorkSchedule();
             ws.setAccount(accOpt.get());
             ws.setWorkDate(workDate);
-            ws.setShift(request.getShift());
+            ws.applyShift(WorkShiftDefinition.fromLabel(request.getShift()));
             
             return ResponseEntity.ok(WorkScheduleResponse.from(workScheduleRepository.save(ws)));
-        } catch (ParseException e) {
+        } catch (DateTimeParseException e) {
             return ResponseEntity.badRequest().body("Ngày không hợp lệ.");
         }
     }
@@ -96,5 +100,9 @@ public class ScheduleController {
             return ResponseEntity.ok("Đã xóa lịch làm!");
         }
         return ResponseEntity.notFound().build();
+    }
+
+    private Date parseBusinessDate(String value) {
+        return Date.from(LocalDate.parse(value).atStartOfDay(BUSINESS_ZONE).toInstant());
     }
 }

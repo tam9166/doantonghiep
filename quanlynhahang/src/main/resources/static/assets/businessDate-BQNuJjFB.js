@@ -1,0 +1,1 @@
+function e(e=new Date){let t=new Intl.DateTimeFormat(`en-CA`,{timeZone:`Asia/Ho_Chi_Minh`,year:`numeric`,month:`2-digit`,day:`2-digit`}).formatToParts(e),n=Object.fromEntries(t.map(e=>[e.type,e.value]));return`${n.year}-${n.month}-${n.day}`}export{e as t};

@@ -108,10 +108,7 @@ public class RoleAwareAssistantService {
                 throw new org.springframework.security.access.AccessDeniedException(
                         "Chỉ thu ngân hoặc quản lý được tra cứu hóa đơn chưa thanh toán");
             }
-            List<Order> unpaidOrders = orderRepository.findAllWithDetails().stream()
-                    .filter(order -> !Integer.valueOf(3).equals(order.getStatus()))
-                    .filter(order -> order.getRemainingAmount() != null && order.getRemainingAmount().signum() > 0)
-                    .toList();
+            List<Order> unpaidOrders = orderRepository.findOutstandingOrders(3, BigDecimal.ZERO);
             BigDecimal remaining = unpaidOrders.stream().map(Order::getRemainingAmount)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
             return new AssistantAnswer(
@@ -125,11 +122,7 @@ public class RoleAwareAssistantService {
                         "Chỉ thu ngân hoặc quản lý được tra cứu tiền đã thu");
             }
             Date startOfDay = startOfToday();
-            List<Order> paidOrders = orderRepository.findAllWithDetails().stream()
-                    .filter(order -> !Integer.valueOf(3).equals(order.getStatus()))
-                    .filter(order -> Boolean.TRUE.equals(order.getIsPaid()))
-                    .filter(order -> order.getCreateDate() != null && !order.getCreateDate().before(startOfDay))
-                    .toList();
+            List<Order> paidOrders = orderRepository.findPaidOrdersSince(3, startOfDay);
             BigDecimal collected = paidOrders.stream()
                     .map(this::collectedAmount)
                     .filter(amount -> amount != null)

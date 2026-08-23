@@ -35,3 +35,13 @@ export function canAccessAdminRoute(path, roles) {
   const allowedRoles = ADMIN_ROUTE_ROLES[path] || SUPERVISOR_ROLES
   return roles.some(role => allowedRoles.includes(role))
 }
+
+export function isStaffWorkspacePath(path, hasStaffSession = false) {
+  return path.startsWith('/admin')
+    || path.startsWith('/kitchen')
+    || path.startsWith('/waiter')
+    || path.startsWith('/cashier')
+    || path === '/staff'
+    || path.startsWith('/staff/')
+    || (path === '/change-password' && hasStaffSession)
+}

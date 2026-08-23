@@ -29,39 +29,6 @@ public class SecurityConfig {
     @Value("${app.cors.allowed-origins:}")
     private String allowedOrigins;
 
-    private static final String[] SPA_ROUTES = {
-        "/",
-        "/index.html",
-        "/favicon.ico",
-        "/login",
-        "/register",
-        "/staff-login",
-        "/menu",
-        "/history",
-        "/profile",
-        "/admin",
-        "/admin/orders",
-        "/admin/analytics",
-        "/reservation",
-        "/reservation-lookup",
-        "/admin/categories",
-        "/admin/tables",
-        "/admin/table-areas",
-        "/admin/staff",
-        "/admin/posts",
-        "/dine-in",
-        "/kitchen",
-        "/waiter",
-        "/staff",
-        "/admin/ingredients",
-        "/admin/vouchers",
-        "/admin/reservations",
-        "/admin/reservation-reviews",
-        "/admin/customer-history",
-        "/admin/ai-knowledge",
-        "/cashier"
-    };
-
     @Bean
     public AuthTokenFilter authenticationJwtTokenFilter() {
         return new AuthTokenFilter();
@@ -115,12 +82,14 @@ public class SecurityConfig {
                         "PERMISSION_DENIED", "Bạn không có quyền thực hiện thao tác này.")));
 
         http.authorizeHttpRequests(auth -> auth
-            .requestMatchers(SPA_ROUTES).permitAll()
+            .requestMatchers(SpaRouteRegistry.ROUTES).permitAll()
+            .requestMatchers(HttpMethod.GET, "/index.html", "/favicon.ico").permitAll()
             .requestMatchers(HttpMethod.GET, "/admin/**").permitAll()
             .requestMatchers(HttpMethod.GET, "/assets/**").permitAll()
             .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
-            // Mở hoàn toàn cho auth, error, và đơn hàng (không cần prefix ROLE_)
-            .requestMatchers("/api/auth/**", "/error").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/staff/login", "/api/auth/signup").permitAll()
+            .requestMatchers("/error").permitAll()
+            .requestMatchers("/api/auth/profile", "/api/auth/password").authenticated()
             .requestMatchers(HttpMethod.GET, "/api/areas/admin").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER")
             .requestMatchers(HttpMethod.GET, "/api/products/**", "/api/categories/**", "/api/tables/**", "/api/areas/**", "/api/posts/**", "/api/reviews/**").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/categories", "/api/categories/**").hasAnyRole("ADMIN", "MANAGER")
@@ -137,8 +106,9 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.GET, "/api/reservations/**").permitAll()
             // P0-02: Lookup requires POST (not GET) to avoid PII in URLs
             .requestMatchers(HttpMethod.POST, "/api/reservations/lookup").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/reservation-cancellations").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/reservation-waitlist").permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/reservation-waitlist/**").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/reservation-waitlist/lookup").permitAll()
             // P0-02: Review lookup no longer exposes PII in URL path - use POST body instead
             .requestMatchers(HttpMethod.GET, "/api/reservation-reviews/public").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/reservation-reviews/mine").permitAll()
@@ -155,13 +125,15 @@ public class SecurityConfig {
             // P0-04: guest-booking deprecated - keep for compatibility but don't allow new orders
             .requestMatchers(HttpMethod.POST, "/api/orders/guest-booking").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/orders/checkout").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/table-sessions/resolve").permitAll()
+            .requestMatchers(HttpMethod.PUT, "/api/table-sessions/orders/*/add-items").permitAll()
 
             .requestMatchers(HttpMethod.PUT, "/api/orders/*/add-items")
                 .hasAnyRole("WAITER", "CASHIER", "MANAGER", "ADMIN")
             .requestMatchers(HttpMethod.POST, "/api/orders/merge-tables", "/api/orders/split-table")
                 .hasAnyRole("WAITER", "CASHIER", "MANAGER", "ADMIN")
             .requestMatchers(HttpMethod.PUT, "/api/orders/details/*/status")
-                .hasAnyRole("KITCHEN", "MANAGER", "ADMIN")
+                .hasAnyRole("KITCHEN", "WAITER", "MANAGER", "ADMIN")
 
             // ✅ Cho phép user đã đăng nhập gọi các API đặt hàng khác
             .requestMatchers("/api/orders/**").authenticated()
@@ -179,6 +151,8 @@ public class SecurityConfig {
 
             // ✅ MỞ RỘNG: Cho phép Bếp, Phục vụ, Thu ngân cũng lấy được đơn hàng qua /api/admin/orders
             .requestMatchers("/api/admin/orders", "/api/admin/orders/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_KITCHEN", "ROLE_WAITER", "ROLE_CASHIER")
+            .requestMatchers(HttpMethod.PATCH, "/api/admin/reservation-cancellations/*/refund-complete")
+                .hasAnyRole("ADMIN", "MANAGER", "CASHIER")
 
             // ✅ Cho phép Thu ngân
             .requestMatchers("/api/cashier/**").hasAnyAuthority("ROLE_CASHIER", "ROLE_ADMIN", "ROLE_MANAGER")

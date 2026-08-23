@@ -149,7 +149,7 @@
               </label>
               <label>
                 {{ text.time }}
-                <input v-model="form.arrivalTime" type="time" min="09:00" max="21:59" />
+                <input v-model="form.arrivalTime" type="time" :min="businessHours.openingTime" :max="latestArrivalTime" />
                 <small v-if="errors.arrivalTime">{{ errors.arrivalTime }}</small>
               </label>
               <label>
@@ -163,7 +163,7 @@
             </div>
             <div v-if="lateDiningEndTime" class="late-dining-confirmation" role="alert">
               <strong>Thời gian dùng bữa vượt quá giờ phục vụ</strong>
-              <p>Dự kiến kết thúc lúc {{ lateDiningEndTime }}; nhà hàng phục vụ đến 22:00.</p>
+              <p>Dự kiến kết thúc lúc {{ lateDiningEndTime }}; nhà hàng phục vụ đến {{ businessHours.closingTime }}.</p>
               <label>
                 <input v-model="lateDiningConfirmed" type="checkbox" />
                 Tôi xác nhận vẫn muốn dùng bữa tại nhà hàng theo thời gian đã chọn.
@@ -260,6 +260,34 @@
               <span>ℹ️</span>
               <p>Quý khách không cần chọn bàn cụ thể. Bàn và ảnh thực tế sẽ hiển thị ngay trong xác nhận nếu hệ thống có thể tự bố trí.</p>
             </div>
+            <div v-if="loadingTables" class="skeleton-grid" aria-live="polite">
+              <div v-for="n in 2" :key="n" class="skeleton-card"></div>
+            </div>
+            <div v-else-if="tableError" class="error-banner">
+              {{ tableError }}
+              <button type="button" @click="loadAvailableTables">{{ text.retry }}</button>
+            </div>
+            <div v-else-if="availableTables.length || tableCombo?.available" class="staff-info availability-result" role="status">
+              <span>✓</span>
+              <p v-if="requiresTableCombination">
+                Nhà hàng có thể ghép {{ tableCombo.tables?.length || 2 }} bàn để phục vụ nhóm của Quý khách và sẽ xác nhận bố trí cuối cùng.
+              </p>
+              <p v-else>
+                Hiện có {{ availableTables.length }} bàn phù hợp. Hệ thống sẽ tự động ưu tiên bàn có sức chứa sát nhất.
+              </p>
+            </div>
+            <div v-else class="waitlist-offer" role="status">
+              <div>
+                <strong>Khung giờ này chưa còn bàn phù hợp</strong>
+                <p>Quý khách có thể vào danh sách chờ. Nhà hàng sẽ liên hệ khi có bàn trống hoặc phương án bố trí phù hợp.</p>
+              </div>
+              <div class="waitlist-actions">
+                <button class="primary-btn" type="button" :disabled="submitting" @click="submitWaitlist">
+                  {{ submitting ? 'Đang gửi...' : 'Tham gia danh sách chờ' }}
+                </button>
+                <button class="ghost-btn" type="button" :disabled="submitting" @click="loadAvailableTables">Kiểm tra lại</button>
+              </div>
+            </div>
           </section>
 
           <section v-show="step === 6" class="panel">
@@ -337,7 +365,7 @@
             </label>
           </section>
 
-          <section v-show="step === 8 && hasPreorderItems" class="panel">
+          <section v-show="step === 8" class="panel">
             <div class="section-heading"><span class="section-icon">▣</span><div><h2>{{ text.paymentTitle }}</h2><p>Lựa chọn hình thức thanh toán phù hợp.</p></div></div>
             <div class="choice-grid">
               <button v-for="option in paymentOptions" :key="option.key" type="button" :class="{ selected: form.paymentOption === option.key }" @click="selectPayment(option.key)">
@@ -373,7 +401,7 @@
               <div><span>{{ text.date }}</span><strong>{{ form.reservationDate }} {{ form.arrivalTime }}</strong></div>
               <div><span>{{ text.guests }}</span><strong>{{ form.guestCount }}</strong></div>
               <div><span>{{ text.areaInfo }}</span><strong>{{ selectedAreaName }}</strong></div>
-              <div><span>{{ text.tableInfo }}</span><strong>{{ selectedTable?.name }}</strong></div>
+              <div><span>{{ text.tableInfo }}</span><strong>{{ quote?.proposedTableName || selectedTable?.name || 'Nhà hàng sẽ bố trí' }}</strong></div>
               <div><span>{{ text.selectedDishes }}</span><strong>{{ cartItems.length }}</strong></div>
               <div><span>{{ text.paymentTitle }}</span><strong>{{ paymentOptionLabel(form.paymentOption) }}</strong></div>
               <div><span>{{ text.total }}</span><strong>{{ money(quote?.totalAmount || selectedTable?.reservationPrice || 0) }}</strong></div>
@@ -401,6 +429,8 @@ import { useI18n } from 'vue-i18n'
 import CustomerLayout from '@/components/CustomerLayout.vue'
 import api from '@/services/api'
 import { useFormatters } from '@/composables/useFormatters'
+import { toBusinessDate } from '@/utils/businessDate'
+import { isTimeWithinWindow, minuteBefore } from '@/utils/businessHours'
 import {
   createEventBookingDraft,
   earlyGroupWarning as groupWarningFor,
@@ -446,11 +476,12 @@ const menuSearch = ref('')
 const menuCategory = ref('')
 const idempotencyKey = ref(crypto.randomUUID())
 const lateDiningConfirmed = ref(false)
+const businessHours = ref({ openingTime: '09:00', closingTime: '22:00', lastOrderTime: '21:30' })
 let tableRequestSequence = 0
 
 const fallbackTableImage = 'https://images.unsplash.com/photo-1515003197210-e0cd71810b5f?auto=format&fit=crop&w=480&q=80'
 const fallbackDishImage = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=900&q=80'
-const today = new Date().toISOString().slice(0, 10)
+const today = toBusinessDate()
 
 const form = ref({
   customerName: '',
@@ -468,7 +499,7 @@ const form = ref({
   tableId: null,
   tableIds: [],
   preorderEnabled: false,
-  paymentOption: 'DEPOSIT_50',
+  paymentOption: null,
   voucherCode: ''
 })
 
@@ -483,18 +514,6 @@ const requiresTableCombination = computed(() => {
   return !hasSingleFit && (tableCombo.value?.combinationRequired || Boolean(tableCombo.value?.available))
 })
 const earlyGroupWarning = computed(() => groupWarningFor(form.value.guestCount))
-const tableMapGroups = computed(() => {
-  const groups = new Map()
-  tables.value.forEach(table => {
-    const groupName = table.floor || table.areaName || selectedAreaName.value || text.value.areaInfo
-    if (!groups.has(groupName)) groups.set(groupName, [])
-    groups.get(groupName).push(table)
-  })
-  return [...groups.entries()].map(([name, rows]) => ({
-    name,
-    tables: rows.slice().sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'vi', { numeric: true }))
-  }))
-})
 const selectedAreaName = computed(() => {
   const area = areas.value.find(item => item.id === form.value.areaId)
   return area ? areaName(area) : ''
@@ -510,9 +529,9 @@ const filteredMenu = computed(() => {
   })
 })
 const paymentOptions = computed(() => Object.entries(text.value.paymentOptions).map(([key, value]) => ({ key, label: value[0], hint: value[1] })))
-const hasPreorderItems = computed(() => form.value.preorderEnabled && cartItems.value.length > 0)
 const cartQuantity = computed(() => cartItems.value.reduce((total, item) => total + item.quantity, 0))
-const skipPaymentStep = computed(() => !hasPreorderItems.value)
+const skipPaymentStep = computed(() => false)
+const latestArrivalTime = computed(() => minuteBefore(businessHours.value.lastOrderTime))
 const lateDiningEndTime = computed(() => {
   const { arrivalTime, expectedDurationMinutes } = form.value
   if (!arrivalTime || !expectedDurationMinutes) return ''
@@ -521,7 +540,9 @@ const lateDiningEndTime = computed(() => {
   if (!Number.isFinite(hour) || !Number.isFinite(minute)) return ''
 
   const endMinutes = hour * 60 + minute + Number(expectedDurationMinutes)
-  if (endMinutes <= 22 * 60) return ''
+  const [closingHour, closingMinute] = businessHours.value.closingTime.split(':').map(Number)
+  const closingMinutes = closingHour * 60 + closingMinute
+  if (endMinutes <= closingMinutes) return ''
 
   const endHour = Math.floor((endMinutes % (24 * 60)) / 60)
   const endMinute = endMinutes % 60
@@ -533,13 +554,6 @@ const money = formatCurrency
 
 function statusLabel(status) {
   return text.value.statusMap[status] || status
-}
-
-function tableMapStatusClass(table) {
-  if (table.availabilityStatus === 'AVAILABLE') return 'available'
-  if (table.availabilityStatus === 'TOO_SMALL') return 'too-small'
-  if (table.availabilityStatus === 'RESERVED' || table.availabilityStatus === 'PENDING') return 'reserved'
-  return 'blocked'
 }
 
 function paymentOptionLabel(key) {
@@ -583,10 +597,11 @@ function reservationTimeError() {
   const { reservationDate, arrivalTime } = form.value
   if (!reservationDate || !arrivalTime) return ''
 
-  if (arrivalTime < '09:00' || arrivalTime >= '22:00') {
+  if (!isTimeWithinWindow(arrivalTime, businessHours.value.openingTime, businessHours.value.lastOrderTime)) {
+    const hoursLabel = `${businessHours.value.openingTime}-${businessHours.value.lastOrderTime}`
     return lang.value === 'vi'
-      ? 'Vui l\u00f2ng ch\u1ecdn gi\u1edd trong khung ph\u1ee5c v\u1ee5 09:00-22:00.'
-      : 'Please select a time between 09:00 and 22:00.'
+      ? `Vui l\u00f2ng ch\u1ecdn gi\u1edd trong khung nh\u1eadn kh\u00e1ch ${hoursLabel}.`
+      : `Please select a time within the booking window ${hoursLabel}.`
   }
 
   const selectedTime = new Date(`${reservationDate}T${arrivalTime}:00`)
@@ -618,6 +633,7 @@ function validateCurrentStep() {
   }
   if (step.value === 3 && (!form.value.guestCount || form.value.guestCount < 1)) errors.value.guestCount = lang.value === 'vi' ? 'Số khách không hợp lệ' : 'Invalid party size'
   if (step.value === 4 && !form.value.areaId) serverError.value = lang.value === 'vi' ? 'Vui lòng chọn khu vực' : 'Please select an area'
+  if (step.value === 8 && !form.value.paymentOption) serverError.value = lang.value === 'vi' ? 'Vui lòng chọn hình thức thanh toán' : 'Please select a payment option'
   if (step.value === 2 && form.value.arrivalTime) {
     const timeError = reservationTimeError()
     if (timeError) errors.value.arrivalTime = timeError
@@ -633,11 +649,7 @@ async function nextStep() {
   if (step.value === 3) await refreshAreaCounts()
   if (step.value === 4) await loadAvailableTables()
   if (step.value === 5 && !menuItems.value.length) await loadPreorderMenu()
-  if (step.value === 6 && !hasPreorderItems.value) {
-    step.value = 9
-    return
-  }
-  if (step.value === 7 || step.value === 8) await loadQuote()
+  if (step.value === 8) await loadQuote()
   step.value = Math.min(9, step.value + 1)
 }
 
@@ -655,22 +667,6 @@ function selectArea(area) {
   tables.value = []
   suggestedTables.value = []
   tableCombo.value = null
-  quote.value = null
-}
-
-function selectTable(table) {
-  selectedTable.value = table
-  form.value.tableId = table.id
-  form.value.tableIds = [table.id]
-  quote.value = null
-}
-
-function acceptTableCombination() {
-  const selected = tableCombo.value?.tables || []
-  if (!selected.length) return
-  form.value.tableIds = selected.map(table => table.tableId)
-  form.value.tableId = selected.find(table => table.primary)?.tableId || selected[0].tableId
-  selectedTable.value = tables.value.find(table => table.id === form.value.tableId) || null
   quote.value = null
 }
 
@@ -698,7 +694,8 @@ async function refreshAreaCounts() {
         time: form.value.arrivalTime,
         durationMinutes: form.value.expectedDurationMinutes,
         guestCount: form.value.guestCount,
-        areaId: area.id
+        areaId: area.id,
+        lateDiningConfirmed: lateDiningConfirmed.value
       }
     })
     return [area.id, res.data.filter(table => table.availabilityStatus === 'AVAILABLE').length]
@@ -718,7 +715,8 @@ async function loadAvailableTables() {
         time: form.value.arrivalTime,
         durationMinutes: form.value.expectedDurationMinutes,
         guestCount: form.value.guestCount,
-        areaId: form.value.areaId
+        areaId: form.value.areaId,
+        lateDiningConfirmed: lateDiningConfirmed.value
       }
     })
     if (requestSequence !== tableRequestSequence) return
@@ -872,7 +870,6 @@ function preorderPayload() {
 }
 
 async function loadQuote() {
-  if (!form.value.tableId) return
   const res = await api.post('/api/reservations/quote', {
     areaId: form.value.areaId,
     tableId: form.value.tableId,
@@ -885,6 +882,8 @@ async function loadQuote() {
     voucherCode: form.value.voucherCode
   })
   quote.value = res.data
+  form.value.tableId = res.data.proposedTableId || null
+  form.value.tableIds = res.data.proposedTableId ? [res.data.proposedTableId] : []
 }
 
 async function submitReservation() {
@@ -1070,6 +1069,11 @@ onMounted(async () => {
   try {
     const response = await api.get('/api/settings/public')
     largePartyThreshold.value = Number(response.data?.largePartyThreshold || 10)
+    businessHours.value = {
+      openingTime: response.data?.openingTime || businessHours.value.openingTime,
+      closingTime: response.data?.closingTime || businessHours.value.closingTime,
+      lastOrderTime: response.data?.lastOrderTime || businessHours.value.lastOrderTime
+    }
   } catch {
     largePartyThreshold.value = 10
   }
@@ -1488,14 +1492,14 @@ small {
 }
 
 .map-seat.available {
-  border-color: #B9D8C2;
-  background: #F3F7F0;
-  color: var(--color-on-secondary-container);
+  border-color: color-mix(in srgb, var(--success) 45%, var(--border));
+  background: color-mix(in srgb, var(--success) 9%, var(--bg-card));
+  color: var(--success);
 }
 
 .map-seat.reserved {
-  border-color: #E7D5B8;
-  background: #F5F0E4;
+  border-color: color-mix(in srgb, var(--warning) 35%, var(--border));
+  background: color-mix(in srgb, var(--warning) 9%, var(--bg-card));
   color: var(--warning);
 }
 
@@ -1700,9 +1704,9 @@ small {
 
 .error-banner,
 .empty-state {
-  background: #F5F0E4;
+  background: color-mix(in srgb, var(--warning) 9%, var(--bg-card));
   color: var(--warning);
-  border: 1px solid #E7D5B8;
+  border: 1px solid color-mix(in srgb, var(--warning) 35%, var(--border));
   border-radius: 8px;
   padding: 12px;
   margin-bottom: 14px;
@@ -1718,6 +1722,25 @@ small {
   display: grid;
   gap: 10px;
   justify-items: start;
+  padding: 18px;
+  border: 1px solid color-mix(in srgb, var(--warning) 40%, var(--border));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--warning) 8%, var(--bg-card));
+}
+
+.waitlist-offer p {
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+}
+
+.waitlist-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.availability-result {
+  margin-top: 14px;
 }
 
 .skeleton-card {
@@ -1766,7 +1789,7 @@ small {
 
 .late-dining-confirmation {
   margin-top: 16px;
-  border: 1px solid #D1A13A;
+  border: 1px solid var(--warning);
   border-radius: 8px;
   background: #FFF8E6;
   color: #4A3410;
@@ -1807,12 +1830,12 @@ small {
 }
 
 .reservation-code::selection {
-  background: #F7D77B;
+  background: var(--color-tertiary-fixed);
   color: var(--text-primary);
 }
 
 .reservation-code::-moz-selection {
-  background: #F7D77B;
+  background: var(--color-tertiary-fixed);
   color: var(--text-primary);
 }
 
@@ -2058,7 +2081,7 @@ input:focus, select:focus, textarea:focus { outline-color: var(--primary-glow); 
 .status-pill { background: var(--color-surface-container); color: var(--primary); }
 .table-map { background: var(--color-surface-container-low); border-color: var(--color-outline-variant); }
 .map-seat { border-color: var(--color-outline-variant); background: var(--bg-card); color: var(--text-primary); }
-.map-seat.available { border-color: #8dc6a4; background: #eff9f1; color: #176b3a; }
+.map-seat.available { border-color: color-mix(in srgb, var(--success) 45%, var(--border)); background: color-mix(in srgb, var(--success) 9%, var(--bg-card)); color: var(--success); }
 .map-seat.reserved { border-color: #f1c46a; background: #fff5db; color: #805300; }
 .map-seat.blocked, .map-seat:disabled { background: var(--color-surface-container); }
 .summary-grid > div, .review-box, .qr-card { border-color: var(--color-outline-variant); background: var(--color-surface-container-low); }
@@ -2118,9 +2141,9 @@ label { gap: 9px; color: var(--ink); }
 input, select, textarea { min-height: 50px; border-color: #e7cbca; border-radius: 9px; padding: 12px 16px; }
 textarea { resize: vertical; }
 input:focus, select:focus, textarea:focus { outline: 3px solid rgba(190,11,47,.09); border-color: var(--wine); }
-.late-dining-confirmation { display: grid; grid-template-columns: auto 1fr; margin-top: 28px; padding: 26px 30px; border-color: #edca78; border-radius: 10px; background: #fff9e9; }
+.late-dining-confirmation { display: grid; grid-template-columns: auto 1fr; margin-top: 28px; padding: 26px 30px; border-color: var(--warning); border-radius: 10px; background: color-mix(in srgb, var(--warning) 8%, var(--bg-card)); }
 .late-dining-confirmation::before { content: '♨'; grid-row: 1 / 4; display: grid; width: 112px; height: 112px; place-items: center; margin-right: 24px; border-radius: 50%; background: #fff; color: var(--wine); font-size: 3rem; }
-.late-dining-confirmation label { border-top: 1px dashed #edca78; padding-top: 14px; }
+.late-dining-confirmation label { border-top: 1px dashed var(--warning); padding-top: 14px; }
 .guest-layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(280px, .9fr); gap: 28px; }
 .guest-counter { display: flex; max-width: 590px; align-items: center; justify-content: space-between; margin: 10px auto 24px; padding: 18px 30px; border: 1px solid #edc8c9; border-radius: 20px; box-shadow: 0 5px 13px rgba(190,11,47,.08); }
 .guest-counter button { width: 58px; height: 58px; border: 0; border-radius: 50%; background: #fff0ef; color: var(--wine); font-size: 2rem; cursor: pointer; }
@@ -2139,16 +2162,16 @@ input:focus, select:focus, textarea:focus { outline: 3px solid rgba(190,11,47,.0
 .quick-summary span { color: var(--muted); font-size: .85rem; }
 .quick-summary p { padding: 15px; border-radius: 10px; background: #fff4e8; }
 .area-chip-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
-.area-chip { position: relative; min-height: 190px; padding: 28px 24px; border-color: #dfc99f; border-radius: 13px; align-content: center; }
-.area-chip-icon { display: grid; width: 66px; height: 66px; place-items: center; border-radius: 50%; background: #f2f7e9; color: #32713b; font-size: 2rem; }
+.area-chip { position: relative; min-height: 190px; padding: 28px 24px; border-color: var(--color-outline-variant); border-radius: 13px; align-content: center; }
+.area-chip-icon { display: grid; width: 66px; height: 66px; place-items: center; border-radius: 50%; background: var(--color-primary-fixed); color: var(--primary); font-size: 2rem; }
 .area-chip-title { position: absolute; left: 112px; top: 40px; font-size: 1.15rem; }
 .area-chip-description { margin-left: 88px; white-space: normal; }
 .area-chip-meta { margin-top: 12px; padding: 10px; border-radius: 8px; background: #faf8f2; color: #51483d; }
-.area-chip.selected { border-color: #668454; background: #fbfff8; box-shadow: none; }
-.area-chip-selected { position: absolute; right: 18px; top: 18px; width: 28px; height: 28px; overflow: hidden; color: transparent; border-radius: 50%; background: #178143; }
+.area-chip.selected { border-color: var(--primary); background: var(--color-surface-container-low); box-shadow: var(--shadow-glow); }
+.area-chip-selected { position: absolute; right: 18px; top: 18px; width: 28px; height: 28px; overflow: hidden; color: transparent; border-radius: 50%; background: var(--primary); }
 .area-chip-selected::after { content: '✓'; display: grid; height: 100%; place-items: center; color: #fff; }
 .choice-grid button { min-height: 128px; border-color: #e7d4bd; border-radius: 12px; }
-.choice-grid button.selected { border-color: #5b8a4e; background: #f7fff4; }
+.choice-grid button.selected { border-color: var(--primary); background: var(--color-surface-container-low); }
 .menu-picker { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 20px; margin-top: 24px; align-items: start; }
 .menu-picker .filters, .menu-picker .error-banner, .menu-picker .preorder-summary { grid-column: 1 / -1; }
 .dish-grid { grid-column: 1; grid-template-columns: repeat(3, minmax(0,1fr)); }

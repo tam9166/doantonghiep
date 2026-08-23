@@ -57,7 +57,7 @@ class RoleAwareAssistantServiceTest {
         Order cancelled = new Order();
         cancelled.setRemainingAmount(new java.math.BigDecimal("90000"));
         cancelled.setStatus(3);
-        when(orderRepository.findAllWithDetails()).thenReturn(List.of(unpaid, cancelled));
+        when(orderRepository.findOutstandingOrders(3, java.math.BigDecimal.ZERO)).thenReturn(List.of(unpaid));
         var authentication = new UsernamePasswordAuthenticationToken("cashier", "N/A",
                 List.of(new SimpleGrantedAuthority("ROLE_CASHIER")));
 
@@ -103,8 +103,9 @@ class RoleAwareAssistantServiceTest {
         paidYesterday.setPaidAmount(new java.math.BigDecimal("70000"));
         paidYesterday.setCreateDate(yesterday.getTime());
 
-        when(orderRepository.findAllWithDetails()).thenReturn(List.of(
-                paidToday, paidTodayWithoutPaidAmount, unpaidToday, cancelledToday, paidYesterday));
+        when(orderRepository.findPaidOrdersSince(org.mockito.ArgumentMatchers.eq(3),
+                org.mockito.ArgumentMatchers.any(java.util.Date.class))).thenReturn(List.of(
+                paidToday, paidTodayWithoutPaidAmount));
         var authentication = new UsernamePasswordAuthenticationToken("cashier", "N/A",
                 List.of(new SimpleGrantedAuthority("ROLE_CASHIER")));
 

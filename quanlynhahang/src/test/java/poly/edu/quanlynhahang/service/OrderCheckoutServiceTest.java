@@ -1,19 +1,23 @@
 package poly.edu.quanlynhahang.service;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 import poly.edu.quanlynhahang.dto.OrderDetailRequest;
 import poly.edu.quanlynhahang.dto.OrderRequest;
 import poly.edu.quanlynhahang.exception.InsufficientInventoryException;
+import poly.edu.quanlynhahang.entity.Account;
 import poly.edu.quanlynhahang.entity.Ingredient;
 import poly.edu.quanlynhahang.entity.IngredientBatch;
 import poly.edu.quanlynhahang.entity.Order;
+import poly.edu.quanlynhahang.entity.OrderVoucherUsage;
 import poly.edu.quanlynhahang.entity.OrderDetail;
 import poly.edu.quanlynhahang.entity.OrderItemOperation;
 import poly.edu.quanlynhahang.entity.OrderType;
 import poly.edu.quanlynhahang.entity.Product;
 import poly.edu.quanlynhahang.entity.Recipe;
+import poly.edu.quanlynhahang.entity.Voucher;
 import poly.edu.quanlynhahang.repository.AccountRepository;
 import poly.edu.quanlynhahang.repository.IngredientBatchRepository;
 import poly.edu.quanlynhahang.repository.IngredientRepository;
@@ -37,6 +41,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doThrow;
 import org.mockito.ArgumentCaptor;
 
 class OrderCheckoutServiceTest {
@@ -54,6 +59,7 @@ class OrderCheckoutServiceTest {
     private final ActivityLogService activityLogService = mock(ActivityLogService.class);
     private final OrderPaymentService orderPaymentService = mock(OrderPaymentService.class);
     private final MenuAvailabilityService menuAvailabilityService = mock(MenuAvailabilityService.class);
+    private final InventoryReservationService inventoryReservationService = mock(InventoryReservationService.class);
 
     private final OrderCheckoutService service = new OrderCheckoutService(
             orderRepository,
@@ -69,7 +75,21 @@ class OrderCheckoutServiceTest {
             orderVoucherUsageRepository,
             activityLogService,
             orderPaymentService,
-            menuAvailabilityService);
+            menuAvailabilityService,
+            inventoryReservationService,
+            new OrderStateMachineService());
+
+    @BeforeEach
+    void allowInventoryUnlessTestOverridesIt() {
+        when(menuAvailabilityService.availableQuantity(any(Product.class))).thenReturn(100);
+        when(inventoryReservationService.defaultExpiry()).thenReturn(new java.util.Date(System.currentTimeMillis() + 60_000));
+        when(orderRepository.save(any())).thenAnswer(invocation -> {
+            Order order = invocation.getArgument(0);
+            if (order == null) return null;
+            if (order.getId() == null) order.setId(22);
+            return order;
+        });
+    }
 
     @Test
     void rejectsEmptyCartBeforeWritingAnything() {
@@ -126,25 +146,50 @@ class OrderCheckoutServiceTest {
     }
 
     @Test
-    void rejectsInsufficientInventoryBeforeCreatingOrder() {
+    void deliveryRequiresStructuredRecipientDataBeforeWritingAnything() {
+        OrderRequest request = request(1, 1);
+        request.setRecipientPhone("khong-hop-le");
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+                () -> service.checkout(request, "anonymousUser"));
+
+        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY, error.getStatusCode());
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    void rejectsInsufficientInventoryWithoutMutatingPhysicalStock() {
         Product product = product(1, 100_000.0);
         Ingredient ingredient = ingredient(10L, "Thịt bò");
         Recipe recipe = recipe(product, ingredient, 2.0);
-        IngredientBatch batch = batch(1.0);
         when(productRepository.findById(1)).thenReturn(Optional.of(product));
         when(recipeRepository.findByProduct(product)).thenReturn(List.of(recipe));
-        when(batchRepository.findAvailableBatchesForUpdate(10L)).thenReturn(List.of(batch));
+        doThrow(new InsufficientInventoryException(java.util.Map.of("Thịt bò", "required=2.0, available=1.0")))
+                .when(inventoryReservationService).reserve(any(), any(), any());
 
         InsufficientInventoryException error = assertThrows(InsufficientInventoryException.class,
                 () -> service.checkout(request(1, 1), "anonymousUser"));
 
         assertEquals(1, error.getShortages().size());
-        verify(orderRepository, never()).save(any());
+        verify(inventoryReservationService).reserve(any(), any(), any());
         verify(batchRepository, never()).saveAll(any());
     }
 
     @Test
-    void calculatesServerPriceAndConsumesLockedInventory() {
+    void rejectsRequestedDishQuantityAboveAvailableServings() {
+        Product product = product(1, 100_000.0);
+        when(productRepository.findById(1)).thenReturn(Optional.of(product));
+        when(menuAvailabilityService.availableQuantity(product)).thenReturn(7);
+
+        InsufficientInventoryException error = assertThrows(InsufficientInventoryException.class,
+                () -> service.checkout(request(1, 8), "anonymousUser"));
+
+        assertEquals("requested=8, availableQuantity=7", error.getShortages().get(product.getName()));
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    void calculatesServerPriceAndReservesInventoryWithoutConsumingIt() {
         Product product = product(1, 100_000.0);
         product.setTaxRate(new BigDecimal("8.00"));
         Ingredient ingredient = ingredient(10L, "Thịt bò");
@@ -152,8 +197,6 @@ class OrderCheckoutServiceTest {
         IngredientBatch batch = batch(10.0);
         when(productRepository.findById(1)).thenReturn(Optional.of(product));
         when(recipeRepository.findByProduct(product)).thenReturn(List.of(recipe));
-        when(recipeRepository.findByIngredient(ingredient)).thenReturn(List.of(recipe));
-        when(batchRepository.findAvailableBatchesForUpdate(10L)).thenReturn(List.of(batch));
         when(orderRepository.save(any())).thenAnswer(invocation -> {
             Order order = invocation.getArgument(0);
             order.setId(22);
@@ -168,12 +211,44 @@ class OrderCheckoutServiceTest {
         assertEquals(new BigDecimal("200000.00"), result.subTotal());
         assertEquals(new BigDecimal("16000.00"), result.taxAmount());
         assertEquals(new BigDecimal("216000.00"), result.totalAmount());
-        assertEquals(0, new BigDecimal("6.0").compareTo(batch.getQuantity()));
-        assertEquals(0, new BigDecimal("6.0").compareTo(ingredient.getQuantity()));
-        verify(batchRepository).findAvailableBatchesForUpdate(10L);
-        verify(batchRepository).saveAll(List.of(batch));
-        verify(menuAvailabilityService).refreshForIngredient(ingredient);
+        assertEquals(0, new BigDecimal("10.0").compareTo(batch.getQuantity()));
+        verify(inventoryReservationService).reserve(any(Order.class),
+                org.mockito.ArgumentMatchers.eq(java.util.Map.of(10L, new BigDecimal("4.0"))), any());
+        verify(batchRepository, never()).saveAll(any());
         verify(orderDetailRepository).save(any(OrderDetail.class));
+    }
+
+    @Test
+    void separatesMembershipAndVoucherDiscountAndRecordsOnlyActualVoucherReduction() {
+        Account account = new Account();
+        account.setUsername("member");
+        account.setMembershipTier("Vàng");
+        Voucher voucher = new Voucher();
+        voucher.setId(5L);
+        voucher.setCode("SAVE20");
+        voucher.setDiscountPercent(20);
+        Product product = product(1, 100_000.0);
+        product.setTaxRate(new BigDecimal("8.00"));
+        Ingredient ingredient = ingredient(10L, "Thịt bò");
+        when(accountRepository.findById("member")).thenReturn(Optional.of(account));
+        when(voucherRepository.findLockedByCode("SAVE20")).thenReturn(Optional.of(voucher));
+        when(productRepository.findById(1)).thenReturn(Optional.of(product));
+        when(recipeRepository.findByProduct(product)).thenReturn(List.of(recipe(product, ingredient, 1.0)));
+        OrderRequest request = request(1, 1);
+        request.setVoucherCode("SAVE20");
+
+        OrderCheckoutService.CheckoutResult result = service.checkout(request, "member");
+
+        assertEquals(new BigDecimal("100000.00"), result.originalSubtotal());
+        assertEquals(new BigDecimal("10000.00"), result.membershipDiscount());
+        assertEquals(new BigDecimal("18000.00"), result.voucherDiscount());
+        assertEquals(new BigDecimal("72000.00"), result.subTotal());
+        assertEquals(new BigDecimal("5760.00"), result.taxAmount());
+        assertEquals(new BigDecimal("77760.00"), result.totalAmount());
+        ArgumentCaptor<OrderVoucherUsage> usage = ArgumentCaptor.forClass(OrderVoucherUsage.class);
+        verify(orderVoucherUsageRepository).save(usage.capture());
+        assertEquals(new BigDecimal("18000"), usage.getValue().getDiscountAmount());
+        assertEquals(new BigDecimal("90000"), usage.getValue().getOriginalAmount());
     }
 
     @Test
@@ -206,6 +281,7 @@ class OrderCheckoutServiceTest {
         when(recipeRepository.findByProduct(product)).thenReturn(List.of(recipe));
         when(recipeRepository.findByIngredient(ingredient)).thenReturn(List.of(recipe));
         when(batchRepository.findAvailableBatchesForUpdate(10L)).thenReturn(List.of(batch));
+        when(ingredientRepository.findLockedById(10L)).thenReturn(Optional.of(ingredient));
         when(orderRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         OrderCheckoutService.AddItemsResult result = service.addItems(22, request(1, 2), "add-item-key-001");
@@ -294,7 +370,9 @@ class OrderCheckoutServiceTest {
         OrderDetailRequest first = detail(1, 1, "It cay", "Di ung dau phong", 4);
         OrderDetailRequest second = detail(1, 1, "Khong hanh", null, 0);
         OrderRequest request = new OrderRequest();
-        request.setAddress("Giao hang");
+        request.setRecipientName("Nguyen An");
+        request.setRecipientPhone("0901234567");
+        request.setDeliveryAddress("123 Duong Test");
         request.setOrderType(OrderType.DELIVERY);
         request.setItems(List.of(first, second));
 
@@ -311,7 +389,9 @@ class OrderCheckoutServiceTest {
     private OrderRequest request(int productId, int quantity) {
         OrderDetailRequest detail = detail(productId, quantity, null, null, 0);
         OrderRequest request = new OrderRequest();
-        request.setAddress("Giao hàng");
+        request.setRecipientName("Nguyễn An");
+        request.setRecipientPhone("0901234567");
+        request.setDeliveryAddress("123 Đường Test");
         request.setOrderType(OrderType.DELIVERY);
         request.setItems(List.of(detail));
         return request;

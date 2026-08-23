@@ -6,11 +6,7 @@ $backend = Join-Path $root "quanlynhahang"
 
 Push-Location $frontend
 if (Test-Path "dist") { Remove-Item "dist" -Recurse -Force }
-if (Test-Path "node_modules") {
-  npm install
-} else {
-  npm ci
-}
+npm ci
 npm run lint
 npm run test
 npm run build

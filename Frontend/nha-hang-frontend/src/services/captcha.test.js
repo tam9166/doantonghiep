@@ -17,4 +17,12 @@ describe('captchaActionForRequest', () => {
       url: '/api/reservation-waitlist'
     })).toBe('reservation-waitlist-create')
   })
+
+  it('protects event booking submissions with a dedicated action', () => {
+    expect(captchaActionForRequest({
+      method: 'post',
+      baseURL: '/',
+      url: '/api/event-bookings'
+    })).toBe('event-booking-create')
+  })
 })

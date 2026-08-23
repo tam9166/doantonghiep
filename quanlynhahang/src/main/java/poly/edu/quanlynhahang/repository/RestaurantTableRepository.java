@@ -30,4 +30,9 @@ public interface RestaurantTableRepository extends JpaRepository<RestaurantTable
     List<RestaurantTable> findLockedActiveByAreaId(@Param("areaId") Integer areaId);
 
     List<RestaurantTable> findByActiveTrueOrderByAreaIdAscIdAsc();
+
+    @Query("select t from RestaurantTable t "
+            + "where t.active = true or t.active is null "
+            + "order by t.areaId asc, t.id asc")
+    List<RestaurantTable> findOperationalTables();
 }

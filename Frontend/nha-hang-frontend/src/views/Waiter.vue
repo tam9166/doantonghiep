@@ -20,7 +20,7 @@
           <span class="live-dot"></span>
           <span>LIVE</span>
         </div>
-        <button @click="$router.push('/staff')" class="btn-profile" style="background:var(--warning); color:#FFFFFF; padding:8px 15px; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">👤 Cá Nhân</button>
+        <button @click="$router.push('/staff/profile')" class="btn-profile" style="background:var(--warning); color:#FFFFFF; padding:8px 15px; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">👤 Cá Nhân</button>
         <button @click="handleLogout" class="btn-logout">🚪 Tan Ca</button>
       </div>
     </header>
@@ -83,7 +83,7 @@
             <div class="serve-main">
               <div class="serve-top">
                 <div class="serve-info">
-                  <h2 class="table-name">{{ getTableName(order.address) }}</h2>
+                  <h2 class="table-name">{{ getTableName(order) }}</h2>
                   <p class="order-code">Mã đơn: <span>#{{ String(order.id).padStart(4, '0') }}</span></p>
                 </div>
                 <div class="serve-timer">
@@ -132,7 +132,7 @@
             <div class="serve-main">
               <div class="serve-top">
                 <div class="serve-info">
-                  <h2 class="table-name">{{ getTableName(order.address) }}</h2>
+                  <h2 class="table-name">{{ getTableName(order) }}</h2>
                   <p class="order-code">Mã đơn: <span>#{{ String(order.id).padStart(4, '0') }}</span></p>
                 </div>
                 <div class="serve-timer">
@@ -596,12 +596,16 @@
 import StaffOperationsAssistant from '@/components/StaffOperationsAssistant.vue'
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import api from '@/services/api';
+import { toBusinessDate } from '@/utils/businessDate';
 import { useRouter } from 'vue-router';
 import SockJS from 'sockjs-client';
 import { Stomp } from '@stomp/stompjs';
 import TimekeepingWidget from '../components/TimekeepingWidget.vue';
 import { foodImage, replaceFoodImage } from '@/utils/imageFallback';
 import { clearStaffSession, getStaffToken, getStaffUser } from '@/services/session';
+import { useDialog } from '@/composables/useDialog';
+
+const { confirmDialog } = useDialog();
 
 const router = useRouter();
 const toastMsg = ref('');
@@ -631,7 +635,7 @@ const fetchMyZones = async () => {
     const u = getStaffUser();
     if (!u || !u.username) return;
     const token = getStaffToken();
-    const today = new Date().toISOString().split('T')[0];
+    const today = toBusinessDate();
     const res = await api.get(`/api/service-zones/my?date=${today}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
@@ -672,12 +676,10 @@ const toggleCollapsedFloor = (floorName) => {
 
 // Kiểm tra đơn hàng thuộc tầng mình phụ trách
 const isOrderInMyZone = (order) => {
+  if (order.orderType !== 'DINE_IN' || !order.tableId) return false;
   if (myAssignedFloors.value.length === 0 || showAllFloors.value) return true;
-  if (!order.address) return true; // Ship/Mang về → hiện cho tất cả
-  // Tìm bàn tương ứng, rồi check tầng
-  const tableName = getTableName(order.address);
-  const matchedTable = tables.value.find(t => t.name === tableName);
-  if (!matchedTable) return true;
+  const matchedTable = tables.value.find(t => Number(t.id) === Number(order.tableId));
+  if (!matchedTable) return false;
   return myAssignedFloors.value.some(f => matchedTable.floor && (matchedTable.floor.includes(f) || f.includes(matchedTable.floor)));
 };
 
@@ -722,7 +724,7 @@ const todayServed = computed(() => {
   const today = new Date().toDateString();
   return orders.value.filter(o => {
     if (!o.createDate) return false;
-    return new Date(o.createDate).toDateString() === today && Number(o.status) >= 3;
+    return new Date(o.createDate).toDateString() === today && [4, 7].includes(Number(o.status));
   }).length;
 });
 
@@ -746,10 +748,9 @@ const playNotificationSound = () => {
 };
 
 // === TABLE NAME ===
-const getTableName = (address) => {
-  if (!address) return 'Ship / Mang về';
-  const match = address.match(/Bàn:\s*(.*?)\s*\|/);
-  return match ? match[1].trim() : address;
+const getTableName = (order) => {
+  if (order?.orderType === 'DINE_IN') return order.tableName || `Bàn #${order.tableId}`;
+  return order?.orderType === 'DELIVERY' ? 'Giao hàng' : 'Mang đi';
 };
 
 const getTableClass = (status) => {
@@ -846,7 +847,7 @@ const markAsCleaning = async (table) => {
     !o.isPaid && 
     Number(o.status) !== 3 && // Not cancelled
     Number(o.status) !== 4 && // Not completed
-    o.address && getTableName(o.address) === table.name
+    Number(o.tableId) === Number(table.id)
   );
 
   if (hasUnpaidOrder) {
@@ -854,10 +855,11 @@ const markAsCleaning = async (table) => {
     return;
   }
 
-  const confirmed = confirm(
-    `🏠 Xác nhận Khách Về tại "${table.name}"?\n\n` +
-    `✅ Bàn sẽ được chuyển sang trạng thái Cần Dọn.`
-  );
+  const confirmed = await confirmDialog({
+    title: 'Xác nhận khách về',
+    message: `Khách tại "${table.name}" đã về? Bàn sẽ chuyển sang trạng thái Cần Dọn.`,
+    confirmLabel: 'Chuyển sang cần dọn',
+  });
   if (!confirmed) return;
 
   try {
@@ -894,16 +896,16 @@ const checkoutTable = async (table) => {
 const selectedOrder = ref(null);
 const selectedTableName = ref('');
 
-const getActiveOrderForTable = (tableName) => {
+const getActiveOrderForTable = (table) => {
   return orders.value.find(o => 
     o.status !== 4 && 
-    o.address && 
-    o.address.includes(`Bàn: ${tableName}`)
+    o.orderType === 'DINE_IN' &&
+    Number(o.tableId) === Number(table.id)
   );
 };
 
 const openInvoice = (table) => {
-  const activeOrder = getActiveOrderForTable(table.name);
+  const activeOrder = getActiveOrderForTable(table);
   if (activeOrder) {
     selectedOrder.value = activeOrder;
     selectedTableName.value = table.name;
@@ -935,7 +937,7 @@ const checkoutOrder = ref(null);
 const checkoutTableName = ref('');
 
 const openCheckoutModal = (table) => {
-  const activeOrder = getActiveOrderForTable(table.name);
+  const activeOrder = getActiveOrderForTable(table);
   if (activeOrder) {
     checkoutOrder.value = activeOrder;
     checkoutTableName.value = table.name;
@@ -950,7 +952,7 @@ const printCheckoutInvoice = () => { window.print(); };
 const detailTable = ref(null);
 const detailOrder = computed(() => {
   if (!detailTable.value) return null;
-  return getActiveOrderForTable(detailTable.value.name);
+  return getActiveOrderForTable(detailTable.value);
 });
 
 const openTableDetail = (table) => {
@@ -990,7 +992,7 @@ const openMoveTable = (table) => {
 const confirmMoveTable = async () => {
   if (!targetTableId.value || !movingTable.value) return;
 
-  const activeOrder = getActiveOrderForTable(movingTable.value.name);
+  const activeOrder = getActiveOrderForTable(movingTable.value);
   if (!activeOrder) {
     showToast('Không tìm thấy đơn hàng của bàn này.');
     return;
@@ -1000,21 +1002,9 @@ const confirmMoveTable = async () => {
   const token = getStaffToken();
   
   try {
-    // 1. Cập nhật địa chỉ đơn hàng sang bàn mới
-    const oldAddress = activeOrder.address;
-    const newAddress = oldAddress.replace(`Bàn: ${movingTable.value.name}`, `Bàn: ${newTable.name}`);
-    
-    await api.put(`/api/admin/orders/${activeOrder.id}/address?newAddress=${encodeURIComponent(newAddress)}`, {}, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-
-    // 2. Set bàn mới thành Có Khách (2)
-    await api.put(`/api/tables/${newTable.id}/status?status=2`, {}, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-
-    // 3. Set bàn cũ thành Trống (0)
-    await api.put(`/api/tables/${movingTable.value.id}/status?status=0`, {}, {
+    // Backend moves the order, updates both table states and revokes both QR
+    // capabilities atomically. Do not repeat those state changes here.
+    await api.put(`/api/admin/orders/${activeOrder.id}/table?newTableId=${newTable.id}`, {}, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
 
@@ -1072,7 +1062,12 @@ const confirmMergeTable = async () => {
 };
 
 const unlinkTable = async (table) => {
-  if (!confirm('Bạn có chắc chắn muốn tách bàn này ra trở lại thành bàn trống không?')) return;
+  if (!await confirmDialog({
+    title: 'Tách bàn đã ghép',
+    message: `Tách ${table.name} và đưa bàn về trạng thái trống?`,
+    confirmLabel: 'Tách bàn',
+    danger: true,
+  })) return;
   try {
     const token = getStaffToken();
     await api.put(`/api/tables/${table.id}/unlink`, {}, {
@@ -1096,7 +1091,7 @@ const openSplitTable = (table) => {
   movingTable.value = table;
   splitTargetTableId.value = "";
   selectedDetailIds.value = [];
-  splitSourceOrder.value = getActiveOrderForTable(table.name);
+  splitSourceOrder.value = getActiveOrderForTable(table);
   if (!splitSourceOrder.value) {
     showToast('Không tìm thấy đơn hàng cho bàn này.');
     return;
@@ -1138,7 +1133,11 @@ const confirmSplitTable = async () => {
 
 // --- Hành động Bàn Đặt Cọc (1) ---
 const upgradeToOccupied = async (table) => {
-  if (!confirm(`Khách đặt trước bàn ${table.name} đã đến?`)) return;
+  if (!await confirmDialog({
+    title: 'Xác nhận khách đến',
+    message: `Khách đặt trước bàn ${table.name} đã đến?`,
+    confirmLabel: 'Khách đã đến',
+  })) return;
   try {
     await api.put(`/api/tables/${table.id}/status?status=2`, {}, {
       headers: { 'Authorization': `Bearer ${getStaffToken()}` }
@@ -1152,7 +1151,12 @@ const upgradeToOccupied = async (table) => {
 };
 
 const cancelBooking = async (table) => {
-  if (!confirm(`Xác nhận HỦY CỌC bàn ${table.name}? Bàn sẽ trở về trạng thái TRỐNG.`)) return;
+  if (!await confirmDialog({
+    title: 'Hủy giữ bàn',
+    message: `Hủy giữ bàn ${table.name} và đưa bàn về trạng thái trống?`,
+    confirmLabel: 'Hủy giữ bàn',
+    danger: true,
+  })) return;
   try {
     await api.put(`/api/tables/${table.id}/status?status=0`, {}, {
       headers: { 'Authorization': `Bearer ${getStaffToken()}` }
@@ -1171,8 +1175,12 @@ const showCheckoutToast = (tableName) => {
   setTimeout(() => { toastMsg.value = ''; }, 3500);
 };
 
-const handleLogout = () => {
-  if (confirm('Bạn có chắc chắn muốn đăng xuất tan ca không?')) {
+const handleLogout = async () => {
+  if (await confirmDialog({
+    title: 'Kết thúc ca làm',
+    message: 'Bạn có chắc chắn muốn đăng xuất tan ca không?',
+    confirmLabel: 'Đăng xuất',
+  })) {
     clearStaffSession();
     window.location.href = '/staff-login';
   }

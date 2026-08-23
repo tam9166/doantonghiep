@@ -25,9 +25,11 @@ class UniqueConstraintMigrationPreflightIntegrationTest {
             statement.executeUpdate("INSERT INTO dbo.reservation_reviews(reservation_id) VALUES (1), (2)");
             statement.executeUpdate("INSERT INTO dbo.reservations(reservation_code) VALUES ('MV-1'), ('MV-2')");
         }, (flyway, statement) -> {
-            assertEquals(5, flyway.migrate().migrationsExecuted);
+            assertEquals(14, flyway.migrate().migrationsExecuted);
             assertTrue(indexExists(statement, "reservation_reviews", "UX_reservation_reviews_reservation_id"));
             assertTrue(indexExists(statement, "reservations", "UX_reservations_reservation_code"));
+            assertTrue(indexExists(statement, "reservations", "UX_reservations_idempotency_key"));
+            assertTrue(indexExists(statement, "reservation_waitlist", "UX_waitlist_linked_reservation_code"));
         });
     }
 
@@ -51,6 +53,17 @@ class UniqueConstraintMigrationPreflightIntegrationTest {
         });
     }
 
+    @Test
+    void duplicateWaitlistReservationLinksFailBeforeUniqueIndex() throws Exception {
+        withLegacyDatabase(statement -> statement.executeUpdate("""
+                INSERT INTO dbo.reservation_waitlist(linked_reservation_code)
+                VALUES ('MV-LINKED-DUP'), ('MV-LINKED-DUP')
+                """), (flyway, statement) -> {
+            FlywayException error = assertThrows(FlywayException.class, flyway::migrate);
+            assertTrue(rootMessage(error).contains("duplicate linked_reservation_code"));
+        });
+    }
+
     private void withLegacyDatabase(SqlSetup setup, MigrationAssertion assertion) throws Exception {
         String username = requiredEnvironment("DB_USERNAME");
         String password = requiredEnvironment("DB_PASSWORD");
@@ -68,6 +81,13 @@ class UniqueConstraintMigrationPreflightIntegrationTest {
                  Statement statement = target.createStatement()) {
                 statement.execute("CREATE TABLE dbo.reservation_reviews (id BIGINT IDENTITY PRIMARY KEY, reservation_id BIGINT NULL)");
                 statement.execute("CREATE TABLE dbo.reservations (id BIGINT IDENTITY PRIMARY KEY, reservation_code NVARCHAR(30) NULL)");
+                statement.execute("CREATE TABLE dbo.refund_transactions ("
+                        + "id BIGINT IDENTITY PRIMARY KEY, order_id INT NULL, created_at DATETIME2 NOT NULL DEFAULT GETDATE())");
+                statement.execute("CREATE TABLE dbo.Orders ("
+                        + "id BIGINT IDENTITY PRIMARY KEY, address NVARCHAR(500) NULL, status INT NOT NULL DEFAULT 0)");
+                statement.execute("CREATE TABLE dbo.ingredients (id BIGINT IDENTITY PRIMARY KEY)");
+                statement.execute("CREATE TABLE dbo.reservation_waitlist ("
+                        + "id BIGINT IDENTITY PRIMARY KEY, linked_reservation_code VARCHAR(30) NULL)");
                 setup.run(statement);
 
                 Flyway flyway = Flyway.configure()

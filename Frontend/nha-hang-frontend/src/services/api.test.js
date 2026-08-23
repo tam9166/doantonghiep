@@ -9,10 +9,11 @@ function requestInterceptor() {
 describe('internal API client', () => {
   afterEach(() => {
     localStorage.clear()
+    sessionStorage.clear()
   })
 
   it('adds the bearer token to a relative backend request', async () => {
-    localStorage.setItem('token', 'internal-token')
+    sessionStorage.setItem('token', 'internal-token')
 
     const config = await requestInterceptor()({
       method: 'get',
@@ -24,8 +25,8 @@ describe('internal API client', () => {
   })
 
   it('uses the staff token for an operational backend request', async () => {
-    localStorage.setItem('token', 'customer-token')
-    localStorage.setItem('staff_token', 'staff-token')
+    sessionStorage.setItem('token', 'customer-token')
+    sessionStorage.setItem('staff_token', 'staff-token')
 
     const config = await requestInterceptor()({
       method: 'get',
@@ -37,7 +38,7 @@ describe('internal API client', () => {
   })
 
   it('never falls back to a customer token for a staff request', async () => {
-    localStorage.setItem('token', 'customer-token')
+    sessionStorage.setItem('token', 'customer-token')
 
     const config = await requestInterceptor()({
       method: 'get',
@@ -49,7 +50,7 @@ describe('internal API client', () => {
   })
 
   it('never adds application credentials to an external absolute URL', async () => {
-    localStorage.setItem('token', 'internal-token')
+    sessionStorage.setItem('token', 'internal-token')
 
     const config = await requestInterceptor()({
       method: 'get',

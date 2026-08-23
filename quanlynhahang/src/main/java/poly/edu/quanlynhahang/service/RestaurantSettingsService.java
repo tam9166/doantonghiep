@@ -4,9 +4,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import poly.edu.quanlynhahang.entity.RestaurantSetting;
 import poly.edu.quanlynhahang.repository.RestaurantSettingRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class RestaurantSettingsService {
+    private static final Logger log = LoggerFactory.getLogger(RestaurantSettingsService.class);
     public static final String LARGE_PARTY_THRESHOLD = "large_party_threshold";
     public static final String MAX_CAPACITY = "restaurant_max_capacity";
 
@@ -58,7 +61,9 @@ public class RestaurantSettingsService {
             try {
                 int parsed = Integer.parseInt(value.trim());
                 return parsed > 0 ? parsed : fallback;
-            } catch (NumberFormatException ignored) {
+            } catch (NumberFormatException exception) {
+                log.warn("Restaurant setting {} has invalid integer value '{}'; using fallback {}",
+                        key, value, fallback);
                 return fallback;
             }
         }).orElse(fallback);

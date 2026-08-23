@@ -8,6 +8,9 @@ import java.util.List;
 
 @Data
 public class ReservationQuoteResponse {
+    private Integer proposedTableId;
+    private String proposedTableName;
+    private boolean requiresManualAssignment;
     private BigDecimal tableAmount;
     private BigDecimal foodAmount;
     private BigDecimal originalTotalAmount;

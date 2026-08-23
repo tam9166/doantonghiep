@@ -143,7 +143,7 @@ const form = ref({
 });
 
 const configHeader = () => {
-  const token = localStorage.getItem('staff_token');
+  const token = sessionStorage.getItem('staff_token');
   return { headers: { 'Authorization': `Bearer ${token}` } };
 };
 

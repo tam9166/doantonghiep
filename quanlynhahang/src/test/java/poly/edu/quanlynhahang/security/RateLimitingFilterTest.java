@@ -13,6 +13,48 @@ import poly.edu.quanlynhahang.config.ApiErrorWriter;
 
 class RateLimitingFilterTest {
     @Test
+    void publicCheckoutHasDedicatedSpamLimit() throws Exception {
+        RateLimitingFilter filter = new RateLimitingFilter(
+                new RateLimitService(), mock(JwtUtils.class), errorWriter());
+        MockHttpServletResponse lastResponse = null;
+        for (int index = 0; index < 11; index++) {
+            MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/orders/checkout");
+            request.setRemoteAddr("198.51.100.80");
+            lastResponse = new MockHttpServletResponse();
+            filter.doFilter(request, lastResponse, new MockFilterChain());
+        }
+        assertEquals(429, lastResponse.getStatus());
+    }
+
+    @Test
+    void eventBookingHasDedicatedSpamLimit() throws Exception {
+        RateLimitingFilter filter = new RateLimitingFilter(
+                new RateLimitService(), mock(JwtUtils.class), errorWriter());
+        MockHttpServletResponse lastResponse = null;
+        for (int index = 0; index < 11; index++) {
+            MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/event-bookings");
+            request.setRemoteAddr("198.51.100.81");
+            lastResponse = new MockHttpServletResponse();
+            filter.doFilter(request, lastResponse, new MockFilterChain());
+        }
+        assertEquals(429, lastResponse.getStatus());
+    }
+
+    @Test
+    void reservationCancellationCreationHasTightSpamLimit() throws Exception {
+        RateLimitingFilter filter = new RateLimitingFilter(
+                new RateLimitService(), mock(JwtUtils.class), errorWriter());
+        MockHttpServletResponse lastResponse = null;
+        for (int index = 0; index < 6; index++) {
+            MockHttpServletRequest request = new MockHttpServletRequest(
+                    "POST", "/api/reservation-cancellations");
+            request.setRemoteAddr("198.51.100.60");
+            lastResponse = new MockHttpServletResponse();
+            filter.doFilter(request, lastResponse, new MockFilterChain());
+        }
+        assertEquals(429, lastResponse.getStatus());
+    }
+    @Test
     void aiLimitAppliesPerAuthenticatedAccountAcrossDifferentIps() throws Exception {
         JwtUtils jwtUtils = mock(JwtUtils.class);
         when(jwtUtils.validateJwtToken("valid-token")).thenReturn(true);
@@ -139,7 +181,7 @@ class RateLimitingFilterTest {
 
         for (int index = 0; index < 31; index++) {
             MockHttpServletRequest request = new MockHttpServletRequest(
-                    "GET", "/api/reservation-waitlist/WL20260730-" + index);
+                    "POST", "/api/reservation-waitlist/lookup");
             request.setRemoteAddr("198.51.100.40");
             lastResponse = new MockHttpServletResponse();
             filter.doFilter(request, lastResponse, new MockFilterChain());

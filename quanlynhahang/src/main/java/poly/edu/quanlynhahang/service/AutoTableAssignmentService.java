@@ -10,6 +10,7 @@ import poly.edu.quanlynhahang.repository.ReservationRepository;
 import poly.edu.quanlynhahang.repository.RestaurantTableRepository;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Comparator;
 import java.util.EnumSet;
@@ -47,12 +48,20 @@ public class AutoTableAssignmentService {
     }
 
     private boolean hasConflict(Integer tableId, LocalDate date, LocalTime start, int duration) {
-        LocalTime end = start.plusMinutes(duration + CLEANUP_MINUTES);
-        return reservations.findLockedByReservationDateAndTableIdAndReservationStatusIn(date, tableId, BLOCKING).stream()
+        LocalDateTime requestedStart = LocalDateTime.of(date, start);
+        LocalDateTime requestedEnd = requestedStart.plusMinutes(duration + CLEANUP_MINUTES);
+        java.util.List<Reservation> candidates = new java.util.ArrayList<>(
+                reservations.findLockedByReservationDateAndTableIdAndReservationStatusIn(
+                        date.minusDays(1), tableId, BLOCKING));
+        candidates.addAll(reservations.findLockedByReservationDateAndTableIdAndReservationStatusIn(
+                date, tableId, BLOCKING));
+        return candidates.stream()
                 .anyMatch(existing -> {
-                    LocalTime otherStart = existing.getArrivalTime();
-                    LocalTime otherEnd = otherStart.plusMinutes(existing.getExpectedDurationMinutes() + CLEANUP_MINUTES);
-                    return start.isBefore(otherEnd) && end.isAfter(otherStart);
+                    LocalDateTime otherStart = LocalDateTime.of(
+                            existing.getReservationDate(), existing.getArrivalTime());
+                    LocalDateTime otherEnd = otherStart.plusMinutes(
+                            existing.getExpectedDurationMinutes() + CLEANUP_MINUTES);
+                    return requestedStart.isBefore(otherEnd) && requestedEnd.isAfter(otherStart);
                 });
     }
 

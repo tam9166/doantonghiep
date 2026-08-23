@@ -52,6 +52,10 @@
             <span class="nav-icon">📅</span>
             <span class="nav-label" v-if="!sidebarCollapsed">Đặt bàn</span>
           </router-link>
+          <router-link to="/admin/reservation-cancellations" class="nav-item" active-class="active">
+            <span class="nav-icon">↩️</span>
+            <span class="nav-label" v-if="!sidebarCollapsed">Yêu cầu hủy</span>
+          </router-link>
           <router-link to="/admin/reservation-reviews" class="nav-item" active-class="active">
             <span class="nav-icon">⭐</span>
             <span class="nav-label" v-if="!sidebarCollapsed">Đánh giá đặt bàn</span>
@@ -118,6 +122,10 @@
 
       <!-- Sidebar Footer -->
       <div class="sidebar-footer" @click="handleSidebarNavigation">
+        <router-link to="/staff/profile" class="nav-item">
+          <span class="nav-icon">👤</span>
+          <span class="nav-label" v-if="!sidebarCollapsed">Hồ sơ cá nhân</span>
+        </router-link>
         <router-link to="/" class="nav-item">
           <span class="nav-icon">🏠</span>
           <span class="nav-label" v-if="!sidebarCollapsed">Về Trang Chủ</span>
@@ -230,6 +238,7 @@ const adminModules = [
   { keywords: 'danh mục category', route: '/admin/categories' },
   { keywords: 'đơn hàng order hóa đơn lịch sử khách đặt hàng', route: '/admin/orders' },
   { keywords: 'đặt bàn reservation booking khách hàng', route: '/admin/reservations' },
+  { keywords: 'yêu cầu hủy đặt bàn hoàn cọc refund cancellation', route: '/admin/reservation-cancellations' },
   { keywords: 'lịch sử khách đặt bàn customer history', route: '/admin/customer-history' },
   { keywords: 'bàn sơ đồ table', route: '/admin/tables' },
   { keywords: 'khu vực bàn tầng phòng sảnh table area', route: '/admin/table-areas' },
@@ -679,7 +688,7 @@ onUnmounted(() => {
     display: flex;
     width: min(300px, 86vw);
     transform: translateX(-100%);
-    box-shadow: 18px 0 40px rgba(26, 23, 15, 0.28);
+  box-shadow: 18px 0 40px rgba(39, 23, 23, 0.28);
     transition: transform 0.25s ease;
   }
   .admin-sidebar.mobile-open { transform: translateX(0); }
@@ -697,7 +706,7 @@ onUnmounted(() => {
     padding: 0;
     border: 0;
     border-radius: 0;
-    background: rgba(26, 23, 15, 0.52);
+  background: var(--overlay-dark);
     cursor: pointer;
   }
   .mobile-menu-button {

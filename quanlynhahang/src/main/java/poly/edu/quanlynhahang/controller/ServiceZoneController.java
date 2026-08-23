@@ -1,7 +1,8 @@
 package poly.edu.quanlynhahang.controller;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeParseException;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -27,6 +28,7 @@ import poly.edu.quanlynhahang.repository.ServiceZoneAssignmentRepository;
 @RestController
 @RequestMapping("/api/service-zones")
 public class ServiceZoneController {
+    private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
     @Autowired
     private ServiceZoneAssignmentRepository zoneRepo;
@@ -42,10 +44,10 @@ public class ServiceZoneController {
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
     public ResponseEntity<?> getZonesByDate(@RequestParam String date) {
         try {
-            Date workDate = new SimpleDateFormat("yyyy-MM-dd").parse(date);
+            Date workDate = parseBusinessDate(date);
             List<ServiceZoneAssignment> zones = zoneRepo.findByWorkDate(workDate);
             return ResponseEntity.ok(zones.stream().map(ServiceZoneAssignmentResponse::from).toList());
-        } catch (ParseException e) {
+        } catch (DateTimeParseException e) {
             return ResponseEntity.badRequest().body("Định dạng ngày không hợp lệ. Vui lòng dùng yyyy-MM-dd");
         }
     }
@@ -56,10 +58,10 @@ public class ServiceZoneController {
     public ResponseEntity<?> getMyZones(Authentication authentication, @RequestParam String date) {
         try {
             String username = authentication.getName();
-            Date workDate = new SimpleDateFormat("yyyy-MM-dd").parse(date);
+            Date workDate = parseBusinessDate(date);
             List<ServiceZoneAssignment> zones = zoneRepo.findByAccountUsernameAndWorkDate(username, workDate);
             return ResponseEntity.ok(zones.stream().map(ServiceZoneAssignmentResponse::from).toList());
-        } catch (ParseException e) {
+        } catch (DateTimeParseException e) {
             return ResponseEntity.badRequest().body("Định dạng ngày không hợp lệ.");
         }
     }
@@ -83,7 +85,7 @@ public class ServiceZoneController {
         }
 
         try {
-            Date workDate = new SimpleDateFormat("yyyy-MM-dd").parse(workDateStr);
+            Date workDate = parseBusinessDate(workDateStr);
 
             // Kiểm tra trùng lặp
             List<ServiceZoneAssignment> existing = zoneRepo
@@ -100,7 +102,7 @@ public class ServiceZoneController {
             zone.setWorkDate(workDate);
 
             return ResponseEntity.ok(ServiceZoneAssignmentResponse.from(zoneRepo.save(zone)));
-        } catch (ParseException e) {
+        } catch (DateTimeParseException e) {
             return ResponseEntity.badRequest().body("Ngày không hợp lệ.");
         }
     }
@@ -133,7 +135,7 @@ public class ServiceZoneController {
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
     public ResponseEntity<?> getZoneMap(@RequestParam String date, @RequestParam(required = false) String shift) {
         try {
-            Date workDate = new SimpleDateFormat("yyyy-MM-dd").parse(date);
+            Date workDate = parseBusinessDate(date);
             List<ServiceZoneAssignment> zones;
 
             if (shift != null && !shift.isEmpty()) {
@@ -157,8 +159,12 @@ public class ServiceZoneController {
                     ));
 
             return ResponseEntity.ok(map);
-        } catch (ParseException e) {
+        } catch (DateTimeParseException e) {
             return ResponseEntity.badRequest().body("Ngày không hợp lệ.");
         }
+    }
+
+    private Date parseBusinessDate(String value) {
+        return Date.from(LocalDate.parse(value).atStartOfDay(BUSINESS_ZONE).toInstant());
     }
 }

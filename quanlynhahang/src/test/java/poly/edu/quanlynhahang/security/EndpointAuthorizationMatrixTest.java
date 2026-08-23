@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.lang.reflect.Method;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 
 import poly.edu.quanlynhahang.controller.CategoryController;
 import poly.edu.quanlynhahang.controller.ChatbotController;
@@ -50,12 +51,13 @@ class EndpointAuthorizationMatrixTest {
         assertRoles(OrderController.class.getMethod("splitTable", SplitTableRequest.class),
                 "WAITER", "CASHIER", "MANAGER", "ADMIN");
         assertRoles(OrderController.class.getMethod("updateOrderDetailStatus", Integer.class, Integer.class),
-                "KITCHEN", "MANAGER", "ADMIN");
+                "KITCHEN", "WAITER", "MANAGER", "ADMIN");
         assertRoles(OrderController.class.getMethod("startKitchenDish", Integer.class),
                 "KITCHEN", "MANAGER", "ADMIN");
         assertRoles(OrderController.class.getMethod("completeKitchenDish", Integer.class),
                 "KITCHEN", "MANAGER", "ADMIN");
-        assertRoles(OrderController.class.getMethod("cancelKitchenDish", Integer.class, KitchenDishCancelRequest.class),
+        assertRoles(OrderController.class.getMethod("cancelKitchenDish", Integer.class,
+                        KitchenDishCancelRequest.class, Authentication.class),
                 "KITCHEN", "MANAGER", "ADMIN");
     }
 
@@ -70,6 +72,12 @@ class EndpointAuthorizationMatrixTest {
         assertRoles(AdminOrderController.class.getMethod(
                         "regeneratePaymentQr", Integer.class, String.class, String.class),
                 "ADMIN", "MANAGER", "CASHIER");
+    }
+
+    @Test
+    void kitchenBoardIsNotExposedToWaiterOrCashier() throws Exception {
+        assertRoles(AdminOrderController.class.getMethod("getKitchenBoard"),
+                "KITCHEN", "ADMIN", "MANAGER");
     }
 
     @Test

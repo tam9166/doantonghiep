@@ -3,6 +3,9 @@ package poly.edu.quanlynhahang.entity;
 import java.util.Date;
 import java.util.List;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.Locale;
+import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
@@ -15,6 +18,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.Temporal;
@@ -32,6 +36,12 @@ public class Order {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
+    @Column(name = "order_code", length = 40, nullable = false, unique = true)
+    private String orderCode = "ORD-" + UUID.randomUUID().toString().substring(0, 12).toUpperCase(Locale.ROOT);
+
+    @Column(name = "scheduled_at")
+    private LocalDateTime scheduledAt;
+
     @Version
     @Column(nullable = false)
     private Long version = 0L;
@@ -44,11 +54,32 @@ public class Order {
     @Column(columnDefinition = "nvarchar(500)")
     private String address;
 
+    @Column(name = "recipient_name", length = 100)
+    private String recipientName;
+
+    @Column(name = "recipient_phone", length = 20)
+    private String recipientPhone;
+
+    @Column(name = "delivery_address", columnDefinition = "nvarchar(500)")
+    private String deliveryAddress;
+
+    @Column(name = "delivery_note", columnDefinition = "nvarchar(500)")
+    private String deliveryNote;
+
     // Trạng thái đơn hàng: 0 - Chờ xác nhận, 1 - Đang làm món, 2 - Đã giao, 3 - Đã hủy
     private Integer status = 0;
 
     @Column(name = "sub_total", precision = 18, scale = 2)
     private BigDecimal subTotal = BigDecimal.ZERO;
+
+    @Column(name = "original_subtotal", precision = 18, scale = 2, nullable = false)
+    private BigDecimal originalSubtotal = BigDecimal.ZERO;
+
+    @Column(name = "membership_discount", precision = 18, scale = 2, nullable = false)
+    private BigDecimal membershipDiscount = BigDecimal.ZERO;
+
+    @Column(name = "voucher_discount", precision = 18, scale = 2, nullable = false)
+    private BigDecimal voucherDiscount = BigDecimal.ZERO;
 
     @Column(name = "tax_amount", precision = 18, scale = 2)
     private BigDecimal taxAmount = BigDecimal.ZERO;
@@ -61,6 +92,11 @@ public class Order {
 
     @Column(name = "table_id")
     private Integer tableId;
+
+    @JsonIgnore
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "table_id", insertable = false, updatable = false)
+    private RestaurantTable restaurantTable;
 
     // Khóa ngoại liên kết với bảng Account (người đặt hàng)
     @ManyToOne

@@ -17,7 +17,7 @@ import java.util.List;
 public class ReservationQuoteRequest {
     @Positive
     private Integer areaId;
-    @NotNull @Positive
+    @Positive
     private Integer tableId;
     @NotBlank @Pattern(regexp = "^\\d{4}-\\d{2}-\\d{2}$")
     private String reservationDate;

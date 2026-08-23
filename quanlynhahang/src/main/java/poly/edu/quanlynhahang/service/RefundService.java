@@ -12,8 +12,12 @@ import poly.edu.quanlynhahang.entity.RefundTransaction.RefundStatus;
 import poly.edu.quanlynhahang.entity.Reservation;
 import poly.edu.quanlynhahang.entity.PaymentIntent;
 import poly.edu.quanlynhahang.entity.PaymentStatus;
+import poly.edu.quanlynhahang.entity.PaymentDirection;
+import poly.edu.quanlynhahang.entity.PaymentTransaction;
+import poly.edu.quanlynhahang.entity.PaymentTransactionStatus;
 import poly.edu.quanlynhahang.repository.RefundTransactionRepository;
 import poly.edu.quanlynhahang.repository.PaymentIntentRepository;
+import poly.edu.quanlynhahang.repository.PaymentTransactionRepository;
 import poly.edu.quanlynhahang.repository.ReservationRepository;
 
 import java.math.BigDecimal;
@@ -34,17 +38,20 @@ public class RefundService {
     private final ReservationRepository reservationRepository;
     private final DepositPolicyService depositPolicyService;
     private final ActivityLogService activityLogService;
+    private final PaymentTransactionRepository paymentTransactionRepository;
 
     public RefundService(RefundTransactionRepository refundRepository,
                          PaymentIntentRepository paymentIntentRepository,
                          ReservationRepository reservationRepository,
                          DepositPolicyService depositPolicyService,
-                         ActivityLogService activityLogService) {
+                         ActivityLogService activityLogService,
+                         PaymentTransactionRepository paymentTransactionRepository) {
         this.refundRepository = refundRepository;
         this.paymentIntentRepository = paymentIntentRepository;
         this.reservationRepository = reservationRepository;
         this.depositPolicyService = depositPolicyService;
         this.activityLogService = activityLogService;
+        this.paymentTransactionRepository = paymentTransactionRepository;
     }
 
     /**
@@ -98,10 +105,40 @@ public class RefundService {
                 "Tạo hoàn tiền " + refundAmount + " cho " + reservation.getReservationCode()
                 + " (giữ lại " + forfeited + "), lý do: " + reason);
 
-        // Trong thực tế, gọi API ngân hàng/VNPay ở đây
-        // Sau đó cập nhật status thành COMPLETED hoặc FAILED
-        markCompleted(saved, "Tự động hoàn tiền qua cổng thanh toán");
+        return saved;
+    }
 
+    @Transactional
+    public RefundTransaction requestReservationRefund(Reservation reservation,
+                                                       BigDecimal amount,
+                                                       BigDecimal forfeitedAmount,
+                                                       RefundReason reason,
+                                                       String reasonDetail,
+                                                       String processedBy) {
+        if (reservation == null || reservation.getId() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Reservation không tồn tại");
+        }
+        BigDecimal safeAmount = nvl(amount).max(BigDecimal.ZERO);
+        if (safeAmount.signum() <= 0) return null;
+        if (refundRepository.existsByReservationIdAndStatusIn(reservation.getId(),
+                java.util.EnumSet.of(RefundStatus.PENDING, RefundStatus.COMPLETED))) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Đặt bàn đã có yêu cầu hoàn tiền");
+        }
+        RefundTransaction refund = new RefundTransaction();
+        refund.setReservationId(reservation.getId());
+        refund.setAmount(safeAmount);
+        refund.setForfeitedAmount(nvl(forfeitedAmount).max(BigDecimal.ZERO));
+        refund.setReason(reason);
+        refund.setReasonDetail(reasonDetail);
+        refund.setStatus(RefundStatus.PENDING);
+        refund.setProcessedBy(processedBy);
+        refund.setCreatedAt(new Date());
+        paymentIntentRepository.findByReservationIdAndStatusOrderByCreatedAtDesc(
+                reservation.getId(), PaymentStatus.PAID).stream().findFirst()
+                .ifPresent(intent -> refund.setPaymentIntentId(intent.getId()));
+        RefundTransaction saved = refundRepository.save(refund);
+        activityLogService.log("REFUND_PENDING", "Reservation", String.valueOf(reservation.getId()),
+                "Đã tạo yêu cầu hoàn tiền " + safeAmount + "; chờ xác nhận thực tế");
         return saved;
     }
 
@@ -113,6 +150,64 @@ public class RefundService {
             refund.setNotes(notes);
         }
         return refundRepository.save(refund);
+    }
+
+    @Transactional
+    public RefundTransaction confirmCompleted(Long refundId, String providerReference,
+                                              String notes, String processedBy) {
+        RefundTransaction refund = refundRepository.findLockedById(refundId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Không tìm thấy yêu cầu hoàn tiền"));
+        String reference = providerReference == null ? null : providerReference.trim();
+        if (reference == null || reference.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Vui lòng nhập mã giao dịch hoàn tiền thực tế");
+        }
+        if (RefundStatus.COMPLETED.equals(refund.getStatus())) {
+            PaymentTransaction recorded = paymentTransactionRepository.findByProviderTransactionId(reference)
+                    .filter(transaction -> isMatchingCompletedRefund(transaction, refund))
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT,
+                            "Mã giao dịch không khớp với lần hoàn tiền đã hoàn tất"));
+            log.debug("Idempotent refund confirmation {} using ledger transaction {}",
+                    refundId, recorded.getId());
+            return refund;
+        }
+        if (!RefundStatus.PENDING.equals(refund.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Yêu cầu hoàn tiền không ở trạng thái chờ xử lý");
+        }
+        paymentTransactionRepository.findByProviderTransactionId(reference).ifPresent(existing -> {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Mã giao dịch hoàn tiền đã được ghi nhận");
+        });
+        PaymentTransaction transaction = new PaymentTransaction();
+        transaction.setPaymentIntentId(refund.getPaymentIntentId());
+        transaction.setAggregateType(refund.getReservationId() != null ? "RESERVATION" : "ORDER");
+        transaction.setAggregateId(refund.getReservationId() != null
+                ? refund.getReservationId() : refund.getOrderId().longValue());
+        transaction.setProvider("MANUAL_REFUND_CONFIRMATION");
+        transaction.setProviderTransactionId(reference);
+        transaction.setAmount(refund.getAmount());
+        transaction.setDirection(PaymentDirection.REFUND);
+        transaction.setStatus(PaymentTransactionStatus.SUCCESS);
+        transaction.setRawReference(limit(notes, 200));
+        paymentTransactionRepository.save(transaction);
+        refund.setProcessedBy(processedBy);
+        RefundTransaction completed = markCompleted(refund, notes);
+        activityLogService.log("REFUND_COMPLETED", "RefundTransaction", String.valueOf(refundId),
+                "Đã đối soát hoàn tiền bằng giao dịch " + reference);
+        return completed;
+    }
+
+    private boolean isMatchingCompletedRefund(PaymentTransaction transaction, RefundTransaction refund) {
+        String aggregateType = refund.getReservationId() != null ? "RESERVATION" : "ORDER";
+        Long aggregateId = refund.getReservationId() != null
+                ? refund.getReservationId() : refund.getOrderId().longValue();
+        return PaymentDirection.REFUND.equals(transaction.getDirection())
+                && PaymentTransactionStatus.SUCCESS.equals(transaction.getStatus())
+                && aggregateType.equals(transaction.getAggregateType())
+                && aggregateId.equals(transaction.getAggregateId())
+                && nvl(refund.getAmount()).compareTo(nvl(transaction.getAmount())) == 0;
     }
 
     @Transactional
@@ -129,5 +224,11 @@ public class RefundService {
 
     private BigDecimal nvl(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
+    }
+
+    private String limit(String value, int max) {
+        if (value == null) return null;
+        String trimmed = value.trim();
+        return trimmed.substring(0, Math.min(max, trimmed.length()));
     }
 }

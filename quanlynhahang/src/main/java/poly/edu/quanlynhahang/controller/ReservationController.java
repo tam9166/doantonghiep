@@ -39,7 +39,12 @@ public class ReservationController {
         return ResponseEntity.status(HttpStatus.CREATED).body(reservationService.createReservation(request, idempotencyKey));
     }
     @PostMapping("/api/event-bookings")
-    public ResponseEntity<?> createEvent(@Valid @RequestBody EventBookingRequest request) { return ResponseEntity.status(HttpStatus.CREATED).body(reservationService.createEventBooking(request)); }
+    public ResponseEntity<?> createEvent(
+            @Valid @RequestBody EventBookingRequest request,
+            @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(reservationService.createEventBooking(request, idempotencyKey));
+    }
 
     @PostMapping("/api/reservations/quote")
     public ResponseEntity<?> quote(@Valid @RequestBody ReservationQuoteRequest request) {
@@ -129,6 +134,12 @@ public class ReservationController {
         return ResponseEntity.ok(reservationService.updateContactStatus(id, request));
     }
 
+    @GetMapping("/api/admin/reservations/{id}/contact-logs")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+    public ResponseEntity<?> contactLogs(@PathVariable Long id) {
+        return ResponseEntity.ok(reservationService.getContactLogs(id));
+    }
+
     @PatchMapping("/api/admin/reservations/{id}/check-in")
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     public ResponseEntity<?> checkIn(@PathVariable Long id, @Valid @RequestBody(required = false) ReservationActionRequest request) {
@@ -140,7 +151,9 @@ public class ReservationController {
                                        @RequestParam String time,
                                        @RequestParam(required = false) Integer durationMinutes,
                                        @RequestParam Integer guestCount,
-                                       @RequestParam(required = false) Integer areaId) {
-        return ResponseEntity.ok(reservationService.findAvailableTables(date, time, durationMinutes, guestCount, areaId));
+                                       @RequestParam(required = false) Integer areaId,
+                                       @RequestParam(required = false) Boolean lateDiningConfirmed) {
+        return ResponseEntity.ok(reservationService.findAvailableTables(
+                date, time, durationMinutes, guestCount, areaId, lateDiningConfirmed));
     }
 }

@@ -16,7 +16,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Data
 @Entity
-@Table(name = "OrderDetails")
+@Table(name = "order_details")
 public class OrderDetail {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -63,6 +63,9 @@ public class OrderDetail {
 
     @Column(name = "cancel_reason", columnDefinition = "nvarchar(500)")
     private String cancelReason;
+
+    @Column(name = "cancelled_by", length = 80)
+    private String cancelledBy;
 
     // Khóa ngoại biết chi tiết này là của món ăn nào
     @ManyToOne

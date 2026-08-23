@@ -36,8 +36,10 @@ class OrderPaymentServiceTest {
     private final SimpMessagingTemplate messagingTemplate = mock(SimpMessagingTemplate.class);
     private final RestaurantTableRepository tableRepository = mock(RestaurantTableRepository.class);
     private final PaymentProperties properties = properties();
+    private final InventoryReservationService inventoryReservationService = mock(InventoryReservationService.class);
     private final OrderPaymentService service = new OrderPaymentService(
-            intentRepository, orderRepository, properties, activityLogService, messagingTemplate, tableRepository);
+            intentRepository, orderRepository, properties, activityLogService, messagingTemplate, tableRepository,
+            inventoryReservationService, new OrderStateMachineService());
 
     @BeforeEach
     void setUp() {
@@ -150,6 +152,7 @@ class OrderPaymentServiceTest {
 
         assertEquals(1, result.getStatus());
         assertEquals(false, result.getIsPaid());
+        verify(inventoryReservationService).consume(12);
         verify(messagingTemplate).convertAndSend("/topic/kitchen", "NEW_ORDER");
         verify(activityLogService).log("MANUAL_ORDER_CONFIRM", "Order", "12",
                 "Xác nhận thủ công đơn COD/tại quán và chuyển xuống bếp");
@@ -169,6 +172,7 @@ class OrderPaymentServiceTest {
         assertEquals(1, order.getStatus());
         assertEquals(true, order.getIsPaid());
         assertEquals(BigDecimal.ZERO, order.getRemainingAmount());
+        verify(inventoryReservationService).consume(12);
         verify(messagingTemplate).convertAndSend("/topic/kitchen", "NEW_ORDER");
     }
 

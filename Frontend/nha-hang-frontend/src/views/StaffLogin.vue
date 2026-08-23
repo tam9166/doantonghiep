@@ -130,6 +130,7 @@
 <script setup>
 import { ref } from 'vue'
 import api from '@/services/api'
+import { setStaffSession } from '@/services/session'
 import { getApiErrorMessage } from '@/services/errorMessage'
 import { useToast } from '@/composables/useToast'
 
@@ -157,14 +158,13 @@ const handleStaffLogin = async () => {
 
     // Phiên nhân viên tách biệt với phiên khách hàng đang có trong cùng trình duyệt.
     // Kitchen, Waiter và Cashier đều đọc đúng hai khóa này.
-    localStorage.setItem('staff_token', res.data.token)
-    localStorage.setItem('staff_user', JSON.stringify({
+    setStaffSession(res.data.token, {
       username: res.data.username,
       roles: res.data.roles,
       assignedArea: res.data.assignedArea,
       shift: res.data.shift,
       mustChangePassword: res.data.mustChangePassword
-    }))
+    })
 
     toast.success(`Chào mừng ${res.data.username}!`, 'Đăng nhập hệ thống thành công')
 

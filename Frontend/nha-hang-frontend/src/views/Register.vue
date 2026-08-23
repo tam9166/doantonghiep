@@ -76,23 +76,23 @@
                 <label>Tên đăng nhập *</label>
                 <div class="input-field">
                   <span class="field-icon">👤</span>
-                  <input v-model="form.username" type="text" placeholder="username..." />
+                  <input v-model="form.username" type="text" required minlength="4" maxlength="50" pattern="[a-zA-Z0-9._-]+" autocomplete="username" placeholder="username..." />
                 </div>
               </div>
               <div class="input-group">
                 <label>Họ và Tên *</label>
                 <div class="input-field">
                   <span class="field-icon">📛</span>
-                  <input v-model="form.fullname" type="text" placeholder="Nguyễn Văn A..." />
+                  <input v-model="form.fullname" type="text" required maxlength="100" autocomplete="name" placeholder="Nguyễn Văn A..." />
                 </div>
               </div>
             </div>
 
             <div class="input-group">
-              <label>Email</label>
+              <label>Email *</label>
               <div class="input-field">
                 <span class="field-icon">📧</span>
-                <input v-model="form.email" type="email" placeholder="email@gmail.com" />
+                <input v-model="form.email" type="email" required maxlength="100" autocomplete="email" placeholder="email@gmail.com" />
               </div>
             </div>
 
@@ -100,7 +100,7 @@
               <label>Mật khẩu *</label>
               <div class="input-field">
                 <span class="field-icon">🔒</span>
-                <input v-model="form.password" :type="showPw ? 'text' : 'password'" minlength="10" maxlength="72" placeholder="Tối thiểu 10 ký tự..." />
+                <input v-model="form.password" :type="showPw ? 'text' : 'password'" required minlength="10" maxlength="72" autocomplete="new-password" placeholder="Từ 10 đến 72 ký tự..." />
                 <button class="toggle-pw" @click="showPw = !showPw" type="button">{{ showPw ? '🙈' : '👁️' }}</button>
               </div>
               <!-- Password Strength -->
@@ -133,7 +133,7 @@
               </div>
               <div class="confirm-row">
                 <span class="confirm-label">📧 Email</span>
-                <span class="confirm-value">{{ form.email || '(không nhập)' }}</span>
+                <span class="confirm-value">{{ form.email }}</span>
               </div>
               <div class="confirm-row">
                 <span class="confirm-label">🔒 Mật khẩu</span>
@@ -181,6 +181,7 @@ import { useRouter } from 'vue-router'
 import api from '@/services/api'
 import { getApiErrorMessage } from '@/services/errorMessage'
 import { useToast } from '@/composables/useToast'
+import { getRegistrationValidationError, normalizeRegistration } from '@/utils/registrationValidation'
 
 const router = useRouter()
 const toast = useToast()
@@ -217,19 +218,24 @@ const pwStrengthLabel = computed(() => {
 
 function goStep2() {
   errorMsg.value = ''
-  if (!form.value.username || !form.value.password || !form.value.fullname) {
-    errorMsg.value = 'Vui lòng điền đầy đủ thông tin bắt buộc!'
+  const validationError = getRegistrationValidationError(form.value)
+  if (validationError) {
+    errorMsg.value = validationError
     return
   }
-  if (form.value.password.length < 10) {
-    errorMsg.value = 'Mật khẩu phải có ít nhất 10 ký tự!'
-    return
-  }
+  form.value = normalizeRegistration(form.value)
   step.value = 2
 }
 
 async function handleRegister() {
   errorMsg.value = ''
+  const validationError = getRegistrationValidationError(form.value)
+  if (validationError) {
+    errorMsg.value = validationError
+    step.value = 1
+    return
+  }
+  form.value = normalizeRegistration(form.value)
   isLoading.value = true
   try {
     await api.post('/api/auth/signup', form.value)
@@ -351,7 +357,7 @@ async function handleRegister() {
 .field-icon { position: absolute; left: 16px; font-size: 1rem; z-index: 1; pointer-events: none; }
 .input-field input {
   width: 100%; padding: 14px 48px 14px 48px;
-  background: rgba(26, 23, 15, 0.5); border: 1px solid rgba(255,255,255,0.08);
+  background: var(--overlay-dark); border: 1px solid rgba(255,255,255,0.08);
   border-radius: 14px; color: var(--text-primary); font-size: 0.95rem;
   font-family: inherit; transition: var(--transition);
 }
@@ -434,7 +440,7 @@ async function handleRegister() {
 
 .btn-loading { display: flex; align-items: center; justify-content: center; gap: 8px; }
 .spinner {
-  width: 18px; height: 18px; border: 2px solid rgba(26, 23, 15, 0.3);
+  width: 18px; height: 18px; border: 2px solid rgba(39, 23, 23, 0.3);
   border-top-color: var(--bg-dark); border-radius: 50%; animation: spin 0.6s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }

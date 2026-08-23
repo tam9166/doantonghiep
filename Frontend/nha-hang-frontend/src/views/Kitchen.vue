@@ -16,7 +16,7 @@
         </button>
         <button @click="activeTab = 'menu'" :class="['tab-btn', { active: activeTab === 'menu' }]">🍽️ Thực Đơn</button>
         <button @click="activeTab = 'ai-kitchen'" :class="['tab-btn', { active: activeTab === 'ai-kitchen' }]">🤖 Gom Món (AI)</button>
-        <button @click="$router.push('/profile')" class="btn-profile">👤 Cá Nhân</button>
+        <button @click="$router.push('/staff/profile')" class="btn-profile">👤 Cá Nhân</button>
         <button @click="fetchOrders" class="btn-refresh">🔄</button>
         <button @click="handleLogout" class="btn-logout">🚪 Đăng Xuất</button>
       </div>
@@ -315,6 +315,10 @@ import SockJS from 'sockjs-client';
 import { Stomp } from '@stomp/stompjs';
 import TimekeepingWidget from '../components/TimekeepingWidget.vue';
 import { foodImage, replaceFoodImage } from '@/utils/imageFallback';
+import { clearStaffSession, getStaffToken } from '@/services/session';
+import { useDialog } from '@/composables/useDialog';
+
+const { confirmDialog, promptDialog } = useDialog();
 
 const router = useRouter();
 const orders = ref([]);
@@ -342,7 +346,7 @@ const showRecipeModal = ref(false);
 const selectedProductForRecipe = ref(null);
 const currentProductRecipes = ref([]);
 
-const getToken = () => localStorage.getItem('staff_token');
+const getToken = () => getStaffToken();
 const configHeader = () => ({ headers: { 'Authorization': `Bearer ${getToken()}` } });
 
 // === AUDIO NOTIFICATION ===
@@ -368,7 +372,7 @@ const playNotificationSound = () => {
 const fetchOrders = async () => {
   try {
     loadError.value = '';
-    const res = await api.get('/api/admin/orders', configHeader());
+    const res = await api.get('/api/admin/orders/kitchen/board', configHeader());
     const normalizedOrders = Array.isArray(res.data)
       ? res.data.map(order => ({ ...order, orderDetails: Array.isArray(order.orderDetails) ? order.orderDetails : [] }))
       : [];
@@ -427,8 +431,9 @@ const todayOrders = computed(() => {
   const today = new Date().toDateString();
   return allOrders.value.filter(o => o.createDate && new Date(o.createDate).toDateString() === today);
 });
-const todayCompleted = computed(() => todayOrders.value.filter(o => o.status >= 2).length);
-const todayDishes = computed(() => todayOrders.value.filter(o => o.status >= 2).reduce((sum, o) => sum + (o.orderDetails?.reduce((s, d) => s + d.quantity, 0) || 0), 0));
+const kitchenCompletedStatuses = new Set([2, 4, 7]);
+const todayCompleted = computed(() => todayOrders.value.filter(o => kitchenCompletedStatuses.has(Number(o.status))).length);
+const todayDishes = computed(() => todayOrders.value.filter(o => kitchenCompletedStatuses.has(Number(o.status))).reduce((sum, o) => sum + (o.orderDetails?.reduce((s, d) => s + d.quantity, 0) || 0), 0));
 
 // === HELPERS ===
 const showToast = (msg) => { toastMsg.value = msg; setTimeout(() => { toastMsg.value = ''; }, 3000); };
@@ -455,9 +460,9 @@ const getTimerClass = (o) => { const m = getElapsedMinutes(o.createDate); return
 const getUrgencyClass = (o) => { const m = getElapsedMinutes(o.createDate); return m >= 15 ? 'urgency-critical late-warning-box' : m >= 10 ? 'urgency-warning' : ''; };
 
 const getTableName = (order) => {
-  if (!order.address) return '🛵 Giao hàng';
-  const match = order.address.match(/Bàn:\s*(.*?)\s*\|/);
-  return match ? `🪑 ${match[1].trim()}` : order.address;
+  if (order.orderType === 'DINE_IN') return `🪑 ${order.tableName || `Bàn #${order.tableId}`}`;
+  if (order.orderType === 'DELIVERY') return '🛵 Giao hàng';
+  return '🥡 Mang đi';
 };
 const getNote = (order) => { if (!order.address) return ''; const m = order.address.match(/GhiChú:\s*([^|]+)/i); return m ? m[1].trim() : ''; };
 
@@ -485,7 +490,7 @@ const getStockBarClass = (ing) => {
 // === ACTIONS ===
 const markReady = async (id) => {
   try {
-    const token = localStorage.getItem('staff_token');
+    const token = getStaffToken();
     await api.put(`/api/admin/orders/${id}/status?status=2`, {}, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
@@ -498,7 +503,7 @@ const markReady = async (id) => {
 
 const markDishReady = async (detailId) => {
   try {
-    const token = localStorage.getItem('staff_token');
+    const token = getStaffToken();
     await api.put(`/api/orders/details/${detailId}/kitchen/complete`, {}, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
@@ -520,8 +525,16 @@ const startDish = async (detailId) => {
 };
 
 const cancelDish = async (detailId) => {
-  const reason = window.prompt('Nhập lý do hủy món:');
-  if (!reason?.trim()) return;
+  const reason = await promptDialog({
+    title: 'Hủy món',
+    message: 'Lý do sẽ được lưu vào lịch sử món và thông báo cho phục vụ.',
+    inputLabel: 'Lý do hủy món',
+    inputPlaceholder: 'Ví dụ: hết nguyên liệu, món không đạt chất lượng…',
+    confirmLabel: 'Xác nhận hủy',
+    required: true,
+    danger: true,
+  });
+  if (!reason) return;
   try {
     await api.put(`/api/orders/details/${detailId}/kitchen/cancel`, { reason: reason.trim() }, configHeader());
     showToast('Đã hủy món và báo phục vụ.');
@@ -542,7 +555,7 @@ const aggregatedDishes = computed(() => {
         }
         groups[prodName].totalQuantity += detail.quantity;
         groups[prodName].details.push(detail);
-        const tName = order.address ? order.address.replace('Bàn ', '').replace(' [TẠI QUÁN]', '') : order.id;
+        const tName = getTableName(order);
         if (!groups[prodName].tables.includes(tName)) {
           groups[prodName].tables.push(tName);
         }
@@ -561,7 +574,7 @@ const analyzeDishes = async () => {
   
   aiLoading.value = true;
   try {
-    const token = localStorage.getItem('staff_token');
+    const token = getStaffToken();
     const res = await api.post('/api/staff/ai/kitchen', { dishes }, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
@@ -574,7 +587,12 @@ const analyzeDishes = async () => {
 };
 
 const markGroupReady = async (details) => {
-  if (!confirm(`Xác nhận đã nấu xong tất cả ${details.length} món đang chờ?`)) return;
+  const confirmed = await confirmDialog({
+    title: 'Hoàn tất nhóm món',
+    message: `Xác nhận đã nấu xong tất cả ${details.length} món đang chờ?`,
+    confirmLabel: 'Đã nấu xong',
+  });
+  if (!confirmed) return;
   try {
     for (const detail of details) {
       if (!detail.startedAt) {
@@ -624,14 +642,14 @@ const viewRecipeDetails = async (product) => {
   }
 };
 
-const handleLogout = () => { localStorage.removeItem('staff_token'); localStorage.removeItem('staff_user'); router.push('/staff-login'); };
+const handleLogout = () => { clearStaffSession(); router.push('/staff-login'); };
 
 // === WEBSOCKET ===
 const connectWebSocket = () => {
   const socket = new SockJS('/ws');
   stompClient = Stomp.over(socket);
   stompClient.debug = () => {}; // Tắt log debug
-  const token = localStorage.getItem('staff_token');
+  const token = getStaffToken();
   stompClient.connect(token ? { Authorization: `Bearer ${token}` } : {}, () => {
     stompClient.subscribe('/topic/kitchen', (message) => {
       if (message.body === 'NEW_ORDER') {
@@ -652,12 +670,12 @@ onMounted(() => {
   fetchProducts();
   connectWebSocket();
   timerInterval = setInterval(() => { now.value = new Date(); }, 1000);
-  // Refresh from SQL Server when Kitchen runs on a separate local port.
+  // WebSocket is primary; this is a bounded fallback for missed/disconnected events.
   syncInterval = setInterval(() => {
     fetchOrders();
-    fetchIngredients();
-    fetchProducts();
-  }, 5000);
+    if (activeTab.value === 'inventory') fetchIngredients();
+    if (activeTab.value === 'menu') fetchProducts();
+  }, 60000);
 });
 
 onUnmounted(() => {
