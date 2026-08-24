@@ -20,6 +20,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import poly.edu.quanlynhahang.entity.Order;
+import poly.edu.quanlynhahang.entity.InventoryReservationStatus;
 import poly.edu.quanlynhahang.entity.OrderPaymentOption;
 import poly.edu.quanlynhahang.entity.PaymentDirection;
 import poly.edu.quanlynhahang.entity.PaymentStatus;
@@ -68,6 +69,20 @@ class OrderRefundServiceTest {
         verify(inventoryReservationService).release(1,
                 poly.edu.quanlynhahang.entity.InventoryReservationStatus.RELEASED);
         verify(refundRepository, never()).save(any());
+    }
+
+    @Test
+    void reservationPreorderCancellationKeepsTableUntilReservationRefundCompletes() {
+        Order order = order(OrderPaymentOption.PAY_AT_RESTAURANT);
+        order.setTableId(9);
+        when(orderRepository.findLockedById(1)).thenReturn(Optional.of(order));
+
+        service.cancelLinkedReservationPreorder(1, "manager");
+
+        assertThat(order.getStatus()).isEqualTo(3);
+        assertThat(order.getPaymentStatus()).isEqualTo(PaymentStatus.CANCELLED);
+        verify(inventoryReservationService).release(1, InventoryReservationStatus.RELEASED);
+        verify(tableLifecycleService, never()).release(any());
     }
 
     @Test

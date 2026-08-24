@@ -672,12 +672,21 @@ public class ReservationService {
         }
 
         ReservationStatus old = reservation.getReservationStatus();
-        ReservationStatus nextStatus = reservation.getDepositAmount() != null && reservation.getDepositAmount().signum() > 0
+        boolean depositRequired = reservation.getDepositAmount() != null
+                && reservation.getDepositAmount().signum() > 0;
+        boolean depositPaid = DepositStatus.PAID.equals(reservation.getDepositStatus())
+                || (depositRequired && reservation.getPaidAmount() != null
+                    && reservation.getPaidAmount().compareTo(reservation.getDepositAmount()) >= 0);
+        ReservationStatus nextStatus = depositRequired && !depositPaid
                 ? ReservationStatus.DEPOSIT_REQUIRED
                 : ReservationStatus.CONFIRMED;
         stateMachine.assertCanTransition(old, nextStatus);
         reservation.setReservationStatus(nextStatus);
-        reservation.setDepositStatus(DepositStatus.PENDING);
+        if (depositRequired && !depositPaid) {
+            reservation.setDepositStatus(DepositStatus.PENDING);
+        } else if (!depositRequired) {
+            reservation.setDepositStatus(DepositStatus.NOT_REQUIRED);
+        }
         reservation.setConfirmedBy(currentUsername());
         reservation.setConfirmedAt(new Date());
         reservation.setManagerNote(trimToNull(request != null ? request.getNote() : null));
@@ -843,6 +852,7 @@ public class ReservationService {
     @Scheduled(
             initialDelayString = "${restaurant.reservation.expiry-initial-delay-ms:60000}",
             fixedDelayString = "${restaurant.reservation.expiry-scan-ms:60000}")
+    @Transactional
     public void expireStaleReservations() {
         LocalDateTime now = LocalDateTime.now();
         long expiryMinutes = depositExpiryMinutes > 0 ? depositExpiryMinutes : 1440;

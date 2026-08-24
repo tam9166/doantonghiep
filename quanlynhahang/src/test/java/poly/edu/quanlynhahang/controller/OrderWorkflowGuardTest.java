@@ -13,6 +13,7 @@ import static org.mockito.Mockito.doThrow;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.math.BigDecimal;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -37,8 +38,38 @@ import poly.edu.quanlynhahang.service.OrderFinancialMutationGuardService;
 import poly.edu.quanlynhahang.service.TableSessionService;
 import poly.edu.quanlynhahang.entity.OrderType;
 import poly.edu.quanlynhahang.service.TableReleaseGuardService;
+import poly.edu.quanlynhahang.service.InventoryReservationService;
 
 class OrderWorkflowGuardTest {
+
+    @Test
+    void manualCashierPaymentConsumesInventoryHoldBeforeCompletingOrder() {
+        AdminOrderController controller = new AdminOrderController();
+        OrderRepository orderRepository = mock(OrderRepository.class);
+        InventoryReservationService inventory = mock(InventoryReservationService.class);
+        Order order = new Order();
+        order.setId(31);
+        order.setStatus(7);
+        order.setIsPaid(true);
+        order.setTotalAmount(new BigDecimal("108.00"));
+        when(orderRepository.findLockedById(31)).thenReturn(Optional.of(order));
+        ReflectionTestUtils.setField(controller, "orderRepository", orderRepository);
+        ReflectionTestUtils.setField(controller, "inventoryReservationService", inventory);
+        ReflectionTestUtils.setField(controller, "orderStateMachineService", new OrderStateMachineService());
+        ReflectionTestUtils.setField(controller, "activityLogService",
+                mock(poly.edu.quanlynhahang.service.ActivityLogService.class));
+        ReflectionTestUtils.setField(controller, "messagingTemplate",
+                mock(org.springframework.messaging.simp.SimpMessagingTemplate.class));
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("cashier", "n/a"));
+        try {
+            assertEquals(HttpStatus.OK, controller.payOrder(31).getStatusCode());
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
+        verify(inventory).consume(31);
+        assertEquals(4, order.getStatus());
+    }
 
     @Test
     void rejectsDishStatusOutsideTheDefinedWorkflow() {

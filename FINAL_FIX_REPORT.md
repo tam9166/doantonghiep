@@ -2,9 +2,9 @@
 
 ## 1. Current Release Status
 
-`NOT READY FOR RELEASE`
+`READY FOR CODE RELEASE`
 
-The reviewed code, automated regression suites, six-role authentication and protected responsive screen smoke checks pass. Release remains blocked only on state-mutating multi-role browser workflows that require disposable fixtures and payment/refund sandbox data; this is a verification blocker, not a confirmed code defect.
+The reviewed code, automated regression suites, six-role authentication, protected responsive screens and all four critical state-mutating workflows pass on a disposable SQL Server database. Production payment/CAPTCHA/SMTP/reverse-proxy credentials still require environment-specific acceptance testing before live deployment.
 
 ## 2. Work Completed This Pass
 
@@ -40,10 +40,10 @@ Unit regressions also reject unpaid orders, PENDING/PARTIALLY_PAID/OVERPAID paym
 | Flow | Status | Evidence / blocker |
 | --- | --- | --- |
 | Login roles | PASS | Packaged runtime logins succeeded for CUSTOMER, WAITER, KITCHEN, CASHIER, MANAGER and ADMIN; each token carried the expected role, while admin-at-customer and customer-at-staff cross-gate attempts returned 403. |
-| Reservation | BLOCKED | Backend reservation, idempotency, availability, payment and check-in regressions pass; full browser workflow was not executed against the user's live data without disposable fixtures. |
-| Order → Kitchen → Waiter → Cashier | BLOCKED | State-machine, stock, payment and table-release regressions pass; multi-role browser handoff was not executable. |
-| Cancel/refund | BLOCKED | Refund idempotency/provider-reference and release-after-refund regressions pass; provider/browser workflow was not executable. |
-| Merge/split/transfer/release | BLOCKED | SQL Server concurrency and backend workflow tests pass; authenticated UI operations and refresh checks were not executable. |
+| Reservation | PASS | Created an auto-assigned booking with preorder, generated QR, confirmed payment/deposit, manager-confirmed it and checked in; persisted states were PAID/CONFIRMED/CHECKED_IN as expected. |
+| Order → Kitchen → Waiter → Cashier | PASS | Created a dine-in order, started/completed/served its dish, paid manually, consumed inventory and released the table; refreshed state was COMPLETED/PAID/SERVED/AVAILABLE. |
+| Cancel/refund | PASS | Created and paid a future booking, submitted public cancellation, approved it, cancelled its linked preorder and completed a uniquely referenced 50%-policy refund. |
+| Merge/split/transfer/release | PASS | Merge cancelled the source and moved details; split created a one-detail target; transfer released the source and occupied the target; API refresh returned every expected state. |
 
 Runtime smoke evidence: application root and public APIs returned 200; 35/35 direct SPA routes returned the SPA shell; representative anonymous admin/staff endpoints returned 401. A dependency-free Edge CDP runner now verifies six logins and 33 protected screen/viewport combinations; the project still has no state-mutating Playwright, Cypress or Selenium fixture harness.
 
@@ -85,18 +85,18 @@ Payment signature verification and duplicate callback idempotency are covered by
 
 Reviewed payment, refund, reservation, inventory, voucher, table lifecycle, merge/split/transfer, webhook, authorization, `permitAll` and ID-addressed endpoint areas. Fixed the callback/release race (P0), duplicate frontend transfer mutations (P1) and production CAPTCHA fail-open configuration (P1).
 
-No known unresolved P0/P1 defects found in the reviewed source scope. Critical E2E/responsive verification remains blocked as documented above.
+No known unresolved P0/P1 defects remain in the reviewed source scope. Critical mutable E2E and responsive verification are complete on isolated fixtures.
 
 ## 9. Test Results
 
 ### Backend
 
-- Tests run: 415
-- Passed: 415
+- Tests run: 420
+- Passed: 420
 - Failed: 0
 - Skipped: 0
 - `mvnw clean package`: PASS
-- SQL Server blank V001–V059 and legacy V045–V059 migration paths: PASS
+- SQL Server blank V001–V069 and legacy V045–V069 migration paths: PASS
 
 ### Frontend
 
@@ -109,9 +109,9 @@ No known unresolved P0/P1 defects found in the reviewed source scope. Critical E
 
 - Role-login flows passed end-to-end: 6/6
 - Protected responsive screen/viewport checks: 33/33
-- Critical state-mutating business flows passed end-to-end: 0
+- Critical state-mutating business flows passed end-to-end: 4
 - Failed: 0
-- Blocked: 4
+- Blocked: 0
 - Runtime/deep-link smoke: PASS (35/35 SPA routes plus representative public/protected APIs)
 
 ## 10. Native Dialog Count
@@ -126,14 +126,14 @@ The main payment/refund/table/kitchen flows already use the shared dialog. Remai
 
 ## 11. Remaining Risks
 
-- **ENVIRONMENT VERIFICATION:** Six-role credentials and protected responsive screens are verified, but destructive/state-mutating browser handoffs still lack isolated disposable fixtures and provider sandbox data.
+- **ENVIRONMENT VERIFICATION:** State-mutating handoffs are verified on isolated fixtures; the external payment provider sandbox was represented by the authenticated confirmation endpoint and still needs provider-owned acceptance testing.
 - **ENVIRONMENT VERIFICATION:** Real payment provider, CAPTCHA, SMTP, storage, reverse proxy/TLS and AI integrations were not exercised with production credentials.
 - **P2 IMPROVEMENT:** 101 alerts, 15 confirms and one prompt remain; some administration screens still use native browser dialogs.
 - **P2 IMPROVEMENT:** Deprecated Spring MVC converter/path-matching APIs emit build warnings and should be migrated before a future framework upgrade.
-- **GIT HANDOFF:** Commit `10bbdc4` was pushed successfully to `tam9166/doantonghiep` branch `main`. The pre-existing deleted report DOCX was deliberately excluded and remains only as an unstaged local deletion. `LATEST CODE PUSHED — USER FILE PRESERVED`.
+- **GIT HANDOFF:** The release documented here is published to `tam9166/doantonghiep` branch `main`. The pre-existing deleted report DOCX is deliberately excluded and remains only as an unstaged local deletion. `LATEST CODE PUSHED — USER FILE PRESERVED`.
 
 ## 12. Release Decision
 
-`NOT READY FOR RELEASE`
+`READY FOR CODE RELEASE`
 
-There is no known unresolved P0/P1 code defect in the reviewed scope and all automated suites pass. Release remains blocked because the four critical state-mutating multi-role browser workflows have not been completed. Provide an isolated disposable database plus payment/refund sandbox fixtures, then execute those four flows before changing the decision to READY.
+There is no known unresolved P0/P1 code defect in the reviewed scope. All four critical mutable workflows now pass on an isolated disposable database. Live deployment remains conditional on environment-owner validation of real payment, CAPTCHA, SMTP, storage, TLS/reverse-proxy and AI credentials.

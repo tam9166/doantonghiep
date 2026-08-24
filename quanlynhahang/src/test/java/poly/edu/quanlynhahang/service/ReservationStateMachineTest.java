@@ -17,6 +17,12 @@ class ReservationStateMachineTest {
         assertDoesNotThrow(() -> stateMachine.assertCanTransition(
                 ReservationStatus.PENDING, ReservationStatus.WAITING_TABLE_ASSIGNMENT));
         assertDoesNotThrow(() -> stateMachine.assertCanTransition(
+                ReservationStatus.PENDING, ReservationStatus.DEPOSIT_REQUIRED));
+        assertDoesNotThrow(() -> stateMachine.assertCanTransition(
+                ReservationStatus.PENDING, ReservationStatus.DEPOSIT_PAID));
+        assertDoesNotThrow(() -> stateMachine.assertCanTransition(
+                ReservationStatus.PENDING, ReservationStatus.FULLY_PAID));
+        assertDoesNotThrow(() -> stateMachine.assertCanTransition(
                 ReservationStatus.WAITING_TABLE_ASSIGNMENT, ReservationStatus.DEPOSIT_PAID));
         assertDoesNotThrow(() -> stateMachine.assertCanTransition(
                 ReservationStatus.DEPOSIT_PAID, ReservationStatus.CHECKED_IN));

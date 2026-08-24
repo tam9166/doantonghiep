@@ -130,7 +130,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     List<Reservation> findByCustomerPhoneOrderByCreatedAtDesc(String customerPhone);
 
     @Modifying
-    @Transactional
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     @Query("update Reservation r set r.receiptEmailStatus = :status, r.receiptEmailSentAt = :sentAt, r.receiptEmailError = :error where r.id = :id")
     int updateReceiptDelivery(@Param("id") Long id, @Param("status") String status,
                               @Param("sentAt") java.util.Date sentAt, @Param("error") String error);

@@ -62,6 +62,16 @@ public class KitchenOrderDetailService {
         }
         detail.setStartedAt(new Date());
         OrderDetail saved = orderDetailRepository.save(detail);
+        Order order = detail.getOrder();
+        if (order != null) {
+            poly.edu.quanlynhahang.entity.OrderStatus current = orderStateMachineService.current(order);
+            if (current == poly.edu.quanlynhahang.entity.OrderStatus.PENDING
+                    || current == poly.edu.quanlynhahang.entity.OrderStatus.SCHEDULED) {
+                orderStateMachineService.transition(
+                        order, poly.edu.quanlynhahang.entity.OrderStatus.IN_PREPARATION);
+                orderRepository.save(order);
+            }
+        }
         publish("DISH_STARTED", saved);
         return saved;
     }

@@ -32,7 +32,11 @@ public class ReservationStateMachine {
                 ReservationStatus.CANCELLED,
                 ReservationStatus.EXPIRED);
         allow(ReservationStatus.PENDING,
-                ReservationStatus.WAITING_TABLE_ASSIGNMENT,  // P0: bắt buộc qua gán bàn
+                ReservationStatus.WAITING_TABLE_ASSIGNMENT,
+                ReservationStatus.CONFIRMED,
+                ReservationStatus.DEPOSIT_REQUIRED,
+                ReservationStatus.DEPOSIT_PAID,
+                ReservationStatus.FULLY_PAID,
                 ReservationStatus.REJECTED,
                 ReservationStatus.CANCELLED,
                 ReservationStatus.EXPIRED);

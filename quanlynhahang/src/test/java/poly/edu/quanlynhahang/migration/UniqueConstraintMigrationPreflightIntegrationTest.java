@@ -25,7 +25,7 @@ class UniqueConstraintMigrationPreflightIntegrationTest {
             statement.executeUpdate("INSERT INTO dbo.reservation_reviews(reservation_id) VALUES (1), (2)");
             statement.executeUpdate("INSERT INTO dbo.reservations(reservation_code) VALUES ('MV-1'), ('MV-2')");
         }, (flyway, statement) -> {
-            assertEquals(14, flyway.migrate().migrationsExecuted);
+            assertEquals(24, flyway.migrate().migrationsExecuted);
             assertTrue(indexExists(statement, "reservation_reviews", "UX_reservation_reviews_reservation_id"));
             assertTrue(indexExists(statement, "reservations", "UX_reservations_reservation_code"));
             assertTrue(indexExists(statement, "reservations", "UX_reservations_idempotency_key"));
@@ -86,6 +86,10 @@ class UniqueConstraintMigrationPreflightIntegrationTest {
                 statement.execute("CREATE TABLE dbo.Orders ("
                         + "id BIGINT IDENTITY PRIMARY KEY, address NVARCHAR(500) NULL, status INT NOT NULL DEFAULT 0)");
                 statement.execute("CREATE TABLE dbo.ingredients (id BIGINT IDENTITY PRIMARY KEY)");
+                statement.execute("CREATE TABLE dbo.restaurant_table ("
+                        + "id INT IDENTITY PRIMARY KEY, name NVARCHAR(100) NULL, area_id INT NULL, "
+                        + "reserved_time VARCHAR(255) NULL, is_occupied INT NOT NULL DEFAULT 0, "
+                        + "CONSTRAINT CK_restaurant_table_is_occupied CHECK (is_occupied IN (0,1)))");
                 statement.execute("CREATE TABLE dbo.reservation_waitlist ("
                         + "id BIGINT IDENTITY PRIMARY KEY, linked_reservation_code VARCHAR(30) NULL)");
                 setup.run(statement);

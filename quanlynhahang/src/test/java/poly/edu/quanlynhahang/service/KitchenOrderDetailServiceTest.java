@@ -46,6 +46,11 @@ class KitchenOrderDetailServiceTest {
     @Test
     void startsThenCompletesPendingDishAndEmitsEvents() {
         OrderDetail detail = pendingDetail();
+        Order order = new Order();
+        order.setId(12);
+        order.setStatus(0);
+        order.setOrderDetails(List.of(detail));
+        detail.setOrder(order);
         when(orderDetailRepository.findById(7)).thenReturn(Optional.of(detail));
         when(orderDetailRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -53,8 +58,10 @@ class KitchenOrderDetailServiceTest {
         OrderDetail completed = service.complete(7);
 
         assertNotNull(started.getStartedAt());
+        assertEquals(2, order.getStatus());
         assertEquals(1, completed.getStatus());
         assertNotNull(completed.getCompletedAt());
+        verify(orderRepository, org.mockito.Mockito.times(2)).save(order);
         verify(messagingTemplate).convertAndSend("/topic/kitchen", "DISH_STARTED");
         verify(messagingTemplate).convertAndSend("/topic/waiter", "DISH_READY");
     }

@@ -43,6 +43,7 @@ import poly.edu.quanlynhahang.repository.RestaurantTableRepository;
 import poly.edu.quanlynhahang.service.ActivityLogService;
 import poly.edu.quanlynhahang.service.PointsLedgerService;
 import poly.edu.quanlynhahang.service.OrderPaymentService;
+import poly.edu.quanlynhahang.service.InventoryReservationService;
 import poly.edu.quanlynhahang.service.OrderStateMachineService;
 import poly.edu.quanlynhahang.entity.OrderStatus;
 import poly.edu.quanlynhahang.service.OrderRefundService;
@@ -73,6 +74,9 @@ public class AdminOrderController {
 
     @Autowired
     private OrderPaymentService orderPaymentService;
+
+    @Autowired
+    private InventoryReservationService inventoryReservationService;
 
     @Autowired
     private OrderRefundService orderRefundService;
@@ -236,6 +240,7 @@ public class AdminOrderController {
             order.setPaymentConfirmedBy(org.springframework.security.core.context.SecurityContextHolder
                     .getContext().getAuthentication().getName());
             order.setPaymentConfirmedAt(new Date());
+            inventoryReservationService.consume(id);
             orderStateMachineService.transition(order, OrderStatus.COMPLETED);
             orderRepository.save(order);
             if (firstPaymentConfirmation) {

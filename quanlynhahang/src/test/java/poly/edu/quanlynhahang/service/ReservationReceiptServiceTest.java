@@ -23,6 +23,18 @@ import static org.mockito.Mockito.mock;
 
 class ReservationReceiptServiceTest {
     @Test
+    void receiptStatusUpdateStartsANewTransactionAfterPaymentCommit() throws Exception {
+        var method = ReservationRepository.class.getMethod(
+                "updateReceiptDelivery", Long.class, String.class, Date.class, String.class);
+        var transactional = method.getAnnotation(org.springframework.transaction.annotation.Transactional.class);
+
+        org.junit.jupiter.api.Assertions.assertNotNull(transactional);
+        org.junit.jupiter.api.Assertions.assertEquals(
+                org.springframework.transaction.annotation.Propagation.REQUIRES_NEW,
+                transactional.propagation());
+    }
+
+    @Test
     void generatesPdfWithEmbeddedVietnameseFont() {
         @SuppressWarnings("unchecked")
         ObjectProvider<JavaMailSender> provider = mock(ObjectProvider.class);

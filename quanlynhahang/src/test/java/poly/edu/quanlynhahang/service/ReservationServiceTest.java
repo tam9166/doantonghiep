@@ -343,6 +343,38 @@ class ReservationServiceTest {
     }
 
     @Test
+    void confirmingPaidDepositDoesNotReturnReservationToDepositRequired() {
+        RestaurantTable table = new RestaurantTable();
+        table.setId(10);
+        table.setName("B10");
+        Reservation reservation = new Reservation();
+        reservation.setId(25L);
+        reservation.setReservationCode("MV-TEST-0025");
+        reservation.setTable(table);
+        reservation.setReservationDate(LocalDate.now().plusDays(1));
+        reservation.setArrivalTime(LocalTime.of(19, 0));
+        reservation.setExpectedDurationMinutes(120);
+        reservation.setGuestCount(2);
+        reservation.setDepositAmount(new BigDecimal("50000"));
+        reservation.setPaidAmount(new BigDecimal("50000"));
+        reservation.setDepositStatus(DepositStatus.PAID);
+        reservation.setReservationStatus(ReservationStatus.DEPOSIT_PAID);
+
+        when(reservationRepository.findById(25L)).thenReturn(Optional.of(reservation));
+        when(reservationRepository.findLockedByReservationDateAndTableIdAndReservationStatusIn(
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(List.of());
+        when(tableRepository.findLockedByIdIn(List.of(10))).thenReturn(List.of(table));
+        when(reservationRepository.save(org.mockito.ArgumentMatchers.any(Reservation.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        var result = service.confirm(25L, null);
+
+        assertEquals(ReservationStatus.CONFIRMED, result.getReservationStatus());
+        assertEquals(DepositStatus.PAID, reservation.getDepositStatus());
+    }
+
+    @Test
     void returnsOnlyReservationsCreatedByTheAuthenticatedUser() {
         Reservation reservation = new Reservation();
         reservation.setId(7L);

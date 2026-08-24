@@ -58,6 +58,7 @@ public class ReservationCancellationService {
     private final RefundService refundService;
     private final ActivityLogService activityLogService;
     private final TableLifecycleService tableLifecycleService;
+    private final OrderRefundService orderRefundService;
 
     public ReservationCancellationService(
             ReservationRepository reservationRepository,
@@ -67,7 +68,8 @@ public class ReservationCancellationService {
             ReservationService reservationService,
             RefundService refundService,
             ActivityLogService activityLogService,
-            TableLifecycleService tableLifecycleService) {
+            TableLifecycleService tableLifecycleService,
+            OrderRefundService orderRefundService) {
         this.reservationRepository = reservationRepository;
         this.requestRepository = requestRepository;
         this.paymentTransactionRepository = paymentTransactionRepository;
@@ -76,6 +78,7 @@ public class ReservationCancellationService {
         this.refundService = refundService;
         this.activityLogService = activityLogService;
         this.tableLifecycleService = tableLifecycleService;
+        this.orderRefundService = orderRefundService;
     }
 
     @Transactional
@@ -145,6 +148,7 @@ public class ReservationCancellationService {
                 reservation, request.getRequestedAt(), actuallyPaidDeposit(reservation));
         applyCalculation(request, calculation);
         String actor = currentUsername();
+        orderRefundService.cancelLinkedReservationPreorder(reservation.getKitchenOrderId(), actor);
         ReservationActionRequest action = new ReservationActionRequest();
         action.setNote(limit(decision.note(), 500));
         reservationService.cancelApproved(reservation.getId(), action);

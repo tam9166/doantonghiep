@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
@@ -21,6 +22,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.web.server.ResponseStatusException;
 
 import poly.edu.quanlynhahang.dto.CancellationRequestCreateRequest;
+import poly.edu.quanlynhahang.dto.CancellationDecisionRequest;
 import poly.edu.quanlynhahang.entity.CancellationRequestStatus;
 import poly.edu.quanlynhahang.entity.DepositStatus;
 import poly.edu.quanlynhahang.entity.Reservation;
@@ -35,6 +37,7 @@ class ReservationCancellationServiceTest {
     private final ReservationCancellationRequestRepository requestRepository =
             mock(ReservationCancellationRequestRepository.class);
     private final PaymentTransactionRepository transactionRepository = mock(PaymentTransactionRepository.class);
+    private final OrderRefundService orderRefundService = mock(OrderRefundService.class);
     private ReservationCancellationService service;
     private Reservation reservation;
 
@@ -57,7 +60,7 @@ class ReservationCancellationServiceTest {
                 reservationRepository, requestRepository, transactionRepository,
                 new ReservationCancellationPolicy(12, new BigDecimal("0.50")),
                 mock(ReservationService.class), mock(RefundService.class), mock(ActivityLogService.class),
-                mock(TableLifecycleService.class));
+                mock(TableLifecycleService.class), orderRefundService);
     }
 
     static java.util.stream.Stream<Arguments> validPairs() {
@@ -126,6 +129,22 @@ class ReservationCancellationServiceTest {
         var result = service.create(new CancellationRequestCreateRequest(
                 " res-a ", "  NGUYỄN   VĂN A ", "+84 912-345.678", " A@EXAMPLE.COM ", null));
         assertEquals(CancellationRequestStatus.PENDING, result.status());
+    }
+
+    @Test
+    void approvingCancellationCancelsLinkedPreorderWithoutPrematureTableRelease() {
+        reservation.setKitchenOrderId(91);
+        ReservationCancellationRequest request = new ReservationCancellationRequest();
+        request.setId(10L);
+        request.setReservation(reservation);
+        request.setStatus(CancellationRequestStatus.PENDING);
+        request.setRequestedAt(new java.util.Date());
+        when(requestRepository.findLockedById(10L)).thenReturn(Optional.of(request));
+        when(requestRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.approve(10L, new CancellationDecisionRequest("Khách đổi kế hoạch"));
+
+        verify(orderRefundService).cancelLinkedReservationPreorder(91, "SYSTEM");
     }
 
     private Reservation reservation(Long id, String code, String name, String phone, String email) {

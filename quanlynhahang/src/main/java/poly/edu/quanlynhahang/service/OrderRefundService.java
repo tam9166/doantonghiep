@@ -104,6 +104,32 @@ public class OrderRefundService {
         return result(order, saved, false);
     }
 
+    /**
+     * Cancels an unpaid kitchen order created from a reservation preorder while
+     * deliberately retaining the table until the reservation refund finishes.
+     */
+    @Transactional
+    public void cancelLinkedReservationPreorder(Integer orderId, String processedBy) {
+        if (orderId == null) return;
+        Order order = orderRepository.findLockedById(orderId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Không tìm thấy đơn món đặt trước"));
+        if (orderStateMachineService.current(order) == poly.edu.quanlynhahang.entity.OrderStatus.CANCELLED) {
+            return;
+        }
+        if (refundablePaidAmount(order).signum() > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Đơn món đặt trước đã có thanh toán riêng và cần xử lý hoàn tiền trước");
+        }
+        inventoryReservationService.release(orderId, InventoryReservationStatus.RELEASED);
+        orderStateMachineService.transition(order, poly.edu.quanlynhahang.entity.OrderStatus.CANCELLED);
+        order.setPaymentStatus(PaymentStatus.CANCELLED);
+        order.setRemainingAmount(BigDecimal.ZERO);
+        orderRepository.save(order);
+        activityLogService.log("CANCEL_RESERVATION_PREORDER", "Order", String.valueOf(orderId),
+                "Hủy đơn món đặt trước theo yêu cầu hủy đặt bàn bởi " + processedBy);
+    }
+
     private BigDecimal refundablePaidAmount(Order order) {
         if (OrderPaymentOption.PREPAID_TRANSFER.equals(order.getPaymentOption())) {
             List<PaymentTransaction> ledger = paymentTransactionRepository
