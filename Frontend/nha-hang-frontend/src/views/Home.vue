@@ -10,10 +10,10 @@
         <p>{{ $t('home.subtitle') }}</p>
         <div class="hero-actions">
           <button @click="$router.push('/dine-in')" class="g-btn-primary home-hero-btn">
-            🍽️ Gọi Món Tại Quán
+             Gọi Món Tại Quán
           </button>
           <button @click="$router.push('/reservation')" class="g-btn-outline home-hero-btn home-hero-outline">
-            📅 Đặt Bàn Trước
+             Đặt Bàn Trước
           </button>
         </div>
 
@@ -25,7 +25,7 @@
           </div>
           <div class="stat-divider"></div>
           <div class="stat-item">
-            <span class="stat-num">5★</span>
+            <span class="stat-num">5</span>
             <span class="stat-lbl">Đánh giá</span>
           </div>
           <div class="stat-divider"></div>
@@ -44,7 +44,7 @@
         <article class="left-col">
           <div class="meta-info">
             <span class="meta-tag">Tin nổi bật</span>
-            <span class="meta-date">🕒 {{ currentDate }}</span>
+            <span class="meta-date"> {{ currentDate }}</span>
           </div>
           <h2 class="article-title">Trải nghiệm ẩm thực Việt tại NHÀ HÀNG MỘC VỊ Đà Nẵng</h2>
           <p class="article-excerpt">
@@ -54,27 +54,27 @@
           </p>
           <div class="article-actions">
             <button @click="$router.push('/menu')" class="g-btn-primary home-action-btn">
-              📖 Xem Thực Đơn
+               Xem Thực Đơn
             </button>
             <button @click="$router.push('/reservation')" class="g-btn-outline home-action-btn">
-              📅 Đặt Bàn Ngay
+               Đặt Bàn Ngay
             </button>
           </div>
 
           <!-- Feature Cards -->
           <div class="feature-grid">
             <div class="feature-card">
-              <div class="feature-icon">🚚</div>
+              <div class="feature-icon"><UiIcon name="location" /></div>
               <h4>Giao Hàng Tận Nơi</h4>
               <p>Đặt món và nhận hàng ngay tại nhà của bạn</p>
             </div>
             <div class="feature-card">
-              <div class="feature-icon">🎉</div>
+              <div class="feature-icon"><UiIcon name="calendar" /></div>
               <h4>Đặt Tiệc & Họp Mặt</h4>
               <p>Phòng VIP riêng cho sự kiện của bạn</p>
             </div>
             <div class="feature-card">
-              <div class="feature-icon">⭐</div>
+              <div class="feature-icon"><UiIcon name="private" /></div>
               <h4>Không Gian VIP</h4>
               <p>Trải nghiệm không gian đẳng cấp 5 sao</p>
             </div>
@@ -88,27 +88,27 @@
             <ul class="service-list">
               <li>
                 <router-link to="/menu">
-                  <span class="svc-icon">🚚</span>
+                  <span class="svc-icon"><UiIcon name="location" /></span>
                   <span>Giao hàng tận nơi</span>
                   <span class="svc-badge new">Mới</span>
                 </router-link>
               </li>
               <li>
                 <router-link to="/reservation">
-                  <span class="svc-icon">🎉</span>
+                  <span class="svc-icon"><UiIcon name="calendar" /></span>
                   <span>Đặt tiệc, họp mặt</span>
                   <span class="svc-badge hot">Hot</span>
                 </router-link>
               </li>
               <li>
                 <a href="#">
-                  <span class="svc-icon">⭐</span>
+                  <span class="svc-icon"><UiIcon name="private" /></span>
                   <span>Trải nghiệm không gian VIP</span>
                 </a>
               </li>
               <li>
                 <a href="#">
-                  <span class="svc-icon">🌿</span>
+                  <span class="svc-icon"><UiIcon name="garden" /></span>
                   <span>Thực đơn chay</span>
                 </a>
               </li>
@@ -116,7 +116,7 @@
           </div>
 
           <div class="sidebar-card hours-card">
-            <h3>🕒 Giờ Mở Cửa</h3>
+            <h3> Giờ Mở Cửa</h3>
             <div class="hours-list">
               <div class="hours-item">
                 <span>Thứ 2 - Thứ 6</span>
@@ -140,7 +140,7 @@
     <section v-if="newsPosts.length > 0" class="posts-section">
       <div class="section-container">
         <div class="section-header-block">
-          <span class="section-tag">📰 Tin Tức</span>
+          <span class="section-tag"> Tin Tức</span>
           <h2>Tin Tức Nhà Hàng</h2>
           <p>Cập nhật những thông tin mới nhất về nhà hàng, món ăn và ưu đãi đặc biệt</p>
         </div>
@@ -148,7 +148,7 @@
           <div v-for="post in newsPosts" :key="post.id" class="news-card">
             <div class="news-img-wrap">
               <img v-if="post.image" :src="post.image" :alt="post.title" loading="lazy" />
-              <div v-else class="news-img-placeholder">📰</div>
+              <div v-else class="news-img-placeholder"><UiIcon name="note" /></div>
               <span class="news-date-badge">{{ formatPostDate(post.createDate) }}</span>
             </div>
             <div class="news-body">
@@ -160,7 +160,7 @@
                   :class="{'liked': isLiked(post.id)}" 
                   @click="likePost(post)"
                 >
-                  ❤️ {{ post.likes || 0 }}
+                   {{ post.likes || 0 }}
                 </button>
               </div>
             </div>
@@ -173,24 +173,24 @@
     <section v-if="recruitPosts.length > 0" class="posts-section recruit-section">
       <div class="section-container">
         <div class="section-header-block">
-          <span class="section-tag recruit-tag">💼 Tuyển Dụng</span>
+          <span class="section-tag recruit-tag"> Tuyển Dụng</span>
           <h2>Cơ Hội Nghề Nghiệp</h2>
           <p>Gia nhập đội ngũ MỘC VỊ RESTAURANT — nơi kiến tạo sự nghiệp ẩm thực</p>
         </div>
         <div class="recruit-list">
           <div v-for="post in recruitPosts" :key="post.id" class="recruit-card">
-            <div class="recruit-icon">💼</div>
+            <div class="recruit-icon"><UiIcon name="users" /></div>
             <div class="recruit-info">
               <h4>{{ post.title }}</h4>
               <p>{{ truncateText(post.content, 200) }}</p>
               <div class="recruit-meta">
-                <span class="recruit-date">📅 Đăng ngày {{ formatPostDate(post.createDate) }}</span>
+                <span class="recruit-date"> Đăng ngày {{ formatPostDate(post.createDate) }}</span>
                 <button 
                   class="btn-like btn-like-small" 
                   :class="{'liked': isLiked(post.id)}" 
                   @click.stop="likePost(post)"
                 >
-                  ❤️ {{ post.likes || 0 }}
+                   {{ post.likes || 0 }}
                 </button>
               </div>
             </div>
@@ -205,16 +205,16 @@
       <div class="recruit-modal">
         <div class="modal-top">
           <h2>{{ selectedRecruit.title }}</h2>
-          <button @click="selectedRecruit = null" class="btn-close-modal" aria-label="Đóng chi tiết tuyển dụng">✖</button>
+          <button @click="selectedRecruit = null" class="btn-close-modal" aria-label="Đóng chi tiết tuyển dụng"><UiIcon name="x" /></button>
         </div>
         <img v-if="selectedRecruit.image" :src="selectedRecruit.image" :alt="selectedRecruit.title" class="modal-img" loading="lazy" />
         <div class="modal-content">
           <pre class="modal-text">{{ selectedRecruit.content }}</pre>
           <div class="modal-footer">
-            <p class="modal-date">📅 Đăng ngày {{ formatPostDate(selectedRecruit.createDate) }}</p>
+            <p class="modal-date"> Đăng ngày {{ formatPostDate(selectedRecruit.createDate) }}</p>
             <div class="modal-actions">
-              <button class="btn-interview" @click="startInterview">🎤 Thử Phỏng Vấn</button>
-              <button class="btn-submit-app" @click="openApplicationForm">📋 Ứng Tuyển Ngay</button>
+              <button class="btn-interview" @click="startInterview"> Thử Phỏng Vấn</button>
+              <button class="btn-submit-app" @click="openApplicationForm"> Ứng Tuyển Ngay</button>
             </div>
           </div>
         </div>
@@ -224,9 +224,9 @@
     <!-- Application Form Modal -->
     <div v-if="showAppForm" class="modal-overlay" @click.self="showAppForm = false">
       <div class="app-modal">
-        <h3>📋 Đơn Ứng Tuyển</h3>
+        <h3> Đơn Ứng Tuyển</h3>
         <p class="app-subtitle">Vị trí: <strong>{{ selectedRecruit?.title }}</strong></p>
-        
+
         <div class="form-group">
           <label>Họ và Tên *</label>
           <input v-model="appForm.fullname" type="text" class="g-input" placeholder="VD: Nguyễn Văn A" />
@@ -247,7 +247,6 @@
           <label>CV Đính Kèm (PDF, DOCX, Ảnh)</label>
           <input type="file" @change="handleCvUpload" class="g-input" style="padding: 10px;" />
         </div>
-        
         <div class="app-actions">
           <button class="btn-submit-app w-100" @click="submitApplication">Gửi Đơn Ứng Tuyển</button>
           <button class="btn-close" @click="showAppForm = false">Hủy</button>
@@ -260,8 +259,8 @@
       <!-- Chat Widget: Interview -->
       <div v-if="showInterviewChat" class="chat-widget interview-chat">
         <div class="chat-header interview-header">
-          <span>🎤 Bot Phỏng Vấn</span>
-          <button @click="showInterviewChat = false" aria-label="Đóng bot phỏng vấn">✖</button>
+          <span> Bot Phỏng Vấn</span>
+          <button @click="showInterviewChat = false" aria-label="Đóng bot phỏng vấn"><UiIcon name="x" /></button>
         </div>
         <div class="chat-body" ref="interviewChatBody">
           <div v-for="(msg, i) in interviewMessages" :key="i" :class="['chat-msg', msg.type]">
@@ -273,32 +272,32 @@
           <button @click="sendInterviewMessage">Gửi</button>
         </div>
         <div class="chat-input-area chat-done-area" v-else>
-          <button class="btn-submit-app w-100" @click="openApplicationFormFromInterview">📋 Ứng Tuyển Ngay</button>
+          <button class="btn-submit-app w-100" @click="openApplicationFormFromInterview"> Ứng Tuyển Ngay</button>
         </div>
       </div>
 
       <!-- Chat Widget: Customer Support -->
       <div v-if="showSupportChat" class="chat-widget support-chat">
         <div class="chat-header support-header">
-          <span>💬 Bot Hỗ Trợ Khách Hàng</span>
-          <button @click="showSupportChat = false" aria-label="Đóng bot hỗ trợ">✖</button>
+          <span> Bot Hỗ Trợ Khách Hàng</span>
+          <button @click="showSupportChat = false" aria-label="Đóng bot hỗ trợ"><UiIcon name="x" /></button>
         </div>
         <div class="chat-body" ref="supportChatBody">
           <div v-for="(msg, i) in supportMessages" :key="i" :class="['chat-msg', msg.type, { 'msg-booking': msg.isTableBooking, 'msg-menu': msg.isMenuLink }]">
             <template v-if="!msg.isTableBooking && !msg.isMenuLink">
               {{ msg.text }}
-              <div v-if="msg.type === 'bot' && msg.interactionId && !msg.feedback" class="ai-feedback"><button @click="sendAiFeedback(msg, true)">👍</button><button @click="sendAiFeedback(msg, false)">👎</button></div>
+              <div v-if="msg.type === 'bot' && msg.interactionId && !msg.feedback" class="ai-feedback"><button @click="sendAiFeedback(msg, true)"><UiIcon name="thumbs-up" /></button><button @click="sendAiFeedback(msg, false)"><UiIcon name="thumbs-down" /></button></div>
               <small v-else-if="msg.feedback">Cảm ơn Quý khách đã đánh giá.</small>
             </template>
             <template v-else-if="msg.isMenuLink">
               <div class="menu-link-widget">
-                <p>👉 Bạn có thể xem toàn bộ thực đơn và đặt món tại đây:</p>
-                <button @click="$router.push('/menu')" class="b-btn">📖 Xem Thực Đơn</button>
+                <p> Bạn có thể xem toàn bộ thực đơn và đặt món tại đây:</p>
+                <button @click="$router.push('/menu')" class="b-btn"> Xem Thực Đơn</button>
               </div>
             </template>
             <template v-else>
               <div class="booking-widget">
-                <p>🗓️ <strong>{{ msg.bookingState.time }}</strong> • 👥 {{ msg.bookingState.pax }} khách • 📍 {{ msg.bookingState.view }}</p>
+                <p> <strong>{{ msg.bookingState.time }}</strong> •  {{ msg.bookingState.pax }} khách •  {{ msg.bookingState.view }}</p>
                 <p>Nhà hàng sẽ tự động sắp xếp bàn phù hợp. Với đoàn đông, nhân viên sẽ xác nhận phương án ghép bàn.</p>
                 <button @click="continueSecureReservation" class="b-btn">Tiếp tục đặt bàn</button>
               </div>
@@ -321,13 +320,11 @@
         :aria-expanded="showMobileFabActions"
         aria-label="Mở các tiện ích nhanh"
         @click="showMobileFabActions = !showMobileFabActions"
-      >
-        ☰
-      </button>
+      ><UiIcon name="sparkles" /></button>
       <div class="fab-group" :class="{ 'is-open': showMobileFabActions }">
-        <div class="fab-chat fab-wheel" @click="openLuckyWheel">🎁</div>
-        <div class="fab-chat" @click="toggleSupportChat">💬</div>
-        <a href="tel:+84347944028" class="fab-phone" style="text-decoration: none;">📞</a>
+        <button class="fab-chat fab-wheel" type="button" aria-label="Mở vòng quay may mắn" @click="openLuckyWheel"><UiIcon name="sparkles" /></button>
+        <button class="fab-chat" type="button" aria-label="Mở hỗ trợ trực tuyến" @click="toggleSupportChat"><UiIcon name="note" /></button>
+        <a href="tel:+84347944028" class="fab-phone" aria-label="Gọi nhà hàng" style="text-decoration: none;"><UiIcon name="phone" /></a>
       </div>
     </div>
 
@@ -335,8 +332,8 @@
     <div v-if="showLuckyWheel" class="modal-overlay" @click.self="showLuckyWheel = false">
       <div class="wheel-modal">
         <div class="wheel-header">
-          <h2>🎡 Vòng Quay May Mắn</h2>
-          <button class="btn-close-modal" aria-label="Đóng vòng quay may mắn" @click="showLuckyWheel = false">✖</button>
+          <h2> Vòng Quay May Mắn</h2>
+          <button class="btn-close-modal" aria-label="Đóng vòng quay may mắn" @click="showLuckyWheel = false"><UiIcon name="x" /></button>
         </div>
         <p class="wheel-desc">Quay mỗi ngày để nhận điểm thưởng VIP nhé!</p>
         <div class="wheel-container">
@@ -351,8 +348,8 @@
           {{ isSpinning ? 'Đang quay...' : 'QUAY NGAY' }}
         </button>
         <div v-if="spinResult" class="spin-result" :class="{ 'win': spinResult.type !== 'miss' }">
-          <p v-if="spinResult.type !== 'miss'">🎉 Chúc mừng! Bạn trúng <strong>{{ spinResult.label }}</strong></p>
-          <p v-else>😢 Rất tiếc! Chúc bạn may mắn lần sau.</p>
+          <p v-if="spinResult.type !== 'miss'"> Chúc mừng! Bạn trúng <strong>{{ spinResult.label }}</strong></p>
+          <p v-else> Rất tiếc! Chúc bạn may mắn lần sau.</p>
         </div>
       </div>
     </div>
@@ -367,6 +364,7 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '@/services/api';
 import CustomerLayout from '@/components/CustomerLayout.vue';
+import UiIcon from '@/components/UiIcon.vue';
 
 const router = useRouter();
 
@@ -455,11 +453,11 @@ const spinWheel = async () => {
     spinResult.value = won;
 
     if (won.type === 'points') {
-      alert(`🎉 Chúc mừng bạn đã trúng ${won.label}! Điểm hiện tại: ${won.currentPoints} PT (Hạng: ${won.membershipTier})`);
+      alert(` Chúc mừng bạn đã trúng ${won.label}! Điểm hiện tại: ${won.currentPoints} PT (Hạng: ${won.membershipTier})`);
     } else if (won.type === 'discount') {
-      alert(`🎉 Chúc mừng bạn đã trúng Giảm ${won.value}%!\nMã Voucher của bạn: ${won.voucherCode}\nHãy lưu lại để dùng cho lần ăn tiếp theo nhé!`);
+      alert(` Chúc mừng bạn đã trúng Giảm ${won.value}%!\nMã Voucher của bạn: ${won.voucherCode}\nHãy lưu lại để dùng cho lần ăn tiếp theo nhé!`);
     } else if (won.type === 'gift') {
-      alert(`🎉 Chúc mừng bạn đã trúng ${won.label}! Vui lòng đưa thông báo này cho nhân viên để nhận quà nhé!`);
+      alert(` Chúc mừng bạn đã trúng ${won.label}! Vui lòng đưa thông báo này cho nhân viên để nhận quà nhé!`);
     }
   }, 7000); // 7 seconds
 };

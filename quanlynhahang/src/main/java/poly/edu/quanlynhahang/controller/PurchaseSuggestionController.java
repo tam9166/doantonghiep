@@ -1,7 +1,6 @@
 package poly.edu.quanlynhahang.controller;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -10,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import poly.edu.quanlynhahang.entity.*;
 import poly.edu.quanlynhahang.repository.*;
 import poly.edu.quanlynhahang.service.ActivityLogService;
+import poly.edu.quanlynhahang.service.InventoryAlertService;
 import poly.edu.quanlynhahang.service.NotificationService;
 
 import java.util.*;
@@ -25,10 +25,7 @@ public class PurchaseSuggestionController {
     private IngredientBatchRepository ingredientBatchRepository;
 
     @Autowired
-    private OrderRepository orderRepository;
-
-    @Autowired
-    private RecipeRepository recipeRepository;
+    private InventoryAlertService inventoryAlertService;
 
     @Autowired
     private ActivityLogService activityLogService;
@@ -42,118 +39,7 @@ public class PurchaseSuggestionController {
      */
     @GetMapping
     public ResponseEntity<?> getSuggestions() {
-        List<Ingredient> allIngredients = ingredientRepository.findAll();
-        Date now = new Date();
-        long sevenDaysAgo = now.getTime() - (7L * 24 * 60 * 60 * 1000);
-        List<Order> recentOrders = orderRepository.findByStatusSinceWithDetails(4, new Date(sevenDaysAgo));
-        List<Integer> productIds = recentOrders.stream()
-                .filter(order -> order.getOrderDetails() != null)
-                .flatMap(order -> order.getOrderDetails().stream())
-                .filter(detail -> detail.getProduct() != null && detail.getProduct().getId() != null)
-                .map(detail -> detail.getProduct().getId())
-                .distinct()
-                .toList();
-        List<Recipe> recipes = productIds.isEmpty()
-                ? List.of()
-                : recipeRepository.findByProductIdsWithIngredient(productIds);
-
-        // Build recipe map: productId -> List<Recipe>
-        Map<Integer, List<Recipe>> recipeMap = new HashMap<>();
-        for (Recipe r : recipes) {
-            if (r.getProduct() != null) {
-                recipeMap.computeIfAbsent(r.getProduct().getId(), k -> new ArrayList<>()).add(r);
-            }
-        }
-
-        // Tính nguyên liệu tiêu thụ trong 7 ngày
-        Map<Long, BigDecimal> consumptionMap = new HashMap<>();
-        for (Order order : recentOrders) {
-            if (order.getOrderDetails() == null) continue;
-            for (OrderDetail detail : order.getOrderDetails()) {
-                if (detail.getProduct() == null) continue;
-                int qty = detail.getQuantity() != null ? detail.getQuantity() : 0;
-                List<Recipe> productRecipes = recipeMap.getOrDefault(detail.getProduct().getId(), Collections.emptyList());
-                for (Recipe r : productRecipes) {
-                    if (r.getIngredient() == null) continue;
-                    BigDecimal consumed = (r.getAmountRequired() == null ? BigDecimal.ZERO : r.getAmountRequired())
-                            .multiply(BigDecimal.valueOf(qty));
-                    consumptionMap.merge(r.getIngredient().getId(), consumed, BigDecimal::add);
-                }
-            }
-        }
-
-        // Tạo danh sách đề xuất
-        List<Map<String, Object>> suggestions = new ArrayList<>();
-        for (Ingredient ing : allIngredients) {
-            BigDecimal qty = ing.getQuantity() != null ? ing.getQuantity() : BigDecimal.ZERO;
-            BigDecimal minStock = ing.getMinStock() != null ? ing.getMinStock() : BigDecimal.ZERO;
-            BigDecimal dailyConsumption = consumptionMap.getOrDefault(ing.getId(), BigDecimal.ZERO)
-                    .divide(BigDecimal.valueOf(7), 8, RoundingMode.HALF_UP);
-
-            // Tính số ngày còn dùng được
-            double daysLeft = dailyConsumption.signum() > 0
-                    ? qty.divide(dailyConsumption, 8, RoundingMode.HALF_UP).doubleValue() : 999;
-
-            // Chỉ đề xuất nếu: hết hàng, sắp hết, hoặc dùng trong vòng 5 ngày
-            if (qty.signum() <= 0 || qty.compareTo(minStock) <= 0 || daysLeft <= 5) {
-                Map<String, Object> suggestion = new LinkedHashMap<>();
-                suggestion.put("ingredientId", ing.getId());
-                suggestion.put("name", ing.getName());
-                suggestion.put("unit", ing.getUnit());
-                suggestion.put("image", ing.getImage());
-                suggestion.put("currentStock", qty);
-                suggestion.put("minStock", minStock);
-                suggestion.put("dailyConsumption", dailyConsumption.setScale(2, RoundingMode.HALF_UP));
-                suggestion.put("daysLeft", Math.round(daysLeft * 10.0) / 10.0);
-                suggestion.put("unitPrice", ing.getUnitPrice());
-
-                // Đề xuất mua: đủ dùng cho 7 ngày + bổ sung lên trên minStock
-                BigDecimal suggestedAmount = minStock.multiply(BigDecimal.valueOf(2))
-                        .max(dailyConsumption.multiply(BigDecimal.valueOf(7)))
-                        .subtract(qty);
-                if (suggestedAmount.signum() < 0) suggestedAmount = minStock;
-                suggestedAmount = suggestedAmount.setScale(1, RoundingMode.HALF_UP);
-                suggestion.put("suggestedAmount", suggestedAmount);
-                suggestion.put("estimatedCost", suggestedAmount
-                        .multiply(ing.getUnitPrice() == null ? BigDecimal.ZERO : ing.getUnitPrice())
-                        .setScale(0, RoundingMode.HALF_UP));
-
-                // Mức độ khẩn cấp
-                if (qty.signum() <= 0) {
-                    suggestion.put("urgency", "critical");
-                    suggestion.put("urgencyLabel", "Hết hàng");
-                } else if (qty.compareTo(minStock) <= 0) {
-                    suggestion.put("urgency", "warning");
-                    suggestion.put("urgencyLabel", "Sắp hết");
-                } else {
-                    suggestion.put("urgency", "info");
-                    suggestion.put("urgencyLabel", "Sắp thiếu (" + Math.round(daysLeft) + " ngày)");
-                }
-
-                suggestions.add(suggestion);
-            }
-        }
-
-        // Sắp xếp theo mức độ khẩn cấp
-        suggestions.sort((a, b) -> {
-            Map<String, Integer> priority = Map.of("critical", 0, "warning", 1, "info", 2);
-            return Integer.compare(
-                    priority.getOrDefault(a.get("urgency"), 3),
-                    priority.getOrDefault(b.get("urgency"), 3));
-        });
-
-        // Thống kê tổng quan
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("suggestions", suggestions);
-        result.put("totalItems", suggestions.size());
-        result.put("totalEstimatedCost", suggestions.stream()
-                .mapToDouble(s -> ((Number) s.get("estimatedCost")).doubleValue()).sum());
-        result.put("criticalCount", suggestions.stream()
-                .filter(s -> "critical".equals(s.get("urgency"))).count());
-        result.put("warningCount", suggestions.stream()
-                .filter(s -> "warning".equals(s.get("urgency"))).count());
-
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(inventoryAlertService.analyze(3));
     }
 
     /**

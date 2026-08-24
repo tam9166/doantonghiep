@@ -4,7 +4,7 @@
     <header class="cashier-header">
       <div class="header-left">
         <div class="brand">
-          <span class="brand-icon">💰</span>
+          <span class="brand-icon"><UiIcon name="cashier" /></span>
           <div>
             <h2>QUẦY THU NGÂN</h2>
             <p>Cashier Dashboard - {{ new Date().toLocaleDateString('vi-VN') }}</p>
@@ -13,11 +13,11 @@
       </div>
       <div class="header-right" style="display: flex; gap: 10px; align-items: center;">
         <div class="tabs" style="display: flex; gap: 10px; margin-right: 20px;">
-          <button @click="activeTab = 'pending'" :class="['tab-btn', { active: activeTab === 'pending' }]">⏳ Chờ Thanh Toán</button>
-          <button @click="activeTab = 'history'" :class="['tab-btn', { active: activeTab === 'history' }]">📜 Lịch Sử Hóa Đơn</button>
+          <button @click="activeTab = 'pending'" :class="['tab-btn', { active: activeTab === 'pending' }]"> Chờ Thanh Toán</button>
+          <button @click="activeTab = 'history'" :class="['tab-btn', { active: activeTab === 'history' }]"> Lịch Sử Hóa Đơn</button>
         </div>
-        <button @click="openShiftModal" class="btn-primary" style="padding: 10px 20px; border-radius: 6px; font-weight: bold;">📋 Kết Ca</button>
-        <button @click="$router.push('/staff/profile')" class="btn-profile" style="background:var(--warning); color:#FFFFFF; padding:10px 20px; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">👤 Cá Nhân</button>
+        <button @click="openShiftModal" class="btn-primary" style="padding: 10px 20px; border-radius: 6px; font-weight: bold;"> Kết Ca</button>
+        <button @click="$router.push('/staff/profile')" class="btn-profile" style="background:var(--warning); color:#FFFFFF; padding:10px 20px; border:none; border-radius:6px; font-weight:bold; cursor:pointer;"> Cá Nhân</button>
         <button @click="logout" class="btn-logout">Đăng Xuất</button>
       </div>
     </header>
@@ -36,8 +36,8 @@
             @click="selectOrderForTable(table)"
           >
             <div class="tc-top">
-              <span class="tc-capacity">👥 {{ table.capacity || 4 }}</span>
-              <span class="tc-icon">🧮</span>
+              <span class="tc-capacity"> {{ table.capacity || 4 }}</span>
+              <span class="tc-icon"><UiIcon name="table" /></span>
             </div>
             <div class="tc-center">
               <div class="tc-dot"></div>
@@ -53,7 +53,7 @@
             </div>
             <div class="tc-bottom">
               <span class="tc-status">
-                {{ table.isOccupied === 0 ? '🟢 Trống ⌄' : table.isOccupied === 1 ? '🟡 Đã Cọc ⌄' : table.isOccupied === 3 ? '🟣 Cần Dọn ⌄' : '🔴 Có Khách ⌄' }}
+                {{ table.isOccupied === 0 ? ' Trống ⌄' : table.isOccupied === 1 ? ' Đã Cọc ⌄' : table.isOccupied === 3 ? ' Cần Dọn ⌄' : ' Có Khách ⌄' }}
               </span>
             </div>
           </div>
@@ -87,7 +87,7 @@
               <tr v-for="item in selectedOrder.orderDetails" :key="item.id">
                 <td style="text-align: center;">
                   <img v-if="item.product.image" :src="foodImage(item.product.image)" @error="replaceFoodImage" style="width: 40px; height: 40px; border-radius: 4px; object-fit: cover; display: inline-block;" />
-                  <span v-else style="font-size: 1.5rem;">🍽️</span>
+                  <span v-else style="font-size: 1.5rem;"><UiIcon name="dish" /></span>
                 </td>
                 <td>{{ item.product.name }}</td>
                 <td style="text-align: center;">{{ item.quantity }}</td>
@@ -144,10 +144,10 @@
         </div>
         
         <div class="action-buttons">
-          <button class="btn-print" @click="printInvoice">🖨️ In Hóa Đơn</button>
-          <button v-if="!selectedOrder.isPaid && (selectedOrder.status === 0 || selectedOrder.status === 1 || selectedOrder.status === 5)" class="btn-print" style="background: var(--danger); border-color: var(--danger);" @click="cancelOrderAndRefund(selectedOrder)">❌ Hủy & Hoàn Cọc</button>
+          <button class="btn-print" @click="printInvoice"> In Hóa Đơn</button>
+          <button v-if="!selectedOrder.isPaid && (selectedOrder.status === 0 || selectedOrder.status === 1 || selectedOrder.status === 5)" class="btn-print" style="background: var(--danger); border-color: var(--danger);" @click="cancelOrderAndRefund(selectedOrder)"> Hủy & Hoàn Cọc</button>
           <button class="btn-pay" @click="payOrder" :disabled="paymentSubmitting || selectedOrder.isPaid || selectedOrder.paymentOption === 'PREPAID_TRANSFER'">
-            {{ paymentSubmitting ? 'Đang xác nhận...' : selectedOrder.isPaid ? '✅ Đã Thanh Toán' : selectedOrder.paymentOption === 'PREPAID_TRANSFER' ? '⏳ Chờ ngân hàng xác nhận' : '💵 Xác nhận thanh toán' }}
+            {{ paymentSubmitting ? 'Đang xác nhận...' : selectedOrder.isPaid ? ' Đã Thanh Toán' : selectedOrder.paymentOption === 'PREPAID_TRANSFER' ? ' Chờ ngân hàng xác nhận' : ' Xác nhận thanh toán' }}
           </button>
         </div>
       </div>
@@ -189,7 +189,7 @@
               <td style="padding: 15px 10px;">{{ getTableName(order) }}</td>
               <td style="padding: 15px 10px; font-weight: bold; color: var(--primary);">{{ calculateTotal(order).toLocaleString() }}đ</td>
               <td style="padding: 15px 10px; text-align: center;">
-                <button @click="viewHistoryInvoice(order)" style="padding: 6px 15px; border-radius: 6px; border: 1px solid var(--primary); background: transparent; color: var(--primary); cursor: pointer; font-weight: bold;">👁️ Xem Lại</button>
+                <button @click="viewHistoryInvoice(order)" style="padding: 6px 15px; border-radius: 6px; border: 1px solid var(--primary); background: transparent; color: var(--primary); cursor: pointer; font-weight: bold;"> Xem Lại</button>
               </td>
             </tr>
             <tr v-if="filteredHistoryOrders.length === 0">
@@ -204,8 +204,8 @@
     <div v-if="showShiftModal" class="modal-overlay" @click.self="showShiftModal = false">
       <div class="shift-modal g-card">
         <div class="modal-header">
-          <h2>📊 Báo Cáo Kết Ca Thu Ngân</h2>
-          <button @click="showShiftModal = false" class="btn-close-modal">✖</button>
+          <h2> Báo Cáo Kết Ca Thu Ngân</h2>
+          <button @click="showShiftModal = false" class="btn-close-modal"><UiIcon name="x" /></button>
         </div>
         <div class="modal-body" id="printable-shift">
           <div style="text-align: center; margin-bottom: 20px;">
@@ -230,7 +230,7 @@
             </div>
           </div>
           <p v-if="shiftStats.unpaidCount > 0" class="text-danger" style="margin-top: 15px; font-weight: bold; text-align: center; border: 1px dashed var(--primary); padding: 10px;">
-            ⚠️ Cảnh báo: Vẫn còn {{ shiftStats.unpaidCount }} bàn đang có khách chưa thanh toán! Không nên kết ca lúc này.
+             Cảnh báo: Vẫn còn {{ shiftStats.unpaidCount }} bàn đang có khách chưa thanh toán! Không nên kết ca lúc này.
           </p>
           
           <div style="text-align: center; margin-top: 40px; display: flex; justify-content: space-around;">
@@ -245,7 +245,7 @@
           </div>
         </div>
         <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
-          <button @click="printShiftReport" class="btn-primary" style="background: var(--primary); color: var(--color-on-primary); border: none; padding: 10px 20px; border-radius: 6px;">🖨️ In Báo Cáo</button>
+          <button @click="printShiftReport" class="btn-primary" style="background: var(--primary); color: var(--color-on-primary); border: none; padding: 10px 20px; border-radius: 6px;"> In Báo Cáo</button>
           <button @click="showShiftModal = false" class="btn-logout" style="border: 1px solid var(--border); color: var(--text-primary); padding: 10px 20px;">Đóng</button>
         </div>
       </div>
@@ -256,7 +256,7 @@
       <div class="shift-modal g-card" style="width: 480px;">
         <div class="modal-header">
           <h2>Chi Tiết Hóa Đơn #{{ historySelectedOrder.id }}</h2>
-          <button @click="historySelectedOrder = null" class="btn-close-modal">✖</button>
+          <button @click="historySelectedOrder = null" class="btn-close-modal"><UiIcon name="x" /></button>
         </div>
         <div class="modal-body" id="printable-history-invoice" style="background: #FFFFFF; color: black; padding: 20px; border-radius: 8px;">
           <div style="text-align: center; border-bottom: 2px dashed var(--color-outline); padding-bottom: 10px; margin-bottom: 15px;">
@@ -289,7 +289,7 @@
           </div>
         </div>
         <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
-          <button @click="printHistoryInvoice" class="btn-primary" style="padding: 10px 20px; border-radius: 6px;">🖨️ In Lại Hóa Đơn</button>
+          <button @click="printHistoryInvoice" class="btn-primary" style="padding: 10px 20px; border-radius: 6px;"> In Lại Hóa Đơn</button>
         </div>
       </div>
     </div>

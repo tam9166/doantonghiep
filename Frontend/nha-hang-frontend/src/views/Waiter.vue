@@ -3,7 +3,7 @@
     <header class="waiter-header">
       <div class="header-left">
         <div class="brand">
-          <span class="brand-icon">🏃‍♂️</span>
+        <span class="brand-icon"><UiIcon name="waiter" /></span>
           <div>
             <h2>ĐIỀU PHỐI PHỤC VỤ</h2>
             <p>Waiter Dashboard</p>
@@ -20,8 +20,8 @@
           <span class="live-dot"></span>
           <span>LIVE</span>
         </div>
-        <button @click="$router.push('/staff/profile')" class="btn-profile" style="background:var(--warning); color:#FFFFFF; padding:8px 15px; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">👤 Cá Nhân</button>
-        <button @click="handleLogout" class="btn-logout">🚪 Tan Ca</button>
+        <button @click="$router.push('/staff/profile')" class="btn-profile" style="background:var(--warning); color:#FFFFFF; padding:8px 15px; border:none; border-radius:6px; font-weight:bold; cursor:pointer;"> Cá Nhân</button>
+        <button @click="handleLogout" class="btn-logout"> Tan Ca</button>
       </div>
     </header>
 
@@ -30,7 +30,7 @@
     <!-- Zone Info Banner -->
     <div v-if="myAssignedFloors.length > 0" class="zone-info-banner">
       <div class="zone-info-left">
-        <span class="zone-info-icon">📍</span>
+          <span class="zone-info-icon"><UiIcon name="location" /></span>
         <div>
           <div class="zone-info-title">Khu vực phục vụ của bạn hôm nay:</div>
           <div class="zone-info-floors">
@@ -39,7 +39,7 @@
         </div>
       </div>
       <button @click="showAllFloors = !showAllFloors" class="btn-toggle-floors" :class="{ active: showAllFloors }">
-        {{ showAllFloors ? '📌 Chỉ khu vực tôi' : '🌐 Xem tất cả tầng' }}
+        {{ showAllFloors ? ' Chỉ khu vực tôi' : ' Xem tất cả tầng' }}
       </button>
     </div>
 
@@ -71,7 +71,7 @@
       <!-- Món cần bưng ngay -->
       <section class="section">
         <div class="section-header">
-          <h3 class="section-title">🔔 Món Đã Xong — Cần Bưng Ngay</h3>
+          <h3 class="section-title"> Món Đã Xong — Cần Bưng Ngay</h3>
           <span class="count-badge" :class="{ 'count-pulse': filteredReadyOrders.length > 0 }">
             {{ filteredReadyOrders.length }}
           </span>
@@ -88,7 +88,7 @@
                 </div>
                 <div class="serve-timer">
                   <span :class="['timer-badge', getServeTimerClass(order)]">
-                    ⏱️ {{ getElapsedTime(order.createDate) }}
+                     {{ getElapsedTime(order.createDate) }}
                   </span>
                 </div>
               </div>
@@ -97,23 +97,23 @@
                 <template v-for="(detail, idx) in order.orderDetails" :key="idx">
                   <div class="serve-dish-item" v-if="Number(order.status) === 2 || detail.status === 1">
                     <img v-if="detail.product?.image" :src="foodImage(detail.product.image)" class="serve-dish-thumb" @error="replaceFoodImage" />
-                    <span v-else class="serve-dish-icon">🍽️</span>
+                  <span v-else class="serve-dish-icon"><UiIcon name="dish" /></span>
                     <span class="serve-dish-name">{{ detail.product?.name || 'Món ăn' }}</span>
                     <span class="serve-dish-qty">x{{ detail.quantity }}</span>
-                    <button v-if="Number(order.status) === 6" @click="markDishServed(order, detail.id)" class="btn-dish-served" style="margin-left: auto;">✅ Đã Bưng</button>
+                    <button v-if="Number(order.status) === 6" @click="markDishServed(order, detail.id)" class="btn-dish-served" style="margin-left: auto;"> Đã Bưng</button>
                     <span v-else class="serve-dish-price">{{ detail.price?.toLocaleString() }}đ</span>
                   </div>
                 </template>
               </div>
             </div>
             <button v-if="Number(order.status) === 2" @click="markAsServed(order.id)" class="btn-served">
-              ✔ BƯNG TOÀN BỘ BÀN NÀY
+               BƯNG TOÀN BỘ BÀN NÀY
             </button>
           </div>
         </div>
 
         <div v-else class="empty-state">
-          <div class="empty-icon">🍽️</div>
+        <div class="empty-icon"><UiIcon name="check" /></div>
           <p>Chưa có món nào từ bếp truyền ra</p>
         </div>
       </section>
@@ -121,7 +121,7 @@
       <!-- Món đang nấu -->
       <section class="section">
         <div class="section-header">
-          <h3 class="section-title">🔥 Món Đang Làm</h3>
+          <h3 class="section-title"> Món Đang Làm</h3>
           <span class="count-badge" style="background: color-mix(in srgb, var(--color-tertiary) 20%, transparent); color: var(--color-tertiary); border-color: color-mix(in srgb, var(--color-tertiary) 40%, transparent);">
             {{ filteredCookingOrders.length }}
           </span>
@@ -137,7 +137,7 @@
                 </div>
                 <div class="serve-timer">
                   <span :class="['timer-badge', getServeTimerClass(order)]">
-                    ⏱️ {{ getElapsedTime(order.createDate) }}
+                     {{ getElapsedTime(order.createDate) }}
                   </span>
                 </div>
               </div>
@@ -145,10 +145,10 @@
                 <template v-for="(detail, idx) in order.orderDetails" :key="'cd-'+idx">
                   <div class="serve-dish-item" v-if="!detail.status || detail.status === 0">
                     <img v-if="detail.product?.image" :src="foodImage(detail.product.image)" class="serve-dish-thumb" @error="replaceFoodImage" />
-                    <span v-else class="serve-dish-icon">🍽️</span>
+                  <span v-else class="serve-dish-icon"><UiIcon name="dish" /></span>
                     <span class="serve-dish-name">{{ detail.product?.name || 'Món ăn' }}</span>
                     <span class="serve-dish-qty">x{{ detail.quantity }}</span>
-                    <span class="serve-dish-price" style="color: var(--color-tertiary); font-size: 0.8rem; font-weight: bold; background: color-mix(in srgb, var(--color-tertiary) 10%, transparent); padding: 4px 8px; border-radius: 10px; margin-left: auto;">⏳ Đang nấu</span>
+                    <span class="serve-dish-price" style="color: var(--color-tertiary); font-size: 0.8rem; font-weight: bold; background: color-mix(in srgb, var(--color-tertiary) 10%, transparent); padding: 4px 8px; border-radius: 10px; margin-left: auto;"> Đang nấu</span>
                   </div>
                 </template>
               </div>
@@ -157,7 +157,7 @@
         </div>
 
         <div v-else class="empty-state">
-          <div class="empty-icon">🍳</div>
+        <div class="empty-icon"><UiIcon name="check" /></div>
           <p>Không có món nào đang được nấu</p>
         </div>
       </section>
@@ -165,24 +165,22 @@
       <!-- Tình trạng bàn -->
       <section class="section">
         <div class="section-header">
-          <h3 class="section-title">📍 Tình Trạng Bàn</h3>
+          <h3 class="section-title"> Tình Trạng Bàn</h3>
           <div class="legend">
-            <span class="legend-item empty">🟢 Trống</span>
-            <span class="legend-item booked">🟡 Đặt cọc</span>
-            <span class="legend-item occupied">🔴 Có khách</span>
-            <span class="legend-item cleaning">🟣 Cần dọn</span>
-            <span class="legend-item linked">🔗 Đã ghép</span>
+            <span class="legend-item empty"> Trống</span>
+            <span class="legend-item booked"> Đặt cọc</span>
+            <span class="legend-item occupied"> Có khách</span>
+            <span class="legend-item cleaning"> Cần dọn</span>
+            <span class="legend-item linked"> Đã ghép</span>
           </div>
         </div>
 
         <div v-for="(tablesInFloor, floorName) in tablesByFloor" :key="floorName" class="floor-section" :class="{ 'floor-collapsed': !showAllFloors && myAssignedFloors.length > 0 && !isMyFloor(floorName) }">
           <div class="floor-header" @click="toggleCollapsedFloor(floorName)">
             <h3 class="floor-title">
-              <span v-if="floorName.toLowerCase().includes('vip')">👑</span>
-              <span v-else-if="floorName.toLowerCase().includes('thượng')">☁️</span>
-              <span v-else>🏢</span>
+              <span><UiIcon :name="floorName.toLowerCase().includes('vip') ? 'private' : 'indoor'" /></span>
               {{ floorName }}
-              <span v-if="isMyFloor(floorName)" class="my-zone-badge">📌 Khu vực của bạn</span>
+              <span v-if="isMyFloor(floorName)" class="my-zone-badge"> Khu vực của bạn</span>
               <span v-else-if="myAssignedFloors.length > 0 && !showAllFloors" class="other-zone-hint">▸ Nhấn để mở</span>
             </h3>
             <div class="floor-divider"></div>
@@ -196,8 +194,8 @@
               @click="openTableDetail(table)"
             >
               <div class="tc-top">
-                <span class="tc-capacity">👥 {{ table.capacity || 4 }}</span>
-                <span class="tc-icon">🧮</span>
+                <span class="tc-capacity"> {{ table.capacity || 4 }}</span>
+              <span class="tc-icon"><UiIcon name="table" /></span>
               </div>
               <div class="tc-center">
                 <div class="tc-dot"></div>
@@ -208,7 +206,7 @@
               </div>
               <div class="tc-bottom">
                 <span class="tc-status">
-                  {{ table.isOccupied === 0 ? '🟢 Trống ⌄' : table.isOccupied === 1 ? '🟡 Đã cọc ⌄' : table.isOccupied === 3 ? '🟣 Cần dọn ⌄' : table.isOccupied === 5 ? '🔗 Đã ghép ⌄' : '🔴 Có khách ⌄' }}
+                  {{ table.isOccupied === 0 ? ' Trống ⌄' : table.isOccupied === 1 ? ' Đã cọc ⌄' : table.isOccupied === 3 ? ' Cần dọn ⌄' : table.isOccupied === 5 ? ' Đã ghép ⌄' : ' Có khách ⌄' }}
                 </span>
               </div>
             </div>
@@ -221,20 +219,20 @@
     <div v-if="detailTable" class="modal-overlay" @click.self="detailTable = null">
       <div class="detail-modal">
         <div class="modal-header">
-          <h2>📋 Chi Tiết — {{ detailTable.name }}</h2>
-          <button @click="detailTable = null" class="btn-close">✖</button>
+          <h2> Chi Tiết — {{ detailTable.name }}</h2>
+          <button @click="detailTable = null" class="btn-close"><UiIcon name="x" /></button>
         </div>
         <div class="modal-body">
           <div v-if="detailTable.isOccupied === 3" style="padding: 30px; text-align: center;">
             <p style="font-size: 1.2rem; margin-bottom: 20px;">Bàn này đang chờ dọn dẹp</p>
-            <button @click="checkoutTable(detailTable)" class="btn-action-large" style="width: 100%; background: color-mix(in srgb, var(--success) 20%, transparent); color: var(--success); border: 1px solid var(--success);">✅ Đã Dọn Xong</button>
+            <button @click="checkoutTable(detailTable)" class="btn-action-large" style="width: 100%; background: color-mix(in srgb, var(--success) 20%, transparent); color: var(--success); border: 1px solid var(--success);"> Đã Dọn Xong</button>
           </div>
           
           <div v-else-if="detailTable.isOccupied === 0" class="empty-state" style="padding: 30px;">
             <p>Bàn này đang trống</p>
             <div style="display: flex; gap: 10px; margin-top: 15px;">
-              <button @click="goAddItem(detailTable)" class="btn-action-large" style="flex: 1; background: color-mix(in srgb, var(--success) 20%, transparent); color: var(--success); border: 1px solid var(--success);">👨‍👩‍👧 Đón Khách Mới</button>
-              <button @click="openMergeTable(detailTable, 'PHYSICAL')" class="btn-action-large" style="flex: 1; background: color-mix(in srgb, var(--secondary) 20%, transparent); color: var(--secondary); border: 1px solid var(--secondary);">🔗 Ghép Bàn Này</button>
+              <button @click="goAddItem(detailTable)" class="btn-action-large" style="flex: 1; background: color-mix(in srgb, var(--success) 20%, transparent); color: var(--success); border: 1px solid var(--success);"> Đón Khách Mới</button>
+              <button @click="openMergeTable(detailTable, 'PHYSICAL')" class="btn-action-large" style="flex: 1; background: color-mix(in srgb, var(--secondary) 20%, transparent); color: var(--secondary); border: 1px solid var(--secondary);"> Ghép Bàn Này</button>
             </div>
           </div>
           
@@ -250,7 +248,7 @@
               <div v-for="(detail, idx) in detailOrder.orderDetails" :key="idx" class="detail-dish-row">
                 <div class="detail-dish-left">
                   <img v-if="detail.product?.image" :src="foodImage(detail.product.image)" class="detail-dish-img" @error="replaceFoodImage" />
-                  <span v-else class="detail-dish-placeholder">🍽️</span>
+              <span v-else class="detail-dish-placeholder"><UiIcon name="dish" /></span>
                   <div>
                     <strong>{{ detail.product?.name }}</strong>
                     <span class="detail-dish-qty">x{{ detail.quantity }}</span>
@@ -275,38 +273,38 @@
             </div>
             
             <div class="ai-upsell-action">
-              <button @click="getAiUpsellAdvice" class="btn-ai-analyze">💡 AI Gợi Ý Mời Món</button>
+              <button @click="getAiUpsellAdvice" class="btn-ai-analyze"> AI Gợi Ý Mời Món</button>
             </div>
 
             <!-- Hành động tùy theo trạng thái bàn -->
             <div v-if="detailTable.isOccupied === 1" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-              <button @click="upgradeToOccupied(detailTable)" class="btn-action-large" style="background: color-mix(in srgb, var(--success) 20%, transparent); color: var(--success); border: 1px solid var(--success);">✅ Khách Đã Đến</button>
-              <button @click="cancelBooking(detailTable)" class="btn-action-large" style="background: color-mix(in srgb, var(--primary) 20%, transparent); color: var(--primary); border: 1px solid var(--primary);">❌ Khách Hủy</button>
-              <button @click="goAddItem(detailTable)" class="btn-action-large" style="grid-column: span 2; background: color-mix(in srgb, var(--secondary) 20%, transparent); color: var(--secondary); border: 1px solid var(--secondary);">➕ Gọi Thêm</button>
+              <button @click="upgradeToOccupied(detailTable)" class="btn-action-large" style="background: color-mix(in srgb, var(--success) 20%, transparent); color: var(--success); border: 1px solid var(--success);"> Khách Đã Đến</button>
+              <button @click="cancelBooking(detailTable)" class="btn-action-large" style="background: color-mix(in srgb, var(--primary) 20%, transparent); color: var(--primary); border: 1px solid var(--primary);"> Khách Hủy</button>
+              <button @click="goAddItem(detailTable)" class="btn-action-large" style="grid-column: span 2; background: color-mix(in srgb, var(--secondary) 20%, transparent); color: var(--secondary); border: 1px solid var(--secondary);"> Gọi Thêm</button>
             </div>
             
             <div v-else class="modal-table-actions" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-               <button @click="openMoveTable(detailTable)" class="btn-action-large" style="background: color-mix(in srgb, var(--color-tertiary) 20%, transparent); color: var(--color-tertiary); border: 1px solid var(--color-tertiary);">🔄 Chuyển Bàn</button>
-               <button @click="goAddItem(detailTable)" class="btn-action-large" style="background: color-mix(in srgb, var(--success) 20%, transparent); color: var(--success); border: 1px solid var(--success);">➕ Gọi Thêm</button>
-               <button @click="openMergeTable(detailTable)" class="btn-action-large" style="background: color-mix(in srgb, var(--secondary) 20%, transparent); color: var(--secondary); border: 1px solid var(--secondary);">🔗 Gộp Bàn</button>
-               <button @click="openSplitTable(detailTable)" class="btn-action-large" style="background: color-mix(in srgb, var(--color-tertiary) 20%, transparent); color: var(--color-tertiary); border: 1px solid var(--color-tertiary);">✂️ Tách Bàn</button>
-               <button @click="openInvoice(detailTable)" class="btn-action-large" style="background: color-mix(in srgb, var(--color-tertiary) 20%, transparent); color: var(--color-tertiary); border: 1px solid var(--color-tertiary);">🧾 In Tạm Tính</button>
-               <button @click="openCheckoutModal(detailTable)" class="btn-action-large" style="grid-column: span 2; background: color-mix(in srgb, var(--success) 80%, transparent); color: #FFFFFF; border: none; font-weight: bold; font-size: 1.1rem; padding: 12px;">💰 THANH TOÁN</button>
+               <button @click="openMoveTable(detailTable)" class="btn-action-large" style="background: color-mix(in srgb, var(--color-tertiary) 20%, transparent); color: var(--color-tertiary); border: 1px solid var(--color-tertiary);"> Chuyển Bàn</button>
+               <button @click="goAddItem(detailTable)" class="btn-action-large" style="background: color-mix(in srgb, var(--success) 20%, transparent); color: var(--success); border: 1px solid var(--success);"> Gọi Thêm</button>
+               <button @click="openMergeTable(detailTable)" class="btn-action-large" style="background: color-mix(in srgb, var(--secondary) 20%, transparent); color: var(--secondary); border: 1px solid var(--secondary);"> Gộp Bàn</button>
+               <button @click="openSplitTable(detailTable)" class="btn-action-large" style="background: color-mix(in srgb, var(--color-tertiary) 20%, transparent); color: var(--color-tertiary); border: 1px solid var(--color-tertiary);"> Tách Bàn</button>
+               <button @click="openInvoice(detailTable)" class="btn-action-large" style="background: color-mix(in srgb, var(--color-tertiary) 20%, transparent); color: var(--color-tertiary); border: 1px solid var(--color-tertiary);"> In Tạm Tính</button>
+               <button @click="openCheckoutModal(detailTable)" class="btn-action-large" style="grid-column: span 2; background: color-mix(in srgb, var(--success) 80%, transparent); color: #FFFFFF; border: none; font-weight: bold; font-size: 1.1rem; padding: 12px;"> THANH TOÁN</button>
             </div>
           </div>
           
           <div v-else-if="detailTable.isOccupied === 5" style="padding: 30px; text-align: center;">
             <p style="font-size: 1.2rem; margin-bottom: 20px;">Bàn này đã được ghép với bàn khác.</p>
             <p style="color: var(--color-tertiary); font-weight: bold;">{{ detailTable.reservedTime }}</p>
-            <button @click="unlinkTable(detailTable)" class="btn-action-large" style="width: 100%; margin-top: 15px; background: color-mix(in srgb, var(--color-tertiary) 20%, transparent); color: var(--color-tertiary); border: 1px solid var(--color-tertiary);">✂️ Tách Bàn Này Ra</button>
+            <button @click="unlinkTable(detailTable)" class="btn-action-large" style="width: 100%; margin-top: 15px; background: color-mix(in srgb, var(--color-tertiary) 20%, transparent); color: var(--color-tertiary); border: 1px solid var(--color-tertiary);"> Tách Bàn Này Ra</button>
           </div>
 
           <div v-else-if="detailTable.isOccupied === 1" style="padding: 30px; text-align: center;">
             <!-- CÓ CỌC NHƯNG CHƯA ĐẶT MÓN -->
             <p style="font-size: 1.2rem; margin-bottom: 20px;">Bàn đang được khách đặt cọc trước (Chưa gọi món)</p>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-              <button @click="upgradeToOccupied(detailTable)" class="btn-action-large" style="background: color-mix(in srgb, var(--success) 20%, transparent); color: var(--success); border: 1px solid var(--success);">✅ Khách Đã Đến</button>
-              <button @click="cancelBooking(detailTable)" class="btn-action-large" style="background: color-mix(in srgb, var(--primary) 20%, transparent); color: var(--primary); border: 1px solid var(--primary);">❌ Khách Hủy</button>
+              <button @click="upgradeToOccupied(detailTable)" class="btn-action-large" style="background: color-mix(in srgb, var(--success) 20%, transparent); color: var(--success); border: 1px solid var(--success);"> Khách Đã Đến</button>
+              <button @click="cancelBooking(detailTable)" class="btn-action-large" style="background: color-mix(in srgb, var(--primary) 20%, transparent); color: var(--primary); border: 1px solid var(--primary);"> Khách Hủy</button>
             </div>
           </div>
           
@@ -314,8 +312,8 @@
             <!-- CÓ KHÁCH NHƯNG CHƯA GỌI MÓN (Hoặc đã thanh toán đơn trước đó nhưng chưa dọn bàn) -->
             <p style="font-size: 1.2rem; margin-bottom: 20px;">Bàn có khách nhưng hiện tại chưa có món nào</p>
             <div style="display: grid; grid-template-columns: 1fr; gap: 10px;">
-              <button @click="goAddItem(detailTable)" class="btn-action-large" style="background: color-mix(in srgb, var(--secondary) 20%, transparent); color: var(--secondary); border: 1px solid var(--secondary);">➕ Khách Gọi Món</button>
-              <button @click="markAsCleaning(detailTable)" class="btn-action-large" style="background: color-mix(in srgb, var(--color-tertiary) 20%, transparent); color: var(--color-tertiary); border: 1px solid var(--color-tertiary);">🏠 Khách Đã Về (Cần Dọn)</button>
+              <button @click="goAddItem(detailTable)" class="btn-action-large" style="background: color-mix(in srgb, var(--secondary) 20%, transparent); color: var(--secondary); border: 1px solid var(--secondary);"> Khách Gọi Món</button>
+              <button @click="markAsCleaning(detailTable)" class="btn-action-large" style="background: color-mix(in srgb, var(--color-tertiary) 20%, transparent); color: var(--color-tertiary); border: 1px solid var(--color-tertiary);"> Khách Đã Về (Cần Dọn)</button>
             </div>
           </div>
         </div>
@@ -326,8 +324,8 @@
     <div v-if="showAiModal" class="modal-overlay" @click.self="showAiModal = false">
       <div class="ai-modal">
         <div class="modal-header">
-          <h2>💡 Chuyên Gia Bán Chéo AI</h2>
-          <button @click="showAiModal = false" class="btn-close">✖</button>
+          <h2> Chuyên Gia Bán Chéo AI</h2>
+          <button @click="showAiModal = false" class="btn-close"><UiIcon name="x" /></button>
         </div>
         <div class="modal-body">
           <div v-if="aiLoading" class="ai-loading">
@@ -346,7 +344,7 @@
       <div class="invoice-modal printable-area">
         <div class="modal-header hide-on-print">
           <h2>Hóa Đơn Tạm Tính - Bàn {{ selectedTableName }}</h2>
-          <button @click="closeModal" class="btn-close">✖</button>
+          <button @click="closeModal" class="btn-close"><UiIcon name="x" /></button>
         </div>
 
         <div class="invoice-content">
@@ -372,7 +370,7 @@
                 <td style="text-align:center">{{ index + 1 }}</td>
                 <td>
                   <img v-if="detail.product?.image" :src="foodImage(detail.product.image)" class="bill-thumb" @error="replaceFoodImage" />
-                  <span v-else class="no-img-icon">🍽️</span>
+                  <span v-else class="no-img-icon"><UiIcon name="dish" /></span>
                 </td>
                 <td><strong>{{ detail.product?.name }}</strong></td>
                 <td style="text-align:right">{{ (detail.price / detail.quantity).toLocaleString() }}đ</td>
@@ -407,7 +405,7 @@
         </div>
 
         <div class="modal-actions hide-on-print">
-          <button @click="printInvoice" class="btn-export">🖨️ IN HÓA ĐƠN NÀY</button>
+          <button @click="printInvoice" class="btn-export"> IN HÓA ĐƠN NÀY</button>
         </div>
       </div>
     </div>
@@ -416,8 +414,8 @@
     <div v-if="showMoveModal" class="modal-overlay" @click.self="showMoveModal = false">
       <div class="move-modal">
         <div class="modal-header">
-          <h2>🔄 Chuyển Bàn</h2>
-          <button @click="showMoveModal = false" class="btn-close">✖</button>
+          <h2> Chuyển Bàn</h2>
+          <button @click="showMoveModal = false" class="btn-close"><UiIcon name="x" /></button>
         </div>
         <div class="modal-body">
           <p>Từ: <strong>Bàn {{ movingTable?.name }}</strong></p>
@@ -439,8 +437,8 @@
     <div v-if="showMergeModal" class="modal-overlay" @click.self="showMergeModal = false">
       <div class="move-modal">
         <div class="modal-header">
-          <h2>🔗 {{ mergeMode === 'PHYSICAL' ? 'Ghép Bàn Vật Lý' : 'Gộp Bàn (Dồn Đơn)' }}</h2>
-          <button @click="showMergeModal = false" class="btn-close">✖</button>
+          <h2> {{ mergeMode === 'PHYSICAL' ? 'Ghép Bàn Vật Lý' : 'Gộp Bàn (Dồn Đơn)' }}</h2>
+          <button @click="showMergeModal = false" class="btn-close"><UiIcon name="x" /></button>
         </div>
         <div class="modal-body">
           <p v-if="mergeMode === 'PHYSICAL'">Ghép <strong>Bàn {{ movingTable?.name }}</strong> vào:</p>
@@ -473,8 +471,8 @@
     <div v-if="showSplitModal" class="modal-overlay" @click.self="showSplitModal = false">
       <div class="move-modal" style="width: 500px;">
         <div class="modal-header">
-          <h2>✂️ Tách Bàn (Chuyển Món)</h2>
-          <button @click="showSplitModal = false" class="btn-close">✖</button>
+          <h2> Tách Bàn (Chuyển Món)</h2>
+          <button @click="showSplitModal = false" class="btn-close"><UiIcon name="x" /></button>
         </div>
         <div class="modal-body">
           <p>Tách món từ <strong>Bàn {{ movingTable?.name }}</strong> sang một bàn trống mới.</p>
@@ -520,8 +518,8 @@
     <div v-if="checkoutOrder" class="modal-overlay" @click.self="checkoutOrder = null">
       <div class="invoice-modal printable-area">
         <div class="modal-header hide-on-print">
-          <h2>💰 Thanh Toán - Bàn {{ checkoutTableName }}</h2>
-          <button @click="checkoutOrder = null" class="btn-close">✖</button>
+          <h2> Thanh Toán - Bàn {{ checkoutTableName }}</h2>
+          <button @click="checkoutOrder = null" class="btn-close"><UiIcon name="x" /></button>
         </div>
 
         <div class="invoice-content">
@@ -547,7 +545,7 @@
                 <td style="text-align:center">{{ index + 1 }}</td>
                 <td>
                   <img v-if="detail.product?.image" :src="foodImage(detail.product.image)" class="bill-thumb" @error="replaceFoodImage" />
-                  <span v-else class="no-img-icon">🍽️</span>
+              <span v-else class="no-img-icon"><UiIcon name="dish" /></span>
                 </td>
                 <td><strong>{{ detail.product?.name }}</strong></td>
                 <td style="text-align:right">{{ (detail.price / detail.quantity).toLocaleString() }}đ</td>
@@ -583,7 +581,7 @@
 
         <div class="modal-actions hide-on-print" style="display: flex; flex-direction: column; gap: 10px; padding: 15px;">
           <div style="display: flex; gap: 10px;">
-            <button @click="printCheckoutInvoice" class="btn-export" style="flex:1; background: var(--secondary);">🖨️ In Hóa Đơn</button>
+            <button @click="printCheckoutInvoice" class="btn-export" style="flex:1; background: var(--secondary);"> In Hóa Đơn</button>
           </div>
         </div>
       </div>
@@ -803,7 +801,7 @@ const fetchData = async () => {
 
     if (hasNewReady && previousReadyIds.length > 0) {
       playNotificationSound();
-      toastMsg.value = '🔔 Bếp vừa hoàn thành món mới!';
+      toastMsg.value = ' Bếp vừa hoàn thành món mới!';
       setTimeout(() => { toastMsg.value = ''; }, 3000);
     }
     previousReadyIds = newReadyIds;
@@ -824,7 +822,7 @@ const markAsServed = async (id) => {
     await api.put(`/api/admin/orders/${id}/status?status=7`, {}, {
       headers: { 'Authorization': `Bearer ${getStaffToken()}` }
     });
-    toastMsg.value = '✅ Đã bưng ra bàn thành công!';
+    toastMsg.value = ' Đã bưng ra bàn thành công!';
     setTimeout(() => { toastMsg.value = ''; }, 3000);
     fetchData();
   } catch (error) { showToast('Không thể hoàn thành đơn lúc này.'); }
@@ -835,7 +833,7 @@ const markDishServed = async (order, detailId) => {
     await api.put(`/api/orders/details/${detailId}/status?status=2`, {}, {
       headers: { 'Authorization': `Bearer ${getStaffToken()}` }
     });
-    toastMsg.value = '✅ Đã bưng món!';
+    toastMsg.value = ' Đã bưng món!';
     setTimeout(() => { toastMsg.value = ''; }, 2000);
     fetchData();
   } catch (err) { showToast('Không thể cập nhật món lúc này.'); }
@@ -866,7 +864,7 @@ const markAsCleaning = async (table) => {
     await api.put(`/api/tables/${table.id}/status?status=3`, {}, {
       headers: { 'Authorization': `Bearer ${getStaffToken()}` }
     });
-    toastMsg.value = `🧹 Bàn "${table.name}" đang chờ dọn!`;
+    toastMsg.value = ` Bàn "${table.name}" đang chờ dọn!`;
     setTimeout(() => { toastMsg.value = ''; }, 3500);
     fetchData();
   } catch (error) {
@@ -960,7 +958,7 @@ const openTableDetail = (table) => {
 };
 
 const getDetailStatusText = (status) => {
-  const map = { 1: '🔥 Đang nấu', 2: '✅ Đã xong', 3: '🍽️ Đang ăn', 4: '💰 Đã thanh toán' };
+  const map = { 1: ' Đang nấu', 2: ' Đã xong', 3: ' Đang ăn', 4: ' Đã thanh toán' };
   return map[status] || 'Đang xử lý';
 };
 
@@ -1009,7 +1007,7 @@ const confirmMoveTable = async () => {
     });
 
     showMoveModal.value = false;
-    toastMsg.value = `✅ Đã chuyển khách sang Bàn ${newTable.name} thành công!`;
+    toastMsg.value = ` Đã chuyển khách sang Bàn ${newTable.name} thành công!`;
     setTimeout(() => { toastMsg.value = ''; }, 3500);
     fetchData();
   } catch (error) {
@@ -1044,13 +1042,13 @@ const confirmMergeTable = async () => {
       await api.put(`/api/tables/${movingTable.value.id}/link/${targetTable.id}`, {}, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      toastMsg.value = `✅ Đã ghép bàn vật lý ${movingTable.value.name} vào ${targetTable.name}!`;
+      toastMsg.value = ` Đã ghép bàn vật lý ${movingTable.value.name} vào ${targetTable.name}!`;
     } else {
       await api.post('/api/orders/merge-tables', {
         fromTableId: movingTable.value.id,
         toTableId: targetTable.id
       }, { headers: { 'Authorization': `Bearer ${token}` } });
-      toastMsg.value = `✅ Đã gộp đơn từ bàn ${movingTable.value.name} sang ${targetTable.name} thành công!`;
+      toastMsg.value = ` Đã gộp đơn từ bàn ${movingTable.value.name} sang ${targetTable.name} thành công!`;
     }
     
     setTimeout(() => { toastMsg.value = ''; }, 3500);
@@ -1073,7 +1071,7 @@ const unlinkTable = async (table) => {
     await api.put(`/api/tables/${table.id}/unlink`, {}, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    toastMsg.value = `✅ Đã tách ${table.name} thành công!`;
+    toastMsg.value = ` Đã tách ${table.name} thành công!`;
     setTimeout(() => { toastMsg.value = ''; }, 3500);
     detailTable.value = null;
     fetchData();
@@ -1122,7 +1120,7 @@ const confirmSplitTable = async () => {
       detailIds: selectedDetailIds.value
     }, { headers: { 'Authorization': `Bearer ${token}` } });
 
-    toastMsg.value = `✅ Đã tách ${selectedDetailIds.value.length} món sang bàn ${targetTable.name} thành công!`;
+    toastMsg.value = ` Đã tách ${selectedDetailIds.value.length} món sang bàn ${targetTable.name} thành công!`;
     setTimeout(() => { toastMsg.value = ''; }, 3500);
     showSplitModal.value = false;
     fetchData();
@@ -1142,7 +1140,7 @@ const upgradeToOccupied = async (table) => {
     await api.put(`/api/tables/${table.id}/status?status=2`, {}, {
       headers: { 'Authorization': `Bearer ${getStaffToken()}` }
     });
-    toastMsg.value = `✅ Đã đánh dấu Bàn ${table.name} CÓ KHÁCH!`;
+    toastMsg.value = ` Đã đánh dấu Bàn ${table.name} CÓ KHÁCH!`;
     setTimeout(() => { toastMsg.value = ''; }, 3000);
     fetchData();
   } catch (error) {
@@ -1161,7 +1159,7 @@ const cancelBooking = async (table) => {
     await api.put(`/api/tables/${table.id}/status?status=0`, {}, {
       headers: { 'Authorization': `Bearer ${getStaffToken()}` }
     });
-    toastMsg.value = `❌ Đã hủy cọc Bàn ${table.name}!`;
+    toastMsg.value = ` Đã hủy cọc Bàn ${table.name}!`;
     setTimeout(() => { toastMsg.value = ''; }, 3000);
     fetchData();
   } catch (error) {
@@ -1171,7 +1169,7 @@ const cancelBooking = async (table) => {
 
 // Hiệu ứng toast thông báo dọn bàn thành công
 const showCheckoutToast = (tableName) => {
-  toastMsg.value = `✅ Bàn "${tableName}" đã dọn xong!`;
+  toastMsg.value = ` Bàn "${tableName}" đã dọn xong!`;
   setTimeout(() => { toastMsg.value = ''; }, 3500);
 };
 
@@ -1228,7 +1226,7 @@ const connectWebSocket = () => {
       if (message.body === 'ORDER_READY' || message.body === 'DISH_STATUS_CHANGED') {
         fetchData();
       } else if (message.body === 'ORDER_PAID') {
-        toastMsg.value = '💰 Thu ngân vừa xác nhận thanh toán!';
+        toastMsg.value = ' Thu ngân vừa xác nhận thanh toán!';
         setTimeout(() => { toastMsg.value = ''; }, 3500);
         fetchData();
       }

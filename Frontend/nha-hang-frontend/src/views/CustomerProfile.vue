@@ -176,10 +176,10 @@ const getTierClass = (tier) => {
 };
 
 const getTierIcon = (tier) => {
-  if (tier === 'Kim Cương') return '💎';
-  if (tier === 'Vàng') return '👑';
-  if (tier === 'Bạc') return '🥈';
-  return '🥉';
+  if (tier === 'Kim Cương') return '';
+  if (tier === 'Vàng') return '';
+  if (tier === 'Bạc') return '';
+  return '';
 };
 
 onMounted(() => {
@@ -287,7 +287,7 @@ onMounted(() => {
 .tier-points { font-size: 0.85rem; opacity: 0.8; font-weight: 600; }
 
 /* TIER COLORS */
-.tier-diamond .tier-name { color: var(--tier-diamond); text-shadow: 0 0 10px rgba(95,168,201,0.5); }
+.tier-diamond .tier-name { color: var(--tier-diamond); text-shadow: 0 0 10px color-mix(in srgb, var(--tier-diamond) 50%, transparent); }
 .tier-gold .tier-name { color: var(--color-tertiary); text-shadow: 0 0 10px color-mix(in srgb, var(--color-tertiary) 50%, transparent); }
 .tier-silver .tier-name { color: var(--color-outline); }
 .tier-bronze .tier-name { color: var(--color-tertiary); }

@@ -14,7 +14,7 @@
 
       <!-- Món ăn gợi ý -->
       <div v-if="!isLoading && !loadError && suggestedProducts.length > 0" class="suggested-section">
-        <h2 class="section-title"><span style="color: var(--color-tertiary)">🌟</span> {{ text.suggestions }}</h2>
+      <h2 class="section-title"><span style="color: var(--color-tertiary)"><UiIcon name="sparkles" /></span> {{ text.suggestions }}</h2>
         <div class="suggested-grid">
           <div v-for="product in suggestedProducts" :key="'sugg-'+product.id" class="suggested-card">
             <div class="sugg-badge">HOT</div>
@@ -57,13 +57,13 @@
           <img :src="foodImage(product.image)" :alt="productName(product)" loading="lazy" @error="replaceFoodImage" />
           <h3>{{ productName(product) }}</h3>
           <div class="menu-tags" aria-label="Phân loại món">
-            <span v-if="product.isSignatureDish">🌟 Đặc trưng</span>
-            <span v-if="product.dietType === 'CHAY'">🌱 Chay</span>
-            <span v-if="product.cookingMethod === 'NUONG'">🔥 Nướng</span>
-            <span v-if="product.spicyLevel > 0">🌶️ {{ product.spicyLevel }}</span>
+            <span v-if="product.isSignatureDish"> Đặc trưng</span>
+            <span v-if="product.dietType === 'CHAY'"> Chay</span>
+            <span v-if="product.cookingMethod === 'NUONG'"> Nướng</span>
+            <span v-if="product.spicyLevel > 0"> {{ product.spicyLevel }}</span>
           </div>
           <div class="product-rating" v-if="product.averageRating > 0">
-            ⭐ {{ product.averageRating }}
+             {{ product.averageRating }}
           </div>
           <div class="product-rating" v-else>
             <span style="color: var(--text-secondary); font-size: 0.8rem">{{ text.noRatings }}</span>
@@ -79,7 +79,7 @@
 
       <!-- Floating Cart Button -->
       <div v-if="cart.length > 0 && !isAdminOrManager" class="floating-cart" @click="openCheckout">
-        <span class="cart-icon">🛒</span>
+          <span class="cart-icon"><UiIcon name="dish" /></span>
         <span class="cart-count">{{ t('menu.itemCount', { count: cart.length }) }}</span>
         <span class="cart-total">{{ formatCurrency(cartTotal) }}</span>
         <span class="cart-checkout">{{ text.checkout }} →</span>
@@ -93,7 +93,7 @@
         <div v-if="!paymentQr" class="checkout-scroll-area" style="max-height: 400px; overflow-y: auto; padding-right: 10px;">
           <section v-if="cart.length > 0" class="cart-recommendations" aria-live="polite">
             <div class="recommendation-heading">
-              <h4>✨ {{ text.cartRecommendations }}</h4>
+              <h4> {{ text.cartRecommendations }}</h4>
               <button type="button" class="recommendation-retry" :disabled="recommendationLoading" @click="loadCartRecommendations">
                 ↻
               </button>
@@ -234,9 +234,9 @@ const recommendationLoading = ref(false);
 const recommendationError = ref('');
 const recommendationProfile = ref({ guestCount: 2, maxBudget: null, preferences: [] });
 const recommendationPreferences = [
-  { value: 'chay', label: '🌱 Chay' },
+  { value: 'chay', label: ' Chay' },
   { value: 'mặn', label: 'Món mặn' },
-  { value: 'nướng', label: '🔥 Nướng' },
+  { value: 'nướng', label: ' Nướng' },
   { value: 'hấp', label: 'Hấp' },
   { value: 'lẩu', label: 'Lẩu' },
   { value: 'hải sản', label: 'Hải sản' },
@@ -245,7 +245,7 @@ const recommendationPreferences = [
   { value: 'khai vị', label: 'Khai vị' },
   { value: 'món chính', label: 'Món chính' },
   { value: 'tráng miệng', label: 'Tráng miệng' },
-  { value: 'signature', label: '🌟 Đặc trưng' }
+  { value: 'signature', label: ' Đặc trưng' }
 ];
 let recommendationRequestId = 0;
 

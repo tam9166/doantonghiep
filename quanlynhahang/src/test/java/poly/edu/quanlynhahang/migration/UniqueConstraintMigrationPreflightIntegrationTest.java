@@ -25,7 +25,7 @@ class UniqueConstraintMigrationPreflightIntegrationTest {
             statement.executeUpdate("INSERT INTO dbo.reservation_reviews(reservation_id) VALUES (1), (2)");
             statement.executeUpdate("INSERT INTO dbo.reservations(reservation_code) VALUES ('MV-1'), ('MV-2')");
         }, (flyway, statement) -> {
-            assertEquals(24, flyway.migrate().migrationsExecuted);
+            assertEquals(26, flyway.migrate().migrationsExecuted);
             assertTrue(indexExists(statement, "reservation_reviews", "UX_reservation_reviews_reservation_id"));
             assertTrue(indexExists(statement, "reservations", "UX_reservations_reservation_code"));
             assertTrue(indexExists(statement, "reservations", "UX_reservations_idempotency_key"));
@@ -86,6 +86,9 @@ class UniqueConstraintMigrationPreflightIntegrationTest {
                 statement.execute("CREATE TABLE dbo.Orders ("
                         + "id BIGINT IDENTITY PRIMARY KEY, address NVARCHAR(500) NULL, status INT NOT NULL DEFAULT 0)");
                 statement.execute("CREATE TABLE dbo.ingredients (id BIGINT IDENTITY PRIMARY KEY)");
+                statement.execute("CREATE TABLE dbo.table_areas ("
+                        + "id INT IDENTITY PRIMARY KEY, area_type VARCHAR(30) NOT NULL DEFAULT 'DINING', "
+                        + "base_price DECIMAL(18,0) NULL)");
                 statement.execute("CREATE TABLE dbo.restaurant_table ("
                         + "id INT IDENTITY PRIMARY KEY, name NVARCHAR(100) NULL, area_id INT NULL, "
                         + "reserved_time VARCHAR(255) NULL, is_occupied INT NOT NULL DEFAULT 0, "

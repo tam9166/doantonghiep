@@ -46,6 +46,8 @@ public class ReservationRequest {
     @Size(max = 4)
     private List<@NotNull @Positive Integer> tableIds;
     private Boolean preorderEnabled;
+    @Size(max = 500)
+    private String orderNote;
     @Valid @Size(max = 30)
     private List<PreorderItemRequest> preorderItems;
     private PaymentOption paymentOption = PaymentOption.DEPOSIT_50;

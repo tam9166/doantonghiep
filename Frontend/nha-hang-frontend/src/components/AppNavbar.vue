@@ -3,7 +3,7 @@
     <div class="navbar-inner">
       <!-- Logo -->
       <router-link to="/" class="navbar-brand">
-        <span class="brand-icon">🍽️</span>
+        <span class="brand-icon"><UiIcon name="restaurant" /></span>
         <div class="brand-text">
           <h2>NHÀ HÀNG <span>MỘC VỊ</span></h2>
           <p>ĐÀ NẴNG</p>
@@ -23,8 +23,8 @@
       <div class="navbar-actions">
         <!-- Language Switch -->
         <select v-model="currentLang" @change="changeLanguage" class="lang-select">
-          <option value="vi">🇻🇳 VN</option>
-          <option value="en">🇺🇸 EN</option>
+          <option value="vi">VI</option>
+          <option value="en">EN</option>
         </select>
 
         <template v-if="!isLoggedIn">
@@ -33,32 +33,32 @@
         </template>
 
         <template v-else>
-          <router-link to="/history" class="nav-btn">📜 {{ $t('nav.history') }}</router-link>
-          <router-link to="/profile" class="nav-btn">👤 {{ $t('nav.profile') }}</router-link>
+          <router-link to="/history" class="nav-btn"><UiIcon name="history" />{{ $t('nav.history') }}</router-link>
+          <router-link to="/profile" class="nav-btn"><UiIcon name="profile" />{{ $t('nav.profile') }}</router-link>
           
           <router-link
             v-if="hasRole('ROLE_ADMIN') || hasRole('ROLE_MANAGER')"
             to="/admin"
             class="nav-btn nav-btn-admin"
-          >⚙️ {{ $t('nav.admin') }}</router-link>
+          ><UiIcon name="settings" />{{ $t('nav.admin') }}</router-link>
 
           <router-link
             v-if="hasRole('ROLE_KITCHEN')"
             to="/kitchen"
             class="nav-btn nav-btn-kitchen"
-          >👨‍🍳 {{ $t('nav.kitchen') }}</router-link>
+          ><UiIcon name="kitchen" />{{ $t('nav.kitchen') }}</router-link>
 
           <router-link
             v-if="hasRole('ROLE_WAITER')"
             to="/waiter"
             class="nav-btn nav-btn-waiter"
-          >🏃 {{ $t('nav.waiter') }}</router-link>
+          ><UiIcon name="waiter" />{{ $t('nav.waiter') }}</router-link>
 
           <router-link
             v-if="hasRole('ROLE_CASHIER')"
             to="/cashier"
             class="nav-btn nav-btn-cashier"
-          >💰 {{ $t('nav.cashier') }}</router-link>
+          ><UiIcon name="cashier" />{{ $t('nav.cashier') }}</router-link>
 
           <button @click="handleLogout" class="nav-btn nav-btn-logout">{{ $t('nav.logout') }}</button>
         </template>
@@ -74,21 +74,21 @@
     <Transition name="mobile-menu">
       <div v-if="mobileMenuOpen" class="mobile-overlay" @click="mobileMenuOpen = false">
         <nav class="mobile-nav" @click.stop>
-          <router-link to="/" @click="mobileMenuOpen = false">🏠 {{ $t('nav.home') }}</router-link>
-          <router-link to="/menu" @click="mobileMenuOpen = false">📖 {{ $t('nav.menu') }}</router-link>
-          <router-link to="/reservation" @click="mobileMenuOpen = false">📅 {{ $t('nav.booking') }}</router-link>
-          <router-link to="/reservation-lookup" @click="mobileMenuOpen = false">{{ $t('nav.lookup') }}</router-link>
-          <router-link to="/dine-in" @click="mobileMenuOpen = false">🍽️ {{ $t('nav.dine_in') }}</router-link>
+          <router-link to="/" @click="mobileMenuOpen = false"><UiIcon name="home" />{{ $t('nav.home') }}</router-link>
+          <router-link to="/menu" @click="mobileMenuOpen = false"><UiIcon name="menu" />{{ $t('nav.menu') }}</router-link>
+          <router-link to="/reservation" @click="mobileMenuOpen = false"><UiIcon name="calendar" />{{ $t('nav.booking') }}</router-link>
+          <router-link to="/reservation-lookup" @click="mobileMenuOpen = false"><UiIcon name="search" />{{ $t('nav.lookup') }}</router-link>
+          <router-link to="/dine-in" @click="mobileMenuOpen = false"><UiIcon name="restaurant" />{{ $t('nav.dine_in') }}</router-link>
           <div class="mobile-divider"></div>
           <template v-if="!isLoggedIn">
-            <router-link to="/login" @click="mobileMenuOpen = false">🔑 {{ $t('nav.login') }}</router-link>
-            <router-link to="/register" @click="mobileMenuOpen = false">📝 {{ $t('nav.register') }}</router-link>
+            <router-link to="/login" @click="mobileMenuOpen = false"><UiIcon name="profile" />{{ $t('nav.login') }}</router-link>
+            <router-link to="/register" @click="mobileMenuOpen = false"><UiIcon name="user" />{{ $t('nav.register') }}</router-link>
           </template>
           <template v-else>
-            <router-link to="/history" @click="mobileMenuOpen = false">📜 {{ $t('nav.history') }}</router-link>
-            <router-link to="/profile" @click="mobileMenuOpen = false">👤 {{ $t('nav.profile') }}</router-link>
-            <router-link v-if="hasRole('ROLE_ADMIN') || hasRole('ROLE_MANAGER')" to="/admin" @click="mobileMenuOpen = false">⚙️ {{ $t('nav.admin') }}</router-link>
-            <a href="#" @click.prevent="handleLogout" class="mobile-logout">🚪 {{ $t('nav.logout') }}</a>
+            <router-link to="/history" @click="mobileMenuOpen = false"><UiIcon name="history" />{{ $t('nav.history') }}</router-link>
+            <router-link to="/profile" @click="mobileMenuOpen = false"><UiIcon name="profile" />{{ $t('nav.profile') }}</router-link>
+            <router-link v-if="hasRole('ROLE_ADMIN') || hasRole('ROLE_MANAGER')" to="/admin" @click="mobileMenuOpen = false"><UiIcon name="settings" />{{ $t('nav.admin') }}</router-link>
+            <a href="#" @click.prevent="handleLogout" class="mobile-logout"><UiIcon name="logout" />{{ $t('nav.logout') }}</a>
           </template>
         </nav>
       </div>
@@ -98,6 +98,7 @@
 
 <script setup>
 import { computed, ref, onMounted, onUnmounted } from 'vue'
+import UiIcon from '@/components/UiIcon.vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
@@ -278,6 +279,9 @@ onUnmounted(() => {
 .lang-select option { background: var(--bg-dark); }
 
 .nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   background: transparent;
   color: rgba(255, 255, 255, 0.9);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -360,7 +364,9 @@ onUnmounted(() => {
   max-width: 360px;
 }
 .mobile-nav a {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   color: #FFFFFF;
   text-decoration: none;
   font-size: 1.2rem;

@@ -5,41 +5,46 @@
       <div class="page-header parallax-header">
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <div>
-            <h1 class="page-title text-3d">🛒 Đề Xuất Mua Hàng Tự Động</h1>
+            <h1 class="page-title text-3d"> Đề Xuất Mua Hàng Tự Động</h1>
             <p class="page-subtitle">Hệ thống phân tích tốc độ tiêu thụ và đề xuất nhập kho thông minh</p>
           </div>
           <div style="display: flex; gap: 10px;">
-            <button @click="fetchSuggestions" class="g-btn-primary btn-3d">🔄 Làm Mới</button>
-            <button @click="analyzeWithAI" class="btn-ai btn-3d">🤖 AI Phân Tích Sâu</button>
+            <button @click="fetchSuggestions" class="g-btn-primary btn-3d"> Làm Mới</button>
+            <button @click="analyzeWithAI" class="btn-ai btn-3d"> AI Phân Tích Sâu</button>
           </div>
         </div>
+      </div>
+
+      <div v-if="summary.expiredBatchesCount || summary.expiringBatchesCount || summary.handlingCount" class="inventory-analysis-alert" role="alert">
+        <UiIcon name="warning" />
+        <span><strong>Cần xử lý kho:</strong> {{ summary.expiredBatchesCount }} lô hết hạn · {{ summary.expiringBatchesCount }} lô sắp hết hạn · {{ summary.handlingCount }} nguyên liệu tạm không nhập thêm.</span>
       </div>
 
       <!-- Summary Cards -->
       <div class="summary-cards">
         <div class="summary-card depth-card float-card card-total">
-          <div class="sc-icon">📦</div>
+          <div class="sc-icon"><UiIcon name="box" /></div>
           <div class="sc-info">
             <span class="sc-value">{{ summary.totalItems }}</span>
             <span class="sc-label">Cần Nhập Kho</span>
           </div>
         </div>
         <div class="summary-card depth-card float-card card-critical">
-          <div class="sc-icon">🔴</div>
+          <div class="sc-icon"><UiIcon name="x" /></div>
           <div class="sc-info">
             <span class="sc-value">{{ summary.criticalCount }}</span>
             <span class="sc-label">Hết Hàng</span>
           </div>
         </div>
         <div class="summary-card depth-card float-card card-warning">
-          <div class="sc-icon">🟡</div>
+          <div class="sc-icon"><UiIcon name="warning" /></div>
           <div class="sc-info">
             <span class="sc-value">{{ summary.warningCount }}</span>
             <span class="sc-label">Sắp Hết</span>
           </div>
         </div>
         <div class="summary-card depth-card float-card card-cost">
-          <div class="sc-icon">💰</div>
+          <div class="sc-icon"><UiIcon name="currency" /></div>
           <div class="sc-info">
             <span class="sc-value">{{ formatMoney(summary.totalEstimatedCost) }}</span>
             <span class="sc-label">Chi Phí Ước Tính</span>
@@ -50,9 +55,9 @@
       <!-- Suggestions Table -->
       <div class="suggestions-wrap depth-card" style="padding: 20px; border-radius: 16px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-          <h3 style="margin: 0; font-size: 1.1rem; color: var(--text-heading);">📋 Danh Sách Đề Xuất Nhập Kho</h3>
-          <button v-if="suggestions.length > 0" @click="approveAll" class="g-btn-primary" style="font-size: 0.85rem;">
-            ✅ Duyệt Tất Cả ({{ suggestions.length }})
+          <h3 style="margin: 0; font-size: 1.1rem; color: var(--text-heading);"> Danh Sách Đề Xuất Nhập Kho</h3>
+          <button v-if="summary.totalItems > 0" @click="approveAll" class="g-btn-primary" style="font-size: 0.85rem;">
+             Duyệt Tất Cả ({{ summary.totalItems }})
           </button>
         </div>
 
@@ -75,7 +80,7 @@
               <td>
                 <div style="display: flex; align-items: center; gap: 10px;">
                   <img v-if="item.image" :src="item.image" style="width: 36px; height: 36px; border-radius: 8px; object-fit: cover;" />
-                  <span v-else style="font-size: 1.3rem;">🧅</span>
+                  <span v-else style="font-size: 1.3rem;"><UiIcon name="box" /></span>
                   <strong>{{ item.name }}</strong>
                 </div>
               </td>
@@ -99,15 +104,16 @@
                 </span>
               </td>
               <td>
-                <button @click="approveSuggestion(item)" class="g-btn-primary btn-3d" style="font-size: 0.8rem; padding: 6px 12px;" :disabled="item.approved">
-                  {{ item.approved ? '✅ Đã duyệt' : '🛒 Duyệt' }}
+                <button v-if="Number(item.suggestedAmount) > 0" @click="approveSuggestion(item)" class="g-btn-primary btn-3d" style="font-size: 0.8rem; padding: 6px 12px;" :disabled="item.approved">
+                  {{ item.approved ? ' Đã duyệt' : ' Duyệt' }}
                 </button>
+                <span v-else class="urgency-badge urgency-expiring">Không nhập · Cần xử lý</span>
               </td>
             </tr>
             <tr v-if="suggestions.length === 0">
               <td colspan="9" class="empty-td">
                 <div style="text-align: center; padding: 50px;">
-                  <div style="font-size: 3rem; margin-bottom: 10px;">✅</div>
+        <div style="font-size: 3rem; margin-bottom: 10px;"><UiIcon name="check" /></div>
                   <h3 style="color: var(--success);">Kho hàng đầy đủ!</h3>
                   <p style="color: var(--text-muted);">Tất cả nguyên liệu đang ở mức an toàn. Không cần nhập thêm.</p>
                 </div>
@@ -121,8 +127,8 @@
       <div v-if="showAiModal" class="modal-overlay" @click.self="showAiModal = false">
         <div class="ai-modal depth-card glass-pro" style="max-width: 600px; width: 90%; padding: 24px; border-radius: 16px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h2 style="margin: 0;">🤖 AI Phân Tích Kho Hàng</h2>
-            <button @click="showAiModal = false" style="background: none; border: none; font-size: 1.5rem; color: var(--text-muted); cursor: pointer;">✖</button>
+            <h2 style="margin: 0;"> AI Phân Tích Kho Hàng</h2>
+            <button @click="showAiModal = false" style="background: none; border: none; font-size: 1.5rem; color: var(--text-muted); cursor: pointer;"><UiIcon name="x" /></button>
           </div>
           <div v-if="aiLoading" style="text-align: center; padding: 40px; color: var(--primary);">
             <div class="spinner"></div>
@@ -140,11 +146,12 @@
 
 <script setup>
 import AdminLayout from '@/components/AdminLayout.vue';
+import UiIcon from '@/components/UiIcon.vue';
 import { ref, onMounted } from 'vue';
 import api from '@/services/api';
 
 const suggestions = ref([]);
-const summary = ref({ totalItems: 0, criticalCount: 0, warningCount: 0, totalEstimatedCost: 0 });
+const summary = ref({ totalItems: 0, handlingCount: 0, criticalCount: 0, warningCount: 0, expiredBatchesCount: 0, expiringBatchesCount: 0, totalEstimatedCost: 0 });
 const showAiModal = ref(false);
 const aiLoading = ref(false);
 const aiResponse = ref('');
@@ -160,6 +167,9 @@ const fetchSuggestions = async () => {
       totalItems: res.data.totalItems || 0,
       criticalCount: res.data.criticalCount || 0,
       warningCount: res.data.warningCount || 0,
+      handlingCount: res.data.handlingCount || 0,
+      expiredBatchesCount: res.data.expiredBatchesCount || 0,
+      expiringBatchesCount: res.data.expiringBatchesCount || 0,
       totalEstimatedCost: res.data.totalEstimatedCost || 0
     };
   } catch (err) { console.error('Lỗi lấy đề xuất', err); }
@@ -173,13 +183,14 @@ const approveSuggestion = async (item) => {
       {}, configHeader()
     );
     item.approved = true;
-    alert(`✅ Đã duyệt nhập kho: ${item.suggestedAmount} ${item.unit} ${item.name}`);
+    alert(` Đã duyệt nhập kho: ${item.suggestedAmount} ${item.unit} ${item.name}`);
   } catch (err) { alert('Lỗi duyệt đề xuất: ' + (err.response?.data || err.message)); }
 };
 
 const approveAll = async () => {
-  if (!confirm(`Xác nhận duyệt tất cả ${suggestions.value.length} đề xuất?`)) return;
-  for (const item of suggestions.value) {
+  const purchasable = suggestions.value.filter(item => Number(item.suggestedAmount) > 0);
+  if (!confirm(`Xác nhận duyệt tất cả ${purchasable.length} đề xuất?`)) return;
+  for (const item of purchasable) {
     if (!item.approved) {
       await approveSuggestion(item);
     }
@@ -196,7 +207,15 @@ const formatMoney = (val) => {
 const analyzeWithAI = async () => {
   showAiModal.value = true;
   aiLoading.value = true;
-  aiResponse.value = '';
+  const formatAnalysis = (items) => items.map(item => [
+    `${item.name} — ${item.urgencyLabel || item.urgency}`,
+    `Tồn hiện tại: ${item.currentStock} ${item.unit}; tiêu thụ/ngày: ${item.dailyConsumption} ${item.unit}; còn dùng được: ${item.daysLeft >= 999 ? 'chưa xác định' : item.daysLeft + ' ngày'}.`,
+    `Lý do: ${item.reason}`,
+    `Hành động: ${item.action}`,
+    `Đề xuất mua: ${item.suggestedAmount} ${item.unit}.`
+  ].join('\n')).join('\n\n');
+  const canonicalResponse = formatAnalysis(suggestions.value);
+  aiResponse.value = canonicalResponse || 'Kho đang an toàn, không có cảnh báo hoặc đề xuất cần xử lý.';
 
   const dataForAI = suggestions.value.map(s => ({
     name: s.name,
@@ -205,7 +224,11 @@ const analyzeWithAI = async () => {
     dailyConsumption: s.dailyConsumption,
     daysLeft: s.daysLeft,
     suggestedAmount: s.suggestedAmount,
-    urgency: s.urgency
+    urgency: s.urgency,
+    reason: s.reason,
+    action: s.action,
+    expiredBatches: s.expiredBatches,
+    expiringBatches: s.expiringBatches
   }));
 
   try {
@@ -217,10 +240,22 @@ const analyzeWithAI = async () => {
         estimated_cost: summary.value.totalEstimatedCost,
         items: dataForAI
       })
-    });
-    aiResponse.value = res.data.reply;
+    }, configHeader());
+    const cleaned = String(res.data.reply || '').replace(/```json/g, '').replace(/```/g, '').trim();
+    try {
+      const parsed = JSON.parse(cleaned);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const aiByName = new Map(parsed.map(item => [String(item.name || '').toLowerCase(), item]));
+        aiResponse.value = formatAnalysis(suggestions.value.map(item => {
+          const aiItem = aiByName.get(String(item.name || '').toLowerCase());
+          return aiItem ? { ...item, reason: aiItem.analysis || aiItem.reason || item.reason } : item;
+        }));
+      }
+    } catch {
+      if (cleaned) aiResponse.value = `${canonicalResponse}\n\nPhân tích bổ sung từ AI:\n${cleaned}`;
+    }
   } catch (err) {
-    aiResponse.value = 'Xin lỗi, chức năng AI đang tạm thời gián đoạn!';
+    if (!canonicalResponse) aiResponse.value = 'Không thể tải phân tích kho lúc này.';
   } finally {
     aiLoading.value = false;
   }
@@ -239,6 +274,7 @@ onMounted(fetchSuggestions);
 
 .summary-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
 .summary-card { display: flex; align-items: center; gap: 14px; padding: 20px; border-radius: 14px; }
+.inventory-analysis-alert { display: flex; align-items: center; gap: 10px; margin: 0 0 20px; padding: 13px 16px; border: 1px solid #FBBF24; border-radius: 10px; background: #FFFBEB; color: #92400E; }
 .sc-icon { font-size: 1.8rem; }
 .sc-info { display: flex; flex-direction: column; }
 .sc-value { font-size: 1.5rem; font-weight: 900; }
@@ -257,6 +293,8 @@ onMounted(fetchSuggestions);
 .suggestion-row:hover { background: color-mix(in srgb, var(--secondary) 4%, transparent); }
 
 .urgency-badge { padding: 4px 12px; border-radius: 100px; font-size: 0.75rem; font-weight: 700; display: inline-block; }
+.urgency-expired { background: #FFF1F2; color: #9F1239; }
+.urgency-expiring { background: #FFFBEB; color: #92400E; }
 
 .btn-ai { background: linear-gradient(135deg, var(--color-tertiary), var(--warning)); color: #FFFFFF; border: none; padding: 10px 20px; border-radius: 10px; font-weight: bold; cursor: pointer; font-family: inherit; }
 .btn-ai:hover { filter: brightness(1.1); }

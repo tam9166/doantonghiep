@@ -13,6 +13,10 @@ import poly.edu.quanlynhahang.entity.TableArea;
 import poly.edu.quanlynhahang.dto.TableAreaResponse;
 import poly.edu.quanlynhahang.dto.TableAreaUpsertRequest;
 import poly.edu.quanlynhahang.repository.TableAreaRepository;
+import poly.edu.quanlynhahang.repository.AreaPricingRepository;
+import poly.edu.quanlynhahang.entity.AreaPricing;
+import poly.edu.quanlynhahang.entity.AreaType;
+import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.validation.Valid;
 
@@ -21,9 +25,11 @@ import java.util.Date;
 @RequestMapping("/api/areas")
 public class TableAreaController {
     private final TableAreaRepository areaRepository;
+    private final AreaPricingRepository pricingRepository;
 
-    public TableAreaController(TableAreaRepository areaRepository) {
+    public TableAreaController(TableAreaRepository areaRepository, AreaPricingRepository pricingRepository) {
         this.areaRepository = areaRepository;
+        this.pricingRepository = pricingRepository;
     }
 
     @GetMapping
@@ -47,22 +53,28 @@ public class TableAreaController {
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+    @Transactional
     public ResponseEntity<?> saveArea(@Valid @RequestBody TableAreaUpsertRequest request) {
         TableArea area = new TableArea();
         applyRequest(area, request);
         area.setUpdatedAt(new Date());
         area.setCreatedAt(new Date());
-        return ResponseEntity.ok(TableAreaResponse.from(areaRepository.save(area)));
+        areaRepository.save(area);
+        savePricing(area, request);
+        return ResponseEntity.ok(TableAreaResponse.from(area));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+    @Transactional
     public ResponseEntity<?> updateArea(@PathVariable Integer id,
                                         @Valid @RequestBody TableAreaUpsertRequest request) {
         return areaRepository.findById(id).map(area -> {
             applyRequest(area, request);
             area.setUpdatedAt(new Date());
-            return ResponseEntity.ok(TableAreaResponse.from(areaRepository.save(area)));
+            areaRepository.save(area);
+            savePricing(area, request);
+            return ResponseEntity.ok(TableAreaResponse.from(area));
         }).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
@@ -84,7 +96,8 @@ public class TableAreaController {
         area.setDescriptionEn(request.descriptionEn());
         area.setImageUrl(request.imageUrl());
         area.setGallery(cleanList(request.gallery(), 20));
-        area.setBasePrice(request.basePrice() == null ? java.math.BigDecimal.ZERO : request.basePrice());
+        // Retained only as a legacy column; reservation pricing lives in AreaPricing.
+        area.setBasePrice(java.math.BigDecimal.ZERO);
         area.setCapacity(request.capacity() == null ? 0 : request.capacity());
         area.setStatus(request.status() == null || request.status().isBlank() ? "ACTIVE" : request.status());
         area.setAreaType(request.areaType() == null ? poly.edu.quanlynhahang.entity.AreaType.DINING : request.areaType());
@@ -96,6 +109,16 @@ public class TableAreaController {
         area.setMaxTables(request.maxTables());
         area.setDefaultGuestsPerTable(request.defaultGuestsPerTable() == null ? 10 : request.defaultGuestsPerTable());
         area.setSuitableEventTypes(cleanList(request.suitableEventTypes(), 20));
+    }
+    private void savePricing(TableArea area, TableAreaUpsertRequest request) {
+        AreaPricing pricing = pricingRepository.findByAreaId(area.getId()).orElseGet(AreaPricing::new);
+        pricing.setArea(area);
+        boolean vip = AreaType.PRIVATE_ROOM.equals(area.getAreaType());
+        pricing.setRoomFee(vip && request.roomFee() != null ? request.roomFee() : java.math.BigDecimal.ZERO);
+        pricing.setMinimumSpend(vip && request.minimumSpend() != null ? request.minimumSpend() : java.math.BigDecimal.ZERO);
+        pricing.setActive(vip);
+        pricingRepository.save(pricing);
+        area.setPricing(pricing);
     }
     private java.util.List<String> cleanList(java.util.List<String> values,int max){if(values==null)return new java.util.ArrayList<>();return values.stream().filter(java.util.Objects::nonNull).map(String::trim).filter(v->!v.isBlank()).distinct().limit(max).toList();}
 }

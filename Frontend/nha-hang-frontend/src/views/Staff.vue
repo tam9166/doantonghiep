@@ -3,7 +3,7 @@
     <header class="staff-header">
       <div class="header-left">
         <div class="brand">
-          <span class="brand-icon">👤</span>
+        <span class="brand-icon"><UiIcon name="restaurant" /></span>
           <div>
             <h2>THÔNG TIN CÁ NHÂN</h2>
             <p>Xin chào, {{ user?.fullname || user?.username }}</p>
@@ -11,15 +11,15 @@
         </div>
       </div>
       <div class="header-right">
-        <button @click="$router.push(getRoleHomeRoute())" class="btn-back">⬅ Quay lại khu vực làm việc</button>
+        <button @click="$router.push(getRoleHomeRoute())" class="btn-back"> Quay lại khu vực làm việc</button>
       </div>
     </header>
 
     <main class="staff-content">
       <div class="tabs">
-        <button :class="{ active: currentTab === 'schedule' }" @click="currentTab = 'schedule'">📅 Lịch Làm Việc</button>
-        <button :class="{ active: currentTab === 'timekeeping' }" @click="currentTab = 'timekeeping'">⏱ Lịch Sử Chấm Công</button>
-        <button :class="{ active: currentTab === 'salary' }" @click="currentTab = 'salary'">💰 Lương Tạm Tính</button>
+        <button :class="{ active: currentTab === 'schedule' }" @click="currentTab = 'schedule'"> Lịch Làm Việc</button>
+        <button :class="{ active: currentTab === 'timekeeping' }" @click="currentTab = 'timekeeping'"> Lịch Sử Chấm Công</button>
+        <button :class="{ active: currentTab === 'salary' }" @click="currentTab = 'salary'"> Lương Tạm Tính</button>
       </div>
 
       <!-- TAB: LỊCH LÀM VIỆC -->

@@ -47,4 +47,14 @@ describe('public view API contracts', () => {
     expect(source).not.toContain('function selectTable(')
     expect(source).not.toContain('function acceptTableCombination(')
   })
+
+  it('keeps payment configuration out of the reservation frontend and uses one preorder note', () => {
+    const source = readFileSync(`${views}/Reservation.vue`, 'utf8')
+
+    expect(source).toContain('paymentQr.bankName || paymentQr.bankCode')
+    expect(source).toContain('v-model.trim="form.orderNote"')
+    const configuredAccount = ['919', '112', '006', '789'].join('')
+    expect(source).not.toContain(configuredAccount)
+    expect(source).not.toContain('v-model.trim="item.note"')
+  })
 })

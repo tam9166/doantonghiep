@@ -10,6 +10,8 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Temporal;
 import jakarta.persistence.TemporalType;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.FetchType;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -45,6 +47,9 @@ public class TableArea {
 
     @Column(name = "base_price", precision = 18, scale = 0)
     private BigDecimal basePrice = BigDecimal.ZERO;
+
+    @OneToOne(mappedBy = "area", fetch = FetchType.EAGER)
+    private AreaPricing pricing;
 
     private Integer capacity = 0;
 

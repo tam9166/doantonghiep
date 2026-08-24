@@ -12,48 +12,45 @@
       <div class="content-grid">
         <!-- Form thêm/sửa danh mục -->
         <div class="form-card">
-          <h3 v-if="!isEditMode">➕ Thêm Danh Mục Mới</h3>
-          <h3 v-else>✏️ Sửa Danh Mục</h3>
+          <h3 v-if="!isEditMode"> Thêm Danh Mục Mới</h3>
+          <h3 v-else> Sửa Danh Mục</h3>
           <div class="form-group">
             <label>Tên danh mục (*)</label>
             <input v-model="newCategory.name" placeholder="VD: Món Tráng Miệng..." class="g-form-control" />
           </div>
           <button v-if="!isEditMode" @click="handleAdd" class="g-btn-primary" style="width: 100%; margin-top: 8px;">
-            ➕ Thêm Danh Mục
+             Thêm Danh Mục
           </button>
           <div v-else style="display: flex; gap: 10px; margin-top: 8px;">
-            <button @click="handleUpdate" class="g-btn-primary" style="flex: 1;">💾 Cập Nhật</button>
-            <button @click="cancelEdit" class="g-btn-secondary" style="flex: 1;">❌ Hủy</button>
+            <button @click="handleUpdate" class="g-btn-primary" style="flex: 1;"> Cập Nhật</button>
+            <button @click="cancelEdit" class="g-btn-secondary" style="flex: 1;"> Hủy</button>
           </div>
         </div>
 
         <!-- Bảng danh sách -->
         <div class="table-card">
-          <h3>📂 Danh Sách Danh Mục <span class="count-chip">{{ categories.length }}</span></h3>
-          <table class="g-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Tên Danh Mục</th>
-                <th>Hành động</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="c in categories" :key="c.id">
-                <td><span class="id-badge">#{{ c.id }}</span></td>
-                <td><strong class="category-name">{{ c.name }}</strong></td>
-                <td>
-                  <div style="display: flex; gap: 8px;">
-                    <button @click="startEdit(c)" class="g-btn-primary" style="padding: 4px 10px; font-size: 0.85rem;">✏️ Sửa</button>
-                    <button @click="handleDelete(c.id)" class="g-btn-danger" style="padding: 4px 10px; font-size: 0.85rem;">🗑 Xóa</button>
-                  </div>
-                </td>
-              </tr>
-              <tr v-if="categories.length === 0">
-                <td colspan="3" class="empty-row">Chưa có danh mục nào.</td>
-              </tr>
-            </tbody>
-          </table>
+          <h3> Danh Sách Danh Mục <span class="count-chip">{{ categories.length }}</span></h3>
+          <div v-if="categories.length" class="category-columns">
+            <table v-for="(column, columnIndex) in categoryColumns" :key="columnIndex" class="g-table">
+              <thead><tr><th>ID</th><th>Tên Danh Mục</th><th>Hành động</th></tr></thead>
+              <tbody>
+                <tr v-for="c in column" :key="c.id">
+                  <td><span class="id-badge">#{{ c.id }}</span></td>
+                  <td><strong class="category-name">{{ c.name }}</strong></td>
+                  <td><div class="row-actions">
+                    <button @click="startEdit(c)" class="g-btn-primary icon-action" title="Sửa"><UiIcon name="edit" /></button>
+                    <button @click="handleDelete(c.id)" class="g-btn-danger icon-action" title="Xóa"><UiIcon name="trash" /></button>
+                  </div></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div v-else class="empty-row">Chưa có danh mục nào.</div>
+          <nav v-if="totalPages > 1" class="pagination" aria-label="Phân trang danh mục">
+            <button :disabled="currentPage === 1" @click="currentPage--">Trước</button>
+            <button v-for="page in visiblePages" :key="page" :class="{ active: page === currentPage }" @click="currentPage = page">{{ page }}</button>
+            <button :disabled="currentPage === totalPages" @click="currentPage++">Sau</button>
+          </nav>
         </div>
       </div>
     </main>
@@ -64,34 +61,47 @@
 <script setup>
 import AdminLayout from '@/components/AdminLayout.vue';
 
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import api from '@/services/api';
+import { useToast } from '@/composables/useToast';
 
 const categories = ref([]);
 const newCategory = ref({ name: '' });
 const isEditMode = ref(false);
 const editingId = ref(null);
+const currentPage = ref(1);
+const pageSize = 20;
+const toast = useToast();
+const totalPages = computed(() => Math.max(1, Math.ceil(categories.value.length / pageSize)));
+const pagedCategories = computed(() => categories.value.slice((currentPage.value - 1) * pageSize, currentPage.value * pageSize));
+const categoryColumns = computed(() => [pagedCategories.value.slice(0, 10), pagedCategories.value.slice(10, 20)].filter(column => column.length));
+const visiblePages = computed(() => {
+  const from = Math.max(1, currentPage.value - 2);
+  const to = Math.min(totalPages.value, currentPage.value + 2);
+  return Array.from({ length: to - from + 1 }, (_, index) => from + index);
+});
+watch(totalPages, pages => { if (currentPage.value > pages) currentPage.value = pages; });
 
 const fetchCategories = async () => {
   try {
     const res = await api.get('/api/categories');
-    categories.value = res.data;
-  } catch (error) { console.error('Lỗi:', error); }
+    categories.value = Array.isArray(res.data) ? res.data : [];
+  } catch (error) { console.error('Lỗi:', error); toast.error('Không thể tải danh mục.'); }
 };
 
 const handleAdd = async () => {
   if (!newCategory.value.name) {
-    alert('Vui lòng nhập tên danh mục!'); return;
+    toast.warning('Vui lòng nhập tên danh mục!'); return;
   }
   const token = sessionStorage.getItem('staff_token');
   try {
     await api.post('/api/categories', newCategory.value, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    alert('Thêm thành công!');
+    toast.success('Thêm danh mục thành công!');
     newCategory.value.name = '';
     fetchCategories();
-  } catch (error) { alert('Lỗi! Kiểm tra quyền Admin.'); }
+  } catch (error) { toast.error('Không thể thêm danh mục. Vui lòng kiểm tra quyền quản trị.'); }
 };
 
 const startEdit = (c) => {
@@ -107,16 +117,16 @@ const cancelEdit = () => {
 };
 
 const handleUpdate = async () => {
-  if (!newCategory.value.name) return alert('Vui lòng nhập tên danh mục!');
+  if (!newCategory.value.name) return toast.warning('Vui lòng nhập tên danh mục!');
   const token = sessionStorage.getItem('staff_token');
   try {
     await api.put(`/api/categories/${editingId.value}`, newCategory.value, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    alert('Cập nhật thành công!');
+    toast.success('Cập nhật danh mục thành công!');
     cancelEdit();
     fetchCategories();
-  } catch (error) { alert('Lỗi! Kiểm tra quyền Admin.'); }
+  } catch (error) { toast.error('Không thể cập nhật danh mục.'); }
 };
 
 const handleDelete = async (id) => {
@@ -126,9 +136,9 @@ const handleDelete = async (id) => {
     await api.delete(`/api/categories/${id}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    alert('Đã xóa!');
+    toast.success('Đã xóa danh mục.');
     fetchCategories();
-  } catch (error) { alert('Không thể xóa! Có thể đang có món ăn thuộc danh mục này.'); }
+  } catch (error) { toast.error('Không thể xóa vì có thể danh mục đang được sử dụng.'); }
 };
 
 onMounted(fetchCategories);
@@ -136,7 +146,7 @@ onMounted(fetchCategories);
 
 <style scoped>
 .admin-wrapper { background: var(--bg-root); min-height: 100vh; }
-.admin-content { max-width: 1100px; margin: 0 auto; padding: 36px 24px; }
+.admin-content { max-width: 1500px; margin: 0 auto; padding: 36px 24px; }
 
 .page-header { margin-bottom: 32px; }
 .page-title { font-size: 2rem; font-weight: 900; color: var(--text-heading); margin: 0 0 6px 0; }
@@ -186,4 +196,13 @@ onMounted(fetchCategories);
 }
 .category-name { color: var(--text-primary); font-weight: 600; font-size: 1rem; }
 .empty-row { text-align: center; color: var(--text-muted); padding: 40px; font-style: italic; }
+.category-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.category-columns .g-table { width: 100%; }
+.row-actions { display: flex; gap: 8px; }
+.icon-action { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; padding: 0; }
+.pagination { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+.pagination button { min-width: 38px; min-height: 38px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); color: var(--text-primary); cursor: pointer; }
+.pagination button.active { background: var(--primary); border-color: var(--primary); color: var(--color-on-primary); }
+.pagination button:disabled { opacity: .45; cursor: not-allowed; }
+@media (max-width: 1100px) { .content-grid { grid-template-columns: 1fr; } .category-columns { grid-template-columns: 1fr; } }
 </style>

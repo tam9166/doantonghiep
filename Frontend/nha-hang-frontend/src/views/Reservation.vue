@@ -56,25 +56,30 @@
             />
           </article>
           <div v-else-if="submitResult.reservationStatus === 'WAITING_TABLE_ASSIGNMENT'" class="staff-info">
-            <span>ℹ️</span>
+            <UiIcon name="info" />
             <p>Đặt chỗ đang chờ nhà hàng xác nhận phương án bố trí hoặc ghép bàn.</p>
           </div>
           <article v-if="paymentQr" class="qr-card">
             <div>
               <h3>{{ text.qrTitle }}</h3>
               <p>{{ text.qrHint }}</p>
+              <p :class="['payment-state', { paid: paymentQr.status === 'PAID' }]">
+                <UiIcon :name="paymentQr.status === 'PAID' ? 'check' : 'clock'" />
+                {{ paymentQr.status === 'PAID' ? 'Đã nhận thanh toán' : 'Đang chờ thanh toán' }}
+              </p>
               <dl>
-                <div><dt>{{ text.bank }}</dt><dd>{{ paymentQr.bankCode }}</dd></div>
-                <div><dt>{{ text.accountNumber }}</dt><dd>{{ paymentQr.accountNumber }}</dd></div>
+                <div><dt>{{ text.bank }}</dt><dd>{{ paymentQr.bankName || paymentQr.bankCode }}</dd></div>
+                <div><dt>{{ text.accountNumber }}</dt><dd><span>{{ paymentQr.accountNumber }}</span><button class="copy-field-btn" type="button" @click="copyPaymentValue(paymentQr.accountNumber, 'account')"><UiIcon name="copy" />{{ copiedPaymentValue === 'account' ? 'Đã sao chép' : 'Sao chép' }}</button></dd></div>
                 <div><dt>{{ text.accountHolder }}</dt><dd>{{ paymentQr.accountHolder }}</dd></div>
-                <div><dt>{{ text.transferContent }}</dt><dd>{{ paymentQr.transferContent }}</dd></div>
+                <div><dt>{{ text.transferContent }}</dt><dd><span>{{ paymentQr.transferContent }}</span><button class="copy-field-btn" type="button" @click="copyPaymentValue(paymentQr.transferContent, 'content')"><UiIcon name="copy" />{{ copiedPaymentValue === 'content' ? 'Đã sao chép' : 'Sao chép' }}</button></dd></div>
                 <div><dt>{{ text.expiresAt }}</dt><dd>{{ formatDateTime(paymentQr.expiresAt) }}</dd></div>
               </dl>
             </div>
             <img :src="paymentQr.qrUrl" :alt="text.qrTitle" />
-            <button class="secondary-btn" type="button" :disabled="qrLoading" @click="regeneratePaymentQr">
-              {{ lang === 'vi' ? 'Tạo lại QR' : 'Regenerate QR' }}
-            </button>
+            <div class="qr-actions">
+              <button class="secondary-btn" type="button" :disabled="qrLoading" @click="refreshPaymentStatus">Kiểm tra trạng thái</button>
+              <button class="secondary-btn" type="button" :disabled="qrLoading" @click="regeneratePaymentQr">{{ lang === 'vi' ? 'Tạo lại QR' : 'Regenerate QR' }}</button>
+            </div>
           </article>
           <div v-else-if="qrLoading" class="qr-local-state">
             {{ lang === 'vi' ? 'Đang tạo QR...' : 'Creating QR...' }}
@@ -115,7 +120,7 @@
 
         <form v-else class="reservation-card" @submit.prevent="submitReservation">
           <section v-show="step === 1" class="panel">
-            <div class="section-heading"><span class="section-icon">♙</span><div><h2>{{ text.customerInfo }}</h2><p>Vui lòng cung cấp thông tin để nhà hàng xác nhận đặt bàn.</p></div></div>
+          <div class="section-heading"><span class="section-icon"><UiIcon name="user" /></span><div><h2>{{ text.customerInfo }}</h2><p>Vui lòng cung cấp thông tin để nhà hàng xác nhận đặt bàn.</p></div></div>
             <div class="form-grid">
               <label>
                 {{ text.fullName }}
@@ -175,7 +180,7 @@
           <section v-show="step === 3" class="panel">
             <div class="guest-layout">
               <div>
-                <div class="section-heading"><span class="section-icon">♧</span><div><h2>{{ text.guestInfo }}</h2><p>{{ text.guestHint }}</p></div></div>
+          <div class="section-heading"><span class="section-icon"><UiIcon name="users" /></span><div><h2>{{ text.guestInfo }}</h2><p>{{ text.guestHint }}</p></div></div>
                 <div class="guest-counter">
                   <button type="button" aria-label="Giảm số khách" @click="form.guestCount = Math.max(1, Number(form.guestCount || 1) - 1)">−</button>
                   <label class="guest-count-input">
@@ -232,7 +237,8 @@
                 :aria-pressed="form.areaId === area.id"
                 @click="selectArea(area)"
               >
-                <span class="area-chip-icon">{{ activeAreas.indexOf(area) === 0 ? '⌂' : activeAreas.indexOf(area) === 1 ? '♜' : '♣' }}</span>
+                <img class="area-chip-image" :src="areaImage(area)" :alt="`Không gian ${areaName(area)}`" />
+                <span class="area-chip-icon"><UiIcon :name="areaIcon(area)" /></span>
                 <span class="area-chip-title">{{ areaName(area) }}</span>
                 <span class="area-chip-description">{{ areaDescription(area) }}</span>
                 <span class="area-chip-meta">
@@ -257,7 +263,7 @@
               </div>
             </div>
             <div class="staff-info">
-              <span>ℹ️</span>
+              <UiIcon name="info" />
               <p>Quý khách không cần chọn bàn cụ thể. Bàn và ảnh thực tế sẽ hiển thị ngay trong xác nhận nếu hệ thống có thể tự bố trí.</p>
             </div>
             <div v-if="loadingTables" class="skeleton-grid" aria-live="polite">
@@ -339,10 +345,14 @@
                     <span>{{ item.quantity }}</span>
                     <button type="button" @click="changeQty(item.productId, 1)">+</button>
                   </div>
-                  <input v-model.trim="item.note" maxlength="300" :placeholder="text.dishNote" />
                   <span>{{ money(item.price * item.quantity) }}</span>
                   <button type="button" class="danger-btn" @click="removeDish(item.productId)">{{ text.remove }}</button>
                 </div>
+                <label class="preorder-note">
+                  Ghi chú cho nhà bếp
+                  <textarea v-model.trim="form.orderNote" maxlength="500" rows="3" placeholder="Ví dụ: Ít cay, chuẩn bị trước 15 phút, có trẻ em"></textarea>
+                  <small>{{ form.orderNote.length }}/500</small>
+                </label>
                 <button class="primary-btn cart-continue-btn" type="button" @click="nextStep">
                   {{ text.next }} →
                 </button>
@@ -351,7 +361,7 @@
           </section>
 
           <section v-show="step === 7" class="panel">
-            <div class="section-heading"><span class="section-icon">✎</span><div><h2>{{ text.requestInfo }}</h2><p>Cho chúng tôi biết để phục vụ bạn tốt hơn.</p></div></div>
+          <div class="section-heading"><span class="section-icon"><UiIcon name="note" /></span><div><h2>{{ text.requestInfo }}</h2><p>Cho chúng tôi biết để phục vụ bạn tốt hơn.</p></div></div>
             <div class="preference-grid">
               <label v-for="item in visiblePreferences" :key="item">
                 <input v-model="selectedPreferences" type="checkbox" :value="item" />
@@ -403,14 +413,14 @@
               <div><span>{{ text.areaInfo }}</span><strong>{{ selectedAreaName }}</strong></div>
               <div><span>{{ text.tableInfo }}</span><strong>{{ quote?.proposedTableName || selectedTable?.name || 'Nhà hàng sẽ bố trí' }}</strong></div>
               <div><span>{{ text.selectedDishes }}</span><strong>{{ cartItems.length }}</strong></div>
-              <div><span>{{ text.paymentTitle }}</span><strong>{{ paymentOptionLabel(form.paymentOption) }}</strong></div>
+              <div><span>{{ text.paymentTitle }}</span><strong>{{ skipPaymentStep ? 'Không cần thanh toán trước' : paymentOptionLabel(form.paymentOption) }}</strong></div>
               <div><span>{{ text.total }}</span><strong>{{ money(quote?.totalAmount || selectedTable?.reservationPrice || 0) }}</strong></div>
             </div>
           </section>
 
           <div v-if="serverError" class="error-banner">{{ serverError }}</div>
           <div class="actions">
-            <button class="ghost-btn" type="button" @click="step--" :disabled="step === 1 || submitting">{{ text.back }}</button>
+            <button class="ghost-btn" type="button" @click="previousStep" :disabled="step === 1 || submitting">{{ text.back }}</button>
             <button v-if="step < 9" class="primary-btn" type="button" @click="nextStep">{{ text.next }}</button>
             <button v-else class="primary-btn" type="submit" :disabled="submitting">
               {{ submitting ? text.submitting : text.submit }}
@@ -427,10 +437,15 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import CustomerLayout from '@/components/CustomerLayout.vue'
+import UiIcon from '@/components/UiIcon.vue'
 import api from '@/services/api'
 import { useFormatters } from '@/composables/useFormatters'
 import { toBusinessDate } from '@/utils/businessDate'
 import { isTimeWithinWindow, minuteBefore } from '@/utils/businessHours'
+import { nextReservationStep, previousReservationStep, shouldSkipReservationPayment } from '@/utils/reservationPaymentFlow'
+import indoorAreaImage from '@/assets/reservation-areas/reservation-area-indoor.png'
+import privateAreaImage from '@/assets/reservation-areas/reservation-area-private.png'
+import gardenAreaImage from '@/assets/reservation-areas/reservation-area-garden.png'
 import {
   createEventBookingDraft,
   earlyGroupWarning as groupWarningFor,
@@ -465,6 +480,7 @@ const submitting = ref(false)
 const submitResult = ref(null)
 const waitlistResult = ref(null)
 const copiedCode = ref('')
+const copiedPaymentValue = ref('')
 const paymentQr = ref(null)
 const paymentCapabilityToken = ref('')
 const paymentIdempotencyKey = ref(crypto.randomUUID())
@@ -499,6 +515,7 @@ const form = ref({
   tableId: null,
   tableIds: [],
   preorderEnabled: false,
+  orderNote: sessionStorage.getItem('reservation-order-note') || '',
   paymentOption: null,
   voucherCode: ''
 })
@@ -530,7 +547,7 @@ const filteredMenu = computed(() => {
 })
 const paymentOptions = computed(() => Object.entries(text.value.paymentOptions).map(([key, value]) => ({ key, label: value[0], hint: value[1] })))
 const cartQuantity = computed(() => cartItems.value.reduce((total, item) => total + item.quantity, 0))
-const skipPaymentStep = computed(() => false)
+const skipPaymentStep = computed(() => shouldSkipReservationPayment(quote.value))
 const latestArrivalTime = computed(() => minuteBefore(businessHours.value.lastOrderTime))
 const lateDiningEndTime = computed(() => {
   const { arrivalTime, expectedDurationMinutes } = form.value
@@ -566,6 +583,21 @@ function areaName(area) {
 
 function areaDescription(area) {
   return lang.value === 'vi' ? area.descriptionVi : (area.descriptionEn || area.descriptionVi)
+}
+
+function areaKind(area) {
+  const value = `${area?.nameVi || ''} ${area?.nameEn || ''} ${area?.areaType || ''}`.toLowerCase()
+  if (/vip|riêng|private/.test(value)) return 'private'
+  if (/vườn|vuon|garden|outdoor|sân/.test(value)) return 'garden'
+  return 'indoor'
+}
+
+function areaImage(area) {
+  return { indoor: indoorAreaImage, private: privateAreaImage, garden: gardenAreaImage }[areaKind(area)]
+}
+
+function areaIcon(area) {
+  return { indoor: 'indoor', private: 'private', garden: 'garden' }[areaKind(area)]
 }
 
 function areaAvailableCount(areaId) {
@@ -649,8 +681,12 @@ async function nextStep() {
   if (step.value === 3) await refreshAreaCounts()
   if (step.value === 4) await loadAvailableTables()
   if (step.value === 5 && !menuItems.value.length) await loadPreorderMenu()
-  if (step.value === 8) await loadQuote()
-  step.value = Math.min(9, step.value + 1)
+  if (step.value === 7 || step.value === 8) await loadQuote()
+  step.value = nextReservationStep(step.value, quote.value)
+}
+
+function previousStep() {
+  step.value = previousReservationStep(step.value, quote.value)
 }
 
 function goTo(target) {
@@ -833,7 +869,7 @@ function addDish(dish) {
     existing.quantity += 1
     return
   }
-  cartItems.value.push({ productId: dish.id, name: dishName(dish), price: Number(dish.price || 0), quantity: 1, note: '' })
+  cartItems.value.push({ productId: dish.id, name: dishName(dish), price: Number(dish.price || 0), quantity: 1 })
   quote.value = null
 }
 
@@ -853,6 +889,7 @@ function removeDish(productId) {
 function disablePreorder() {
   form.value.preorderEnabled = false
   cartItems.value = []
+  form.value.orderNote = ''
   quote.value = null
 }
 
@@ -864,8 +901,7 @@ function selectPayment(option) {
 function preorderPayload() {
   return form.value.preorderEnabled ? cartItems.value.map(item => ({
     productId: item.productId,
-    quantity: item.quantity,
-    note: item.note
+    quantity: item.quantity
   })) : []
 }
 
@@ -959,6 +995,14 @@ async function copyCode(code) {
   }
 }
 
+async function copyPaymentValue(value, key) {
+  await copyCode(value)
+  copiedPaymentValue.value = key
+  window.setTimeout(() => {
+    if (copiedPaymentValue.value === key) copiedPaymentValue.value = ''
+  }, 1800)
+}
+
 async function createPaymentQr() {
   if (!submitResult.value?.reservationCode || qrLoading.value) return
   qrLoading.value = true
@@ -1001,6 +1045,22 @@ async function regeneratePaymentQr() {
   } catch (err) {
     qrError.value = err.response?.data?.message
       || (lang.value === 'vi' ? 'Không thể tạo lại QR.' : 'Could not regenerate QR.')
+  } finally {
+    qrLoading.value = false
+  }
+}
+
+async function refreshPaymentStatus() {
+  if (!paymentQr.value?.paymentCode || qrLoading.value) return
+  qrLoading.value = true
+  qrError.value = ''
+  try {
+    const response = await api.get(`/api/payments/${paymentQr.value.paymentCode}`, {
+      headers: { 'X-Payment-Capability': paymentCapabilityToken.value }
+    })
+    paymentQr.value = response.data
+  } catch (err) {
+    qrError.value = err.response?.data?.message || 'Không kiểm tra được trạng thái thanh toán.'
   } finally {
     qrLoading.value = false
   }
@@ -1061,6 +1121,8 @@ function resetForm() {
   selectedTable.value = null
   selectedPreferences.value = []
   cartItems.value = []
+  form.value.orderNote = ''
+  sessionStorage.removeItem('reservation-order-note')
   form.value.voucherCode = ''
   idempotencyKey.value = crypto.randomUUID()
 }
@@ -1079,6 +1141,11 @@ onMounted(async () => {
   }
   await loadAreas()
   await loadPreorderMenu()
+})
+
+watch(() => form.value.orderNote, value => {
+  if (value) sessionStorage.setItem('reservation-order-note', value)
+  else sessionStorage.removeItem('reservation-order-note')
 })
 </script>
 
@@ -1504,8 +1571,8 @@ small {
 }
 
 .map-seat.too-small {
-  border-color: #D7E3ED;
-  background: #EEF3F6;
+  border-color: var(--color-outline-variant);
+  background: var(--color-secondary-fixed);
   color: var(--secondary);
 }
 
@@ -1588,7 +1655,7 @@ small {
 }
 
 .status-pill.suggested {
-  background: #EEF3F6;
+  background: var(--color-secondary-fixed);
   color: var(--secondary);
 }
 
@@ -2118,7 +2185,7 @@ input:focus, select:focus, textarea:focus { outline-color: var(--primary-glow); 
 }
 .reservation-shell { max-width: 1480px; }
 .reservation-header { min-height: 128px; position: relative; }
-.reservation-header::after { content: '❧'; position: absolute; right: 72px; top: 28px; color: #f3ddda; font-size: 98px; transform: rotate(-18deg); pointer-events: none; }
+.reservation-header::after { content: ''; position: absolute; right: 72px; top: 28px; color: #f3ddda; font-size: 98px; transform: rotate(-18deg); pointer-events: none; }
 .reservation-header .eyebrow { margin: 0 0 10px; color: #b46d76; font-size: .9rem; font-weight: 800; text-transform: uppercase; }
 .reservation-header h1 { margin: 0; color: var(--ink); font-family: inherit; font-size: clamp(2.8rem, 4vw, 4.35rem); font-weight: 900; letter-spacing: -.045em; line-height: 1; }
 .reservation-header p:not(.eyebrow) { margin-top: 16px; font-size: 1rem; }
@@ -2142,7 +2209,7 @@ input, select, textarea { min-height: 50px; border-color: #e7cbca; border-radius
 textarea { resize: vertical; }
 input:focus, select:focus, textarea:focus { outline: 3px solid rgba(190,11,47,.09); border-color: var(--wine); }
 .late-dining-confirmation { display: grid; grid-template-columns: auto 1fr; margin-top: 28px; padding: 26px 30px; border-color: var(--warning); border-radius: 10px; background: color-mix(in srgb, var(--warning) 8%, var(--bg-card)); }
-.late-dining-confirmation::before { content: '♨'; grid-row: 1 / 4; display: grid; width: 112px; height: 112px; place-items: center; margin-right: 24px; border-radius: 50%; background: #fff; color: var(--wine); font-size: 3rem; }
+.late-dining-confirmation::before { content: ''; grid-row: 1 / 4; display: grid; width: 112px; height: 112px; place-items: center; margin-right: 24px; border-radius: 50%; background: #fff; color: var(--wine); font-size: 3rem; }
 .late-dining-confirmation label { border-top: 1px dashed var(--warning); padding-top: 14px; }
 .guest-layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(280px, .9fr); gap: 28px; }
 .guest-counter { display: flex; max-width: 590px; align-items: center; justify-content: space-between; margin: 10px auto 24px; padding: 18px 30px; border: 1px solid #edc8c9; border-radius: 20px; box-shadow: 0 5px 13px rgba(190,11,47,.08); }
@@ -2219,5 +2286,35 @@ input:focus, select:focus, textarea:focus { outline: 3px solid rgba(190,11,47,.0
   .late-dining-confirmation { grid-template-columns: 1fr; }
   .late-dining-confirmation::before { display: none; }
   .filters { grid-template-columns: 1fr; }
+}
+
+/* Reservation UX: visual areas, five-column menu and compact shared notes. */
+.area-chip { padding: 0 18px 20px; overflow: hidden; align-content: start; }
+.area-chip-image { width: calc(100% + 36px); height: 132px; margin: 0 -18px 16px; object-fit: cover; }
+.area-chip-icon { position: absolute; top: 108px; left: 18px; width: 44px; height: 44px; border: 3px solid #fff; }
+.area-chip-title { position: static; display: block; margin: 0 0 6px 52px; text-align: left; }
+.area-chip-description { display: block; min-height: 42px; margin: 0; text-align: left; }
+.area-chip-meta { display: block; text-align: left; }
+.preorder-note { display: grid; grid-column: 1 / -1; gap: 8px; margin-top: 8px; text-align: left; }
+.preorder-note small { justify-self: end; color: var(--text-muted); }
+.dish-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.dish-card img { height: 132px; }
+.payment-state, .copy-field-btn, .qr-actions { display: flex; align-items: center; gap: 8px; }
+.payment-state { width: fit-content; padding: 8px 12px; border-radius: 999px; background: var(--color-primary-fixed); color: var(--primary); font-weight: 800; }
+.payment-state.paid { background: color-mix(in srgb, var(--success) 12%, #fff); color: var(--success); }
+.qr-card dd { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; }
+.copy-field-btn { min-height: 34px; padding: 5px 9px; border: 1px solid var(--border); border-radius: 8px; background: #fff; color: var(--primary); cursor: pointer; }
+.copy-field-btn .ui-icon { width: 16px; height: 16px; flex-basis: 16px; }
+.qr-actions { grid-column: 1 / -1; justify-content: flex-end; }
+@media (max-width: 1100px) and (min-width: 701px) {
+  .dish-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  .dish-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dish-card img { height: 150px; }
+  .qr-actions { align-items: stretch; flex-direction: column; }
+}
+@media (max-width: 430px) {
+  .dish-grid { grid-template-columns: 1fr; }
 }
 </style>

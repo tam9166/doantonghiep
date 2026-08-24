@@ -14,6 +14,7 @@ public class PaymentQrResponse {
     private PaymentOption paymentOption;
     private PaymentStatus status;
     private String bankCode;
+    private String bankName;
     private String accountNumber;
     private String accountHolder;
     private String transferContent;

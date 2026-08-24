@@ -262,7 +262,7 @@ public class OrderCheckoutService {
 
         List<RequestedItem> requestedItems = preorderItems.stream()
                 .map(item -> new RequestedItem(item.getProductId(), item.getQuantity(),
-                        normalizedText(item.getNote()), "", 0))
+                        "", "", 0))
                 .toList();
         List<CheckoutLine> lines = loadProducts(requestedItems);
         validateAvailableQuantities(lines);
@@ -274,6 +274,7 @@ public class OrderCheckoutService {
         order.setAccount(authenticatedAccount(reservation.getCreatedBy()));
         order.setAddress("ĐẶT BÀN: " + reservation.getReservationCode() + " | Bàn: "
                 + reservation.getTable().getName() + " | [TẠI QUÁN]");
+        order.setDeliveryNote(normalizedText(reservation.getOrderNote()));
         order.setTableId(reservation.getTable().getId());
         order.setCreateDate(new Date());
         orderStateMachineService.initialize(order, poly.edu.quanlynhahang.entity.OrderStatus.IN_PREPARATION);

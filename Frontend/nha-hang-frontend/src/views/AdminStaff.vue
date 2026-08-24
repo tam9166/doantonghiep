@@ -13,7 +13,7 @@
         <button :class="{ active: currentTab === 'staff' }" @click="currentTab = 'staff'">Tài Khoản Nhân Viên</button>
         <button :class="{ active: currentTab === 'customer' }" @click="currentTab = 'customer'">Khách Hàng</button>
         <button :class="{ active: currentTab === 'schedule' }" @click="currentTab = 'schedule'">Xếp Lịch Làm Việc</button>
-        <button :class="{ active: currentTab === 'zones' }" @click="currentTab = 'zones'; fetchZones()">📍 Phân Khu Vực Phục Vụ</button>
+        <button :class="{ active: currentTab === 'zones' }" @click="currentTab = 'zones'; fetchZones()"> Phân Khu Vực Phục Vụ</button>
         <button :class="{ active: currentTab === 'timekeeping' }" @click="currentTab = 'timekeeping'">Báo Cáo Chấm Công</button>
         <button :class="{ active: currentTab === 'salary' }" @click="currentTab = 'salary'">Bảng Lương</button>
       </div>
@@ -25,7 +25,7 @@
           <h3>Danh Sách Nhân Viên</h3>
           <div style="display:flex; gap:10px; align-items:center;">
             <input type="text" class="g-form-control" v-model="searchStaffQuery" placeholder="Tìm tên, username, vị trí..." style="width: 250px;" />
-            <button class="g-btn-primary" @click="showAddModal = true">➕ Thêm Nhân Viên</button>
+            <button class="g-btn-primary" @click="showAddModal = true"> Thêm Nhân Viên</button>
           </div>
         </div>
         <table class="data-table staff-table">
@@ -86,7 +86,7 @@
               <td>{{ cus.username }}</td>
               <td>{{ cus.fullname }}</td>
               <td>{{ cus.email }}</td>
-              <td><span style="color: gold; font-weight: bold;">⭐ {{ cus.points }}</span></td>
+              <td><span style="color: gold; font-weight: bold;"> {{ cus.points }}</span></td>
               <td><span class="role-badge" :class="cus.membershipTier === 'Vàng' ? 'ROLE_ADMIN' : 'ROLE_USER'">{{ cus.membershipTier }}</span></td>
               <td>
                 <button class="g-btn-primary" @click="viewCustomerOrders(cus)">Xem Lịch Sử</button>
@@ -157,7 +157,7 @@
       <!-- TAB: PHÂN KHU VỰC PHỤC VỤ -->
       <div v-if="currentTab === 'zones'" class="tab-panel">
         <div class="panel-header">
-          <h3>📍 Phân Công Khu Vực Phục Vụ Theo Tầng & Ca</h3>
+          <h3> Phân Công Khu Vực Phục Vụ Theo Tầng & Ca</h3>
           <div style="display:flex; gap:15px; align-items:center;">
             <div class="date-picker">
               <label>Ngày: </label>
@@ -184,12 +184,12 @@
           <label style="display:flex; align-items:center; gap:5px; font-weight:bold; color:var(--primary); white-space:nowrap;">
             <input type="checkbox" v-model="zoneRepeatWeek" /> 7 ngày
           </label>
-          <button class="g-btn-primary" @click="addZoneAssignment">📌 Phân Công</button>
+          <button class="g-btn-primary" @click="addZoneAssignment"> Phân Công</button>
         </div>
 
         <!-- Bản đồ khu vực: Ai phục vụ tầng nào -->
         <div class="zone-map-section">
-          <h4 style="color:var(--primary); margin-bottom: 15px;">🗺️ Bản Đồ Phân Công Hôm Nay
+          <h4 style="color:var(--primary); margin-bottom: 15px;"> Bản Đồ Phân Công Hôm Nay
             <select v-model="zoneMapShift" @change="fetchZoneMap" style="margin-left:15px; padding:5px 10px; border-radius:6px; background:var(--bg-root); color:var(--text-heading); border:1px solid var(--border); font-weight:bold;">
               <option value="">Tất cả ca</option>
               <option value="Sáng">Ca Sáng</option>
@@ -200,14 +200,12 @@
           <div class="zone-map-grid">
             <div v-for="(staffList2, floorName) in zoneMap" :key="floorName" class="zone-map-card">
               <div class="zone-map-floor">
-                <span v-if="floorName.toLowerCase().includes('vip')">👑</span>
-                <span v-else-if="floorName.toLowerCase().includes('thượng')">☁️</span>
-                <span v-else>🏢</span>
+                <span><UiIcon :name="floorName.toLowerCase().includes('vip') ? 'private' : 'indoor'" /></span>
                 {{ floorName }}
               </div>
               <div class="zone-map-staff">
                 <div v-for="s in staffList2" :key="s.username" class="zone-staff-chip">
-                  <span class="zone-chip-avatar">👤</span>
+                  <span class="zone-chip-avatar"><UiIcon name="user" /></span>
                   <div>
                     <div class="zone-chip-name">{{ s.fullname }}</div>
                     <div class="zone-chip-shift">Ca {{ s.shift }}</div>
@@ -432,16 +430,21 @@
       <div class="g-modal" style="max-width: 800px; width: 90%; max-height: 90vh; overflow-y: auto; position: relative;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <h3 style="margin: 0;">Lịch Sử Hóa Đơn Khách Hàng</h3>
-          <button class="g-btn-danger" style="padding: 5px 10px; border-radius: 4px;" @click="showCustomerOrdersModal = false">✖ Đóng</button>
+          <button class="g-btn-danger" style="padding: 5px 10px; border-radius: 4px;" @click="showCustomerOrdersModal = false"> Đóng</button>
+        </div>
+        <div class="crm-summary">
+          <div><span>Tổng chi tiêu</span><strong>{{ customerTotalSpend.toLocaleString('vi-VN') }}đ</strong></div>
+          <div><span>Số lần sử dụng</span><strong>{{ customerUsageCount }}</strong></div>
+          <div><span>Điểm tích lũy</span><strong>{{ Number(currentCustomerView?.points || 0).toLocaleString('vi-VN') }}</strong></div>
         </div>
         <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 15px;">
           <input type="text" class="g-form-control" v-model="searchCustomerOrderQuery" placeholder="Tìm kiếm theo mã đơn..." style="width: 250px;" />
           <button class="g-btn-warning" @click="analyzeCustomer" :disabled="isAnalyzing">
-            🤖 {{ isAnalyzing ? 'Đang phân tích...' : 'AI Phân Tích Khách Hàng' }}
+             {{ isAnalyzing ? 'Đang phân tích...' : 'AI Phân Tích Khách Hàng' }}
           </button>
         </div>
         <div v-if="aiCustomerAnalysis" style="margin-top:15px; padding:15px; background:color-mix(in srgb, var(--color-tertiary) 10%, transparent); border:1px solid color-mix(in srgb, var(--color-tertiary) 40%, transparent); border-radius:8px;">
-          <h4 style="margin:0 0 10px 0; color:var(--color-tertiary);">🤖 Đánh Giá Từ AI:</h4>
+          <h4 style="margin:0 0 10px 0; color:var(--color-tertiary);"> Đánh Giá Từ AI:</h4>
           <p style="margin:0; font-size:0.95rem; line-height:1.6; white-space:pre-wrap;">{{ aiCustomerAnalysis }}</p>
         </div>
         <div style="max-height: 400px; overflow-y: auto;">
@@ -466,7 +469,7 @@
                   </span>
                 </td>
                 <td>
-                  <button class="g-btn-primary" @click="viewCustomerInvoice(order)">👁 Xem & In</button>
+                  <button class="g-btn-primary" @click="viewCustomerInvoice(order)"> Xem & In</button>
                 </td>
               </tr>
               <tr v-if="filteredCustomerOrders.length === 0">
@@ -486,7 +489,7 @@
       <div class="g-modal printable-area invoice-modal">
         <div class="modal-header hide-on-print" style="display:flex; justify-content:space-between;">
           <h2 style="color:var(--primary); margin:0;">Chi Tiết Hóa Đơn</h2>
-          <button @click="selectedCustomerOrder = null" style="background:transparent; border:none; font-size:1.5rem; cursor:pointer; color:var(--color-outline);">✖</button>
+          <button @click="selectedCustomerOrder = null" style="background:transparent; border:none; font-size:1.5rem; cursor:pointer; color:var(--color-outline);"><UiIcon name="x" /></button>
         </div>
         
         <div class="invoice-content" style="padding:20px; color:var(--text-primary); background:#FFFFFF;">
@@ -517,11 +520,11 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="item in selectedCustomerOrder.orderDetails" :key="item.id" style="border-bottom:1px solid var(--border);">
-                <td style="padding:10px;">{{ item.product?.name }}</td>
-                <td style="padding:10px; text-align:right;">{{ (item.price / item.quantity).toLocaleString() }}đ</td>
-                <td style="padding:10px; text-align:center;">{{ item.quantity }}</td>
-                <td style="padding:10px; text-align:right; font-weight:bold;">{{ item.price.toLocaleString() }}đ</td>
+              <tr v-for="item in (selectedCustomerOrder.orderDetails || [])" :key="item.id" style="border-bottom:1px solid var(--border);">
+                <td style="padding:10px;">{{ item.product?.name || 'Món không còn trong danh mục' }}</td>
+                <td style="padding:10px; text-align:right;">{{ (Number(item.price || 0) / Math.max(1, Number(item.quantity || 0))).toLocaleString('vi-VN') }}đ</td>
+                <td style="padding:10px; text-align:center;">{{ Number(item.quantity || 0) }}</td>
+                <td style="padding:10px; text-align:right; font-weight:bold;">{{ Number(item.price || 0).toLocaleString('vi-VN') }}đ</td>
               </tr>
             </tbody>
           </table>
@@ -539,7 +542,7 @@
         </div>
         
         <div class="modal-actions hide-on-print" style="padding:15px; background:var(--bg-card2); text-align:center;">
-          <button class="g-btn-primary" @click="printInvoice" style="background:var(--success); color:#FFFFFF; padding:10px 25px; border:none; font-weight:bold; cursor:pointer;">🖨️ Xuất Hóa Đơn PDF</button>
+          <button class="g-btn-primary" @click="printInvoice" style="background:var(--success); color:#FFFFFF; padding:10px 25px; border:none; font-weight:bold; cursor:pointer;"> Xuất Hóa Đơn PDF</button>
         </div>
       </div>
     </div>
@@ -553,6 +556,7 @@ import AdminLayout from '@/components/AdminLayout.vue';
 import { ref, computed, onMounted } from 'vue';
 import api from '@/services/api';
 import { toBusinessDate } from '@/utils/businessDate';
+import { useToast } from '@/composables/useToast';
 
 const currentTab = ref('staff');
 const staffList = ref([]);
@@ -587,6 +591,7 @@ const searchCustomerOrderQuery = ref('');
 const currentCustomerView = ref(null);
 const aiCustomerAnalysis = ref('');
 const isAnalyzing = ref(false);
+const toast = useToast();
 
 const filteredCustomerOrders = computed(() => {
   const q = searchCustomerOrderQuery.value.trim();
@@ -595,9 +600,15 @@ const filteredCustomerOrders = computed(() => {
 });
 
 const calculateOrderTotal = (order) => {
-  if (!order?.orderDetails) return 0;
-  return order.orderDetails.reduce((sum, item) => sum + item.price, 0);
+  const persistedTotal = Number(order?.totalAmount || 0);
+  if (persistedTotal > 0) return persistedTotal;
+  if (!Array.isArray(order?.orderDetails)) return 0;
+  return order.orderDetails.reduce((sum, item) => sum + Number(item?.price || 0), 0);
 };
+const customerUsageCount = computed(() => customerOrders.value.filter(order => Number(order?.status) !== 3).length);
+const customerTotalSpend = computed(() => customerOrders.value
+  .filter(order => Number(order?.status) === 4 || order?.isPaid === true)
+  .reduce((sum, order) => sum + calculateOrderTotal(order), 0));
 
 const selectedCustomerOrder = ref(null);
 const viewCustomerInvoice = (order) => {
@@ -698,10 +709,11 @@ const viewCustomerOrders = async (cus) => {
     searchCustomerOrderQuery.value = '';
     aiCustomerAnalysis.value = '';
     const res = await api.get(`/api/admin/staff/customers/${cus.username}/orders`, configHeader());
-    customerOrders.value = res.data;
+    customerOrders.value = Array.isArray(res.data) ? res.data : [];
     showCustomerOrdersModal.value = true;
   } catch (err) {
-    alert('Lỗi lấy lịch sử hóa đơn');
+    customerOrders.value = [];
+    toast.error(err.response?.data?.message || 'Không thể tải lịch sử hóa đơn của khách hàng.');
   }
 };
 
@@ -1008,6 +1020,11 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.crm-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 16px 0; }
+.crm-summary > div { display: grid; gap: 5px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-card2); }
+.crm-summary span { color: var(--text-muted); font-size: .8rem; font-weight: 700; }
+.crm-summary strong { color: var(--primary); font-size: 1.05rem; }
+@media (max-width: 640px) { .crm-summary { grid-template-columns: 1fr; } }
 @media print {
   body * { visibility: hidden !important; }
   .printable-area, .printable-area * { visibility: visible !important; }

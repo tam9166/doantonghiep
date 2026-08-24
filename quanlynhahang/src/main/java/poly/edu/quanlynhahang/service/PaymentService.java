@@ -137,7 +137,7 @@ public class PaymentService {
         intent.setBankCode(paymentProperties.getBankCode().trim().toUpperCase(Locale.ROOT));
         intent.setBankBin(paymentProperties.getBankBin());
         intent.setAccountNumber(paymentProperties.getAccountNumber().trim());
-        intent.setAccountHolder(paymentProperties.getAccountHolder().trim().toUpperCase(Locale.ROOT));
+        intent.setAccountHolder(paymentProperties.getAccountHolder().trim());
         intent.setQrProvider(paymentProperties.getQrProvider().trim().toUpperCase(Locale.ROOT));
         intent.setTransferContent(buildTransferContent(reservation.getReservationCode(), intent.getPaymentCode()));
         intent.setExpiresAt(Date.from(Instant.now().plusSeconds(
@@ -399,11 +399,9 @@ public class PaymentService {
 
     private String buildTransferContent(String reservationCode, String paymentCode) {
         String billCode = reservationCode == null
-                ? "DB"
-                : reservationCode.toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]", "");
-        String paymentSuffix = paymentCode.replace("PAY-", "");
-        paymentSuffix = paymentSuffix.substring(0, Math.min(8, paymentSuffix.length()));
-        return "TT " + billCode + " " + paymentSuffix;
+                ? ""
+                : reservationCode.toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9-]", "");
+        return "DATBAN " + billCode;
     }
 
     private String buildVietQrUrl(PaymentIntent intent) {
@@ -422,6 +420,7 @@ public class PaymentService {
         response.setPaymentOption(intent.getPaymentOption());
         response.setStatus(intent.getStatus());
         response.setBankCode(intent.getBankCode());
+        response.setBankName(paymentProperties.getBankName().trim());
         response.setAccountNumber(intent.getAccountNumber());
         response.setAccountHolder(intent.getAccountHolder());
         response.setTransferContent(intent.getTransferContent());

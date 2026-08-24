@@ -42,6 +42,18 @@ public interface IngredientBatchRepository extends JpaRepository<IngredientBatch
     // Lấy các lô hàng sắp hết hạn (còn <= X ngày) và còn số lượng > 0
     @Query("SELECT b FROM IngredientBatch b WHERE b.expirationDate <= :targetDate AND b.quantity > 0 ORDER BY b.expirationDate ASC")
     List<IngredientBatch> findExpiringBatches(Date targetDate);
+
+    @Query("SELECT b FROM IngredientBatch b WHERE b.expirationDate >= :fromDate "
+            + "AND b.expirationDate <= :targetDate AND b.quantity > 0 ORDER BY b.expirationDate ASC")
+    List<IngredientBatch> findExpiringBatchesBetween(@Param("fromDate") Date fromDate,
+                                                      @Param("targetDate") Date targetDate);
+
+    @Query("SELECT COUNT(b) FROM IngredientBatch b WHERE b.expirationDate < :now AND b.quantity > 0")
+    long countExpiredAvailableBatches(@Param("now") Date now);
+
+    @Query("SELECT b FROM IngredientBatch b JOIN FETCH b.ingredient "
+            + "WHERE b.quantity > 0 ORDER BY b.ingredient.id, b.expirationDate, b.id")
+    List<IngredientBatch> findPositiveBatchesWithIngredient();
     
     List<IngredientBatch> findByIngredientOrderByImportDateDesc(Ingredient ingredient);
 }

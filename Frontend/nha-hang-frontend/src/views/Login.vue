@@ -15,14 +15,14 @@
         <!-- Floating cards -->
         <div class="floating-cards">
           <div class="float-card fc-1">
-            <span>🍜</span>
+            <span></span>
             <div>
               <strong>100+ Món Ăn</strong>
               <p>Đa dạng ẩm thực 3 miền</p>
             </div>
           </div>
           <div class="float-card fc-2">
-            <span>⭐</span>
+            <span></span>
             <div>
               <strong>4.9/5 Đánh Giá</strong>
               <p>Từ 2000+ khách hàng</p>
@@ -42,7 +42,7 @@
       <div class="form-wrapper">
         <!-- Mobile Brand -->
         <div class="mobile-brand">
-          <span>🍽️</span>
+          <span></span>
           <h2>MỘC VỊ</h2>
         </div>
 
@@ -57,7 +57,7 @@
           <div class="input-group">
             <label>Tên đăng nhập</label>
             <div class="input-field">
-              <span class="field-icon">👤</span>
+              <span class="field-icon"><UiIcon name="user" /></span>
               <input
                 v-model="form.username"
                 type="text"
@@ -71,7 +71,7 @@
           <div class="input-group">
             <label>Mật khẩu</label>
             <div class="input-field">
-              <span class="field-icon">🔒</span>
+              <span class="field-icon"><UiIcon name="settings" /></span>
               <input
                 v-model="form.password"
                 :type="showPassword ? 'text' : 'password'"
@@ -80,7 +80,7 @@
                 autocomplete="current-password"
               />
               <button class="toggle-pw" @click="showPassword = !showPassword" type="button">
-                {{ showPassword ? '🙈' : '👁️' }}
+                {{ showPassword ? '' : '' }}
               </button>
             </div>
           </div>
@@ -105,7 +105,7 @@
           <!-- Error -->
           <Transition name="shake">
             <div v-if="errorMsg" class="error-alert">
-              <span>⚠️</span>
+              <span></span>
               <p>{{ errorMsg }}</p>
             </div>
           </Transition>

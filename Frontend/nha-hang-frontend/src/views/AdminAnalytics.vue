@@ -7,18 +7,18 @@
       <div class="header-actions">
         <h1 class="page-title">Biểu Đồ & Thống Kê</h1>
         <div class="filter-group">
-          <span class="filter-label">⏱️ Phạm vi thống kê:</span>
+          <span class="filter-label"> Phạm vi thống kê:</span>
           <select v-model="timeFilter" class="g-form-control filter-select">
             <option value="week">7 Ngày Qua (Mặc định)</option>
             <option value="month">Tháng Này</option>
             <option value="year">Năm Nay</option>
           </select>
-          <button @click="analyzeWithAI" class="btn-ai-analyze">🧠 Phân Tích Bằng AI</button>
+          <button @click="analyzeWithAI" class="btn-ai-analyze"> Phân Tích Bằng AI</button>
         </div>
       </div>
 
       <div v-if="isLoading" class="analytics-loading" aria-label="Đang tải dữ liệu thống kê">
-        <SkeletonLoader v-for="card in 4" :key="`summary-${card}`" height="112px" />
+        <SkeletonLoader v-for="card in 5" :key="`summary-${card}`" height="112px" />
         <SkeletonLoader v-for="chart in 2" :key="`chart-${chart}`" height="320px" />
       </div>
 
@@ -31,8 +31,13 @@
       <template v-else>
       <!-- ====== FINANCIAL SUMMARY CARDS ====== -->
       <div class="finance-cards">
+        <div v-if="overdueOrders > 0" class="finance-card card-overdue" role="alert">
+          <div class="fc-icon"><UiIcon name="warning" /></div>
+          <div class="fc-info"><span class="fc-label">Đơn quá hạn</span><span class="fc-value">{{ overdueOrders }}</span><span class="fc-ratio">Cần kiểm tra thanh toán/trạng thái</span></div>
+          <div class="fc-glow"></div>
+        </div>
         <div class="finance-card card-revenue">
-          <div class="fc-icon">💰</div>
+          <div class="fc-icon"><UiIcon name="currency" /></div>
           <div class="fc-info">
             <span class="fc-label">Doanh Thu (Đầu Ra)</span>
             <span class="fc-value">{{ totalRevenue.toLocaleString() }}đ</span>
@@ -40,7 +45,7 @@
           <div class="fc-glow"></div>
         </div>
         <div class="finance-card card-cost">
-          <div class="fc-icon">📦</div>
+          <div class="fc-icon"><UiIcon name="box" /></div>
           <div class="fc-info">
             <span class="fc-label">Giá Vốn (Nguyên Liệu)</span>
             <span class="fc-value">{{ totalCost.toLocaleString() }}đ</span>
@@ -48,7 +53,7 @@
           <div class="fc-glow"></div>
         </div>
         <div class="finance-card card-op">
-          <div class="fc-icon">👥</div>
+          <div class="fc-icon"><UiIcon name="payment" /></div>
           <div class="fc-info">
             <span class="fc-label">Chi Phí Vận Hành</span>
             <span class="fc-value">{{ (totalStaffCost + totalOpCost).toLocaleString() }}đ</span>
@@ -57,7 +62,7 @@
           <div class="fc-glow"></div>
         </div>
         <div class="finance-card" :class="profit >= 0 ? 'card-profit' : 'card-loss'">
-          <div class="fc-icon">{{ profit >= 0 ? '📈' : '📉' }}</div>
+          <div class="fc-icon"><UiIcon :name="profit >= 0 ? 'chart' : 'warning'" /></div>
           <div class="fc-info">
             <span class="fc-label">Lợi Nhuận Ròng</span>
             <span class="fc-value">{{ profit.toLocaleString() }}đ</span>
@@ -73,7 +78,7 @@
       <div class="charts-grid">
         <!-- Revenue Line Chart -->
         <div class="chart-card g-card">
-          <h3 class="chart-title">💰 Biểu Đồ Doanh Thu (VNĐ)</h3>
+          <h3 class="chart-title"> Biểu Đồ Doanh Thu (VNĐ)</h3>
           <div class="chart-container">
             <Line v-if="chartDataReady && hasChartData" :data="revenueChartData" :options="chartOptions" />
             <div v-else-if="chartDataReady" class="empty-chart">Chưa có doanh thu trong kỳ này.</div>
@@ -83,7 +88,7 @@
 
         <!-- Revenue vs Cost Bar Chart -->
         <div class="chart-card g-card">
-          <h3 class="chart-title">📊 Thu Chi Theo Thời Gian</h3>
+          <h3 class="chart-title"> Thu Chi Theo Thời Gian</h3>
           <div class="chart-container">
             <Bar v-if="chartDataReady && hasChartData" :data="revenueCostChartData" :options="chartOptions" />
             <div v-else-if="chartDataReady" class="empty-chart">Chưa có dữ liệu thu chi trong kỳ này.</div>
@@ -93,7 +98,7 @@
 
         <!-- Orders Bar Chart -->
         <div class="chart-card g-card">
-          <h3 class="chart-title">🧾 Số Lượng Hóa Đơn Hoàn Thành</h3>
+          <h3 class="chart-title"> Số Lượng Hóa Đơn Hoàn Thành</h3>
           <div class="chart-container">
             <Bar v-if="chartDataReady && hasChartData" :data="ordersChartData" :options="chartOptions" />
             <div v-else-if="chartDataReady" class="empty-chart">Chưa có hóa đơn hoàn thành trong kỳ này.</div>
@@ -103,7 +108,7 @@
 
         <!-- Profit Bar Chart -->
         <div class="chart-card g-card">
-          <h3 class="chart-title">📈 Lợi Nhuận Theo Thời Gian</h3>
+          <h3 class="chart-title"> Lợi Nhuận Theo Thời Gian</h3>
           <div class="chart-container">
             <Bar v-if="chartDataReady && hasChartData" :data="profitChartData" :options="profitChartOptions" />
             <div v-else-if="chartDataReady" class="empty-chart">Chưa có dữ liệu lợi nhuận trong kỳ này.</div>
@@ -115,7 +120,7 @@
       <!-- Leaderboard Section for AI -->
       <div class="leaderboard-section g-card">
         <div class="leaderboard-header">
-          <h3 class="chart-title">⭐ Bảng Xếp Hạng Món Ăn Ưa Chuộng (Top 10)</h3>
+          <h3 class="chart-title"> Bảng Xếp Hạng Món Ăn Ưa Chuộng (Top 10)</h3>
           <p class="subtitle">Dữ liệu nguồn để huấn luyện & tích hợp AI gợi ý món ăn sau này</p>
         </div>
         
@@ -138,10 +143,7 @@
                   <span :class="['rank-badge', `rank-${index + 1}`]">{{ index + 1 }}</span>
                 </td>
                 <td class="product-name">
-                  <span class="p-icon" v-if="index === 0">👑</span>
-                  <span class="p-icon" v-else-if="index === 1">🥈</span>
-                  <span class="p-icon" v-else-if="index === 2">🥉</span>
-                  <span class="p-icon" v-else>🍽️</span>
+                  <span class="p-icon"><UiIcon name="dish" /></span>
                   {{ item.name }}
                 </td>
                 <td style="text-align: center; font-weight: bold; color: var(--primary);">
@@ -176,8 +178,8 @@
     <div v-if="showAiModal" class="modal-overlay" @click.self="showAiModal = false">
       <div class="ai-modal">
         <div class="modal-header">
-          <h2>🤖 Giám Đốc Kinh Doanh AI</h2>
-          <button @click="showAiModal = false" class="btn-close" aria-label="Đóng cửa sổ phân tích">✖</button>
+          <h2> Giám Đốc Kinh Doanh AI</h2>
+          <button @click="showAiModal = false" class="btn-close" aria-label="Đóng cửa sổ phân tích"><UiIcon name="x" /></button>
         </div>
         <div class="modal-body">
           <div v-if="aiLoading" class="ai-loading">
@@ -216,11 +218,11 @@ import {
 import { Bar, Line } from 'vue-chartjs';
 
 // Canvas APIs do not resolve CSS custom properties. Keep their concrete values
-// centralized here and synchronized with --color-secondary in theme-tokens.css.
+// centralized here and synchronized with the shared rose theme tokens.
 const chartTheme = {
-  secondary: '#485f84',
-  secondaryFill: 'rgba(72, 95, 132, 0.20)',
-  grid: 'rgba(72, 95, 132, 0.08)',
+  secondary: '#8f3044',
+  secondaryFill: 'rgba(143, 48, 68, 0.20)',
+  grid: 'rgba(143, 48, 68, 0.08)',
   primary: '#b7102a',
   primaryFill: 'rgba(183, 16, 42, 0.70)',
   successFill: 'rgba(25, 122, 69, 0.70)',
@@ -238,6 +240,7 @@ const chartDataReady = ref(false);
 const isLoading = ref(true);
 const fetchError = ref('');
 const topProducts = ref([]);
+const overdueOrders = ref(0);
 const showAiModal = ref(false);
 const aiLoading = ref(false);
 const aiResponse = ref('');
@@ -341,12 +344,13 @@ const fetchData = async () => {
     const endStr = toBusinessDate(today);
     const startStr = toBusinessDate(lastYear);
 
-    const [resOrders, resRecipes, resIngredients, resSchedules, resStaff] = await Promise.all([
+    const [resOrders, resRecipes, resIngredients, resSchedules, resStaff, resDashboard] = await Promise.all([
       api.get('/api/admin/orders', { headers }),
       api.get('/api/admin/recipes', { headers }),
       api.get('/api/admin/ingredients', { headers }),
       api.get(`/api/schedules?startDate=${startStr}&endDate=${endStr}`, { headers }),
-      api.get('/api/admin/staff', { headers })
+      api.get('/api/admin/staff', { headers }),
+      api.get('/api/admin/orders/dashboard-stats', { headers })
     ]);
 
     orders.value = resOrders.data.filter(o => o.status === 4);
@@ -354,6 +358,7 @@ const fetchData = async () => {
     ingredients.value = resIngredients.data;
     allSchedules.value = resSchedules.data;
     staffList.value = resStaff.data;
+    overdueOrders.value = Number(resDashboard.data?.overdueOrders || 0);
 
     processData();
   } catch (error) {
@@ -680,6 +685,10 @@ onMounted(fetchData);
 }
 
 /* Card Revenue */
+.card-overdue { border-color: #E11D48; background: #FFF1F2; }
+.card-overdue .fc-icon { background: #FFE4E6; color: #991B1B; }
+.card-overdue .fc-value, .card-overdue .fc-ratio { color: #991B1B; }
+.card-overdue .fc-glow { background: #E11D48; }
 .card-revenue { border-color: color-mix(in srgb, var(--success) 30%, transparent); }
 .card-revenue .fc-icon { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); }
 .card-revenue .fc-value { color: var(--success); }

@@ -19,52 +19,56 @@
       <!-- Thống kê nhanh -->
       <div class="stats-row">
         <div class="stat-card">
-          <div class="stat-icon">📦</div>
+          <div class="stat-icon"><UiIcon name="box" /></div>
           <div class="stat-info">
             <span class="stat-value">{{ stats.total }}</span>
             <span class="stat-label">Tổng Nguyên Liệu</span>
           </div>
         </div>
         <div class="stat-card stat-warn">
-          <div class="stat-icon">⚠️</div>
+          <div class="stat-icon"><UiIcon name="warning" /></div>
           <div class="stat-info">
             <span class="stat-value">{{ stats.lowStock }}</span>
             <span class="stat-label">Sắp Hết</span>
           </div>
         </div>
         <div class="stat-card stat-danger">
-          <div class="stat-icon">🚫</div>
+          <div class="stat-icon"><UiIcon name="x" /></div>
           <div class="stat-info">
             <span class="stat-value">{{ stats.outOfStock }}</span>
             <span class="stat-label">Hết Hàng</span>
           </div>
         </div>
         <div class="stat-card stat-warn">
-          <div class="stat-icon">📅</div>
+          <div class="stat-icon"><UiIcon name="calendar" /></div>
           <div class="stat-info">
             <span class="stat-value">{{ stats.expiringBatchesCount || 0 }}</span>
             <span class="stat-label">Lô Sắp Hết Hạn (3 Ngày)</span>
           </div>
         </div>
       </div>
+      <div v-if="stats.outOfStock || stats.lowStock || stats.expiringBatchesCount || stats.expiredBatchesCount" class="inventory-alert" role="alert">
+        <UiIcon name="warning" />
+        <span><strong>Cảnh báo kho:</strong> {{ stats.expiredBatchesCount || 0 }} lô hết hạn · {{ stats.expiringBatchesCount || 0 }} lô sắp hết hạn · {{ stats.lowStock || 0 }} nguyên liệu tồn thấp.</span>
+      </div>
 
       <!-- Tabs Control -->
       <div class="tabs-header">
         <button @click="activeTab = 'inventory'" :class="['tab-btn', { active: activeTab === 'inventory' }]">
-          📦 Kho Nguyên Liệu
+           Kho Nguyên Liệu
         </button>
         <button @click="activeTab = 'recipes'" :class="['tab-btn', { active: activeTab === 'recipes' }]">
-          🍳 Công Thức Nấu (Định lượng)
+           Công Thức Nấu (Định lượng)
         </button>
         <button @click="activeTab = 'invoices'" :class="['tab-btn', { active: activeTab === 'invoices' }]">
-          📄 Lịch Sử Nhập Hàng
+           Lịch Sử Nhập Hàng
         </button>
         <div style="margin-left: auto; display: flex; gap: 10px;">
           <button @click="openCreateInvoiceModal" class="g-btn-primary">
-             📦 Nhập Hàng Vào Kho
+              Nhập Hàng Vào Kho
           </button>
           <button @click="analyzeInventory" class="btn-ai-forecast">
-             🤖 AI Dự Báo Nhập Kho
+              AI Dự Báo Nhập Kho
           </button>
         </div>
       </div>
@@ -74,7 +78,7 @@
         <div class="content-grid">
           <!-- Form Thêm/Sửa Nguyên Liệu -->
           <div class="form-card" :class="{ 'edit-mode': isEditingIng }">
-            <h3>{{ isEditingIng ? '✏️ Cập Nhật Nguyên Liệu' : '➕ Thêm Nguyên Liệu Mới' }}</h3>
+            <h3>{{ isEditingIng ? ' Cập Nhật Nguyên Liệu' : ' Thêm Nguyên Liệu Mới' }}</h3>
             
             <div class="form-group">
               <label>Tên nguyên liệu (*)</label>
@@ -108,7 +112,7 @@
 
             <div class="form-actions">
               <button @click="saveIngredient" class="g-btn-primary">
-                {{ isEditingIng ? '💾 Lưu Cập Nhật' : '➕ Thêm Nguyên Liệu' }}
+                {{ isEditingIng ? ' Lưu Cập Nhật' : ' Thêm Nguyên Liệu' }}
               </button>
               <button v-if="isEditingIng" @click="cancelEditIng" class="btn-cancel">Hủy</button>
             </div>
@@ -116,7 +120,7 @@
 
           <!-- Bảng Kho Nguyên Liệu -->
           <div class="table-card">
-            <h3>📜 Danh Sách Nguyên Liệu</h3>
+            <h3> Danh Sách Nguyên Liệu</h3>
             <table class="g-table">
               <thead>
                 <tr>
@@ -145,9 +149,18 @@
                   </td>
                   <td>
                     <div class="action-btns">
-                      <button @click="viewBatches(ing.id)" class="btn-sm btn-secondary">👀 Lịch Sử Lô</button>
-                      <button @click="startEditIng(ing)" class="btn-sm btn-edit">✏️ Sửa</button>
-                      <button @click="deleteIngredient(ing.id)" class="btn-sm btn-delete">🗑️ Xóa</button>
+                      <button type="button" @click="viewBatches(ing.id)" class="ingredient-action-btn action-history"
+                        title="Xem lịch sử nhập kho" aria-label="Xem lịch sử nhập kho">
+                        <UiIcon name="history" />
+                      </button>
+                      <button type="button" @click="startEditIng(ing)" class="ingredient-action-btn action-edit"
+                        title="Chỉnh sửa nguyên liệu" aria-label="Chỉnh sửa nguyên liệu">
+                        <UiIcon name="edit" />
+                      </button>
+                      <button type="button" @click="deleteIngredient(ing.id)" class="ingredient-action-btn action-delete"
+                        title="Xóa nguyên liệu" aria-label="Xóa nguyên liệu">
+                        <UiIcon name="trash" />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -163,7 +176,7 @@
           <!-- Chọn món ăn bên trái -->
           <div class="recipe-sidebar">
             <div class="search-box">
-              <input v-model="searchProduct" placeholder="🔍 Tìm món ăn..." class="g-form-control" />
+              <input v-model="searchProduct" placeholder=" Tìm món ăn..." class="g-form-control" />
             </div>
             <div class="product-list">
               <div 
@@ -183,7 +196,7 @@
           <!-- Quản lý công thức bên phải -->
           <div class="recipe-main" v-if="selectedProduct">
             <div class="recipe-header">
-              <h2>🍳 Công thức: <span>{{ selectedProduct.name }}</span></h2>
+              <h2> Công thức: <span>{{ selectedProduct.name }}</span></h2>
               <p>Thêm nguyên liệu cần thiết để nấu 1 phần món này.</p>
             </div>
 
@@ -219,7 +232,7 @@
                     <td class="est-cell">
                       {{ Math.floor((rec.ingredient?.quantity || 0) / rec.amountRequired) }} phần
                     </td>
-                    <td><button @click="deleteRecipe(rec.id)" class="g-btn-danger">🗑</button></td>
+                    <td><button @click="deleteRecipe(rec.id)" class="g-btn-danger"><UiIcon name="trash" /></button></td>
                   </tr>
                   <tr v-if="currentRecipes.length === 0">
                     <td colspan="5" style="text-align: center; color: var(--text-muted)">Chưa có công thức. Món này sẽ không trừ kho.</td>
@@ -230,7 +243,7 @@
           </div>
 
           <div v-else class="empty-selection">
-            <div class="icon">👈</div>
+            <div class="icon"><UiIcon name="dish" /></div>
             <h3>Chọn một món ăn bên trái để thiết lập công thức</h3>
           </div>
         </div>
@@ -241,14 +254,14 @@
         <div class="content-grid">
           <div class="form-card" style="grid-column: span 12;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-              <h3>📄 Lịch Sử Các Đợt Nhập Hàng (Hóa Đơn)</h3>
-              <button @click="openCreateInvoiceModal" class="g-btn-primary hide-on-print">📦 Nhập Hàng Mới</button>
+              <h3> Lịch Sử Các Đợt Nhập Hàng (Hóa Đơn)</h3>
+              <button @click="openCreateInvoiceModal" class="g-btn-primary hide-on-print"> Nhập Hàng Mới</button>
             </div>
             
             <!-- Filter & Search for Invoices -->
             <div class="filter-bar hide-on-print" style="display: flex; gap: 16px; margin-bottom: 20px; align-items: flex-end;">
               <div class="filter-item">
-                <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 6px;">⏱️ Lọc thời gian</span>
+                <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 6px;"> Lọc thời gian</span>
                 <select v-model="invoiceTimeFilter" class="g-form-control" style="width: 200px;">
                   <option value="all">Tất cả thời gian</option>
                   <option value="today">Hôm nay</option>
@@ -258,7 +271,7 @@
                 </select>
               </div>
               <div class="filter-item" style="flex: 1;">
-                <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 6px;">🔍 Tìm hóa đơn</span>
+                <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 6px;"> Tìm hóa đơn</span>
                 <input
                   v-model="invoiceSearchQuery"
                   type="text"
@@ -290,7 +303,7 @@
                   <td style="color: var(--primary); font-weight: bold;">{{ inv.totalAmount?.toLocaleString() || 0 }}đ</td>
                   <td>{{ inv.note || '---' }}</td>
                   <td class="hide-on-print">
-                    <button @click="viewInvoiceDetails(inv.id)" class="btn-sm btn-secondary">👀 Chi Tiết</button>
+                    <button @click="viewInvoiceDetails(inv.id)" class="btn-sm btn-secondary"> Chi Tiết</button>
                   </td>
                 </tr>
                 <tr v-if="filteredInvoices.length === 0">
@@ -309,27 +322,29 @@
     <div v-if="showForecastModal" class="modal-overlay" @click.self="showForecastModal = false">
       <div class="forecast-box">
         <div class="forecast-header">
-          <h3>🤖 AI Phân Tích & Dự Báo</h3>
-          <button @click="showForecastModal = false" class="btn-close-modal">✖</button>
+          <h3> AI Phân Tích & Dự Báo</h3>
+          <button @click="showForecastModal = false" class="btn-close-modal"><UiIcon name="x" /></button>
         </div>
         <div class="forecast-body">
           <div v-if="isForecasting" class="forecasting-loader">
-            <div class="pulse">🤖</div>
+            <div class="pulse"></div>
             <p>AI đang đọc dữ liệu tồn kho và tính toán dự báo tuần tới...</p>
           </div>
           <div v-else-if="forecastError" class="error-msg" style="color:var(--primary); text-align:center;">
             <p>{{ forecastError }}</p>
           </div>
           <div v-else-if="forecastResults.length > 0">
-            <p class="forecast-desc">Dựa trên dữ liệu tồn kho sắp hết, AI đề xuất nhập thêm:</p>
+            <p class="forecast-desc">AI đối chiếu tồn kho, tốc độ tiêu thụ, công thức món và hạn sử dụng; dữ liệu chưa có sẽ được nêu rõ thay vì suy đoán.</p>
             <div v-for="(res, idx) in forecastResults" :key="idx" class="forecast-item">
               <div class="forecast-info">
                 <h4>{{ res.name }}</h4>
-                <span class="forecast-reason">💡 Lý do: {{ res.reason }}</span>
+                <span class="forecast-reason"><strong>Phân tích:</strong> {{ res.analysis || res.reason }}</span>
+                <span class="forecast-reason"><strong>Hành động:</strong> {{ res.action }}</span>
               </div>
               <div class="forecast-action">
                 <span class="forecast-qty">Đề xuất: <strong style="color:var(--primary)">{{ res.suggestedAmount }} {{ res.unit }}</strong></span>
-                <button @click="applyForecast(res.name, res.suggestedAmount)" class="g-btn-primary" style="width:100%; font-size:0.8rem; padding:8px;">Duyệt & Nhập</button>
+                <button v-if="Number(res.suggestedAmount) > 0" @click="applyForecast(res.name, res.suggestedAmount)" class="g-btn-primary" style="width:100%; font-size:0.8rem; padding:8px;">Duyệt & Nhập</button>
+                <span v-else class="g-badge g-badge-warning">Không nhập thêm</span>
               </div>
             </div>
           </div>
@@ -343,7 +358,7 @@
     <!-- Restock Modal (Nhập Lô Mới) -->
     <div v-if="showRestockModal" class="modal-overlay" @click.self="showRestockModal = false">
       <div class="form-card" style="max-width: 500px; width: 100%; z-index: 1000; position: relative;">
-        <h3>📦 Nhập Lô Mới - {{ selectedIngForRestock?.name }}</h3>
+        <h3> Nhập Lô Mới - {{ selectedIngForRestock?.name }}</h3>
         
         <div class="form-group">
           <label>Số lượng nhập ({{ selectedIngForRestock?.unit }}) *</label>
@@ -361,7 +376,7 @@
         </div>
 
         <div class="form-actions" style="flex-direction: row; gap: 10px;">
-          <button @click="submitBatch" class="g-btn-primary" style="flex:1;">✅ Xác Nhận Nhập Kho</button>
+          <button @click="submitBatch" class="g-btn-primary" style="flex:1;"> Xác Nhận Nhập Kho</button>
           <button @click="showRestockModal = false" class="btn-cancel" style="flex:1;">Hủy</button>
         </div>
       </div>
@@ -371,8 +386,8 @@
     <div v-if="showBatchesModal" class="modal-overlay" @click.self="showBatchesModal = false">
       <div class="table-card" style="max-width: 800px; width: 100%; z-index: 1000; position: relative; max-height: 80vh; overflow-y: auto;">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-light); padding-bottom: 10px; margin-bottom: 20px;">
-           <h3 style="margin: 0; border: none; padding: 0;">📦 Danh Sách Lô Hàng</h3>
-           <button @click="showBatchesModal = false" style="background: none; border: none; font-size: 1.5rem; color: var(--primary); cursor: pointer;">✖</button>
+           <h3 style="margin: 0; border: none; padding: 0;"> Danh Sách Lô Hàng</h3>
+           <button @click="showBatchesModal = false" style="background: none; border: none; font-size: 1.5rem; color: var(--primary); cursor: pointer;"><UiIcon name="x" /></button>
         </div>
         <table class="g-table">
           <thead>
@@ -390,13 +405,13 @@
               <td>{{ new Date(b.importDate).toLocaleDateString('vi-VN') }}</td>
               <td :style="{ color: isExpiring(b.expirationDate) ? 'var(--primary)' : 'inherit', fontWeight: isExpiring(b.expirationDate) ? 'bold' : 'normal' }">
                 {{ b.expirationDate ? new Date(b.expirationDate).toLocaleDateString('vi-VN') : '---' }}
-                <span v-if="isExpiring(b.expirationDate)">⚠️</span>
+                <span v-if="isExpiring(b.expirationDate)"><UiIcon name="warning" /></span>
               </td>
               <td>{{ b.quantity }}</td>
               <td>{{ b.unitPrice?.toLocaleString() }}đ</td>
               <td style="color: var(--primary); font-weight: bold;">{{ (b.quantity * (b.unitPrice || 0)).toLocaleString() }}đ</td>
               <td>
-                <button @click="deleteBatch(b.id)" class="btn-sm btn-delete">🗑️ Xóa</button>
+                <button @click="deleteBatch(b.id)" class="btn-sm btn-delete"> Xóa</button>
               </td>
             </tr>
             <tr v-if="selectedBatches.length === 0">
@@ -411,12 +426,12 @@
     <div v-if="showCreateInvoiceModal" class="modal-overlay" @click.self="showCreateInvoiceModal = false">
       <div class="modal-content" style="max-width: 800px; width: 90%;">
         <div class="modal-header">
-          <h3>📦 Phiếu Nhập Hàng Vào Kho</h3>
-          <button @click="showCreateInvoiceModal = false" class="btn-close">✖</button>
+          <h3> Phiếu Nhập Hàng Vào Kho</h3>
+          <button @click="showCreateInvoiceModal = false" class="btn-close"><UiIcon name="x" /></button>
         </div>
         <div class="modal-body">
           <div v-if="ingredients.length === 0" style="padding: 20px; background: color-mix(in srgb, var(--primary) 10%, transparent); border: 1px solid var(--primary); border-radius: 8px; color: var(--primary); margin-bottom: 20px; text-align: center;">
-            <strong>⚠️ Kho chưa có nguyên liệu nào!</strong><br>
+            <strong> Kho chưa có nguyên liệu nào!</strong><br>
             Vui lòng thêm "Nguyên Liệu Mới" ở tab <strong>Kho Nguyên Liệu</strong> trước khi lập phiếu nhập kho.
           </div>
           
@@ -462,19 +477,19 @@
                   <input v-model="item.expirationDate" type="date" class="g-form-control" style="width: 140px;" />
                 </td>
                 <td>
-                  <button @click="invoiceForm.items.splice(index, 1)" class="btn-sm btn-delete">🗑</button>
+                  <button @click="invoiceForm.items.splice(index, 1)" class="btn-sm btn-delete"><UiIcon name="trash" /></button>
                 </td>
               </tr>
             </tbody>
           </table>
-          <button @click="invoiceForm.items.push({ ingredientId: '', quantity: 1, unitPrice: 0, expirationDate: '' })" class="btn-sm btn-secondary" style="margin-bottom: 20px;">➕ Thêm dòng</button>
+          <button @click="invoiceForm.items.push({ ingredientId: '', quantity: 1, unitPrice: 0, expirationDate: '' })" class="btn-sm btn-secondary" style="margin-bottom: 20px;"> Thêm dòng</button>
           
           <div style="text-align: right; font-size: 1.2rem; font-weight: bold; margin-bottom: 20px;">
             Tổng Tiền: <span style="color: var(--primary);">{{ calculateInvoiceTotal().toLocaleString() }}đ</span>
           </div>
 
           <div class="form-actions">
-            <button @click="submitInvoice" class="g-btn-primary">✅ Xác Nhận Nhập Kho</button>
+            <button @click="submitInvoice" class="g-btn-primary"> Xác Nhận Nhập Kho</button>
             <button @click="showCreateInvoiceModal = false" class="g-btn-secondary">Hủy</button>
           </div>
         </div>
@@ -486,7 +501,7 @@
       <div class="modal-content printable-area" style="max-width: 800px; width: 90%; background: #FFFFFF; color: var(--text-primary);">
         <div class="modal-header hide-on-print">
           <h3>Chi Tiết Phiếu Nhập Kho #{{ selectedInvoiceId }}</h3>
-          <button @click="showInvoiceDetailsModal = false" class="btn-close">✖</button>
+          <button @click="showInvoiceDetailsModal = false" class="btn-close"><UiIcon name="x" /></button>
         </div>
         <div class="modal-body invoice-content">
           <div class="invoice-brand" style="text-align: center; border-bottom: 2px solid var(--text-primary); padding-bottom: 20px; margin-bottom: 28px;">
@@ -537,7 +552,7 @@
           </div>
         </div>
         <div class="modal-actions hide-on-print" style="padding: 20px; background: var(--bg-card2); text-align: center; border-top: 1px solid var(--border);">
-           <button @click="exportInvoiceToPDF" class="g-btn-primary" style="padding: 12px 24px; font-size: 1rem; font-weight: 800; cursor: pointer; border: none; border-radius: 8px;">📥 In Phiếu Nhập Kho</button>
+           <button @click="exportInvoiceToPDF" class="g-btn-primary" style="padding: 12px 24px; font-size: 1rem; font-weight: 800; cursor: pointer; border: none; border-radius: 8px;"> In Phiếu Nhập Kho</button>
         </div>
       </div>
     </div>
@@ -547,6 +562,7 @@
 
 <script setup>
 import AdminLayout from '@/components/AdminLayout.vue';
+import UiIcon from '@/components/UiIcon.vue';
 
 import { ref, computed, onMounted } from 'vue';
 import api from '@/services/api';
@@ -572,7 +588,7 @@ const activeTab = ref('inventory');
 const ingredients = ref([]);
 const products = ref([]);
 const categories = ref([]);
-const stats = ref({ total: 0, lowStock: 0, outOfStock: 0, expiringBatchesCount: 0 });
+const stats = ref({ total: 0, lowStock: 0, outOfStock: 0, expiringBatchesCount: 0, expiredBatchesCount: 0 });
 const toastMsg = ref('');
 
 // Tab 1 State
@@ -706,10 +722,10 @@ const saveIngredient = async () => {
   try {
     if (isEditingIng.value) {
       await api.put(`/api/admin/ingredients/${editingIngId.value}`, ingForm.value, configHeader());
-      showToast('✅ Đã cập nhật nguyên liệu!');
+      showToast(' Đã cập nhật nguyên liệu!');
     } else {
       await api.post('/api/admin/ingredients', ingForm.value, configHeader());
-      showToast('✅ Đã thêm nguyên liệu mới!');
+      showToast(' Đã thêm nguyên liệu mới!');
     }
     cancelEditIng();
     loadData();
@@ -720,7 +736,7 @@ const deleteIngredient = async (id) => {
   if (!confirm('Xóa nguyên liệu này?')) return;
   try {
     await api.delete(`/api/admin/ingredients/${id}`, configHeader());
-    showToast('✅ Đã xóa!');
+    showToast(' Đã xóa!');
     loadData();
   } catch (err) { alert('Không thể xóa vì nguyên liệu này đang có trong công thức!'); }
 };
@@ -730,7 +746,7 @@ const submitBatch = async () => {
   
   try {
     await api.post(`/api/admin/ingredients/${selectedIngForRestock.value.id}/batches`, batchForm.value, configHeader());
-    showToast(`📦 Đã nhập lô mới thành công!`);
+    showToast(` Đã nhập lô mới thành công!`);
     showRestockModal.value = false;
     loadData();
   } catch (err) { alert('Lỗi nhập kho'); }
@@ -748,7 +764,7 @@ const deleteBatch = async (batchId) => {
   if (!confirm('Bạn có chắc muốn xóa lô hàng này? (Dùng để loại bỏ các lô đã hết hạn hoặc sai lệch)')) return;
   try {
     await api.delete(`/api/admin/ingredients/batches/${batchId}`, configHeader());
-    showToast('🗑️ Đã xóa lô hàng!');
+    showToast(' Đã xóa lô hàng!');
     showBatchesModal.value = false;
     loadData();
   } catch (err) {
@@ -779,7 +795,7 @@ const addRecipe = async () => {
   };
   try {
     await api.post('/api/admin/recipes', payload, configHeader());
-    showToast('🍳 Đã thêm nguyên liệu vào món!');
+    showToast(' Đã thêm nguyên liệu vào món!');
     newRecipe.value = { ingredientId: '', amount: '' };
     selectProduct(selectedProduct.value); // reload recipes for this product
   } catch (err) { alert('Lỗi thêm công thức'); }
@@ -789,7 +805,7 @@ const deleteRecipe = async (recipeId) => {
   if (!confirm('Xóa nguyên liệu này khỏi món?')) return;
   try {
     await api.delete(`/api/admin/recipes/${recipeId}`, configHeader());
-    showToast('✅ Đã xóa!');
+    showToast(' Đã xóa!');
     selectProduct(selectedProduct.value);
   } catch (err) { alert('Lỗi xóa'); }
 };
@@ -802,24 +818,42 @@ const analyzeInventory = async () => {
   forecastResults.value = [];
   
   try {
-    const lowStockItems = ingredients.value.filter(i => (i.quantity || 0) <= (i.minStock || 0));
-    if (lowStockItems.length === 0) {
+    const analysisResponse = await api.get('/api/admin/ingredients/analysis?expiringDays=3', configHeader());
+    const analysis = analysisResponse.data || {};
+    const canonicalResults = (analysis.suggestions || []).map(item => ({
+      name: item.name,
+      unit: item.unit,
+      suggestedAmount: item.suggestedAmount || 0,
+      analysis: item.reason,
+      reason: item.reason,
+      action: item.action,
+      urgency: item.urgency,
+      expiredBatches: item.expiredBatches || [],
+      expiringBatches: item.expiringBatches || []
+    }));
+    forecastResults.value = canonicalResults;
+    if (canonicalResults.length === 0) {
       isForecasting.value = false;
       return;
     }
-    
-    const dataStr = lowStockItems.map(i => `- ${i.name}: Tồn kho hiện tại ${i.quantity || 0}${i.unit}, Mức tối thiểu yêu cầu: ${i.minStock}${i.unit}`).join('\n');
-    
+
     const res = await api.post('/api/admin/ai/inventory', {
-      message: dataStr,
+      message: JSON.stringify(analysis),
     }, configHeader());
-    
+
     let reply = res.data.reply || '';
     reply = reply.replace(/```json/g, '').replace(/```/g, '').trim();
-    
-    forecastResults.value = JSON.parse(reply);
+    const aiResults = JSON.parse(reply);
+    const aiByName = new Map((Array.isArray(aiResults) ? aiResults : [])
+      .map(item => [String(item.name || '').toLowerCase(), item]));
+    forecastResults.value = canonicalResults.map(item => {
+      const aiItem = aiByName.get(String(item.name || '').toLowerCase());
+      return aiItem ? { ...item, analysis: aiItem.analysis || aiItem.reason || item.analysis } : item;
+    });
   } catch (err) {
-    forecastError.value = "Hệ thống AI không phản hồi hoặc trả về sai định dạng. Vui lòng thử lại!";
+    if (forecastResults.value.length === 0) {
+      forecastError.value = "Không thể tải dữ liệu phân tích kho. Vui lòng thử lại!";
+    }
   } finally {
     isForecasting.value = false;
   }
@@ -870,7 +904,7 @@ const submitInvoice = async () => {
     };
     
     await api.post('/api/admin/import-invoices', payload, configHeader());
-    showToast('📦 Đã nhập hàng thành công! Đã tạo phiếu lưu kho.');
+    showToast(' Đã nhập hàng thành công! Đã tạo phiếu lưu kho.');
     showCreateInvoiceModal.value = false;
     fetchInvoices();
     // Cập nhật lại kho
@@ -917,6 +951,14 @@ onMounted(() => {
 .stat-danger .stat-value { color: var(--primary); }
 .stat-icon { font-size: 2rem; width: 60px; height: 60px; border-radius: 12px; background: var(--primary-glow); color: var(--primary); display: flex; align-items: center; justify-content: center; }
 .stat-info { display: flex; flex-direction: column; }
+.inventory-alert { display: flex; align-items: center; gap: 10px; margin: -10px 0 20px; padding: 13px 16px; border: 1px solid var(--warning); border-radius: 10px; background: #FFFBEB; color: #92400E; }
+.action-btns { display: inline-flex; align-items: center; gap: 8px; }
+.ingredient-action-btn { width: 38px; height: 38px; padding: 0; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 38px; border-radius: 10px; border: 1px solid var(--border); background: #FFFFFF; color: var(--primary); cursor: pointer; transition: transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease; }
+.ingredient-action-btn:hover { transform: translateY(-1px); background: var(--primary-glow); box-shadow: 0 5px 14px color-mix(in srgb, var(--primary) 18%, transparent); }
+.ingredient-action-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.ingredient-action-btn :deep(svg) { width: 18px; height: 18px; }
+.ingredient-action-btn.action-delete { background: #FFF1F2; border-color: #FECDD3; color: #BE123C; }
+.ingredient-action-btn.action-edit { background: #FFF7F8; color: var(--primary-dark); }
 .stat-value { font-size: 1.8rem; font-weight: 900; line-height: 1.2; }
 .stat-label { font-size: 0.85rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
 

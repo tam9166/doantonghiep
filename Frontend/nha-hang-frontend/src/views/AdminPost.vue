@@ -5,14 +5,14 @@
 
     <main class="admin-content">
       <div class="page-header">
-        <h1 class="page-title">📝 Quản Lý Bài Đăng</h1>
+        <h1 class="page-title"> Quản Lý Bài Đăng</h1>
         <p class="page-subtitle">Đăng tin tức nhà hàng, tuyển dụng nhân sự</p>
       </div>
 
       <div class="content-grid">
         <!-- FORM -->
         <div class="g-card form-card">
-          <h3 class="card-title">{{ editingPost ? '✏️ Sửa Bài Đăng' : '➕ Tạo Bài Đăng Mới' }}</h3>
+          <h3 class="card-title">{{ editingPost ? ' Sửa Bài Đăng' : ' Tạo Bài Đăng Mới' }}</h3>
 
           <div class="form-group">
             <label>Tiêu đề *</label>
@@ -32,8 +32,8 @@
             <div class="form-group">
               <label>Loại bài</label>
               <select v-model="form.type" class="g-form-control">
-                <option value="NEWS">📰 Tin Tức</option>
-                <option value="RECRUITMENT">💼 Tuyển Dụng</option>
+                <option value="NEWS"> Tin Tức</option>
+                <option value="RECRUITMENT"> Tuyển Dụng</option>
               </select>
             </div>
           </div>
@@ -41,13 +41,13 @@
           <div class="form-group">
             <label class="toggle-label">
               <input type="checkbox" v-model="form.active" />
-              <span class="toggle-text">{{ form.active ? '🟢 Đang hiển thị' : '🔴 Đã ẩn' }}</span>
+              <span class="toggle-text">{{ form.active ? ' Đang hiển thị' : ' Đã ẩn' }}</span>
             </label>
           </div>
 
           <div class="form-actions">
             <button @click="submitPost" class="btn-save">
-              {{ editingPost ? '💾 Cập Nhật' : '🚀 Đăng Bài' }}
+              {{ editingPost ? ' Cập Nhật' : ' Đăng Bài' }}
             </button>
             <button v-if="editingPost" @click="cancelEdit" class="btn-cancel">✕ Hủy</button>
           </div>
@@ -62,39 +62,39 @@
         <!-- TABLE -->
         <div class="g-card table-card">
           <div class="table-header">
-            <h3 class="card-title">📋 Danh Sách Bài Đăng ({{ posts.length }})</h3>
+            <h3 class="card-title"> Danh Sách Bài Đăng ({{ posts.length }})</h3>
             <div class="filter-tabs">
               <button :class="['tab', filterType === 'ALL' && 'active']" @click="filterType = 'ALL'">Tất cả</button>
-              <button :class="['tab', filterType === 'NEWS' && 'active']" @click="filterType = 'NEWS'">📰 Tin Tức</button>
-              <button :class="['tab', filterType === 'RECRUITMENT' && 'active']" @click="filterType = 'RECRUITMENT'">💼 Tuyển Dụng</button>
-              <button :class="['tab', filterType === 'APPLICATIONS' && 'active']" @click="filterType = 'APPLICATIONS'">📋 Đơn Ứng Tuyển</button>
+              <button :class="['tab', filterType === 'NEWS' && 'active']" @click="filterType = 'NEWS'"> Tin Tức</button>
+              <button :class="['tab', filterType === 'RECRUITMENT' && 'active']" @click="filterType = 'RECRUITMENT'"> Tuyển Dụng</button>
+              <button :class="['tab', filterType === 'APPLICATIONS' && 'active']" @click="filterType = 'APPLICATIONS'"> Đơn Ứng Tuyển</button>
             </div>
           </div>
 
           <div class="post-list" v-if="filterType !== 'APPLICATIONS'">
             <div v-for="post in filteredPosts" :key="post.id" class="post-item" :class="{ 'inactive': !post.active }">
               <img v-if="post.image" :src="post.image" class="post-thumb" />
-              <div v-else class="post-thumb-placeholder">📄</div>
+              <div v-else class="post-thumb-placeholder"><UiIcon name="note" /></div>
               <div class="post-info">
                 <div class="post-meta">
                   <span :class="['type-badge', post.type === 'NEWS' ? 'type-news' : 'type-recruit']">
-                    {{ post.type === 'NEWS' ? '📰 Tin Tức' : '💼 Tuyển Dụng' }}
+                    {{ post.type === 'NEWS' ? ' Tin Tức' : ' Tuyển Dụng' }}
                   </span>
                   <span class="post-date">{{ formatDate(post.createDate) }}</span>
-                  <span v-if="!post.active" class="hidden-badge">🔴 Đã ẩn</span>
-                  <span class="likes-badge">❤️ {{ post.likes || 0 }}</span>
+                  <span v-if="!post.active" class="hidden-badge"> Đã ẩn</span>
+                  <span class="likes-badge"> {{ post.likes || 0 }}</span>
                 </div>
                 <h4>{{ post.title }}</h4>
                 <p>{{ truncate(post.content, 120) }}</p>
               </div>
               <div class="post-actions">
-                <button @click="editPost(post)" class="btn-edit">✏️</button>
-                <button @click="deletePost(post.id)" class="btn-delete">🗑️</button>
+                <button @click="editPost(post)" class="btn-edit"><UiIcon name="edit" /></button>
+                <button @click="deletePost(post.id)" class="btn-delete"><UiIcon name="trash" /></button>
               </div>
             </div>
 
             <div v-if="filteredPosts.length === 0" class="empty-state">
-              <p>📭 Chưa có bài đăng nào.</p>
+              <p> Chưa có bài đăng nào.</p>
             </div>
           </div>
 
@@ -103,21 +103,21 @@
             <div v-for="app in applications" :key="app.id" class="post-item app-item">
               <div class="post-info">
                 <div class="post-meta">
-                  <span class="type-badge type-recruit">📋 Ứng viên</span>
+                  <span class="type-badge type-recruit"> Ứng viên</span>
                   <span class="post-date">{{ formatDate(app.createDate) }}</span>
                   <span class="post-date" v-if="app.postId">ID Bài Đăng: {{ app.postId }}</span>
                 </div>
-                <h4>🧑‍💼 {{ app.fullname }}</h4>
-                <p>📞 {{ app.phone }} | ✉️ {{ app.email || 'Không có email' }}</p>
+                <h4> {{ app.fullname }}</h4>
+                <p> {{ app.phone }} |  {{ app.email || 'Không có email' }}</p>
                 <p class="app-message"><strong>Lời nhắn:</strong> {{ app.message || 'Không có lời nhắn' }}</p>
                 <div v-if="app.cvFile" style="margin-top: 10px;">
-                  <button type="button" @click="downloadCv(app)" class="btn-download-cv">📄 Xem / Tải CV</button>
+                  <button type="button" @click="downloadCv(app)" class="btn-download-cv"> Xem / Tải CV</button>
                 </div>
               </div>
             </div>
             
             <div v-if="applications.length === 0" class="empty-state">
-              <p>📭 Chưa có đơn ứng tuyển nào.</p>
+              <p> Chưa có đơn ứng tuyển nào.</p>
             </div>
           </div>
         </div>
@@ -336,7 +336,7 @@ onMounted(() => {
 .post-info h4 { margin: 0 0 4px 0; font-size: 0.95rem; color: var(--text-heading); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .post-info p { margin: 0; font-size: 0.82rem; color: var(--text-muted); line-height: 1.4; }
 
-.post-actions { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+.post-actions { display: flex; flex-direction: row; gap: 8px; flex-shrink: 0; }
 .btn-edit, .btn-delete {
   width: 36px; height: 36px; border-radius: var(--radius-sm);
   border: 1px solid var(--border); background: transparent;

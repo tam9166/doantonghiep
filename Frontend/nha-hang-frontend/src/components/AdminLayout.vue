@@ -8,7 +8,7 @@
     >
       <div class="sidebar-header">
         <router-link to="/admin" class="sidebar-brand">
-          <span class="sidebar-brand-icon">🍽️</span>
+          <span class="sidebar-brand-icon"><UiIcon name="restaurant" /></span>
           <transition name="fade">
             <div v-if="!sidebarCollapsed" class="sidebar-brand-text">
               <h3>MỘC VỊ</h3>
@@ -20,16 +20,15 @@
           {{ sidebarCollapsed ? '→' : '←' }}
         </button>
       </div>
-
       <nav class="sidebar-nav" @click="handleSidebarNavigation">
         <div class="nav-section">
           <p class="nav-section-title" v-if="!sidebarCollapsed">TỔNG QUAN</p>
           <router-link to="/admin/analytics" class="nav-item" active-class="active">
-            <span class="nav-icon">📊</span>
+            <span class="nav-icon"><AdminNavIcon name="analytics" /></span>
             <span class="nav-label" v-if="!sidebarCollapsed">Thống kê</span>
           </router-link>
           <router-link to="/admin/ai-knowledge" class="nav-item" active-class="active">
-            <span class="nav-icon">🧠</span>
+            <span class="nav-icon"><AdminNavIcon name="ai" /></span>
             <span class="nav-label" v-if="!sidebarCollapsed">Tri thức AI</span>
           </router-link>
         </div>
@@ -37,43 +36,43 @@
         <div class="nav-section">
           <p class="nav-section-title" v-if="!sidebarCollapsed">QUẢN LÝ</p>
           <router-link to="/admin" class="nav-item" exact-active-class="active">
-            <span class="nav-icon">🍔</span>
+            <span class="nav-icon"><AdminNavIcon name="product" /></span>
             <span class="nav-label" v-if="!sidebarCollapsed">Sản phẩm</span>
           </router-link>
           <router-link to="/admin/categories" class="nav-item" active-class="active">
-            <span class="nav-icon">📂</span>
+            <span class="nav-icon"><AdminNavIcon name="category" /></span>
             <span class="nav-label" v-if="!sidebarCollapsed">Danh mục</span>
           </router-link>
           <router-link to="/admin/orders" class="nav-item" active-class="active">
-            <span class="nav-icon">📋</span>
+            <span class="nav-icon"><AdminNavIcon name="orders" /></span>
             <span class="nav-label" v-if="!sidebarCollapsed">Đơn hàng</span>
           </router-link>
           <router-link to="/admin/reservations" class="nav-item" active-class="active">
-            <span class="nav-icon">📅</span>
+            <span class="nav-icon"><AdminNavIcon name="reservations" /></span>
             <span class="nav-label" v-if="!sidebarCollapsed">Đặt bàn</span>
           </router-link>
           <router-link to="/admin/reservation-cancellations" class="nav-item" active-class="active">
-            <span class="nav-icon">↩️</span>
+            <span class="nav-icon"><AdminNavIcon name="cancellation" /></span>
             <span class="nav-label" v-if="!sidebarCollapsed">Yêu cầu hủy</span>
           </router-link>
           <router-link to="/admin/reservation-reviews" class="nav-item" active-class="active">
-            <span class="nav-icon">⭐</span>
+            <span class="nav-icon"><AdminNavIcon name="reviews" /></span>
             <span class="nav-label" v-if="!sidebarCollapsed">Đánh giá đặt bàn</span>
           </router-link>
           <router-link to="/admin/customer-history" class="nav-item" active-class="active">
-            <span class="nav-icon">📇</span>
+            <span class="nav-icon"><AdminNavIcon name="customers" /></span>
             <span class="nav-label" v-if="!sidebarCollapsed">Lịch sử khách</span>
           </router-link>
           <router-link to="/admin/deposit-policies" class="nav-item" active-class="active">
-            <span class="nav-icon">💳</span>
+            <span class="nav-icon"><AdminNavIcon name="deposit" /></span>
             <span class="nav-label" v-if="!sidebarCollapsed">Chính sách cọc</span>
           </router-link>
           <router-link to="/admin/tables" class="nav-item" active-class="active">
-            <span class="nav-icon">🪑</span>
+            <span class="nav-icon"><AdminNavIcon name="tables" /></span>
             <span class="nav-label" v-if="!sidebarCollapsed">Sơ đồ bàn</span>
           </router-link>
           <router-link to="/admin/table-areas" class="nav-item" active-class="active">
-            <span class="nav-icon">🏢</span>
+            <span class="nav-icon"><AdminNavIcon name="areas" /></span>
             <span class="nav-label" v-if="!sidebarCollapsed">Khu vực bàn</span>
           </router-link>
         </div>
@@ -81,15 +80,15 @@
         <div class="nav-section">
           <p class="nav-section-title" v-if="!sidebarCollapsed">KHO & NGUYÊN LIỆU</p>
           <router-link to="/admin/ingredients" class="nav-item" active-class="active">
-            <span class="nav-icon">🧅</span>
+            <span class="nav-icon"><AdminNavIcon name="ingredients" /></span>
             <span class="nav-label" v-if="!sidebarCollapsed">Nguyên liệu</span>
           </router-link>
           <router-link to="/admin/popular-items" class="nav-item" active-class="active">
-            <span class="nav-icon">🔥</span>
+            <span class="nav-icon"><AdminNavIcon name="popular" /></span>
             <span class="nav-label" v-if="!sidebarCollapsed">Món hay dùng</span>
           </router-link>
           <router-link to="/admin/purchase-suggestions" class="nav-item" active-class="active">
-            <span class="nav-icon">🛒</span>
+            <span class="nav-icon"><AdminNavIcon name="purchase" /></span>
             <span class="nav-label" v-if="!sidebarCollapsed">Đề xuất mua hàng</span>
           </router-link>
         </div>
@@ -97,15 +96,15 @@
         <div class="nav-section">
           <p class="nav-section-title" v-if="!sidebarCollapsed">NHÂN SỰ & MARKETING</p>
           <router-link to="/admin/staff" class="nav-item" active-class="active">
-            <span class="nav-icon">👥</span>
+            <span class="nav-icon"><AdminNavIcon name="staff" /></span>
             <span class="nav-label" v-if="!sidebarCollapsed">Nhân viên</span>
           </router-link>
           <router-link to="/admin/posts" class="nav-item" active-class="active">
-            <span class="nav-icon">📰</span>
+            <span class="nav-icon"><AdminNavIcon name="posts" /></span>
             <span class="nav-label" v-if="!sidebarCollapsed">Tin tức</span>
           </router-link>
           <router-link to="/admin/vouchers" class="nav-item" active-class="active">
-            <span class="nav-icon">🎟️</span>
+            <span class="nav-icon"><AdminNavIcon name="vouchers" /></span>
             <span class="nav-label" v-if="!sidebarCollapsed">Voucher</span>
           </router-link>
         </div>
@@ -113,7 +112,7 @@
         <div class="nav-section">
           <p class="nav-section-title" v-if="!sidebarCollapsed">HỆ THỐNG</p>
           <router-link to="/admin/activity-log" class="nav-item" active-class="active">
-            <span class="nav-icon">📋</span>
+            <span class="nav-icon"><AdminNavIcon name="activity" /></span>
             <span class="nav-label" v-if="!sidebarCollapsed">Nhật ký thao tác</span>
           </router-link>
         </div>
@@ -123,15 +122,15 @@
       <!-- Sidebar Footer -->
       <div class="sidebar-footer" @click="handleSidebarNavigation">
         <router-link to="/staff/profile" class="nav-item">
-          <span class="nav-icon">👤</span>
+          <span class="nav-icon"><AdminNavIcon name="profile" /></span>
           <span class="nav-label" v-if="!sidebarCollapsed">Hồ sơ cá nhân</span>
         </router-link>
         <router-link to="/" class="nav-item">
-          <span class="nav-icon">🏠</span>
+          <span class="nav-icon"><AdminNavIcon name="home" /></span>
           <span class="nav-label" v-if="!sidebarCollapsed">Về Trang Chủ</span>
         </router-link>
         <button @click="handleLogout" class="nav-item nav-item-danger">
-          <span class="nav-icon">🚪</span>
+          <span class="nav-icon"><AdminNavIcon name="logout" /></span>
           <span class="nav-label" v-if="!sidebarCollapsed">Đăng xuất</span>
         </button>
       </div>
@@ -143,7 +142,7 @@
       class="mobile-sidebar-overlay"
       aria-label="Đóng menu quản trị"
       @click="closeMobileSidebar"
-    ></button>
+    ><UiIcon name="x" /></button>
 
     <!-- Main Content -->
     <div class="admin-main" :class="{ 'main-expanded': sidebarCollapsed }">
@@ -157,9 +156,7 @@
             aria-controls="admin-mobile-sidebar"
             :aria-expanded="mobileSidebarOpen"
             @click="openMobileSidebar"
-          >
-            ☰
-          </button>
+          ><UiIcon name="menu" /></button>
           <h2 class="page-heading">
             <slot name="title">Quản Trị</slot>
           </h2>
@@ -170,10 +167,10 @@
           </form>
         </div>
         <div class="topbar-right">
-          <!-- 🔔 Notification Bell -->
+          <!--  Notification Bell -->
           <div class="notif-wrapper" @click="toggleNotifPanel">
             <div class="notif-bell" :class="{ 'bell-swing': bellAnimating }">
-              🔔
+              <UiIcon name="bell" />
               <span v-if="unreadCount > 0" class="notif-badge ring-pulse">{{ unreadCount > 9 ? '9+' : unreadCount }}</span>
             </div>
 
@@ -195,7 +192,7 @@
                   </div>
                 </div>
                 <div v-if="notifications.length === 0" class="notif-empty">
-                  ✅ Không có thông báo mới
+                  <UiIcon name="check" /> Không có thông báo mới
                 </div>
               </div>
             </div>
@@ -223,6 +220,8 @@
 
 <script setup>
 import StaffOperationsAssistant from './StaffOperationsAssistant.vue'
+import AdminNavIcon from './AdminNavIcon.vue'
+import UiIcon from './UiIcon.vue'
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/services/api'
@@ -952,9 +951,16 @@ onUnmounted(() => {
 .admin-sidebar .sidebar-brand-text h3,
 .admin-sidebar .sidebar-brand-text p,
 .admin-sidebar .nav-section-title,
-.admin-sidebar .nav-item,
 .admin-sidebar .sidebar-toggle {
   color: var(--text-primary);
+}
+
+.admin-sidebar .nav-item {
+  color: var(--text-secondary);
+}
+
+.admin-sidebar .nav-icon {
+  color: var(--text-muted);
 }
 
 .admin-sidebar .sidebar-toggle {
@@ -964,17 +970,37 @@ onUnmounted(() => {
 
 .admin-sidebar .nav-item:hover {
   background: var(--color-surface-container);
-  color: var(--text-primary);
+  color: var(--primary);
 }
 
 .admin-sidebar .nav-item.active {
-  background: var(--primary);
-  color: #ffffff;
+  background: var(--color-primary-fixed);
+  color: var(--primary);
 }
 
-.admin-sidebar .nav-item-danger,
-.admin-sidebar .nav-item-danger:hover {
-  color: var(--text-primary);
+.admin-sidebar .nav-item:hover .nav-icon,
+.admin-sidebar .nav-item.active .nav-icon {
+  color: var(--primary);
+}
+
+.admin-sidebar .nav-item-danger {
+  color: var(--danger);
+}
+
+.admin-layout :deep(button:focus-visible),
+.admin-layout :deep(a:focus-visible),
+.admin-layout :deep(input:focus-visible),
+.admin-layout :deep(select:focus-visible),
+.admin-layout :deep(textarea:focus-visible) {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.admin-layout :deep(input:focus),
+.admin-layout :deep(select:focus),
+.admin-layout :deep(textarea:focus) {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-glow);
 }
 
 </style>

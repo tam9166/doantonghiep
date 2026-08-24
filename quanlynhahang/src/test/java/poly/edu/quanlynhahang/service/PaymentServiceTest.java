@@ -149,9 +149,26 @@ class PaymentServiceTest {
         PaymentQrResponse response = service.createQr(request, "capability-token", "create-qr-001");
 
         assertEquals("MB", response.getBankCode());
+        assertEquals("MB Bank", response.getBankName());
         assertEquals("1234567890", response.getAccountNumber());
         assertEquals("TEST ACCOUNT HOLDER", response.getAccountHolder());
+        assertEquals("DATBAN MV-001", response.getTransferContent());
         assertTrue(response.getQrUrl().contains("/MB-1234567890-compact2.png"));
+    }
+
+    @Test
+    void zeroDepositDoesNotCreatePaymentIntentOrQr() {
+        Reservation reservation = reservation(1L, "MV-001");
+        reservation.setDepositAmount(BigDecimal.ZERO);
+        reservation.setPaidAmount(BigDecimal.ZERO);
+        reservation.setDepositStatus(DepositStatus.NOT_REQUIRED);
+        when(reservationRepository.findLockedByReservationCode("MV-001")).thenReturn(Optional.of(reservation));
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+                () -> service.createQr(request("MV-001", PaymentOption.DEPOSIT_50), "capability", "zero-amount-001"));
+
+        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY, error.getStatusCode());
+        verify(paymentIntentRepository, never()).save(any());
     }
 
     @Test
@@ -305,6 +322,7 @@ class PaymentServiceTest {
     private PaymentProperties paymentProperties() {
         PaymentProperties properties = new PaymentProperties();
         properties.setBankCode("MB");
+        properties.setBankName("MB Bank");
         properties.setBankBin("970422");
         properties.setAccountNumber("1234567890");
         properties.setAccountHolder("TEST ACCOUNT HOLDER");

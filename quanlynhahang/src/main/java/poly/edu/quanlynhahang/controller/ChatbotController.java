@@ -22,6 +22,7 @@ import poly.edu.quanlynhahang.service.AiConversationMemoryService;
 import poly.edu.quanlynhahang.service.AiDynamicToolService;
 import poly.edu.quanlynhahang.service.AiInteractionLogService;
 import poly.edu.quanlynhahang.service.AiSafeQueryToolService;
+import poly.edu.quanlynhahang.service.InventoryAlertService;
 
 import jakarta.validation.Valid;
 
@@ -44,6 +45,7 @@ public class ChatbotController {
     private AiInteractionLogService aiLogs;
     private AiSafeQueryToolService safeQueryTools;
     private TableAreaRepository tableAreaRepository;
+    private InventoryAlertService inventoryAlertService;
 
     @Value("${restaurant.info.name:Moc Vi Restaurant}")
     private String restaurantName = "Moc Vi Restaurant";
@@ -80,6 +82,9 @@ public class ChatbotController {
     @Autowired void setAiTools(AiDynamicToolService aiTools) { this.aiTools = aiTools; }
     @Autowired void setAiLogs(AiInteractionLogService aiLogs) { this.aiLogs = aiLogs; }
     @Autowired void setSafeQueryTools(AiSafeQueryToolService safeQueryTools) { this.safeQueryTools = safeQueryTools; }
+    @Autowired void setInventoryAlertService(InventoryAlertService inventoryAlertService) {
+        this.inventoryAlertService = inventoryAlertService;
+    }
 
     @PostMapping("/api/chatbot/chat")
     public ResponseEntity<?> chatWithAI(@Valid @RequestBody AiRequest payload) {
@@ -99,7 +104,13 @@ public class ChatbotController {
     @PostMapping("/api/admin/ai/inventory")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     public ResponseEntity<?> inventory(@Valid @RequestBody AiRequest payload) {
-        return generateChat(payload.withType("INVENTORY_FORECAST"));
+        String canonicalContext = inventoryAlertService == null ? "" : inventoryAlertService.analyze(3).toAiContext();
+        String requestContext = payload.message() == null ? "" : payload.message().trim();
+        AiRequest enriched = new AiRequest(
+                canonicalContext + "\nYêu cầu bổ sung từ giao diện:\n" + requestContext,
+                "INVENTORY_FORECAST", payload.history(), payload.menu(), payload.dishes(),
+                payload.locale(), payload.sessionId());
+        return generateChat(enriched);
     }
 
     @PostMapping("/api/admin/ai/customer")
@@ -203,12 +214,11 @@ public class ChatbotController {
             combinedText = systemPrompt + "\n\nDanh sách Menu hiện có:\n" + menu + "\n\nKhách hàng nói:\n" + userMessage
                     + "\n\nHãy trả về JSON:";
         } else if ("INVENTORY_FORECAST".equals(type)) {
-            systemPrompt = "Bạn là Chuyên gia Quản lý Chuỗi cung ứng AI của Mộc Vị Restaurant. " +
-                    "Bạn sẽ nhận được danh sách các nguyên liệu hiện đang sắp hết (Dưới mức Min Stock) cùng với tồn kho hiện tại. "
-                    +
-                    "Nhiệm vụ của bạn là phân tích và đưa ra Dự báo số lượng CẦN NHẬP KHO cho từng nguyên liệu đó, kèm theo lý do ngắn gọn. "
-                    +
-                    "YÊU CẦU BẮT BUỘC: TRẢ VỀ DUY NHẤT 1 MẢNG JSON. Định dạng JSON: [{\"name\": \"Thịt bò thăn\", \"suggestedAmount\": 20, \"unit\": \"Kg\", \"reason\": \"Tồn kho sắp hết, cần nhập thêm\"}]. Không dùng ```json.";
+            systemPrompt = "Bạn là chuyên gia quản lý chuỗi cung ứng của Mộc Vị Restaurant. "
+                    + "Phân tích tồn kho, lịch sử bán, công thức món, tốc độ tiêu thụ và hạn sử dụng từ dữ liệu được cung cấp. "
+                    + "Không được bịa số liệu còn thiếu; phải nêu rõ dữ liệu nào chưa có. Nếu expiredBatches hoặc expiringBatches lớn hơn 0 thì tuyệt đối không được kết luận kho an toàn. "
+                    + "Nguyên liệu có lô hết hạn/sắp hết hạn phải xuất hiện trong kết quả với suggestedAmount=0 và hành động xử lý phù hợp. "
+                    + "YÊU CẦU BẮT BUỘC: chỉ trả về một mảng JSON. Định dạng: [{\"name\":\"Thịt bò thăn\",\"suggestedAmount\":20,\"unit\":\"Kg\",\"analysis\":\"Phân tích tồn, tiêu thụ, công thức và hạn dùng\",\"reason\":\"Đề xuất nhập hoặc không nhập\"}]. Không dùng ```json.";
             combinedText = systemPrompt + "\n\nDữ liệu tồn kho sắp hết:\n" + userMessage
                     + "\n\nHãy trả về JSON đề xuất nhập kho:";
         } else if ("WEATHER_RECOMMEND".equals(type)) {

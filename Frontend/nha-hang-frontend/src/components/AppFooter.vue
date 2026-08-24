@@ -12,7 +12,7 @@
         <!-- Brand Column -->
         <div class="footer-col footer-brand-col">
           <div class="footer-brand">
-            <span class="footer-brand-icon">🍽️</span>
+            <span class="footer-brand-icon"><UiIcon name="restaurant" /></span>
             <div>
               <h3>NHÀ HÀNG <span>MỘC VỊ</span></h3>
               <p class="footer-brand-sub">{{ $t('footer.tagline') }}</p>
@@ -38,10 +38,10 @@
         <div class="footer-col">
           <h4>{{ $t('footer.explore') }}</h4>
           <ul>
-            <li><router-link to="/menu">📖 {{ $t('nav.menu') }}</router-link></li>
-            <li><router-link to="/reservation">📅 {{ $t('nav.booking') }}</router-link></li>
-            <li><router-link to="/dine-in">🍽️ {{ $t('footer.dineIn') }}</router-link></li>
-            <li><router-link to="/history">📜 {{ $t('footer.orderHistory') }}</router-link></li>
+            <li><router-link to="/menu"><UiIcon name="menu" />{{ $t('nav.menu') }}</router-link></li>
+            <li><router-link to="/reservation"><UiIcon name="calendar" />{{ $t('nav.booking') }}</router-link></li>
+            <li><router-link to="/dine-in"><UiIcon name="restaurant" />{{ $t('footer.dineIn') }}</router-link></li>
+            <li><router-link to="/history"><UiIcon name="history" />{{ $t('footer.orderHistory') }}</router-link></li>
           </ul>
         </div>
 
@@ -50,19 +50,19 @@
           <h4>{{ $t('footer.contact') }}</h4>
           <ul class="contact-list">
             <li>
-              <span class="contact-icon">📍</span>
+              <span class="contact-icon"><UiIcon name="location" /></span>
               <span>137 Nguyễn Thị Thập, Hải Châu, Đà Nẵng</span>
             </li>
             <li>
-              <span class="contact-icon">📞</span>
+              <span class="contact-icon"><UiIcon name="phone" /></span>
               <a href="tel:+84347944028">+84 347 944 028</a>
             </li>
             <li>
-              <span class="contact-icon">✉️</span>
+              <span class="contact-icon"><UiIcon name="mail" /></span>
               <a href="mailto:contact@mocvi.vn">contact@mocvi.vn</a>
             </li>
             <li>
-              <span class="contact-icon">🕐</span>
+              <span class="contact-icon"><UiIcon name="clock" /></span>
               <span>{{ $t('footer.openingHours') }}</span>
             </li>
           </ul>
@@ -81,7 +81,7 @@
 
       <!-- Bottom Bar -->
       <div class="footer-bottom">
-        <p>© {{ currentYear }} {{ $t('footer.copyright') }}</p>
+        <p> {{ currentYear }} {{ $t('footer.copyright') }}</p>
         <div class="footer-bottom-links">
           <a href="#">{{ $t('footer.privacy') }}</a>
           <a href="#">{{ $t('footer.terms') }}</a>
@@ -92,6 +92,8 @@
 </template>
 
 <script setup>
+import UiIcon from '@/components/UiIcon.vue'
+
 const currentYear = new Date().getFullYear()
 </script>
 
@@ -213,6 +215,9 @@ const currentYear = new Date().getFullYear()
   margin-bottom: 10px;
 }
 .footer-col ul a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   color: #000;
   text-decoration: none;
   font-size: 0.88rem;
@@ -228,6 +233,9 @@ const currentYear = new Date().getFullYear()
 
 /* Contact */
 .contact-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   display: flex;
   gap: 10px;
   align-items: flex-start;

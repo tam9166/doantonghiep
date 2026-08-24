@@ -113,6 +113,9 @@ public class Reservation {
     @Column(name = "preorder_enabled", nullable = false)
     private Boolean preorderEnabled = false;
 
+    @Column(name = "order_note", columnDefinition = "nvarchar(500)")
+    private String orderNote;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "area_id")
     private TableArea area;

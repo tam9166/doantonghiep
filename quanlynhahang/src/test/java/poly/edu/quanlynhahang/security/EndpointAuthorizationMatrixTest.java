@@ -87,7 +87,7 @@ class EndpointAuthorizationMatrixTest {
         PreAuthorize statusRule = kitchenAndWaiterStatus.getAnnotation(PreAuthorize.class);
         assertNotNull(statusRule);
         assertTrue(statusRule.value().contains("hasRole('KITCHEN') and (#status == 2 or #status == 6)"));
-        assertTrue(statusRule.value().contains("hasRole('WAITER') and #status == 7"));
+        assertTrue(statusRule.value().contains("hasRole('WAITER') and (#status == 1 or #status == 7)"));
         assertFalse(statusRule.value().contains("CASHIER"));
 
         assertRoles(AdminOrderController.class.getMethod("updateOrderAddress", Integer.class, String.class),

@@ -16,6 +16,9 @@ public class PaymentProperties {
     @NotBlank
     private String bankCode;
 
+    @NotBlank
+    private String bankName;
+
     private String bankBin;
 
     @NotBlank

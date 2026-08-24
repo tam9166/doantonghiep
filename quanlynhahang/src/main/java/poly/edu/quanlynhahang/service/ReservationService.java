@@ -322,9 +322,7 @@ public class ReservationService {
         }
         reservation.setArea(area);
 
-        Price tablePrice = table == null
-                ? new Price(area.getBasePrice() == null ? BigDecimal.ZERO : area.getBasePrice(), BigDecimal.ZERO, BigDecimal.ZERO)
-                : calculatePrice(table, area);
+        Price tablePrice = calculatePrice(table, area);
         List<ReservationPreorderItem> preorderItems = buildPreorderItems(request.getPreorderItems());
         BigDecimal foodAmount = preorderItems.stream()
                 .map(ReservationPreorderItem::getLineTotal)
@@ -337,7 +335,9 @@ public class ReservationService {
                 totalAmount, normalized.guestCount(), normalized.date(), normalized.time(), area.getId(), table, depositRate);
         BigDecimal payableNow = calculatePayableNow(totalAmount, paymentOption, deposit.amount());
 
+        validateSafeText(request.getOrderNote(), "Ghi chú cho nhà bếp");
         reservation.setPreorderEnabled(Boolean.TRUE.equals(request.getPreorderEnabled()) && !preorderItems.isEmpty());
+        reservation.setOrderNote(limit(trimToNull(request.getOrderNote()), 500));
         reservation.setPaymentOption(paymentOption);
         reservation.setTableAmount(tablePrice.total());
         reservation.setFoodAmount(foodAmount);
@@ -497,9 +497,7 @@ public class ReservationService {
         if (area == null) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Vui lòng chọn khu vực");
         }
-        Price tablePrice = table == null
-                ? new Price(area.getBasePrice() == null ? BigDecimal.ZERO : area.getBasePrice(), BigDecimal.ZERO, BigDecimal.ZERO)
-                : calculatePrice(table, area);
+        Price tablePrice = calculatePrice(table, area);
         List<ReservationPreorderItem> items = buildPreorderItems(request.getPreorderItems());
         BigDecimal foodAmount = items.stream()
                 .map(ReservationPreorderItem::getLineTotal)
@@ -1130,8 +1128,16 @@ public class ReservationService {
     }
 
     private Price calculatePrice(RestaurantTable table, TableArea area) {
-        // Reserving a table is free. Only preorder items are charged in this flow.
-        return new Price(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+        // Normal dining areas are free. VIP/private rooms use the separately
+        // managed AreaPricing room fee; legacy area.basePrice is intentionally ignored.
+        BigDecimal roomFee = area != null
+                && AreaType.PRIVATE_ROOM.equals(area.getAreaType())
+                && area.getPricing() != null
+                && Boolean.TRUE.equals(area.getPricing().getActive())
+                && area.getPricing().getRoomFee() != null
+                ? area.getPricing().getRoomFee()
+                : BigDecimal.ZERO;
+        return new Price(roomFee, BigDecimal.ZERO, BigDecimal.ZERO);
     }
 
     private BigDecimal calculatePayableNow(BigDecimal totalAmount, PaymentOption option, BigDecimal depositAmount) {
@@ -1219,7 +1225,6 @@ public class ReservationService {
         if (request.getQuantity() > 50) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Số lượng món đặt trước không hợp lệ");
         }
-        validateSafeText(request.getNote(), "Ghi chú món");
         Product product = productRepository.findById(request.getProductId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy món ăn"));
         if (Boolean.FALSE.equals(product.getStatus()) || Boolean.FALSE.equals(product.getAvailable())) {
@@ -1234,7 +1239,7 @@ public class ReservationService {
         item.setCategoryName(product.getCategory() == null ? null : product.getCategory().getName());
         item.setUnitPrice(unitPrice);
         item.setQuantity(request.getQuantity());
-        item.setNote(limit(trimToNull(request.getNote()), 300));
+        item.setNote(null);
         item.setLineTotal(unitPrice.multiply(BigDecimal.valueOf(request.getQuantity())).setScale(0, RoundingMode.HALF_UP));
         return item;
     }
@@ -1289,6 +1294,7 @@ public class ReservationService {
         response.setSpecialRequest(reservation.getSpecialRequest());
         response.setSeatingPreference(reservation.getSeatingPreference());
         response.setPreorderEnabled(reservation.getPreorderEnabled());
+        response.setOrderNote(reservation.getOrderNote());
         response.setReservationStatus(reservation.getReservationStatus());
         response.setOriginalTotalAmount(reservation.getTotalAmount());
         response.setDiscountAmount(BigDecimal.ZERO);

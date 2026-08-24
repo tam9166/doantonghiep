@@ -7,28 +7,28 @@
       <!-- Dashboard Stats -->
       <div class="stats-grid hide-on-print">
         <div class="stat-card gold clickable" @click="$router.push('/admin/analytics')">
-          <div class="stat-icon">💰</div>
+          <div class="stat-icon"><UiIcon name="currency" /></div>
           <div class="stat-info">
             <h3>{{ dynamicStats.totalRevenue ? dynamicStats.totalRevenue.toLocaleString() : 0 }} VNĐ</h3>
             <p>TỔNG DOANH THU</p>
           </div>
         </div>
         <div class="stat-card teal">
-          <div class="stat-icon">🧾</div>
+          <div class="stat-icon"><UiIcon name="check" /></div>
           <div class="stat-info">
             <h3>{{ dynamicStats.completedOrdersCount || 0 }} Đơn</h3>
             <p>HÓA ĐƠN HOÀN THÀNH</p>
           </div>
         </div>
-        <div class="stat-card blue">
-          <div class="stat-icon">🍽️</div>
+        <div class="stat-card served">
+          <div class="stat-icon"><UiIcon name="dish" /></div>
           <div class="stat-info">
             <h3>{{ dynamicStats.totalItemsSold || 0 }} Đĩa</h3>
             <p>MÓN ĂN ĐÃ PHỤC VỤ</p>
           </div>
         </div>
         <div class="stat-card red">
-          <div class="stat-icon">⏳</div>
+          <div class="stat-icon"><UiIcon name="clock" /></div>
           <div class="stat-info">
             <h3>{{ dynamicStats.pendingOrdersCount || 0 }} Đơn</h3>
             <p>ĐƠN ĐANG CHỜ DUYỆT</p>
@@ -39,7 +39,7 @@
       <!-- Filter & Search -->
       <div class="filter-bar g-card hide-on-print">
         <div class="filter-item">
-          <span class="filter-label">⏱️ Lọc thời gian</span>
+          <span class="filter-label"> Lọc thời gian</span>
           <select v-model="timeFilter" class="g-form-control" style="width: 200px;">
             <option value="all">Tất cả thời gian</option>
             <option value="today">Hôm nay</option>
@@ -49,7 +49,7 @@
           </select>
         </div>
         <div class="filter-item flex-1">
-          <span class="filter-label">🔍 Tìm hóa đơn</span>
+          <span class="filter-label"> Tìm hóa đơn</span>
           <input
             v-model="searchCode"
             type="text"
@@ -65,7 +65,7 @@
 
       <!-- Invoice Table -->
       <div class="g-card invoice-card">
-        <h3 class="section-title hide-on-print">📋 Danh Sách Nhật Ký Hóa Đơn</h3>
+        <h3 class="section-title hide-on-print"> Danh Sách Nhật Ký Hóa Đơn</h3>
         <div class="table-responsive">
           <table class="g-table">
             <colgroup>
@@ -91,11 +91,11 @@
                 <td class="col-code">
                   <span class="code-badge">#{{ getOrderCode(order) }}</span>
                 </td>
-                <td class="customer-cell">👤 {{ order.account?.fullname || order.username || 'Khách Vãng Lai' }}</td>
+                <td class="customer-cell"> {{ order.account?.fullname || order.username || 'Khách Vãng Lai' }}</td>
                 <td class="col-detail">
                   <div class="address-text">{{ cleanAddress(order.address) }}</div>
                   <div v-if="order.status === 5" class="scheduled-badge">
-                    ⏰ {{ getCountdown(order.scheduledAt) }}
+                     {{ getCountdown(order.scheduledAt) }}
                   </div>
                   <div class="food-tags">
                     <span v-for="detail in order.orderDetails" :key="detail.id" class="food-tag">
@@ -104,7 +104,7 @@
                     </span>
                   </div>
                 </td>
-                <td class="date-cell">📅 {{ formatDate(order.createDate) }}</td>
+                <td class="date-cell"> {{ formatDate(order.createDate) }}</td>
                 <td>
                   <span :class="['g-badge', getStatusClass(order.status)]">
                     {{ getStatusText(order.status) }}
@@ -112,17 +112,17 @@
                 </td>
                 <td class="hide-on-print">
                   <div class="action-row">
-                    <button @click="viewInvoice(order)" class="btn-view">👁 Xem</button>
+                    <button @click="viewInvoice(order)" class="btn-view"> Xem</button>
                     <button
                       v-if="order.status === 0 || order.status === 5"
                       @click="approveOrderToKitchen(order.id)"
                       class="btn-approve"
-                    >👨‍🍳 Chuyển Bếp</button>
+                    > Chuyển Bếp</button>
                   </div>
                 </td>
               </tr>
               <tr v-if="filteredOrders.length === 0">
-                <td colspan="6" class="empty-row">⚠️ Không tìm thấy hóa đơn nào!</td>
+                <td colspan="6" class="empty-row"> Không tìm thấy hóa đơn nào!</td>
               </tr>
             </tbody>
           </table>
@@ -134,7 +134,7 @@
         <div class="invoice-modal printable-area">
           <div class="modal-header hide-on-print">
             <h2>Chi Tiết Hóa Đơn</h2>
-            <button @click="closeModal" class="btn-close">✖</button>
+            <button @click="closeModal" class="btn-close"><UiIcon name="x" /></button>
           </div>
 
           <div class="invoice-content">
@@ -175,7 +175,7 @@
                   <td style="text-align:center">{{ index + 1 }}</td>
                   <td>
                     <img v-if="detail.product?.image" :src="foodImage(detail.product.image)" class="invoice-thumb" @error="replaceFoodImage" />
-                    <span v-else class="no-img">🍽️</span>
+                    <span v-else class="no-img"><UiIcon name="dish" /></span>
                   </td>
                   <td><strong>{{ detail.product?.name }}</strong></td>
                   <td style="text-align:right">{{ (detail.price / detail.quantity).toLocaleString() }}đ</td>
@@ -209,7 +209,7 @@
           </div>
 
           <div class="modal-actions hide-on-print">
-            <button @click="exportToPDF" class="btn-export">📥 Xuất Hóa Đơn PDF</button>
+            <button @click="exportToPDF" class="btn-export"> Xuất Hóa Đơn PDF</button>
           </div>
         </div>
       </div>
@@ -317,7 +317,7 @@ const cleanAddress = (address) => {
 };
 
 const getStatusText = (status) => {
-  const map = { 0: 'Chờ xử lý', 1: 'Đang nấu', 2: 'Đã lên món', 4: 'Hoàn thành', 5: '⏰ Chờ hẹn giờ' };
+  const map = { 0: 'Chờ xử lý', 1: 'Đang nấu', 2: 'Đã lên món', 4: 'Hoàn thành', 5: ' Chờ hẹn giờ' };
   return map[status] || 'Đang phục vụ';
 };
 
@@ -350,12 +350,12 @@ const getCountdown = (scheduledAt) => {
   const now = new Date();
   const diffMs = arrivalTime.getTime() - now.getTime();
   const diffMin = Math.round(diffMs / 60000);
-  if (diffMin <= 0) return '🔥 Đã tới giờ hẹn!';
-  if (diffMin <= 15) return `🔔 Còn ${diffMin} phút → Đang chuyển bếp...`;
-  return `⏳ Còn ${diffMin} phút nữa tới giờ hẹn (bếp nhận trước 15p)`;
+  if (diffMin <= 0) return ' Đã tới giờ hẹn!';
+  if (diffMin <= 15) return ` Còn ${diffMin} phút → Đang chuyển bếp...`;
+  return ` Còn ${diffMin} phút nữa tới giờ hẹn (bếp nhận trước 15p)`;
 };
 
-// 🌟 Auto-activate scheduled reservation orders every 30s
+//  Auto-activate scheduled reservation orders every 30s
 const activateScheduled = async () => {
   try {
     const token = sessionStorage.getItem('staff_token');
@@ -406,7 +406,7 @@ onUnmounted(() => {
 .stat-card.clickable { cursor: pointer; }
 .stat-card.clickable:hover { box-shadow: 0 0 20px color-mix(in srgb, var(--color-tertiary) 40%, transparent); transform: translateY(-5px) scale(1.02); }
 .stat-card.teal { border-left-color: var(--primary); }
-.stat-card.blue { border-left-color: var(--secondary); }
+.stat-card.served { border-left-color: var(--secondary); }
 .stat-card.red  { border-left-color: var(--primary); }
 
 .stat-icon {

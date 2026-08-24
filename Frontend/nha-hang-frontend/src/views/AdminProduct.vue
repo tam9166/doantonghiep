@@ -12,7 +12,7 @@
       <div class="content-grid">
         <!-- FORM THÊM / SỬA MÓN -->
         <div class="form-card" :class="{ 'edit-mode': isEditing }">
-          <h3>{{ isEditing ? '✏️ Cập Nhật Món Ăn' : '➕ Thêm Món Ăn Mới' }}</h3>
+          <h3>{{ isEditing ? ' Cập Nhật Món Ăn' : ' Thêm Món Ăn Mới' }}</h3>
 
           <div class="form-group">
             <label>Tên món ăn (*)</label>
@@ -70,8 +70,8 @@
           <div class="form-group">
             <label>Trạng thái</label>
             <select v-model="formData.status" class="g-form-control">
-              <option :value="true">✅ Đang bán (Còn hàng)</option>
-              <option :value="false">❌ Hết món (Ngừng bán)</option>
+              <option :value="true"> Đang bán (Còn hàng)</option>
+              <option :value="false"> Hết món (Ngừng bán)</option>
             </select>
           </div>
 
@@ -87,7 +87,7 @@
 
           <div class="form-actions">
             <button @click="saveProduct" class="g-btn-primary" style="width:100%">
-              {{ isEditing ? '💾 Lưu Thay Đổi' : '➕ Thêm Vào Menu' }}
+              {{ isEditing ? ' Lưu Thay Đổi' : ' Thêm Vào Menu' }}
             </button>
             <button v-if="isEditing" @click="cancelEdit" class="btn-cancel">Hủy Cập Nhật</button>
           </div>
@@ -95,7 +95,7 @@
 
         <!-- BẢNG DANH SÁCH MÓN ĂN -->
         <div class="table-card">
-          <h3>📜 Danh Sách Món Ăn <span class="count-chip">{{ products.length }}</span></h3>
+          <h3> Danh Sách Món Ăn <span class="count-chip">{{ products.length }}</span></h3>
           <div class="table-responsive">
             <table class="g-table">
               <thead>
@@ -116,12 +116,12 @@
                   <td>
                     <img :src="foodImage(p.image)" class="img-thumb" @error="replaceFoodImage" />
                   </td>
-                  <td><strong class="product-name">{{ p.name }}</strong><div class="tag-summary"><span v-if="p.isSignatureDish">🌟 Đặc trưng</span><span v-if="p.dietType === 'CHAY'">🌱 Chay</span><span v-if="p.spicyLevel > 0">🌶️ {{ p.spicyLevel }}</span></div></td>
+                  <td><strong class="product-name">{{ p.name }}</strong><div class="tag-summary"><span v-if="p.isSignatureDish"> Đặc trưng</span><span v-if="p.dietType === 'CHAY'"> Chay</span><span v-if="p.spicyLevel > 0"> {{ p.spicyLevel }}</span></div></td>
                   <td><span class="category-chip">{{ p.category ? p.category.name : 'Chưa phân loại' }}</span></td>
                   <td class="price-text">{{ p.price.toLocaleString() }}đ</td>
                   <td>{{ p.taxRate !== null && p.taxRate !== undefined ? p.taxRate + '%' : '8%' }}</td>
                   <td style="color: var(--primary); font-weight: bold;">{{ p.costPrice > 0 ? p.costPrice.toLocaleString() + 'đ' : 'N/A' }}</td>
-                  <td><strong style="color: var(--color-tertiary);">{{ p.averageRating > 0 ? '⭐ ' + p.averageRating : 'N/A' }}</strong></td>
+                  <td><strong style="color: var(--color-tertiary);">{{ p.averageRating > 0 ? ' ' + p.averageRating : 'N/A' }}</strong></td>
                   <td>
                     <span :class="p.status === false ? 'g-badge g-badge-danger' : 'g-badge g-badge-success'">
                       {{ p.status === false ? 'Hết món' : 'Đang bán' }}
@@ -129,11 +129,11 @@
                   </td>
                   <td>
                     <div class="action-buttons">
-                      <button @click="startEdit(p)" class="btn-edit">✏️</button>
+                      <button @click="startEdit(p)" class="btn-edit"><UiIcon name="edit" /></button>
                       <button @click="toggleStatus(p)" class="btn-toggle">
-                        {{ p.status === false ? '▶' : '⏸' }}
+                        <UiIcon :name="p.status === false ? 'play' : 'pause'" />
                       </button>
-                      <button @click="handleDelete(p.id)" class="g-btn-danger">🗑</button>
+                      <button @click="handleDelete(p.id)" class="g-btn-danger"><UiIcon name="trash" /></button>
                     </div>
                   </td>
                 </tr>
@@ -279,7 +279,7 @@ onMounted(() => {
 .page-title { font-size: 2rem; font-weight: 900; color: var(--text-heading); margin: 0 0 6px 0; }
 .page-subtitle { color: var(--text-muted); font-size: 0.95rem; margin: 0; }
 
-.content-grid { display: grid; grid-template-columns: 380px 1fr; gap: 28px; }
+.content-grid { display: grid; grid-template-columns: minmax(280px, 30%) minmax(0, 70%); gap: 28px; }
 
 /* Form Card */
 .form-card {
@@ -359,7 +359,8 @@ onMounted(() => {
   font-size: 0.85rem;
   font-weight: 800;
 }
-.table-responsive { overflow-x: auto; }
+.table-responsive { width: 100%; overflow-x: auto; }
+.table-responsive .g-table { width: 100%; min-width: 1200px; }
 
 .img-thumb {
   width: 52px; height: 52px;

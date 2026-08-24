@@ -5,7 +5,7 @@
       <div class="page-header parallax-header">
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <div>
-            <h1 class="page-title text-3d">🔥 Món Ăn & Nguyên Liệu Phổ Biến</h1>
+            <h1 class="page-title text-3d"> Món Ăn & Nguyên Liệu Phổ Biến</h1>
             <p class="page-subtitle">Danh sách món ăn bán chạy và nguyên liệu tiêu thụ nhiều nhất</p>
           </div>
           <div class="filter-group">
@@ -21,10 +21,10 @@
       <!-- Tabs -->
       <div class="tabs-header" style="margin-bottom: 24px;">
         <button @click="activeTab = 'products'" :class="['tab-btn', { active: activeTab === 'products' }]">
-          🍔 Top Món Ăn Bán Chạy
+           Top Món Ăn Bán Chạy
         </button>
         <button @click="activeTab = 'ingredients'" :class="['tab-btn', { active: activeTab === 'ingredients' }]">
-          🧅 Nguyên Liệu Tiêu Thụ Nhiều
+           Nguyên Liệu Tiêu Thụ Nhiều
         </button>
       </div>
 
@@ -35,14 +35,11 @@
                class="leader-card depth-card neon-glow tilt-card"
                :class="{ 'top-1': index === 0, 'top-2': index === 1, 'top-3': index === 2 }">
             <div class="leader-rank">
-              <span v-if="index === 0" class="rank-crown">👑</span>
-              <span v-else-if="index === 1" class="rank-medal">🥈</span>
-              <span v-else-if="index === 2" class="rank-medal">🥉</span>
-              <span v-else class="rank-number">#{{ index + 1 }}</span>
+              <span class="rank-number">#{{ index + 1 }}</span>
             </div>
             <div class="leader-img-wrap">
               <img v-if="item.image" :src="item.image" :alt="item.name" class="leader-img" />
-              <div v-else class="leader-img-placeholder">🍽️</div>
+              <div v-else class="leader-img-placeholder"><UiIcon name="dish" /></div>
             </div>
             <div class="leader-info tilt-content">
               <h3 class="leader-name">{{ item.name }}</h3>
@@ -67,7 +64,7 @@
           </div>
         </div>
         <div v-if="topProducts.length === 0" class="empty-state depth-card" style="text-align: center; padding: 60px;">
-          <div style="font-size: 3rem;">🍽️</div>
+          <div style="font-size: 3rem;"><UiIcon name="info" /></div>
           <h3>Chưa có dữ liệu bán hàng</h3>
           <p style="color: var(--text-muted);">Dữ liệu sẽ được tổng hợp từ các đơn hàng hoàn thành.</p>
         </div>
@@ -95,7 +92,7 @@
                 <td>
                   <div style="display: flex; align-items: center; gap: 10px;">
                     <img v-if="item.image" :src="item.image" style="width: 32px; height: 32px; border-radius: 8px; object-fit: cover;" />
-                    <span v-else style="font-size: 1.2rem;">🧅</span>
+                    <span v-else style="font-size: 1.2rem;"><UiIcon name="box" /></span>
                     <strong>{{ item.name }}</strong>
                   </div>
                 </td>

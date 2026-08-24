@@ -34,6 +34,7 @@ import poly.edu.quanlynhahang.dto.IngredientUpsertRequest;
 import poly.edu.quanlynhahang.repository.IngredientRepository;
 import poly.edu.quanlynhahang.repository.IngredientBatchRepository;
 import poly.edu.quanlynhahang.service.ActivityLogService;
+import poly.edu.quanlynhahang.service.InventoryAlertService;
 import poly.edu.quanlynhahang.service.MenuAvailabilityService;
 @RestController
 @RequestMapping("/api/admin/ingredients")
@@ -51,6 +52,9 @@ public class IngredientController {
 
     @Autowired
     private MenuAvailabilityService menuAvailabilityService;
+
+    @Autowired
+    private InventoryAlertService inventoryAlertService;
 
     // 1. Lấy tất cả nguyên liệu
     @GetMapping
@@ -216,29 +220,21 @@ public class IngredientController {
     // 7. Thống kê nhanh
     @GetMapping("/stats")
     public ResponseEntity<?> getStats() {
-        List<Ingredient> all = ingredientRepository.findAll();
-        long total = all.size();
-        long lowStock = all.stream().filter(i -> {
-            BigDecimal q = i.getQuantity() != null ? i.getQuantity() : BigDecimal.ZERO;
-            BigDecimal m = i.getMinStock() != null ? i.getMinStock() : BigDecimal.ZERO;
-            return q.compareTo(m) <= 0;
-        }).count();
-        long outOfStock = all.stream().filter(i -> {
-            BigDecimal q = i.getQuantity() != null ? i.getQuantity() : BigDecimal.ZERO;
-            return q.signum() <= 0;
-        }).count();
-
-        // Đếm số lô sắp hết hạn trong 3 ngày
-        Calendar cal = Calendar.getInstance();
-        cal.add(Calendar.DAY_OF_YEAR, 3);
-        List<IngredientBatch> expiringBatches = ingredientBatchRepository.findExpiringBatches(cal.getTime());
-
+        InventoryAlertService.Analysis analysis = inventoryAlertService.analyze(3);
         Map<String, Object> stats = new HashMap<>();
-        stats.put("total", total);
-        stats.put("lowStock", lowStock);
-        stats.put("outOfStock", outOfStock);
-        stats.put("expiringBatchesCount", expiringBatches.size());
+        stats.put("total", analysis.total());
+        stats.put("lowStock", analysis.lowStock());
+        stats.put("outOfStock", analysis.outOfStock());
+        stats.put("expiringBatchesCount", analysis.expiringBatchesCount());
+        stats.put("expiredBatchesCount", analysis.expiredBatchesCount());
         return ResponseEntity.ok(stats);
+    }
+
+    @GetMapping("/analysis")
+    public ResponseEntity<InventoryAlertService.Analysis> getInventoryAnalysis(
+            @RequestParam(defaultValue = "3") int expiringDays) {
+        int safeThreshold = Math.max(1, Math.min(expiringDays, 30));
+        return ResponseEntity.ok(inventoryAlertService.analyze(safeThreshold));
     }
 
     private BigDecimal sumBatchQuantity(Ingredient ingredient) {

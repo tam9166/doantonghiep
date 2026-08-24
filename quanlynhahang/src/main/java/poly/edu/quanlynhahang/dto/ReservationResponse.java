@@ -28,6 +28,7 @@ public class ReservationResponse {
     private String specialRequest;
     private String seatingPreference;
     private Boolean preorderEnabled;
+    private String orderNote;
     private Integer areaId;
     private String areaName;
     private Integer tableId;

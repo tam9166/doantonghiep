@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.transaction.annotation.Transactional;
 import jakarta.validation.Valid;
 
 import poly.edu.quanlynhahang.entity.Account;
@@ -133,8 +134,9 @@ public class AdminAccountController {
 
     // 6. Xem lịch sử hóa đơn của khách hàng
     @GetMapping("/customers/{username}/orders")
+    @Transactional(readOnly = true)
     public ResponseEntity<?> getCustomerOrders(@PathVariable String username) {
-        return ResponseEntity.ok(orderRepository.findByAccountUsername(username).stream()
+        return ResponseEntity.ok(orderRepository.findByAccountUsernameWithDetails(username).stream()
                 .map(OrderResponse::from).toList());
     }
 }

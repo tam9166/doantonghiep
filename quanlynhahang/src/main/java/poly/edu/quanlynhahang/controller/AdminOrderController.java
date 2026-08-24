@@ -171,13 +171,18 @@ public class AdminOrderController {
         Map<String, Object> stats = new HashMap<>();
         stats.put("revenueChart", revenueByDate);
         stats.put("topProducts", topProducts.stream().map(e -> Map.of("name", e.getKey(), "sold", e.getValue())).collect(Collectors.toList()));
+        LocalDateTime overdueCutoff = LocalDate.now(BUSINESS_ZONE).atStartOfDay();
+        stats.put("overdueOrders", orderRepository.countOverdueOrders(
+                List.of(OrderStatus.CANCELLED.code(), OrderStatus.COMPLETED.code()),
+                overdueCutoff,
+                Date.from(overdueCutoff.atZone(BUSINESS_ZONE).toInstant())));
 
         return ResponseEntity.ok(stats);
     }
 
     // 🌟 API MỚI: XỬ LÝ NÚT BẤM "XONG MÓN" HOẶC "ĐÃ BƯNG RA BÀN"
     @PutMapping("/{id}/status")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER') or (hasRole('KITCHEN') and (#status == 2 or #status == 6)) or (hasRole('WAITER') and #status == 7)")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER') or (hasRole('KITCHEN') and (#status == 2 or #status == 6)) or (hasRole('WAITER') and (#status == 1 or #status == 7))")
     @Transactional
     public ResponseEntity<?> updateOrderStatus(@PathVariable Integer id, @RequestParam Integer status) {
         if (status == 1) {
@@ -280,10 +285,11 @@ public class AdminOrderController {
                 .getAuthentication().getAuthorities().stream()
                 .anyMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN")
                         || authority.getAuthority().equals("ROLE_MANAGER")
-                        || authority.getAuthority().equals("ROLE_CASHIER"));
+                        || authority.getAuthority().equals("ROLE_CASHIER")
+                        || authority.getAuthority().equals("ROLE_WAITER"));
         if (!allowed) {
             throw new org.springframework.security.access.AccessDeniedException(
-                    "Chỉ thu ngân hoặc quản lý được xác nhận đơn thủ công");
+                    "Chỉ phục vụ, thu ngân hoặc quản lý được chuyển đơn vào bếp");
         }
     }
 

@@ -19,17 +19,25 @@ const accounts = {
 }
 
 const protectedScreens = [
+  { role: 'admin', route: '/reservation', name: 'public-reservation' },
   { role: 'admin', route: '/admin/analytics', name: 'admin-dashboard' },
   { role: 'manager', route: '/admin/analytics', name: 'manager-dashboard' },
+  { role: 'admin', route: '/admin/ai-knowledge', name: 'ai-knowledge' },
+  { role: 'admin', route: '/admin', name: 'products' },
   { role: 'kitchen', route: '/kitchen', name: 'kitchen' },
   { role: 'waiter', route: '/waiter', name: 'waiter-table-map' },
   { role: 'cashier', route: '/cashier', name: 'cashier' },
   { role: 'admin', route: '/admin/staff', name: 'staff-management' },
   { role: 'admin', route: '/admin/orders', name: 'orders' },
   { role: 'admin', route: '/admin/reservations', name: 'reservations' },
+  { role: 'admin', route: '/admin/deposit-policies', name: 'deposit-policies' },
   { role: 'admin', route: '/admin/tables', name: 'tables' },
+  { role: 'admin', route: '/admin/table-areas', name: 'table-areas' },
   { role: 'admin', route: '/admin/ingredients', name: 'ingredients' },
+  { role: 'admin', route: '/admin/popular-items', name: 'popular-items' },
   { role: 'admin', route: '/admin/purchase-suggestions', name: 'purchase-suggestions' },
+  { role: 'admin', route: '/admin/vouchers', name: 'vouchers' },
+  { role: 'admin', route: '/admin/posts', name: 'posts' },
 ].filter(screen => !process.env.SMOKE_SCREEN_PATTERN
   || new RegExp(process.env.SMOKE_SCREEN_PATTERN, 'i').test(screen.name))
 

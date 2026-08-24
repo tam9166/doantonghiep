@@ -1,8 +1,6 @@
 <template>
   <CustomerLayout>
   <div class="dine-in-wrapper">
-    
-
     <main class="main-content">
       <div style="margin-bottom: 20px;">
         <button v-if="userRoles.includes('ROLE_WAITER')" @click="$router.push('/waiter')" class="g-btn-outline" style="border-radius: 100px; padding: 8px 20px; border-color: rgba(255,255,255,0.2);">
@@ -13,7 +11,7 @@
         </button>
       </div>
       <div class="table-selection-box">
-        <label>📍 Bạn đang ngồi ở bàn nào?</label>
+        <label> Bạn đang ngồi ở bàn nào?</label>
         <select v-model="selectedTable" class="form-control table-select" :disabled="isTableLocked">
           <option value="" disabled>-- Vui lòng chọn bàn của bạn --</option>
           <optgroup v-for="(tables, floor) in groupedTables" :key="floor" :label="floor">
@@ -24,19 +22,18 @@
             :value="t.name" 
             :disabled="t.isOccupied !== 0 && t.name !== selectedTable"
           >
-            {{ t.name }} {{ t.isOccupied === 0 ? '(🟢 Trống)' : (t.isOccupied === 1 ? '(🟡 Đã cọc)' : '(🔴 Có khách)') }}
+            {{ t.name }} {{ t.isOccupied === 0 ? '( Trống)' : (t.isOccupied === 1 ? '( Đã cọc)' : '( Có khách)') }}
           </option>
         </optgroup>
         </select>
-        <p v-if="isTableLocked" style="color:var(--primary); font-size: 0.85rem; margin-top: 5px;">🔒 Bạn đã quét mã QR cho bàn này. Không thể đổi bàn.</p>
+        <p v-if="isTableLocked" style="color:var(--primary); font-size: 0.85rem; margin-top: 5px;"> Bạn đã quét mã QR cho bàn này. Không thể đổi bàn.</p>
       </div>
-
       <div class="product-list" v-if="selectedTable">
         <div class="menu-column">
         <!-- AI Suggestion Section -->
         <div class="ai-suggestion-box">
           <div class="ai-header">
-            <h3>🤖 Smart Suggestion</h3>
+            <h3> Smart Suggestion</h3>
             <span class="ai-badge">AI Gợi Ý</span>
           </div>
           
@@ -65,7 +62,7 @@
               </div>
             </div>
             <div class="ai-action" style="display: flex; gap: 10px; justify-content: center;">
-              <button v-if="!isAdminOrManager" class="btn-add-combo" @click="addComboToCart">🛒 Thêm Cả Combo</button>
+              <button v-if="!isAdminOrManager" class="btn-add-combo" @click="addComboToCart"> Thêm Cả Combo</button>
               <button v-else class="btn-add-combo btn-disabled" disabled>Chỉ xem (Admin)</button>
               <button class="btn-cancel" style="padding: 10px 20px; border-radius: 20px;" @click="aiCombo = []">Thử lại</button>
             </div>
@@ -74,7 +71,7 @@
 
         <!-- Món ăn bán chạy / Gợi ý -->
         <div v-if="suggestedProducts.length > 0" class="suggested-section">
-          <h3 class="section-title"><span style="color: var(--color-tertiary)">🌟</span> Gợi Ý Cho Bạn (Bán Chạy)</h3>
+        <h3 class="section-title"><span style="color: var(--color-tertiary)"><UiIcon name="sparkles" /></span> Gợi Ý Cho Bạn (Bán Chạy)</h3>
           <div class="suggested-grid">
             <div v-for="product in suggestedProducts" :key="'sugg-'+product.id" class="suggested-card">
               <div class="sugg-badge">HOT</div>
@@ -124,13 +121,13 @@
 
       <!-- FAB Voice Order -->
       <div v-if="selectedTable && !isAdminOrManager" class="fab-mic" @click="startVoiceOrder" :class="{'recording': isListening}">
-        🎙️
+        <UiIcon name="mic" />
       </div>
 
       <!-- Voice Modal -->
       <div v-if="showVoiceModal" class="modal-overlay voice-modal">
         <div class="voice-box">
-          <div class="mic-icon" :class="{'pulse': isListening}">🎙️</div>
+            <div class="mic-icon" :class="{'pulse': isListening}"><UiIcon name="mic" /></div>
           <h3>Trợ lý Gọi Món AI</h3>
           <p class="voice-text">{{ voiceText }}</p>
           <button class="btn-cancel" style="margin-top:20px;" @click="closeVoiceModal">Hủy</button>
@@ -140,18 +137,18 @@
 
     <div class="sticky-bottom-cart" v-if="cart.length > 0">
       <div class="cart-summary" @click="showModal = true">
-        <span class="cart-icon">🛒 <span class="badge">{{ totalItems }}</span></span>
+        <span class="cart-icon"> <span class="badge">{{ totalItems }}</span></span>
         <div class="cart-text">
           <span class="cart-price">{{ cartSubtotal.toLocaleString() }}đ</span>
         </div>
       </div>
-      <button class="btn-checkout" @click="showModal = true">🍳 Gửi Bếp</button>
+      <button class="btn-checkout" @click="showModal = true"> Gửi Bếp</button>
     </div>
 
     <!-- Xác nhận gọi món Modal -->
     <div v-if="showModal" class="g-modal-overlay" @click.self="showModal = false">
       <div class="g-modal-box" style="max-width: 550px; max-height: 90vh; overflow-y: auto;">
-        <h3>🍳 Xác Nhận Gọi Món</h3>
+        <h3> Xác Nhận Gọi Món</h3>
         
         <div class="cart-details" style="max-height: 300px; overflow-y: auto; margin-bottom: 15px; padding-right: 10px;">
           <div v-for="(item, idx) in cart" :key="idx" class="cart-item-row">
@@ -171,7 +168,7 @@
               <button class="qty-btn qty-minus" @click="decreaseQty(idx)">−</button>
               <span class="qty-display">{{ item.quantity }}</span>
               <button class="qty-btn qty-plus" @click="increaseQty(idx)">+</button>
-              <button class="qty-btn qty-remove" @click="cart.splice(idx, 1)">✖</button>
+              <button class="qty-btn qty-remove" @click="cart.splice(idx, 1)"><UiIcon name="trash" /></button>
             </div>
           </div>
         </div>
@@ -180,13 +177,13 @@
           <h4 style="color: var(--primary); font-size: 1.1rem; border-top: 1px dashed color-mix(in srgb, var(--secondary) 30%, transparent); padding-top: 10px;">Tạm tính: {{ cartSubtotal.toLocaleString() }}đ</h4>
           <h4 style="color: var(--primary); font-size: 1.1rem;">Thuế GTGT: {{ cartTax.toLocaleString() }}đ</h4>
           <h4 style="color: var(--primary); font-size: 1.4rem; margin-top: 5px;">Tổng cộng: {{ finalTotal.toLocaleString() }}đ</h4>
-          <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 5px;">💡 Thanh toán sau khi dùng bữa xong</p>
+          <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 5px;"> Thanh toán sau khi dùng bữa xong</p>
         </div>
 
         <div class="modal-actions mt-4" style="display: flex; gap: 10px;">
           <button @click="showModal = false" class="g-btn-outline" style="flex:1;">Quay lại</button>
           <button @click="submitOrder" :disabled="isSubmitting" class="g-btn-primary" style="flex:1;">
-            {{ isSubmitting ? 'Đang gửi...' : '🍳 Gửi Bếp Ngay' }}
+            {{ isSubmitting ? 'Đang gửi...' : ' Gửi Bếp Ngay' }}
           </button>
         </div>
       </div>
@@ -200,6 +197,7 @@
 
 <script setup>
 import CustomerLayout from '@/components/CustomerLayout.vue';
+import UiIcon from '@/components/UiIcon.vue';
 
 import { ref, computed, onMounted } from 'vue';
 import api, { externalApi } from '@/services/api';
@@ -500,7 +498,7 @@ const startVoiceOrder = () => {
     recognition.onresult = async (event) => {
       isListening.value = false;
       const transcript = event.results[0][0].transcript;
-      voiceText.value = `Bạn vừa nói: "${transcript}"\n\nĐang nhờ AI phân tích... 🤖`;
+      voiceText.value = `Bạn vừa nói: "${transcript}"\n\nĐang nhờ AI phân tích... `;
       
       try {
         // Gửi danh sách tên món cho AI
@@ -531,7 +529,7 @@ const startVoiceOrder = () => {
         });
         
         if (addedNames.length > 0) {
-          voiceText.value = `✅ Đã thêm vào giỏ: ${addedNames.join(', ')}`;
+          voiceText.value = ` Đã thêm vào giỏ: ${addedNames.join(', ')}`;
         } else {
           voiceText.value = 'AI không tìm thấy món ăn nào khớp với menu.';
         }

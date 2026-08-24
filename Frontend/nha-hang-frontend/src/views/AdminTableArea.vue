@@ -4,7 +4,7 @@
       <div class="page-header">
         <div>
           <h1 class="page-title">Khu Vực Phục Vụ</h1>
-          <p class="page-subtitle">Quản lý tầng, phòng VIP, sân thượng và giá nền theo khu vực.</p>
+          <p class="page-subtitle">Khu phục vụ thường miễn phí; phí phòng và mức chi tối thiểu chỉ áp dụng cho phòng riêng.</p>
         </div>
         <button class="g-btn-primary" @click="resetForm">Tạo khu vực mới</button>
       </div>
@@ -28,19 +28,17 @@
             <label>Mô tả tiếng Anh</label>
             <textarea v-model.trim="form.descriptionEn" class="g-form-control" rows="3" />
           </div>
-          <div class="form-columns">
-            <div class="form-row">
-              <label>Sức chứa</label>
-              <input v-model.number="form.capacity" type="number" min="0" class="g-form-control" />
-            </div>
-            <div class="form-row">
-              <label>Giá nền</label>
-              <input v-model.number="form.basePrice" type="number" min="0" step="10000" class="g-form-control" />
-            </div>
+          <div class="form-row">
+            <label>Sức chứa</label>
+            <input v-model.number="form.capacity" type="number" min="0" class="g-form-control" />
           </div>
           <div class="form-row">
             <label>Loại khu vực</label>
-            <select v-model="form.areaType" class="g-form-control"><option value="DINING">Khu phục vụ</option><option value="EVENT_HALL">Sảnh sự kiện</option></select>
+            <select v-model="form.areaType" class="g-form-control"><option value="DINING">Khu phục vụ thường (miễn phí)</option><option value="PRIVATE_ROOM">Phòng riêng / VIP</option><option value="EVENT_HALL">Sảnh sự kiện</option></select>
+          </div>
+          <div v-if="form.areaType === 'PRIVATE_ROOM'" class="form-columns">
+            <div class="form-row"><label>Phí phòng</label><input v-model.number="form.roomFee" type="number" min="0" step="10000" class="g-form-control" /></div>
+            <div class="form-row"><label>Chi tiêu tối thiểu</label><input v-model.number="form.minimumSpend" type="number" min="0" step="10000" class="g-form-control" /></div>
           </div>
           <div class="form-row">
             <label>Ảnh khu vực</label>
@@ -94,7 +92,8 @@
                 <p class="area-desc">{{ area.descriptionVi || 'Chưa có mô tả.' }}</p>
                 <div class="area-meta">
                   <span>Sức chứa: {{ area.capacity || 0 }}</span>
-                  <span>Giá nền: {{ formatCurrency(area.basePrice) }}</span>
+                  <span v-if="area.areaType === 'DINING'">Miễn phí đặt khu vực</span>
+                  <span v-if="area.areaType === 'PRIVATE_ROOM'">Phí phòng: {{ formatCurrency(area.roomFee) }} · Chi tối thiểu: {{ formatCurrency(area.minimumSpend) }}</span>
                   <span v-if="area.areaType === 'EVENT_HALL'">Sảnh: {{ area.minGuestCount }}–{{ area.maxGuestCount }} khách · tối đa {{ area.maxTables || '-' }} bàn</span>
                 </div>
                 <div class="area-actions">
@@ -129,7 +128,8 @@ const defaultForm = () => ({
   descriptionEn: '',
   imageUrl: '',
   galleryText: '',
-  basePrice: 0,
+  roomFee: 0,
+  minimumSpend: 0,
   capacity: 0,
   status: 'ACTIVE', areaType: 'DINING', minGuestCount: 1, maxGuestCount: 1000, minBookingHours: 2,
   hourlyRate: 0, packagePrice: 0, maxTables: null, defaultGuestsPerTable: 10, suitableEventTypes: []
@@ -180,7 +180,8 @@ const editArea = (area) => {
   form.value = {
     ...defaultForm(),
     ...area,
-    basePrice: Number(area.basePrice || 0),
+    roomFee: Number(area.roomFee || 0),
+    minimumSpend: Number(area.minimumSpend || 0),
     capacity: Number(area.capacity || 0),
     galleryText: (area.gallery || []).join('\n'),
     status: area.status || 'ACTIVE'
@@ -193,7 +194,8 @@ const normalizePayload = () => {
   const base = { ...form.value }
   delete base.galleryText
   delete base.id
-  return { ...base, basePrice: Number(form.value.basePrice || 0), capacity: Number(form.value.capacity || 0),
+  return { ...base, basePrice: 0, roomFee: form.value.areaType === 'PRIVATE_ROOM' ? Number(form.value.roomFee || 0) : 0,
+    minimumSpend: form.value.areaType === 'PRIVATE_ROOM' ? Number(form.value.minimumSpend || 0) : 0, capacity: Number(form.value.capacity || 0),
     status: form.value.status || 'ACTIVE', gallery: galleryText.split(/\r?\n/).map(v => v.trim()).filter(Boolean),
     suitableEventTypes: form.value.suitableEventTypes || [] }
 };

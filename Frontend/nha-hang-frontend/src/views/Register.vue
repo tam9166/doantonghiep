@@ -14,21 +14,21 @@
         
         <div class="benefits-list">
           <div class="benefit-item">
-            <span class="benefit-icon">🎁</span>
+            <span class="benefit-icon"><UiIcon name="sparkles" /></span>
             <div>
               <strong>Tích điểm VIP</strong>
               <p>Mỗi đơn hàng đều được tích điểm đổi quà</p>
             </div>
           </div>
           <div class="benefit-item">
-            <span class="benefit-icon">🎟️</span>
+            <span class="benefit-icon"><UiIcon name="note" /></span>
             <div>
               <strong>Voucher độc quyền</strong>
               <p>Nhận mã giảm giá dành riêng cho thành viên</p>
             </div>
           </div>
           <div class="benefit-item">
-            <span class="benefit-icon">📱</span>
+            <span class="benefit-icon"><UiIcon name="clock" /></span>
             <div>
               <strong>Đặt món nhanh</strong>
               <p>Lưu lịch sử, đặt lại chỉ 1 click</p>
@@ -46,7 +46,7 @@
       <div class="form-wrapper">
         <!-- Mobile Brand -->
         <div class="mobile-brand">
-          <span>🍽️</span>
+          <span></span>
           <h2>MỘC VỊ</h2>
         </div>
 
@@ -75,14 +75,14 @@
               <div class="input-group">
                 <label>Tên đăng nhập *</label>
                 <div class="input-field">
-                  <span class="field-icon">👤</span>
+                  <span class="field-icon"><UiIcon name="user" /></span>
                   <input v-model="form.username" type="text" required minlength="4" maxlength="50" pattern="[a-zA-Z0-9._-]+" autocomplete="username" placeholder="username..." />
                 </div>
               </div>
               <div class="input-group">
                 <label>Họ và Tên *</label>
                 <div class="input-field">
-                  <span class="field-icon">📛</span>
+                  <span class="field-icon"><UiIcon name="profile" /></span>
                   <input v-model="form.fullname" type="text" required maxlength="100" autocomplete="name" placeholder="Nguyễn Văn A..." />
                 </div>
               </div>
@@ -91,7 +91,7 @@
             <div class="input-group">
               <label>Email *</label>
               <div class="input-field">
-                <span class="field-icon">📧</span>
+                <span class="field-icon"><UiIcon name="mail" /></span>
                 <input v-model="form.email" type="email" required maxlength="100" autocomplete="email" placeholder="email@gmail.com" />
               </div>
             </div>
@@ -99,9 +99,9 @@
             <div class="input-group">
               <label>Mật khẩu *</label>
               <div class="input-field">
-                <span class="field-icon">🔒</span>
+                <span class="field-icon"><UiIcon name="settings" /></span>
                 <input v-model="form.password" :type="showPw ? 'text' : 'password'" required minlength="10" maxlength="72" autocomplete="new-password" placeholder="Từ 10 đến 72 ký tự..." />
-                <button class="toggle-pw" @click="showPw = !showPw" type="button">{{ showPw ? '🙈' : '👁️' }}</button>
+                <button class="toggle-pw" @click="showPw = !showPw" type="button" :aria-label="showPw ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'"><UiIcon name="eye" /></button>
               </div>
               <!-- Password Strength -->
               <div class="pw-strength" v-if="form.password">
@@ -124,19 +124,19 @@
 
             <div class="confirm-card">
               <div class="confirm-row">
-                <span class="confirm-label">👤 Username</span>
+                <span class="confirm-label"> Username</span>
                 <span class="confirm-value">{{ form.username }}</span>
               </div>
               <div class="confirm-row">
-                <span class="confirm-label">📛 Họ và Tên</span>
+                <span class="confirm-label"> Họ và Tên</span>
                 <span class="confirm-value">{{ form.fullname }}</span>
               </div>
               <div class="confirm-row">
-                <span class="confirm-label">📧 Email</span>
+                <span class="confirm-label"> Email</span>
                 <span class="confirm-value">{{ form.email }}</span>
               </div>
               <div class="confirm-row">
-                <span class="confirm-label">🔒 Mật khẩu</span>
+                <span class="confirm-label"> Mật khẩu</span>
                 <span class="confirm-value">••••••••</span>
               </div>
             </div>
@@ -150,7 +150,7 @@
             <div class="btn-row">
               <button @click="step = 1" class="btn-back">← Quay lại</button>
               <button @click="handleRegister" class="btn-register" :disabled="isLoading || !agreedTerms">
-                <span v-if="!isLoading">🚀 Đăng Ký</span>
+                <span v-if="!isLoading"> Đăng Ký</span>
                 <span v-else class="btn-loading"><span class="spinner"></span> Đang xử lý...</span>
               </button>
             </div>
@@ -160,7 +160,7 @@
         <!-- Error -->
         <Transition name="shake">
           <div v-if="errorMsg" class="error-alert">
-            <span>⚠️</span>
+            <span></span>
             <p>{{ errorMsg }}</p>
           </div>
         </Transition>

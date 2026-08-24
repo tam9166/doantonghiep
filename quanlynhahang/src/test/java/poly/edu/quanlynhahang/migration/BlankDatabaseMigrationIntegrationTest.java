@@ -37,7 +37,7 @@ class BlankDatabaseMigrationIntegrationTest {
                     .baselineOnMigrate(true)
                     .baselineVersion("2")
                     .load();
-            assertEquals(69, flyway.migrate().migrationsExecuted);
+            assertEquals(71, flyway.migrate().migrationsExecuted);
 
             try (Connection target = DriverManager.getConnection(targetUrl, username, password);
                  Statement statement = target.createStatement()) {
@@ -48,6 +48,7 @@ class BlankDatabaseMigrationIntegrationTest {
                 assertTrue(tableExists(statement, "reservation_cancellation_requests"));
                 assertTrue(tableExists(statement, "reservation_contact_logs"));
                 assertTrue(tableExists(statement, "inventory_reservations"));
+                assertTrue(tableExists(statement, "area_pricing"));
                 assertEquals(1, count(statement,
                         "SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Orders') AND name = 'order_code'"));
                 assertEquals(1, count(statement,
@@ -68,6 +69,10 @@ class BlankDatabaseMigrationIntegrationTest {
                         "SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Accounts') AND name IN ('shift','assigned_area')"));
                 assertEquals(6, count(statement,
                         "SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('dbo.reservations') AND name IN ('preorder_enabled','table_amount','food_amount','payment_option','deposit_policy_code','deposit_policy_snapshot')"));
+                assertEquals(1, count(statement,
+                        "SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('dbo.reservations') AND name = 'order_note'"));
+                assertEquals(7, count(statement,
+                        "SELECT COUNT(*) FROM dbo.ai_faq_examples WHERE enabled = 1"));
                 assertEquals(4, count(statement,
                         "SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('dbo.reservations') AND name IN ('preorder_enabled','table_amount','food_amount','payment_option') AND is_nullable = 0"));
                 assertEquals(20, count(statement,

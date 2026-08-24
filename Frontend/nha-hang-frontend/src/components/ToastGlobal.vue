@@ -9,16 +9,13 @@
         @click="removeToast(toast.id)"
       >
         <div class="toast-icon">
-          <span v-if="toast.type === 'success'">✅</span>
-          <span v-else-if="toast.type === 'error'">❌</span>
-          <span v-else-if="toast.type === 'warning'">⚠️</span>
-          <span v-else>ℹ️</span>
+          <UiIcon :name="toastIcon(toast.type)" />
         </div>
         <div class="toast-body">
           <p class="toast-title" v-if="toast.title">{{ toast.title }}</p>
           <p class="toast-message">{{ toast.message }}</p>
         </div>
-        <button class="toast-close" aria-label="Đóng thông báo" @click.stop="removeToast(toast.id)">✕</button>
+        <button class="toast-close" aria-label="Đóng thông báo" @click.stop="removeToast(toast.id)"><UiIcon name="x" /></button>
         <div class="toast-progress" :style="{ animationDuration: toast.duration + 'ms' }"></div>
       </div>
     </TransitionGroup>
@@ -27,8 +24,10 @@
 
 <script setup>
 import { useToast } from '@/composables/useToast'
+import UiIcon from './UiIcon.vue'
 
 const { toasts, removeToast } = useToast()
+const toastIcon = type => ({ success: 'check', error: 'x', warning: 'warning', info: 'info' }[type] || 'info')
 </script>
 
 <style scoped>
@@ -61,29 +60,29 @@ const { toasts, removeToast } = useToast()
   overflow: hidden;
 }
 
-.toast-success { background: color-mix(in srgb, var(--secondary) 12%, transparent); border-color: color-mix(in srgb, var(--secondary) 25%, transparent); }
-.toast-error { background: color-mix(in srgb, var(--primary) 12%, transparent); border-color: color-mix(in srgb, var(--primary) 25%, transparent); }
-.toast-warning { background: color-mix(in srgb, var(--color-tertiary) 12%, transparent); border-color: color-mix(in srgb, var(--color-tertiary) 25%, transparent); }
-.toast-info { background: color-mix(in srgb, var(--secondary) 12%, transparent); border-color: color-mix(in srgb, var(--secondary) 25%, transparent); }
+.toast-success { background: #F0FDF4; border-color: #86EFAC; color: #166534; }
+.toast-error { background: #FFF1F2; border-color: #E11D48; color: #991B1B; }
+.toast-warning { background: #FFFBEB; border-color: #FBBF24; color: #92400E; }
+.toast-info { background: var(--color-primary-fixed); border-color: var(--border); color: var(--primary-dark); }
 
 .toast-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 2px; }
 .toast-body { flex: 1; min-width: 0; }
-.toast-title { margin: 0 0 4px 0; font-weight: 800; font-size: 0.92rem; color: #FFFFFF; }
-.toast-message { margin: 0; font-size: 0.88rem; color: rgba(255, 255, 255, 0.75); line-height: 1.5; }
+.toast-title { margin: 0 0 4px 0; font-weight: 800; font-size: 0.92rem; color: currentColor; }
+.toast-message { margin: 0; font-size: 0.88rem; color: currentColor; line-height: 1.5; }
 
 .toast-close {
-  background: none; border: none; color: rgba(255, 255, 255, 0.4);
+  background: none; border: none; color: currentColor;
   font-size: 0.9rem; cursor: pointer; padding: 4px; flex-shrink: 0;
   transition: color 0.2s;
 }
-.toast-close:hover { color: #FFFFFF; }
+.toast-close:hover { opacity: .72; }
 
 .toast-progress {
   position: absolute; bottom: 0; left: 0; height: 3px;
   border-radius: 0 0 16px 16px;
   animation: toastProgress linear forwards;
 }
-.toast-success .toast-progress { background: color-mix(in srgb, var(--secondary) 60%, transparent); }
+.toast-success .toast-progress { background: color-mix(in srgb, var(--success) 60%, transparent); }
 .toast-error .toast-progress { background: color-mix(in srgb, var(--primary) 60%, transparent); }
 .toast-warning .toast-progress { background: color-mix(in srgb, var(--color-tertiary) 60%, transparent); }
 .toast-info .toast-progress { background: color-mix(in srgb, var(--secondary) 60%, transparent); }

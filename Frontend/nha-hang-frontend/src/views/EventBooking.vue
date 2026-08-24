@@ -256,13 +256,13 @@ async function submit() {
   pointer-events: none;
 }
 .event-page::before {
-  content: "❧";
+  content: "";
   top: 22px;
   right: 4%;
   transform: rotate(-20deg);
 }
 .event-page::after {
-  content: "❦";
+  content: "";
   bottom: 20px;
   left: 3%;
   transform: rotate(18deg);

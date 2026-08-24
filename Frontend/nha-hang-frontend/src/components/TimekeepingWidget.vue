@@ -1,7 +1,7 @@
 <template>
   <div class="timekeeping-widget">
     <div class="widget-header" @click="toggleExpanded">
-      <span class="icon">🕒</span> 
+      <UiIcon name="clock" />
       <span class="title">Chấm Công</span>
       <span class="arrow">{{ isExpanded ? '▼' : '▲' }}</span>
     </div>
@@ -29,17 +29,17 @@
             v-if="!checkInTime" 
             class="btn-checkin" 
             @click="performCheck('IN')">
-            📍 Bắt Đầu Ca
+             Bắt Đầu Ca
           </button>
           
           <button 
             v-else-if="checkInTime && !checkOutTime" 
             class="btn-checkout" 
             @click="performCheck('OUT')">
-            🚪 Kết Thúc Ca
+             Kết Thúc Ca
           </button>
           
-          <div v-else class="done-msg">🎉 Đã hoàn thành ca làm!</div>
+          <div v-else class="done-msg"> Đã hoàn thành ca làm!</div>
         </div>
       </div>
     </div>
@@ -49,6 +49,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import api from '@/services/api';
+import UiIcon from './UiIcon.vue';
 
 const isExpanded = ref(false);
 const loading = ref(true);

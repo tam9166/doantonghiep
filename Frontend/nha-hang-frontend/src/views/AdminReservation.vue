@@ -643,8 +643,8 @@ onBeforeUnmount(() => {
 }
 
 .realtime-alert {
-  border: 1px solid #D7E3ED;
-  background: #EEF3F6;
+  border: 1px solid var(--color-outline-variant);
+  background: var(--color-secondary-fixed);
   color: var(--secondary);
   border-radius: 8px;
   padding: 10px 12px;

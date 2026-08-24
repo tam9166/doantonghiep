@@ -9,16 +9,13 @@
         @click="removeToast(toast.id)"
       >
         <div class="toast-icon">
-          <span v-if="toast.type === 'success'">✅</span>
-          <span v-else-if="toast.type === 'error'">❌</span>
-          <span v-else-if="toast.type === 'warning'">⚠️</span>
-          <span v-else>ℹ️</span>
+          <UiIcon :name="toastIcon(toast.type)" />
         </div>
         <div class="toast-body">
           <p class="toast-title" v-if="toast.title">{{ toast.title }}</p>
           <p class="toast-message">{{ toast.message }}</p>
         </div>
-        <button class="toast-close" aria-label="Đóng thông báo" @click.stop="removeToast(toast.id)">✕</button>
+        <button class="toast-close" aria-label="Đóng thông báo" @click.stop="removeToast(toast.id)"><UiIcon name="x" /></button>
         <div class="toast-progress" :style="{ animationDuration: toast.duration + 'ms' }"></div>
       </div>
     </TransitionGroup>
@@ -27,9 +24,11 @@
 
 <script setup>
 import { ref } from 'vue'
+import UiIcon from './UiIcon.vue'
 
 const toasts = ref([])
 let toastId = 0
+const toastIcon = type => ({ success: 'check', error: 'x', warning: 'warning', info: 'info' }[type] || 'info')
 
 function addToast({ type = 'info', title = '', message = '', duration = 4000 }) {
   const id = ++toastId
@@ -81,20 +80,16 @@ defineExpose({ addToast, removeToast })
 }
 
 .toast-success {
-  background: color-mix(in srgb, var(--secondary) 12%, transparent);
-  border-color: color-mix(in srgb, var(--secondary) 25%, transparent);
+  background: #F0FDF4; border-color: #86EFAC; color: #166534;
 }
 .toast-error {
-  background: color-mix(in srgb, var(--primary) 12%, transparent);
-  border-color: color-mix(in srgb, var(--primary) 25%, transparent);
+  background: #FFF1F2; border-color: #E11D48; color: #991B1B;
 }
 .toast-warning {
-  background: color-mix(in srgb, var(--color-tertiary) 12%, transparent);
-  border-color: color-mix(in srgb, var(--color-tertiary) 25%, transparent);
+  background: #FFFBEB; border-color: #FBBF24; color: #92400E;
 }
 .toast-info {
-  background: color-mix(in srgb, var(--secondary) 12%, transparent);
-  border-color: color-mix(in srgb, var(--secondary) 25%, transparent);
+  background: var(--color-primary-fixed); border-color: var(--border); color: var(--primary-dark);
 }
 
 .toast-icon {
@@ -112,20 +107,20 @@ defineExpose({ addToast, removeToast })
   margin: 0 0 4px 0;
   font-weight: 800;
   font-size: 0.92rem;
-  color: #FFFFFF;
+  color: currentColor;
 }
 
 .toast-message {
   margin: 0;
   font-size: 0.88rem;
-  color: rgba(255, 255, 255, 0.75);
+  color: currentColor;
   line-height: 1.5;
 }
 
 .toast-close {
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.4);
+  color: currentColor;
   font-size: 0.9rem;
   cursor: pointer;
   padding: 4px;
@@ -133,7 +128,7 @@ defineExpose({ addToast, removeToast })
   transition: color 0.2s;
 }
 .toast-close:hover {
-  color: #FFFFFF;
+  opacity: .72;
 }
 
 /* Progress bar */
@@ -146,7 +141,7 @@ defineExpose({ addToast, removeToast })
   animation: toastProgress linear forwards;
 }
 
-.toast-success .toast-progress { background: color-mix(in srgb, var(--secondary) 60%, transparent); }
+.toast-success .toast-progress { background: color-mix(in srgb, var(--success) 60%, transparent); }
 .toast-error .toast-progress { background: color-mix(in srgb, var(--primary) 60%, transparent); }
 .toast-warning .toast-progress { background: color-mix(in srgb, var(--color-tertiary) 60%, transparent); }
 .toast-info .toast-progress { background: color-mix(in srgb, var(--secondary) 60%, transparent); }

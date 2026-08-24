@@ -42,9 +42,64 @@ function paletteViolations(paths) {
   return violations
 }
 
+function hueOf(red, green, blue) {
+  const r = red / 255
+  const g = green / 255
+  const b = blue / 255
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+  const delta = max - min
+  if (delta === 0) return { hue: 0, saturation: 0 }
+  let hue
+  if (max === r) hue = 60 * (((g - b) / delta) % 6)
+  else if (max === g) hue = 60 * ((b - r) / delta + 2)
+  else hue = 60 * ((r - g) / delta + 4)
+  if (hue < 0) hue += 360
+  const lightness = (max + min) / 2
+  const denominator = 1 - Math.abs(2 * lightness - 1)
+  return { hue, saturation: denominator === 0 ? 0 : delta / denominator }
+}
+
+function blueThemeViolations(paths) {
+  const violations = []
+  for (const path of paths) {
+    const source = readFileSync(path, 'utf8').toLowerCase()
+    if (/\bblue(?:-\d{2,3})?\b/.test(source)) violations.push(`${path}: blue token/class`)
+    for (const match of source.matchAll(/#([0-9a-f]{6})\b/gi)) {
+      const value = match[1]
+      const { hue, saturation } = hueOf(
+        Number.parseInt(value.slice(0, 2), 16),
+        Number.parseInt(value.slice(2, 4), 16),
+        Number.parseInt(value.slice(4, 6), 16)
+      )
+      if (saturation >= 0.2 && hue >= 180 && hue <= 260) violations.push(`${path}: #${value}`)
+    }
+    for (const match of source.matchAll(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/gi)) {
+      const { hue, saturation } = hueOf(Number(match[1]), Number(match[2]), Number(match[3]))
+      if (saturation >= 0.2 && hue >= 180 && hue <= 260) {
+        violations.push(`${path}: rgb(${match[1]},${match[2]},${match[3]})`)
+      }
+    }
+  }
+  return violations
+}
+
+function directEmojiViolations(paths) {
+  const violations = []
+  for (const path of paths) {
+    const source = readFileSync(path, 'utf8')
+    if (/\p{Extended_Pictographic}/u.test(source)) violations.push(path)
+  }
+  return violations
+}
+
 describe('canonical visual theme', () => {
   it('keeps the legacy green, gold and cream palette out of source styles', () => {
     expect(paletteViolations(sourceFiles(sourceRoot))).toEqual([])
+  })
+
+  it('keeps blue theme colors and blue utility classes out of source styles', () => {
+    expect(blueThemeViolations(sourceFiles(sourceRoot))).toEqual([])
   })
 
   it('keeps the generated backend bundle free of the legacy palette', () => {
@@ -52,9 +107,20 @@ describe('canonical visual theme', () => {
     expect(paletteViolations(sourceFiles(staticRoot))).toEqual([])
   })
 
-  it('declares the burgundy and navy canonical tokens', () => {
+  it('declares the canonical burgundy and rose tokens', () => {
     const tokens = readFileSync(join(sourceRoot, 'assets', 'theme-tokens.css'), 'utf8').toLowerCase()
     expect(tokens).toContain('--color-primary: #b7102a')
-    expect(tokens).toContain('--color-secondary: #485f84')
+    expect(tokens).toContain('--color-secondary: #8f3044')
+  })
+
+  it('renders admin navigation icons from the shared currentColor SVG component', () => {
+    const icon = readFileSync(join(sourceRoot, 'components', 'AdminNavIcon.vue'), 'utf8')
+    const layout = readFileSync(join(sourceRoot, 'components', 'AdminLayout.vue'), 'utf8')
+    expect(icon).toContain('stroke="currentColor"')
+    expect(layout).toContain('<AdminNavIcon name="analytics" />')
+  })
+
+  it('keeps direct emoji out of frontend UI source', () => {
+    expect(directEmojiViolations(sourceFiles(sourceRoot))).toEqual([])
   })
 })

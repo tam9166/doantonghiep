@@ -40,6 +40,7 @@ class PaymentPropertiesTest {
     void beanValidationRejectsMissingOrMalformedConfiguration() {
         PaymentProperties properties = new PaymentProperties();
         properties.setBankCode("");
+        properties.setBankName("");
         properties.setAccountNumber("000");
         properties.setAccountHolder("");
         properties.setQrProvider("");
@@ -48,12 +49,13 @@ class PaymentPropertiesTest {
         Set<ConstraintViolation<PaymentProperties>> violations = validator.validate(properties);
 
         assertFalse(violations.isEmpty());
-        assertEquals(5, violations.size());
+        assertEquals(6, violations.size());
     }
 
     private PaymentProperties validProperties() {
         PaymentProperties properties = new PaymentProperties();
         properties.setBankCode("MB");
+        properties.setBankName("MB Bank");
         properties.setBankBin("970422");
         properties.setAccountNumber("1234567890");
         properties.setAccountHolder("TEST ACCOUNT HOLDER");

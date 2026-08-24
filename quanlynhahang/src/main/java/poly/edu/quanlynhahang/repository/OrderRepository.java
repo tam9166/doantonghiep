@@ -63,6 +63,20 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
 
     long countByStatus(Integer status);
 
+    @Query("select o from Order o where o.status not in :terminalStatuses and "
+            + "((o.scheduledAt is not null and o.scheduledAt < :localCutoff) or "
+            + "(o.scheduledAt is null and o.createDate < :dateCutoff)) order by o.id")
+    List<Order> findOverdueOrders(@Param("terminalStatuses") Collection<Integer> terminalStatuses,
+                                  @Param("localCutoff") LocalDateTime localCutoff,
+                                  @Param("dateCutoff") Date dateCutoff);
+
+    @Query("select count(o) from Order o where o.status not in :terminalStatuses and "
+            + "((o.scheduledAt is not null and o.scheduledAt < :localCutoff) or "
+            + "(o.scheduledAt is null and o.createDate < :dateCutoff))")
+    long countOverdueOrders(@Param("terminalStatuses") Collection<Integer> terminalStatuses,
+                            @Param("localCutoff") LocalDateTime localCutoff,
+                            @Param("dateCutoff") Date dateCutoff);
+
     @Query("select o from Order o where o.status <> :excludedStatus "
             + "and o.remainingAmount > :minimumRemaining")
     List<Order> findOutstandingOrders(@Param("excludedStatus") Integer excludedStatus,
@@ -106,7 +120,14 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
                                          @Param("end") Date end,
                                          @Param("paidStatus") PaymentStatus paidStatus);
 
-    // Thêm dòng này để tìm danh sách đơn hàng theo username người đặt
+    // Fetch every relation required by the CRM projection while the query is
+    // transactional; this also supports legacy orders with missing table/product.
+    @Query("select distinct o from Order o "
+            + "left join fetch o.restaurantTable t left join fetch t.area "
+            + "left join fetch o.orderDetails od left join fetch od.product "
+            + "where o.account.username = :username order by o.createDate desc")
+    List<Order> findByAccountUsernameWithDetails(@Param("username") String username);
+
     List<Order> findByAccountUsername(String username);
     List<Order> findByAddressAndIsPaidFalse(String address);
 

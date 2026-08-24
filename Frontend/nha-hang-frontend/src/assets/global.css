@@ -246,7 +246,7 @@ table,
   font-size: 0.78rem;
   font-weight: 700;
 }
-.g-badge-success { background: color-mix(in srgb, var(--secondary) 15%, transparent); color: var(--primary); border: 1px solid color-mix(in srgb, var(--secondary) 30%, transparent); }
+.g-badge-success { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); border: 1px solid color-mix(in srgb, var(--success) 30%, transparent); }
 .g-badge-warning { background: color-mix(in srgb, var(--color-tertiary) 15%, transparent); color: var(--color-tertiary); border: 1px solid color-mix(in srgb, var(--color-tertiary) 30%, transparent); }
 .g-badge-danger  { background: color-mix(in srgb, var(--primary) 15%, transparent);  color: var(--primary); border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent); }
 .g-badge-info    { background: color-mix(in srgb, var(--secondary) 15%, transparent); color: var(--secondary); border: 1px solid color-mix(in srgb, var(--secondary) 30%, transparent); }

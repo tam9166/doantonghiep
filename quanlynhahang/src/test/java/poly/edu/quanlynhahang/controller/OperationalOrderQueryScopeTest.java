@@ -17,8 +17,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import poly.edu.quanlynhahang.entity.OrderStatus;
 import poly.edu.quanlynhahang.repository.OrderRepository;
-import poly.edu.quanlynhahang.repository.IngredientRepository;
-import poly.edu.quanlynhahang.repository.RecipeRepository;
+import poly.edu.quanlynhahang.service.InventoryAlertService;
 
 class OperationalOrderQueryScopeTest {
     @Test
@@ -51,23 +50,34 @@ class OperationalOrderQueryScopeTest {
     }
 
     @Test
-    void purchaseSuggestionsQueryOnlyRecentCompletedOrders() {
-        OrderRepository orderRepository = mock(OrderRepository.class);
-        IngredientRepository ingredientRepository = mock(IngredientRepository.class);
-        RecipeRepository recipeRepository = mock(RecipeRepository.class);
-        when(ingredientRepository.findAll()).thenReturn(List.of());
-        when(orderRepository.findByStatusSinceWithDetails(eq(OrderStatus.COMPLETED.code()), any(Date.class)))
-                .thenReturn(List.of());
+    void purchaseSuggestionsUseTheSharedInventoryAnalysis() {
+        InventoryAlertService inventoryAlertService = mock(InventoryAlertService.class);
+        InventoryAlertService.Analysis analysis = new InventoryAlertService.Analysis(
+                List.of(), 0, 0, 0, 0, 0, 0, 0, 0, 0, java.math.BigDecimal.ZERO);
+        when(inventoryAlertService.analyze(3)).thenReturn(analysis);
         PurchaseSuggestionController controller = new PurchaseSuggestionController();
-        ReflectionTestUtils.setField(controller, "ingredientRepository", ingredientRepository);
-        ReflectionTestUtils.setField(controller, "orderRepository", orderRepository);
-        ReflectionTestUtils.setField(controller, "recipeRepository", recipeRepository);
+        ReflectionTestUtils.setField(controller, "inventoryAlertService", inventoryAlertService);
 
-        controller.getSuggestions();
+        assertEquals(analysis, controller.getSuggestions().getBody());
 
-        verify(orderRepository).findByStatusSinceWithDetails(
-                eq(OrderStatus.COMPLETED.code()), any(Date.class));
-        verify(orderRepository, never()).findAll();
-        verify(recipeRepository, never()).findAll();
+        verify(inventoryAlertService).analyze(3);
+    }
+
+    @Test
+    void inventoryDashboardStatsUseTheSameExpiredBatchAnalysis() {
+        InventoryAlertService inventoryAlertService = mock(InventoryAlertService.class);
+        InventoryAlertService.Analysis analysis = new InventoryAlertService.Analysis(
+                List.of(), 8, 3, 1, 24, 2, 0, 4, 0, 0, java.math.BigDecimal.ZERO);
+        when(inventoryAlertService.analyze(3)).thenReturn(analysis);
+        IngredientController controller = new IngredientController();
+        ReflectionTestUtils.setField(controller, "inventoryAlertService", inventoryAlertService);
+
+        @SuppressWarnings("unchecked")
+        java.util.Map<String, Object> stats = (java.util.Map<String, Object>) controller.getStats().getBody();
+
+        assertEquals(24L, stats.get("expiredBatchesCount"));
+        assertEquals(2L, stats.get("expiringBatchesCount"));
+        assertEquals(3L, stats.get("lowStock"));
+        verify(inventoryAlertService).analyze(3);
     }
 }

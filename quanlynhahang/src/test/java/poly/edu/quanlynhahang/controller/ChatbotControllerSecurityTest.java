@@ -8,17 +8,20 @@ import poly.edu.quanlynhahang.repository.ProductRepository;
 import poly.edu.quanlynhahang.service.GeminiClient;
 import poly.edu.quanlynhahang.service.StaffOperationsAssistantService;
 import poly.edu.quanlynhahang.service.RoleAwareAssistantService;
+import poly.edu.quanlynhahang.service.InventoryAlertService;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import org.mockito.ArgumentCaptor;
 
 class ChatbotControllerSecurityTest {
     private final ProductRepository productRepository = mock(ProductRepository.class);
@@ -63,5 +66,23 @@ class ChatbotControllerSecurityTest {
                     new AiRequest(oversized, "SUPPORT", null, null, null));
             assertFalse(violations.isEmpty());
         }
+    }
+
+    @Test
+    void inventoryAiAlwaysReceivesTheCanonicalExpiredBatchCount() {
+        InventoryAlertService inventoryAlertService = mock(InventoryAlertService.class);
+        InventoryAlertService.Analysis analysis = new InventoryAlertService.Analysis(
+                List.of(), 1, 1, 1, 24, 0, 0, 1, 0, 0, java.math.BigDecimal.ZERO);
+        when(inventoryAlertService.analyze(3)).thenReturn(analysis);
+        when(geminiClient.generate(anyString(), org.mockito.ArgumentMatchers.eq("INVENTORY_FORECAST")))
+                .thenReturn("[]");
+        controller.setInventoryAlertService(inventoryAlertService);
+
+        controller.inventory(new AiRequest("phân tích kho", null, null, null, null));
+
+        ArgumentCaptor<String> prompt = ArgumentCaptor.forClass(String.class);
+        verify(geminiClient).generate(prompt.capture(), org.mockito.ArgumentMatchers.eq("INVENTORY_FORECAST"));
+        assertTrue(prompt.getValue().contains("expiredBatches=24"));
+        assertTrue(prompt.getValue().contains("không được kết luận kho an toàn"));
     }
 }

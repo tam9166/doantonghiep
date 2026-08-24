@@ -18,6 +18,8 @@ public record TableAreaUpsertRequest(
         @Size(max = 500) String imageUrl,
         @Size(max=20) List<@Size(max=500) String> gallery,
         @DecimalMin("0") BigDecimal basePrice,
+        @DecimalMin("0") BigDecimal roomFee,
+        @DecimalMin("0") BigDecimal minimumSpend,
         @Min(0) @Max(1000) Integer capacity,
         @Size(max = 30) String status,
         AreaType areaType,

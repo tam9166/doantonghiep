@@ -28,11 +28,13 @@ import poly.edu.quanlynhahang.dto.ReservationRequest;
 import poly.edu.quanlynhahang.dto.WaitlistActionRequest;
 import poly.edu.quanlynhahang.dto.WaitlistRequest;
 import poly.edu.quanlynhahang.entity.AreaType;
+import poly.edu.quanlynhahang.entity.AreaPricing;
 import poly.edu.quanlynhahang.entity.PaymentOption;
 import poly.edu.quanlynhahang.entity.RestaurantTable;
 import poly.edu.quanlynhahang.entity.TableArea;
 import poly.edu.quanlynhahang.entity.Voucher;
 import poly.edu.quanlynhahang.repository.RestaurantTableRepository;
+import poly.edu.quanlynhahang.repository.AreaPricingRepository;
 import poly.edu.quanlynhahang.repository.TableAreaRepository;
 import poly.edu.quanlynhahang.repository.VoucherRepository;
 
@@ -41,6 +43,7 @@ class ReservationConcurrencyIntegrationTest {
     @Autowired ReservationService reservationService;
     @Autowired ReservationWaitlistService waitlistService;
     @Autowired TableAreaRepository areaRepository;
+    @Autowired AreaPricingRepository areaPricingRepository;
     @Autowired RestaurantTableRepository tableRepository;
     @Autowired JdbcTemplate jdbc;
     @Autowired VoucherRepository voucherRepository;
@@ -75,9 +78,9 @@ class ReservationConcurrencyIntegrationTest {
             List<Throwable> outcomes = new ArrayList<>();
             outcomes.add(first.get(20, TimeUnit.SECONDS));
             outcomes.add(second.get(20, TimeUnit.SECONDS));
-            assertEquals(1, outcomes.stream().filter(java.util.Objects::isNull).count(),
-                    () -> outcomes.stream().map(outcome -> outcome == null ? "SUCCESS"
-                            : outcome.getClass().getSimpleName() + ": " + outcome.getMessage()).toList().toString());
+            String outcomeSummary = outcomes.stream().map(outcome -> outcome == null ? "SUCCESS"
+                    : outcome.getClass().getSimpleName() + ": " + outcome.getMessage()).toList().toString();
+            assertEquals(1, outcomes.stream().filter(java.util.Objects::isNull).count(), outcomeSummary);
             List<Throwable> failures = outcomes.stream().filter(java.util.Objects::nonNull).toList();
             assertEquals(1, failures.size());
             assertInstanceOf(ResponseStatusException.class, failures.getFirst());
@@ -138,9 +141,9 @@ class ReservationConcurrencyIntegrationTest {
             outcomes.add(first.get(20, TimeUnit.SECONDS));
             outcomes.add(second.get(20, TimeUnit.SECONDS));
 
-            assertEquals(1, outcomes.stream().filter(java.util.Objects::isNull).count(),
-                    () -> outcomes.stream().map(outcome -> outcome == null ? "SUCCESS"
-                            : outcome.getClass().getSimpleName() + ": " + outcome.getMessage()).toList().toString());
+            String outcomeSummary = outcomes.stream().map(outcome -> outcome == null ? "SUCCESS"
+                    : outcome.getClass().getSimpleName() + ": " + outcome.getMessage()).toList().toString();
+            assertEquals(1, outcomes.stream().filter(java.util.Objects::isNull).count(), outcomeSummary);
             Throwable failure = outcomes.stream().filter(java.util.Objects::nonNull).findFirst().orElseThrow();
             assertInstanceOf(ResponseStatusException.class, failure);
             assertEquals(409, ((ResponseStatusException) failure).getStatusCode().value());
@@ -157,6 +160,7 @@ class ReservationConcurrencyIntegrationTest {
     @Timeout(30)
     void twoReservationsCompetingForTheLastVoucherUseAllowExactlyOneSuccess() throws Exception {
         createOnlyTableFixture();
+        makeAreaChargeable();
         Voucher voucher = new Voucher();
         voucherCode = "REGV-" + UUID.randomUUID().toString().substring(0, 12).toUpperCase();
         voucher.setCode(voucherCode);
@@ -177,9 +181,9 @@ class ReservationConcurrencyIntegrationTest {
             outcomes.add(first.get(20, TimeUnit.SECONDS));
             outcomes.add(second.get(20, TimeUnit.SECONDS));
 
-            assertEquals(1, outcomes.stream().filter(java.util.Objects::isNull).count(),
-                    () -> outcomes.stream().map(outcome -> outcome == null ? "SUCCESS"
-                            : outcome.getClass().getSimpleName() + ": " + outcome.getMessage()).toList().toString());
+            String outcomeSummary = outcomes.stream().map(outcome -> outcome == null ? "SUCCESS"
+                    : outcome.getClass().getSimpleName() + ": " + outcome.getMessage()).toList().toString();
+            assertEquals(1, outcomes.stream().filter(java.util.Objects::isNull).count(), outcomeSummary);
             Throwable failure = outcomes.stream().filter(java.util.Objects::nonNull).findFirst().orElseThrow();
             assertInstanceOf(ResponseStatusException.class, failure);
             assertEquals(422, ((ResponseStatusException) failure).getStatusCode().value());
@@ -259,6 +263,19 @@ class ReservationConcurrencyIntegrationTest {
         tableId = tableRepository.save(table).getId();
     }
 
+    private void makeAreaChargeable() {
+        TableArea area = areaRepository.findById(areaId).orElseThrow();
+        area.setAreaType(AreaType.PRIVATE_ROOM);
+        areaRepository.save(area);
+
+        AreaPricing pricing = new AreaPricing();
+        pricing.setArea(area);
+        pricing.setRoomFee(new BigDecimal("100000"));
+        pricing.setMinimumSpend(BigDecimal.ZERO);
+        pricing.setActive(true);
+        areaPricingRepository.save(pricing);
+    }
+
     private void cleanupRegressionRows() {
         jdbc.update("DELETE FROM reservation_waitlist WHERE customer_name LIKE 'reg_reservation_race_%'");
         List<Long> ids = jdbc.queryForList(
@@ -276,6 +293,7 @@ class ReservationConcurrencyIntegrationTest {
             voucherCode = null;
         }
         jdbc.update("DELETE FROM restaurant_table WHERE name LIKE 'reg_reservation_race_%'");
+        jdbc.update("DELETE FROM area_pricing WHERE area_id = ?", areaId);
         jdbc.update("DELETE FROM table_areas WHERE name_vi LIKE 'reg_reservation_race_%'");
     }
 

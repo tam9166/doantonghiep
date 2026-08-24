@@ -4,28 +4,28 @@
     <div class="staff-visual">
       <div class="visual-overlay"></div>
       <div class="visual-content">
-        <div class="system-badge">🔐 HỆ THỐNG QUẢN TRỊ</div>
+        <div class="system-badge"> HỆ THỐNG QUẢN TRỊ</div>
         <h1>Mộc Vị<br><span>Management</span></h1>
         <p>Đăng nhập vào hệ thống quản trị nhà hàng. Chỉ dành cho nhân sự được cấp quyền.</p>
         
         <!-- Role indicators -->
         <div class="role-list">
           <div class="role-item">
-            <span class="role-icon">👨‍💼</span>
+            <span class="role-icon"><UiIcon name="settings" /></span>
             <div>
               <strong>Admin / Manager</strong>
               <p>Quản lý toàn bộ hệ thống</p>
             </div>
           </div>
           <div class="role-item">
-            <span class="role-icon">👨‍🍳</span>
+            <span class="role-icon"><UiIcon name="kitchen" /></span>
             <div>
               <strong>Bếp</strong>
               <p>Quản lý đơn món & nguyên liệu</p>
             </div>
           </div>
           <div class="role-item">
-            <span class="role-icon">🧑‍🍽️</span>
+            <span class="role-icon"><UiIcon name="waiter" /></span>
             <div>
               <strong>Phục vụ & Thu ngân</strong>
               <p>Phục vụ khách & thanh toán</p>
@@ -47,7 +47,7 @@
         <!-- System Logo -->
         <div class="system-logo">
           <div class="logo-icon">
-            <span>⚙️</span>
+            <span></span>
           </div>
           <div>
             <h2>MỘC VỊ POS</h2>
@@ -66,7 +66,7 @@
           <div class="input-group">
             <label>Tài khoản nhân viên</label>
             <div class="input-field">
-              <span class="field-icon">👤</span>
+              <span class="field-icon"><UiIcon name="user" /></span>
               <input
                 v-model="form.username"
                 type="text"
@@ -80,7 +80,7 @@
           <div class="input-group">
             <label>Mật khẩu</label>
             <div class="input-field">
-              <span class="field-icon">🔒</span>
+              <span class="field-icon"><UiIcon name="settings" /></span>
               <input
                 v-model="form.password"
                 :type="showPassword ? 'text' : 'password'"
@@ -89,14 +89,14 @@
                 autocomplete="current-password"
               />
               <button class="toggle-pw" @click="showPassword = !showPassword" type="button">
-                {{ showPassword ? '🙈' : '👁️' }}
+                {{ showPassword ? '' : '' }}
               </button>
             </div>
           </div>
 
           <!-- Login Button -->
           <button @click="handleStaffLogin" class="btn-staff-login" :disabled="isLoading">
-            <span v-if="!isLoading">🔐 Đăng Nhập Hệ Thống</span>
+            <span v-if="!isLoading"> Đăng Nhập Hệ Thống</span>
             <span v-else class="btn-loading">
               <span class="spinner"></span>
               Đang xác thực...
@@ -106,14 +106,14 @@
           <!-- Error -->
           <Transition name="shake">
             <div v-if="errorMsg" class="error-alert">
-              <span>⚠️</span>
+              <span></span>
               <p>{{ errorMsg }}</p>
             </div>
           </Transition>
 
           <!-- Info -->
           <div class="staff-info">
-            <span>ℹ️</span>
+            <span></span>
             <p>Nếu chưa có tài khoản, vui lòng liên hệ quản lý để được cấp quyền truy cập.</p>
           </div>
         </div>
@@ -227,7 +227,7 @@ const handleStaffLogin = async () => {
   inset: 0;
   background:
     radial-gradient(ellipse at 20% 50%, rgba(255, 218, 216, 0.25) 0%, transparent 60%),
-    radial-gradient(ellipse at 80% 20%, rgba(213, 227, 255, 0.22) 0%, transparent 50%);
+    radial-gradient(ellipse at 80% 20%, color-mix(in srgb, var(--secondary) 22%, transparent) 0%, transparent 50%);
 }
 .visual-content {
   position: relative;
@@ -257,7 +257,7 @@ const handleStaffLogin = async () => {
   margin: 0 0 20px 0;
 }
 .visual-content h1 span {
-  background: linear-gradient(135deg, #ffdad8, #d5e3ff);
+  background: linear-gradient(135deg, var(--color-primary-fixed), var(--color-secondary-fixed));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

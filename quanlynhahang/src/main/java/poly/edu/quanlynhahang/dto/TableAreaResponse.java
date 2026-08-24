@@ -16,6 +16,8 @@ public record TableAreaResponse(
         String imageUrl,
         List<String> gallery,
         BigDecimal basePrice,
+        BigDecimal roomFee,
+        BigDecimal minimumSpend,
         Integer capacity,
         String status,
         AreaType areaType,
@@ -31,7 +33,10 @@ public record TableAreaResponse(
     public static TableAreaResponse from(TableArea area) {
         return new TableAreaResponse(
                 area.getId(), area.getNameVi(), area.getNameEn(), area.getDescriptionVi(), area.getDescriptionEn(),
-                area.getImageUrl(), area.getGallery(), area.getBasePrice(), area.getCapacity(), area.getStatus(), area.getAreaType(),
+                area.getImageUrl(), area.getGallery(), BigDecimal.ZERO,
+                area.getPricing() == null ? BigDecimal.ZERO : area.getPricing().getRoomFee(),
+                area.getPricing() == null ? BigDecimal.ZERO : area.getPricing().getMinimumSpend(),
+                area.getCapacity(), area.getStatus(), area.getAreaType(),
                 area.getMinGuestCount(), area.getMaxGuestCount(), area.getMinBookingHours(), area.getHourlyRate(), area.getPackagePrice(),
                 area.getMaxTables(), area.getDefaultGuestsPerTable(), area.getSuitableEventTypes());
     }

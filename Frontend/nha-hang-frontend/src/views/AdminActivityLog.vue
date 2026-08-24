@@ -3,35 +3,35 @@
   <div class="admin-wrapper page-3d-enter">
     <main class="admin-content">
       <div class="page-header parallax-header">
-        <h1 class="page-title text-3d">📋 Nhật Ký Thao Tác</h1>
+        <h1 class="page-title text-3d"> Nhật Ký Thao Tác</h1>
         <p class="page-subtitle">Theo dõi mọi hành động của nhân viên trong hệ thống</p>
       </div>
 
       <!-- Stats Cards -->
       <div class="stats-row">
         <div class="stat-card depth-card float-card">
-          <div class="stat-icon">📝</div>
+          <div class="stat-icon"><UiIcon name="history" /></div>
           <div class="stat-info">
             <span class="stat-value neon-badge">{{ stats.totalLogs }}</span>
             <span class="stat-label">Tổng Thao Tác</span>
           </div>
         </div>
         <div class="stat-card depth-card float-card" style="border-left: 3px solid var(--success);">
-          <div class="stat-icon">➕</div>
+          <div class="stat-icon"><UiIcon name="play" /></div>
           <div class="stat-info">
             <span class="stat-value" style="color: var(--success);">{{ stats.creates }}</span>
             <span class="stat-label">Tạo Mới</span>
           </div>
         </div>
         <div class="stat-card depth-card float-card" style="border-left: 3px solid var(--secondary);">
-          <div class="stat-icon">✏️</div>
+          <div class="stat-icon"><UiIcon name="edit" /></div>
           <div class="stat-info">
             <span class="stat-value" style="color: var(--secondary);">{{ stats.updates }}</span>
             <span class="stat-label">Cập Nhật</span>
           </div>
         </div>
         <div class="stat-card depth-card float-card" style="border-left: 3px solid var(--primary);">
-          <div class="stat-icon">🗑️</div>
+          <div class="stat-icon"><UiIcon name="trash" /></div>
           <div class="stat-info">
             <span class="stat-value" style="color: var(--primary);">{{ stats.deletes }}</span>
             <span class="stat-label">Xóa</span>
@@ -43,14 +43,14 @@
       <div class="filter-bar depth-card" style="padding: 16px 20px; margin-bottom: 24px;">
         <div class="filter-group-row">
           <div class="filter-item">
-            <label>👤 Người thực hiện</label>
+            <label> Người thực hiện</label>
             <select v-model="filterUser" class="g-form-control" @change="fetchLogs">
               <option value="">Tất cả</option>
               <option v-for="u in userList" :key="u" :value="u">{{ u }}</option>
             </select>
           </div>
           <div class="filter-item">
-            <label>⚡ Loại hành động</label>
+            <label> Loại hành động</label>
             <select v-model="filterAction" class="g-form-control" @change="fetchLogs">
               <option value="">Tất cả</option>
               <option value="CREATE">Tạo mới</option>
@@ -59,7 +59,7 @@
             </select>
           </div>
           <div class="filter-item">
-            <label>📂 Đối tượng</label>
+            <label> Đối tượng</label>
             <select v-model="filterEntity" class="g-form-control" @change="fetchLogs">
               <option value="">Tất cả</option>
               <option value="Product">Sản phẩm</option>
@@ -105,7 +105,7 @@
             </div>
           </div>
           <div v-if="logs.length === 0" class="empty-state depth-card" style="text-align: center; padding: 60px; margin-left: 40px;">
-            <div style="font-size: 3rem; margin-bottom: 12px;">📋</div>
+          <div style="font-size: 3rem; margin-bottom: 12px;"><UiIcon name="history" /></div>
             <h3>Chưa có nhật ký thao tác nào</h3>
             <p style="color: var(--text-muted);">Các thao tác CRUD sẽ được ghi lại tự động ở đây.</p>
           </div>
@@ -183,12 +183,12 @@ const getAvatarColor = (username) => {
 };
 
 const getActionLabel = (action) => {
-  const map = { CREATE: '➕ Tạo mới', UPDATE: '✏️ Cập nhật', DELETE: '🗑️ Xóa' };
+  const map = { CREATE: ' Tạo mới', UPDATE: ' Cập nhật', DELETE: ' Xóa' };
   return map[action] || action;
 };
 
 const getEntityLabel = (entity) => {
-  const map = { Product: '🍔 Sản phẩm', Ingredient: '🧅 Nguyên liệu', Order: '📋 Đơn hàng', ImportInvoice: '📦 Nhập kho', PurchaseSuggestion: '🛒 Đề xuất mua' };
+  const map = { Product: ' Sản phẩm', Ingredient: ' Nguyên liệu', Order: ' Đơn hàng', ImportInvoice: ' Nhập kho', PurchaseSuggestion: ' Đề xuất mua' };
   return map[entity] || entity;
 };
 

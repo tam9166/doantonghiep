@@ -2,23 +2,23 @@
   <div class="kitchen-wrapper">
     <header class="kitchen-header">
       <div class="header-left">
-        <span class="header-icon">👨‍🍳</span>
+        <span class="header-icon"><UiIcon name="kitchen" /></span>
         <div>
           <h1>BẾP — MỘC VỊ RESTAURANT</h1>
           <p class="header-sub">Đơn cần nấu: <strong>{{ pendingOrders.length }}</strong> | Tổng món: <strong>{{ totalDishes }}</strong></p>
         </div>
       </div>
       <div class="header-right">
-        <button @click="activeTab = 'orders'" :class="['tab-btn', { active: activeTab === 'orders' }]">📋 Đơn Hàng</button>
+        <button @click="activeTab = 'orders'" :class="['tab-btn', { active: activeTab === 'orders' }]"> Đơn Hàng</button>
         <button @click="activeTab = 'inventory'" :class="['tab-btn', { active: activeTab === 'inventory' }]">
-          📦 Tồn Kho
+           Tồn Kho
           <span v-if="lowStockCount > 0" class="badge-warn">{{ lowStockCount }}</span>
         </button>
-        <button @click="activeTab = 'menu'" :class="['tab-btn', { active: activeTab === 'menu' }]">🍽️ Thực Đơn</button>
-        <button @click="activeTab = 'ai-kitchen'" :class="['tab-btn', { active: activeTab === 'ai-kitchen' }]">🤖 Gom Món (AI)</button>
-        <button @click="$router.push('/staff/profile')" class="btn-profile">👤 Cá Nhân</button>
-        <button @click="fetchOrders" class="btn-refresh">🔄</button>
-        <button @click="handleLogout" class="btn-logout">🚪 Đăng Xuất</button>
+        <button @click="activeTab = 'menu'" :class="['tab-btn', { active: activeTab === 'menu' }]"> Thực Đơn</button>
+        <button @click="activeTab = 'ai-kitchen'" :class="['tab-btn', { active: activeTab === 'ai-kitchen' }]"> Gom Món (AI)</button>
+        <button @click="$router.push('/staff/profile')" class="btn-profile"> Cá Nhân</button>
+        <button @click="fetchOrders" class="btn-refresh"><UiIcon name="refresh" /></button>
+        <button @click="handleLogout" class="btn-logout"> Đăng Xuất</button>
       </div>
     </header>
 
@@ -49,13 +49,13 @@
     </div>
 
     <div v-if="isLoading" class="kitchen-main empty-state">
-      <div class="empty-icon">⏳</div>
+      <div class="empty-icon"><UiIcon name="refresh" /></div>
       <h2>Đang tải dữ liệu bếp...</h2>
     </div>
 
     <main v-else class="kitchen-main">
       <div v-if="loadError" class="empty-state">
-        <div class="empty-icon">⚠️</div>
+        <div class="empty-icon"><UiIcon name="warning" /></div>
         <h2>Không thể tải dữ liệu bếp</h2>
         <p>{{ loadError }}</p>
         <button class="btn-refresh" @click="fetchOrders">Thử lại</button>
@@ -63,13 +63,13 @@
       <!-- ========== TAB 1: ĐƠN HÀNG ========== -->
       <div v-if="activeTab === 'orders'">
         <div v-if="pendingOrders.length === 0" class="empty-state">
-          <div class="empty-icon">✅</div>
+          <div class="empty-icon"><UiIcon name="check" /></div>
           <h2>Không có đơn nào cần nấu!</h2>
           <p>Hệ thống sẽ tự động cập nhật khi có đơn mới.</p>
         </div>
 
         <div v-if="pendingOrders.length === 0" class="empty-state">
-          <div class="empty-icon">✅</div>
+          <div class="empty-icon"><UiIcon name="check" /></div>
           <h2>Không có đơn nào cần nấu!</h2>
           <p>Hệ thống sẽ tự động cập nhật khi có đơn mới.</p>
         </div>
@@ -81,11 +81,11 @@
               <span class="order-table">{{ getTableName(order) }}</span>
               <span :class="['order-timer', getTimerClass(order)]">{{ getElapsedTime(order.createDate) }}</span>
             </div>
-            <div v-if="getNote(order)" class="order-note">📝 {{ getNote(order) }}</div>
+            <div v-if="getNote(order)" class="order-note"> {{ getNote(order) }}</div>
             <div class="dish-list">
               <div v-for="detail in order.orderDetails" :key="detail.id" class="dish-item" :class="{ 'dish-done': detail.status >= 1 }">
                 <img v-if="detail.product?.image" :src="foodImage(detail.product.image)" class="dish-thumb" @error="replaceFoodImage" />
-                <span v-else class="dish-thumb-placeholder">🍽️</span>
+                    <span v-else class="dish-thumb-placeholder"><UiIcon name="dish" /></span>
                 <div class="dish-info" style="flex:1;">
                   <strong>{{ detail.product?.name || 'Món ăn' }}</strong>
                   <span class="dish-qty">x{{ detail.quantity }}</span>
@@ -93,24 +93,24 @@
                   <p v-if="detail.allergyNote" class="dish-allergy">Cảnh báo dị ứng: {{ detail.allergyNote }}</p>
                 </div>
                 <div class="dish-action">
-                  <button v-if="(!detail.status || detail.status === 0) && !detail.startedAt" @click="startDish(detail.id)" class="btn-dish-start" title="Bắt đầu chế biến món này">🔥</button>
-                  <button v-else-if="!detail.status || detail.status === 0" @click="markDishReady(detail.id)" class="btn-dish-done" title="Xong món này">✅</button>
-                  <button v-if="!detail.status || detail.status === 0" @click="cancelDish(detail.id)" class="btn-dish-cancel" title="Hủy món">✖</button>
-                  <span v-else style="color: var(--success); font-size:1.2rem; font-weight:bold;" title="Đã báo phục vụ bưng">✔️ Xong</span>
+                  <button v-if="(!detail.status || detail.status === 0) && !detail.startedAt" @click="startDish(detail.id)" class="btn-dish-start" title="Bắt đầu chế biến món này"><UiIcon name="play" /></button>
+                  <button v-else-if="!detail.status || detail.status === 0" @click="markDishReady(detail.id)" class="btn-dish-done" title="Xong món này"><UiIcon name="check" /></button>
+                  <button v-if="!detail.status || detail.status === 0" @click="cancelDish(detail.id)" class="btn-dish-cancel" title="Hủy món"><UiIcon name="x" /></button>
+                  <span v-else style="color: var(--success); font-size:1.2rem; font-weight:bold;" title="Đã báo phục vụ bưng"> Xong</span>
                 </div>
               </div>
             </div>
             <div class="card-footer">
               <span class="dish-count">{{ getDishCount(order) }} món</span>
               <div style="display: flex; gap: 8px;">
-                <button v-if="order.status === 1" @click="startCooking(order.id)" class="btn-start">🔥 Bắt đầu làm</button>
+                <button v-if="order.status === 1" @click="startCooking(order.id)" class="btn-start"> Bắt đầu làm</button>
                 <button
                   v-if="order.status === 6"
                   @click="markReady(order.id)"
                   class="btn-done"
                   :disabled="!canCompleteOrder(order)"
                   :title="completionTitle(order)"
-                >{{ canCompleteOrder(order) ? '✅ Hoàn thành toàn bộ' : `⏳ Còn ${unfinishedDishCount(order)} món chưa xong` }}</button>
+                >{{ canCompleteOrder(order) ? ' Hoàn thành toàn bộ' : ` Còn ${unfinishedDishCount(order)} món chưa xong` }}</button>
               </div>
             </div>
           </div>
@@ -121,22 +121,22 @@
       <div v-if="activeTab === 'inventory'">
         <div class="inv-header" style="display: flex; justify-content: space-between; align-items: center;">
           <div>
-            <h2>📦 Tồn Kho Nguyên Liệu</h2>
+            <h2> Tồn Kho Nguyên Liệu</h2>
             <p class="inv-sub">Danh sách nguyên liệu hiện có trong kho.</p>
           </div>
           <button @click="$router.push('/admin/ingredients')" class="btn-restock" style="padding: 10px 20px; border-radius: 8px;">
-            ⚙️ Quản Lý Kho & Công Thức
+             Quản Lý Kho & Công Thức
           </button>
         </div>
 
         <div v-if="ingredients.length === 0" class="empty-state">
-          <div class="empty-icon">📦</div>
+          <div class="empty-icon"><UiIcon name="box" /></div>
           <h2>Chưa có nguyên liệu nào</h2>
           <p>Quản lý cần thêm nguyên liệu từ trang Admin.</p>
         </div>
 
         <div v-if="expiringBatches.length > 0" class="expiring-alert">
-          <h3 style="color: var(--primary); margin-top: 0;">⚠️ Cảnh báo: Sắp hết hạn sử dụng</h3>
+          <h3 style="color: var(--primary); margin-top: 0;"> Cảnh báo: Sắp hết hạn sử dụng</h3>
           <ul style="margin: 0; padding-left: 20px;">
             <li v-for="b in expiringBatches" :key="b.id">
               <strong>{{ b.ingredient.name }}</strong> - Còn <strong>{{ b.quantity }} {{ b.ingredient.unit }}</strong> 
@@ -175,7 +175,7 @@
       <!-- ========== TAB 3: THỰC ĐƠN & CHI PHÍ ========== -->
       <div v-if="activeTab === 'menu'">
         <div class="inv-header">
-          <h2>🍽️ Quản Lý Thực Đơn & Chi Phí</h2>
+          <h2> Quản Lý Thực Đơn & Chi Phí</h2>
           <p class="inv-sub">Xem chi phí nguyên liệu của món và quản lý trạng thái bán (Báo hết/Mở bán).</p>
         </div>
 
@@ -190,11 +190,11 @@
             </div>
             <div class="menu-action">
               <span :class="['menu-status', product.available ? 'status-on' : 'status-off']">
-                {{ product.available ? '✅ Đang bán' : '❌ Hết món' }}
+                {{ product.available ? ' Đang bán' : ' Hết món' }}
               </span>
-              <button @click="viewRecipeDetails(product)" class="btn-toggle-menu" style="border-color: var(--secondary); color: var(--secondary); background: color-mix(in srgb, var(--secondary) 10%, transparent)">👁️ Công thức</button>
+              <button @click="viewRecipeDetails(product)" class="btn-toggle-menu" style="border-color: var(--secondary); color: var(--secondary); background: color-mix(in srgb, var(--secondary) 10%, transparent)"> Công thức</button>
               <button @click="toggleAvailable(product)" :class="['btn-toggle-menu', product.available ? 'btn-off' : 'btn-on']">
-                {{ product.available ? '⏸ Báo Hết' : '▶ Mở Bán' }}
+                {{ product.available ? ' Báo Hết' : ' Mở Bán' }}
               </button>
             </div>
           </div>
@@ -204,18 +204,18 @@
       <!-- ========== TAB 4: NẤU GOM MÓN (AI) ========== -->
       <div v-if="activeTab === 'ai-kitchen'">
         <div class="inv-header">
-          <h2>🤖 Phân Tích Gom Món (AI)</h2>
+          <h2> Phân Tích Gom Món (AI)</h2>
           <p class="inv-sub">Tự động gộp các món giống nhau từ nhiều bàn để nấu chung 1 mẻ, tiết kiệm thời gian.</p>
         </div>
         
         <div style="margin-bottom: 20px;">
           <button @click="analyzeDishes" class="btn-ai-analyze" :disabled="aiLoading">
-            {{ aiLoading ? '⏳ Đang phân tích...' : '🧠 Phân Tích Ngay' }}
+            {{ aiLoading ? ' Đang phân tích...' : ' Phân Tích Ngay' }}
           </button>
         </div>
         
         <div v-if="aiResponse" class="ai-result" style="margin-bottom: 20px; font-size: 1.1rem; background: #FFFFFF; padding: 20px; border-radius: 8px; border-left: 5px solid var(--warning); box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
-          <strong style="color: var(--warning);">💡 AI Bếp Trưởng Gợi Ý:</strong>
+          <strong style="color: var(--warning);"> AI Bếp Trưởng Gợi Ý:</strong>
           <pre style="white-space: pre-wrap; font-family: inherit; margin-top:10px; line-height: 1.5;">{{ aiResponse }}</pre>
         </div>
 
@@ -227,7 +227,7 @@
               <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 10px;">Gộp từ các bàn: <strong>{{ group.tables.join(', ') }}</strong></p>
             </div>
             <div class="menu-action" style="justify-content: center; width: 100%; border-top: 1px dashed var(--border-light); padding-top: 15px;">
-              <button @click="markGroupReady(group.details)" class="btn-done" style="width: 100%; font-size: 1.1rem; padding: 12px; background: var(--success); color: #FFFFFF;">✅ Đã Nấu Xong {{ group.totalQuantity }} Phần</button>
+              <button @click="markGroupReady(group.details)" class="btn-done" style="width: 100%; font-size: 1.1rem; padding: 12px; background: var(--success); color: #FFFFFF;"> Đã Nấu Xong {{ group.totalQuantity }} Phần</button>
             </div>
           </div>
         </div>
@@ -241,8 +241,8 @@
     <div v-if="showRecipeModal" class="modal-overlay" @click.self="showRecipeModal = false">
       <div class="ai-modal" style="width: 600px;">
         <div class="modal-header">
-          <h2>🍳 Chi phí nguyên liệu: {{ selectedProductForRecipe?.name }}</h2>
-          <button @click="showRecipeModal = false" class="btn-close">✖</button>
+          <h2> Chi phí nguyên liệu: {{ selectedProductForRecipe?.name }}</h2>
+          <button @click="showRecipeModal = false" class="btn-close"><UiIcon name="x" /></button>
         </div>
         <div class="modal-body" style="max-height: 60vh; overflow-y: auto; padding: 0 20px 20px 20px;">
           <table class="g-table" style="width: 100%; border-collapse: collapse; margin-top: 10px;">
@@ -284,8 +284,8 @@
     <div v-if="showAiModal" class="modal-overlay" @click.self="showAiModal = false">
       <div class="ai-modal">
         <div class="modal-header">
-          <h2>🤖 Bếp Trưởng AI</h2>
-          <button @click="showAiModal = false" class="btn-close">✖</button>
+          <h2> Bếp Trưởng AI</h2>
+          <button @click="showAiModal = false" class="btn-close"><UiIcon name="x" /></button>
         </div>
         <div class="modal-body">
           <div v-if="aiLoading" class="ai-loading">
@@ -382,7 +382,7 @@ const fetchOrders = async () => {
     const hasNewOrder = newIds.some(id => !previousPendingIds.includes(id));
     if (hasNewOrder && previousPendingIds.length > 0) {
       playNotificationSound();
-      toastMsg.value = '🔔 Có đơn mới từ khách!';
+      toastMsg.value = ' Có đơn mới từ khách!';
       setTimeout(() => { toastMsg.value = ''; }, 3000);
     }
     previousPendingIds = newIds;
@@ -460,9 +460,9 @@ const getTimerClass = (o) => { const m = getElapsedMinutes(o.createDate); return
 const getUrgencyClass = (o) => { const m = getElapsedMinutes(o.createDate); return m >= 15 ? 'urgency-critical late-warning-box' : m >= 10 ? 'urgency-warning' : ''; };
 
 const getTableName = (order) => {
-  if (order.orderType === 'DINE_IN') return `🪑 ${order.tableName || `Bàn #${order.tableId}`}`;
-  if (order.orderType === 'DELIVERY') return '🛵 Giao hàng';
-  return '🥡 Mang đi';
+  if (order.orderType === 'DINE_IN') return ` ${order.tableName || `Bàn #${order.tableId}`}`;
+  if (order.orderType === 'DELIVERY') return ' Giao hàng';
+  return ' Mang đi';
 };
 const getNote = (order) => { if (!order.address) return ''; const m = order.address.match(/GhiChú:\s*([^|]+)/i); return m ? m[1].trim() : ''; };
 
@@ -473,9 +473,9 @@ const getStockClass = (ing) => {
   return '';
 };
 const getStockIcon = (ing) => {
-  if (ing.quantity <= 0) return '🚫';
-  if (ing.quantity <= ing.minStock) return '⚠️';
-  return '✅';
+  if (ing.quantity <= 0) return '';
+  if (ing.quantity <= ing.minStock) return '';
+  return '';
 };
 const getStockPercent = (ing) => {
   if (!ing.minStock || ing.minStock <= 0) return ing.quantity > 0 ? 100 : 0;
@@ -495,7 +495,7 @@ const markReady = async (id) => {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     fetchOrders();
-    showToast('✅ Đã báo phục vụ: Bàn #' + id);
+    showToast(' Đã báo phục vụ: Bàn #' + id);
   } catch (err) {
     showToast(getApiErrorMessage(err, 'Không thể hoàn thành đơn lúc này.'));
   }
@@ -508,7 +508,7 @@ const markDishReady = async (detailId) => {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     fetchOrders();
-    showToast('✅ Món đã xong, báo phục vụ bưng!');
+    showToast(' Món đã xong, báo phục vụ bưng!');
   } catch (err) {
     showToast(getApiErrorMessage(err, 'Không thể cập nhật món lúc này.'));
   }
@@ -517,7 +517,7 @@ const markDishReady = async (detailId) => {
 const startDish = async (detailId) => {
   try {
     await api.put(`/api/orders/details/${detailId}/kitchen/start`, {}, configHeader());
-    showToast('🔥 Đã bắt đầu chế biến món.');
+    showToast(' Đã bắt đầu chế biến món.');
     fetchOrders();
   } catch (err) {
     showToast(getApiErrorMessage(err, 'Không thể bắt đầu chế biến món.'));
@@ -602,7 +602,7 @@ const markGroupReady = async (details) => {
     }
     fetchOrders();
     aiResponse.value = '';
-    showToast('✅ Đã báo phục vụ bưng các món gộp!');
+    showToast(' Đã báo phục vụ bưng các món gộp!');
   } catch (err) {
     showToast(getApiErrorMessage(err, 'Không thể cập nhật nhóm món lúc này.'));
   }
@@ -611,7 +611,7 @@ const markGroupReady = async (details) => {
 const startCooking = async (id) => {
   try {
     await api.put(`/api/admin/orders/${id}/status?status=6`, {}, configHeader());
-    toastMsg.value = '🔥 Đang nấu...';
+    toastMsg.value = ' Đang nấu...';
     setTimeout(() => { toastMsg.value = ''; }, 2500);
     fetchOrders();
   } catch (err) { showToast(getApiErrorMessage(err, 'Không thể cập nhật trạng thái đơn.')); }
@@ -622,7 +622,7 @@ const toggleAvailable = async (product) => {
   product.available = !product.available;
   try {
     const res = await api.put(`/api/admin/products/${product.id}/toggle-available`, {}, configHeader());
-    toastMsg.value = typeof res.data === 'string' ? res.data : '✅ Đã cập nhật!';
+    toastMsg.value = typeof res.data === 'string' ? res.data : ' Đã cập nhật!';
     setTimeout(() => { toastMsg.value = ''; }, 3000);
     fetchProducts();
     } catch (error) {

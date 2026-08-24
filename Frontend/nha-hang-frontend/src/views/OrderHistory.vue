@@ -14,10 +14,10 @@
       <div v-if="userProfile" class="vip-card-wrapper">
         <div :class="['vip-card', getTierClass(userProfile.membershipTier)]">
           <div class="vip-top">
-            <span class="vip-logo">👑 Mộc Vị VIP</span>
+            <span class="vip-logo"> Mộc Vị VIP</span>
             <span class="vip-tier">{{ userProfile.membershipTier }}</span>
           </div>
-          <div class="vip-chip">💳</div>
+          <div class="vip-chip"></div>
           <div class="vip-number">{{ userProfile.username.toUpperCase() }} - {{ String(userProfile.points).padStart(4, '0') }} PT</div>
           <div class="vip-bottom">
             <div class="vip-name">{{ userProfile.fullname }}</div>
@@ -55,8 +55,8 @@
               <button v-if="order.isPaid" @click="requestInvoice(order)" class="btn-review" :disabled="invoiceRequesting === order.id">
                 {{ order.invoiceRequested ? 'Đã yêu cầu xuất hóa đơn' : invoiceRequesting === order.id ? 'Đang gửi yêu cầu...' : 'Yêu cầu xuất hóa đơn' }}
               </button>
-              <button v-if="order.status === 4 && !reviewedOrders.includes(order.id)" @click="openReviewModal(order)" class="btn-review">⭐ Đánh giá (Nhận +2 Điểm)</button>
-              <span v-if="order.status === 4 && reviewedOrders.includes(order.id)" class="text-success">✅ Đã đánh giá</span>
+              <button v-if="order.status === 4 && !reviewedOrders.includes(order.id)" @click="openReviewModal(order)" class="btn-review"> Đánh giá (Nhận +2 Điểm)</button>
+              <span v-if="order.status === 4 && reviewedOrders.includes(order.id)" class="text-success"> Đã đánh giá</span>
             </td>
           </tr>
         </tbody>
@@ -115,11 +115,11 @@
           <div v-for="detail in currentReviewOrder?.orderDetails" :key="detail.id" class="review-item">
             <p><strong>{{ detail.product.name }}</strong></p>
             <select v-model="reviewData[detail.product.id].rating" class="r-select">
-              <option value="5">⭐⭐⭐⭐⭐ Tuyệt vời</option>
-              <option value="4">⭐⭐⭐⭐ Tốt</option>
-              <option value="3">⭐⭐⭐ Bình thường</option>
-              <option value="2">⭐⭐ Tệ</option>
-              <option value="1">⭐ Rất tệ</option>
+              <option value="5"> Tuyệt vời</option>
+              <option value="4"> Tốt</option>
+              <option value="3"> Bình thường</option>
+              <option value="2"> Tệ</option>
+              <option value="1"> Rất tệ</option>
             </select>
             <input v-model="reviewData[detail.product.id].comment" placeholder="Chia sẻ cảm nhận của bạn..." class="r-input" />
             <button @click="submitReview(detail.product.id)" class="btn-submit-review">Gửi</button>

@@ -52,15 +52,15 @@ watch(() => dialogState.open, async open => {
 </script>
 
 <style scoped>
-.dialog-backdrop { position: fixed; inset: 0; z-index: 100000; display: grid; place-items: center; padding: 20px; background: rgba(15, 23, 42, .58); backdrop-filter: blur(3px); }
-.app-dialog { width: min(480px, 100%); padding: 24px; border-radius: 16px; background: var(--color-surface, #fff); color: var(--color-on-surface, #172033); box-shadow: 0 24px 70px rgba(0, 0, 0, .3); }
+.dialog-backdrop { position: fixed; inset: 0; z-index: 100000; display: grid; place-items: center; padding: 20px; background: var(--overlay-dark); backdrop-filter: blur(3px); }
+.app-dialog { width: min(480px, 100%); padding: 24px; border-radius: 16px; background: var(--color-surface, #fff); color: var(--color-on-surface, #271717); box-shadow: 0 24px 70px rgba(0, 0, 0, .3); }
 .app-dialog h2 { margin: 0 0 10px; font-size: 1.25rem; }
 .app-dialog p { margin: 0 0 18px; line-height: 1.55; white-space: pre-line; }
 .dialog-field { display: grid; gap: 8px; margin-bottom: 18px; font-weight: 700; }
 .dialog-field textarea { width: 100%; box-sizing: border-box; resize: vertical; padding: 12px; border: 1px solid color-mix(in srgb, var(--secondary) 28%, transparent); border-radius: 10px; font: inherit; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; }
 .dialog-actions button { min-height: 42px; padding: 0 18px; border: 0; border-radius: 9px; font-weight: 800; cursor: pointer; }
-.dialog-cancel { background: color-mix(in srgb, var(--secondary) 10%, transparent); color: var(--color-on-surface, #172033); }
+.dialog-cancel { background: color-mix(in srgb, var(--secondary) 10%, transparent); color: var(--color-on-surface, #271717); }
 .dialog-confirm { background: var(--secondary); color: #fff; }
 .dialog-confirm.danger { background: var(--primary); }
 .dialog-confirm:disabled { cursor: not-allowed; opacity: .5; }
