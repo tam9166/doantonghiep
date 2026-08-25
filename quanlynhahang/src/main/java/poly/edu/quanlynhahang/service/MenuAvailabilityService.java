@@ -54,7 +54,7 @@ public class MenuAvailabilityService {
             return;
         }
         List<Recipe> recipes = recipeRepository.findByProduct(product);
-        boolean canServe = availableQuantity(product, recipes) > 0;
+        boolean canServe = Boolean.TRUE.equals(product.getStatus()) && availableQuantity(recipes) > 0;
         if (!java.util.Objects.equals(product.getAvailable(), canServe)) {
             product.setAvailable(canServe);
             productRepository.save(product);
@@ -63,12 +63,18 @@ public class MenuAvailabilityService {
 
     @Transactional(readOnly = true)
     public int availableQuantity(Product product) {
-        if (product == null) return 0;
-        return availableQuantity(product, recipeRepository.findByProduct(product));
+        if (product == null || !Boolean.TRUE.equals(product.getStatus())) return 0;
+        return availableQuantity(recipeRepository.findByProduct(product));
     }
 
-    private int availableQuantity(Product product, List<Recipe> recipes) {
-        if (!Boolean.TRUE.equals(product.getStatus()) || recipes.isEmpty()) return 0;
+    @Transactional(readOnly = true)
+    public int potentialAvailableQuantity(Product product) {
+        if (product == null) return 0;
+        return availableQuantity(recipeRepository.findByProduct(product));
+    }
+
+    private int availableQuantity(List<Recipe> recipes) {
+        if (recipes.isEmpty()) return 0;
         long available = Integer.MAX_VALUE;
         for (Recipe recipe : recipes) {
             Ingredient ingredient = recipe.getIngredient();

@@ -21,20 +21,25 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import jakarta.validation.Valid;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
 import java.util.Calendar;
 
 import poly.edu.quanlynhahang.entity.Ingredient;
 import poly.edu.quanlynhahang.entity.IngredientBatch;
+import poly.edu.quanlynhahang.entity.IngredientBatchStatus;
 import poly.edu.quanlynhahang.dto.IngredientBatchCreateRequest;
 import poly.edu.quanlynhahang.dto.IngredientBatchResponse;
+import poly.edu.quanlynhahang.dto.IngredientBatchDisposalRequest;
+import poly.edu.quanlynhahang.dto.IngredientBatchDisposalResponse;
 import poly.edu.quanlynhahang.dto.IngredientResponse;
 import poly.edu.quanlynhahang.dto.IngredientUpsertRequest;
 import poly.edu.quanlynhahang.repository.IngredientRepository;
 import poly.edu.quanlynhahang.repository.IngredientBatchRepository;
 import poly.edu.quanlynhahang.service.ActivityLogService;
 import poly.edu.quanlynhahang.service.InventoryAlertService;
+import poly.edu.quanlynhahang.service.IngredientBatchLifecycleService;
 import poly.edu.quanlynhahang.service.MenuAvailabilityService;
 @RestController
 @RequestMapping("/api/admin/ingredients")
@@ -55,6 +60,8 @@ public class IngredientController {
 
     @Autowired
     private InventoryAlertService inventoryAlertService;
+    @Autowired
+    private IngredientBatchLifecycleService ingredientBatchLifecycleService;
 
     // 1. Lấy tất cả nguyên liệu
     @GetMapping
@@ -65,7 +72,7 @@ public class IngredientController {
 
     // 2. Thêm nguyên liệu mới
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_KITCHEN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
     public ResponseEntity<?> create(@Valid @RequestBody IngredientUpsertRequest request) {
         Ingredient ingredient = new Ingredient();
         ingredient.setName(request.name().trim());
@@ -84,7 +91,7 @@ public class IngredientController {
 
     // 3. Cập nhật nguyên liệu
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_KITCHEN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
     public ResponseEntity<?> update(@PathVariable Long id, @Valid @RequestBody IngredientUpsertRequest details) {
         var ingOpt = ingredientRepository.findById(id);
         if (ingOpt.isPresent()) {
@@ -111,7 +118,7 @@ public class IngredientController {
 
     // 4. Nhập thêm hàng (Thêm Lô mới)
     @PostMapping("/{id}/batches")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_KITCHEN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
     public ResponseEntity<?> addBatch(@PathVariable Long id, @Valid @RequestBody IngredientBatchCreateRequest request) {
         var ingOpt = ingredientRepository.findById(id);
         if (ingOpt.isPresent()) {
@@ -130,6 +137,8 @@ public class IngredientController {
                 cal.add(Calendar.DAY_OF_YEAR, ing.getShelfLifeDays() != null ? ing.getShelfLifeDays() : 30);
                 batch.setExpirationDate(cal.getTime());
             }
+            batch.setStatus(batch.getExpirationDate().before(new Date())
+                    ? IngredientBatchStatus.EXPIRED : IngredientBatchStatus.AVAILABLE);
             
             IngredientBatch savedBatch = ingredientBatchRepository.save(batch);
             
@@ -173,10 +182,19 @@ public class IngredientController {
 
     // 4.3. Xóa lô hàng
     @DeleteMapping("/batches/{batchId}")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
+    @Transactional
     public ResponseEntity<?> deleteBatch(@PathVariable Long batchId) {
-        Optional<IngredientBatch> batchOpt = ingredientBatchRepository.findById(batchId);
+        Optional<IngredientBatch> batchOpt = ingredientBatchRepository.findLockedById(batchId);
         if (batchOpt.isPresent()) {
             IngredientBatch batch = batchOpt.get();
+            if (batch.getStatus() == IngredientBatchStatus.EXPIRED
+                    || batch.getStatus() == IngredientBatchStatus.DISPOSED) {
+                return ResponseEntity.status(409).body("Lô hết hạn phải được xử lý qua quy trình tiêu hủy có lưu vết");
+            }
+            if (batch.getQuantity() != null && batch.getQuantity().signum() > 0) {
+                return ResponseEntity.status(409).body("Chỉ được xóa lô trống; hãy điều chỉnh bằng nghiệp vụ kho phù hợp");
+            }
             Ingredient ing = batch.getIngredient();
             ingredientBatchRepository.delete(batch);
             
@@ -193,7 +211,7 @@ public class IngredientController {
 
     // 5. Cập nhật số lượng trực tiếp
     @PutMapping("/{id}/quantity")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_KITCHEN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
     public ResponseEntity<?> setQuantity(@PathVariable Long id, @RequestParam BigDecimal quantity) {
         if (!ingredientRepository.existsById(id)) {
             return ResponseEntity.badRequest().body("Không tìm thấy nguyên liệu!");
@@ -205,7 +223,7 @@ public class IngredientController {
 
     // 6. Xóa nguyên liệu
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_KITCHEN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
     public ResponseEntity<?> delete(@PathVariable Long id) {
         if (!ingredientRepository.existsById(id)) {
             return ResponseEntity.badRequest().body("Không tìm thấy nguyên liệu!");
@@ -228,6 +246,20 @@ public class IngredientController {
         stats.put("expiringBatchesCount", analysis.expiringBatchesCount());
         stats.put("expiredBatchesCount", analysis.expiredBatchesCount());
         return ResponseEntity.ok(stats);
+    }
+
+    @PostMapping("/batches/{batchId}/dispose")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
+    public ResponseEntity<IngredientBatchDisposalResponse> disposeExpiredBatch(
+            @PathVariable Long batchId,
+            @Valid @RequestBody IngredientBatchDisposalRequest request) {
+        return ResponseEntity.ok(ingredientBatchLifecycleService.dispose(batchId, request.reason()));
+    }
+
+    @GetMapping("/batches/{batchId}/disposals")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
+    public ResponseEntity<List<IngredientBatchDisposalResponse>> getDisposalHistory(@PathVariable Long batchId) {
+        return ResponseEntity.ok(ingredientBatchLifecycleService.history(batchId));
     }
 
     @GetMapping("/analysis")

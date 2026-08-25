@@ -27,27 +27,33 @@
     <div class="cashier-content" v-if="activeTab === 'pending'">
       <div class="orders-list-panel">
         <h3>Sơ Đồ Bàn Nhà Hàng</h3>
-
-        <div class="table-grid">
-          <div
-            v-for="table in tables"
-            :key="table.id"
-            :class="['table-box', getTableClass(table.isOccupied), { 'selected-table': selectedOrder && orderMatchesTable(selectedOrder, table) }]"
-            @click="selectOrderForTable(table)"
-          >
+        <div class="cashier-table-filters">
+          <select v-model="selectedFloor"><option value="">Tất cả tầng</option><option v-for="floor in floorOptions" :key="floor" :value="floor">{{ floor }}</option></select>
+          <select v-model="selectedArea"><option value="">Tất cả khu vực</option><option v-for="area in areaOptions" :key="area" :value="area">{{ area }}</option></select>
+          <select v-model="selectedTableStatus"><option value="">Tất cả trạng thái</option><option value="WAITING_PAYMENT">Chờ thanh toán</option><option value="SERVING">Đang phục vụ</option><option value="CLEANING">Chờ dọn</option><option value="EMPTY">Trống</option></select>
+        </div>
+        <section v-for="(areas, floorName) in groupedCashierTables" :key="floorName" class="cashier-floor">
+          <h3 class="cashier-floor-title">{{ floorName }}</h3>
+          <section v-for="(tablesInArea, areaName) in areas" :key="areaName" class="cashier-area">
+            <h4>{{ areaName }}</h4>
+            <div class="table-grid">
+              <div v-for="table in tablesInArea" :key="table.id"
+                :class="['table-box', getTableClass(table.isOccupied), { 'selected-table': selectedOrder && orderMatchesTable(selectedOrder, table), 'payment-priority': cashierTableStatus(table) === 'WAITING_PAYMENT' }]"
+                @click="selectOrderForTable(table)">
             <div class="tc-top">
               <span class="tc-capacity"> {{ table.capacity || 4 }}</span>
               <span class="tc-icon"><UiIcon name="table" /></span>
             </div>
             <div class="tc-center">
               <div class="tc-dot"></div>
-              <h4>{{ table.name }}</h4>
+              <h4 class="cashier-table-code">{{ table.name }}</h4>
+              <p class="cashier-table-location">{{ table.floor }} · {{ table.areaName || 'Khu vực chung' }}</p>
               <p class="tc-subtitle">
                 <span v-if="getOpenOrderForTable(table)" style="color:var(--color-tertiary); font-weight: bold;">
                   {{ getPendingTotalForTable(table).toLocaleString() }}đ
                 </span>
                 <span v-else>
-                  {{ table.isOccupied === 0 ? 'Sẵn sàng phục vụ' : table.isOccupied === 1 ? 'Đã được đặt cọc' : table.isOccupied === 3 ? 'Đang dọn dẹp' : 'Khách đang ăn' }}
+                  {{ cashierTableLabel(table) }}
                 </span>
               </p>
             </div>
@@ -56,8 +62,10 @@
                 {{ table.isOccupied === 0 ? ' Trống ⌄' : table.isOccupied === 1 ? ' Đã Cọc ⌄' : table.isOccupied === 3 ? ' Cần Dọn ⌄' : ' Có Khách ⌄' }}
               </span>
             </div>
-          </div>
-        </div>
+              </div>
+            </div>
+          </section>
+        </section>
       </div>
 
       <div class="invoice-panel" v-if="selectedOrder">
@@ -310,6 +318,7 @@ import { clearStaffSession, getStaffToken, getStaffUser } from '@/services/sessi
 import { useDialog } from '@/composables/useDialog';
 import { useToast } from '@/composables/useToast';
 import { printElement } from '@/utils/printElement';
+import { findAwaitingPaymentOrder, groupTablesByFloorAndArea, isAwaitingPayment, orderLifecycleLabel, tableArea, tableFloor } from '@/utils/tableOperations';
 
 const { confirmDialog } = useDialog();
 const toast = useToast();
@@ -425,6 +434,9 @@ const paymentSummary = (order) => {
 };
 
 const tables = ref([]);
+const selectedFloor = ref('');
+const selectedArea = ref('');
+const selectedTableStatus = ref('');
 
 const fetchTables = async () => {
   try {
@@ -442,6 +454,23 @@ const getTableClass = (status) => {
   return 'table-occupied';
 };
 
+const floorOptions = computed(() => [...new Set(tables.value.map(tableFloor))]);
+const areaOptions = computed(() => [...new Set(tables.value.map(tableArea))]);
+const cashierTableStatus = table => {
+  if (Number(table.isOccupied) === 0) return 'EMPTY';
+  if (Number(table.isOccupied) === 3) return 'CLEANING';
+  const order = findAwaitingPaymentOrder(pendingOrders.value, table.id);
+  return order && ['Chờ thanh toán'].includes(orderLifecycleLabel(order)) ? 'WAITING_PAYMENT' : 'SERVING';
+};
+const cashierTableLabel = table => {
+  const status = cashierTableStatus(table);
+  return ({ EMPTY: 'Trống', CLEANING: 'Chờ dọn', WAITING_PAYMENT: 'Chờ thanh toán', SERVING: 'Đang phục vụ' })[status];
+};
+const groupedCashierTables = computed(() => groupTablesByFloorAndArea(tables.value.filter(table =>
+  (!selectedFloor.value || tableFloor(table) === selectedFloor.value)
+  && (!selectedArea.value || tableArea(table) === selectedArea.value)
+  && (!selectedTableStatus.value || cashierTableStatus(table) === selectedTableStatus.value))));
+
 const selectOrderForTable = (table) => {
   if (table.isOccupied === 0 || table.isOccupied === 1) return;
   const order = getOpenOrderForTable(table);
@@ -457,7 +486,7 @@ const selectOrderForTable = (table) => {
 
 const orderMatchesTable = (order, table) => {
   if (!order || !table) return false;
-  return order.orderType === 'DINE_IN' && Number(order.tableId) === Number(table.id);
+  return Number(order.tableId) === Number(table.id);
 };
 
 const getOpenOrderForTable = (table) => pendingOrders.value.find(order => orderMatchesTable(order, table));
@@ -473,11 +502,11 @@ const fetchOrders = async () => {
     allOrders.value = res.data;
     // Thu ngân chỉ quan tâm đơn ăn tại quán, chưa thanh toán (hoặc đã giao = cần thanh toán)
     // address chứa "Bàn", isPaid == false hoặc null, status != 3 (Đã hủy)
-    pendingOrders.value = res.data.filter(o => 
-      o.orderType === 'DINE_IN' && o.tableId &&
-      !o.isPaid && 
-      Number(o.status) !== 3
-    );
+    pendingOrders.value = res.data.filter(isAwaitingPayment)
+      .sort((left, right) => {
+        const priority = order => ['Chờ thanh toán'].includes(orderLifecycleLabel(order)) ? 0 : 1;
+        return priority(left) - priority(right) || Number(right.id || 0) - Number(left.id || 0);
+      });
     if (selectedOrder.value && !pendingOrders.value.find(o => o.id === selectedOrder.value.id)) {
       selectedOrder.value = null;
     }
@@ -500,11 +529,6 @@ const payOrder = async () => {
   paymentSubmitting.value = true;
   try {
     await api.put(`/api/admin/orders/${selectedOrder.value.id}/pay`, {}, configHeader());
-    const table = tables.value.find(t => orderMatchesTable(selectedOrder.value, t));
-    if (table) {
-      await api.put(`/api/tables/${table.id}/status?status=3`, {}, configHeader());
-    }
-
     toast.success('Thanh toán thành công! Bàn đang chờ dọn dẹp.');
     selectedOrder.value.isPaid = true;
     selectedOrder.value = null;
@@ -658,6 +682,14 @@ onUnmounted(() => {
 }
 .orders-list-panel h3 { color: var(--text-heading); margin-top: 0; }
 .empty-state { color: var(--text-muted); font-style: italic; }
+.cashier-table-filters { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
+.cashier-table-filters select { min-width: 160px; padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); color: var(--text-primary); }
+.cashier-floor { margin-top: 18px; }
+.cashier-floor-title { padding-bottom: 8px; border-bottom: 1px solid var(--border); font-size: 1.15rem; }
+.cashier-area > h4 { color: var(--primary); margin: 12px 0 4px; }
+.cashier-table-code { font-size: 1.3rem !important; font-weight: 900 !important; }
+.cashier-table-location { margin: 2px 0 5px; color: var(--text-muted); font-size: 0.72rem; }
+.table-box.payment-priority { border: 2px solid var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 12%, transparent); }
 
 /* Table Grid Redesign (Copied from Waiter) */
 .table-grid {

@@ -181,7 +181,7 @@ class ReservationServiceTest {
         var request = new poly.edu.quanlynhahang.dto.EventBookingRequest(
                 "Nguyễn An", "0901234567", "an@example.test", 2,
                 poly.edu.quanlynhahang.entity.EventType.WEDDING,
-                "2026-08-25", "18:00", 4, 80,
+                LocalDate.now().plusDays(2).toString(), "18:00", 4, 80,
                 true, false, "Tiệc tối", false, List.of());
         Reservation existing = new Reservation();
         existing.setId(91L);
@@ -237,7 +237,7 @@ class ReservationServiceTest {
         var request = new poly.edu.quanlynhahang.dto.EventBookingRequest(
                 "Nguyễn An", "0901234567", "an@example.test", 2,
                 poly.edu.quanlynhahang.entity.EventType.WEDDING,
-                "2026-08-25", "18:00", 4, 80,
+                LocalDate.now().plusDays(2).toString(), "18:00", 4, 80,
                 true, false, "Tiệc tối", false, List.of());
 
         var response = service.createEventBooking(request, "event-key-92");

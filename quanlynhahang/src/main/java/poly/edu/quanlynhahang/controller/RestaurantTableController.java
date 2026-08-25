@@ -58,8 +58,9 @@ public class RestaurantTableController {
     private ReservationService reservationService;
 
     @GetMapping
+    @Transactional(readOnly = true)
     public ResponseEntity<?> getAllTables() {
-        return ResponseEntity.ok(tableRepository.findAll().stream()
+        return ResponseEntity.ok(tableRepository.findAllWithArea().stream()
                 .map(PublicRestaurantTableResponse::from)
                 .toList());
     }

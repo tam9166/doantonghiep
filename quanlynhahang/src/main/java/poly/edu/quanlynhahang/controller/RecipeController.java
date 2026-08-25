@@ -7,6 +7,7 @@ import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import poly.edu.quanlynhahang.entity.Ingredient;
 import poly.edu.quanlynhahang.entity.Product;
@@ -61,11 +63,19 @@ public class RecipeController {
     @PostMapping
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_KITCHEN')")
     public ResponseEntity<?> create(@RequestBody RecipeRequest request) {
+        validateAmount(request == null ? null : request.getAmountRequired());
         Optional<Product> productOpt = productRepository.findById(request.getProductId());
         Optional<Ingredient> ingredientOpt = ingredientRepository.findById(request.getIngredientId());
 
         if (productOpt.isEmpty()) return ResponseEntity.badRequest().body("Không tìm thấy món ăn!");
         if (ingredientOpt.isEmpty()) return ResponseEntity.badRequest().body("Không tìm thấy nguyên liệu!");
+        if (ingredientOpt.get().getUnit() == null || ingredientOpt.get().getUnit().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Nguyên liệu chưa có đơn vị hợp lệ");
+        }
+        if (recipeRepository.existsByProductAndIngredient(productOpt.get(), ingredientOpt.get())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Nguyên liệu đã tồn tại trong công thức của món");
+        }
 
         Recipe recipe = new Recipe();
         recipe.setProduct(productOpt.get());
@@ -81,6 +91,7 @@ public class RecipeController {
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_KITCHEN')")
     public ResponseEntity<?> update(@PathVariable Long id, @RequestBody RecipeRequest request) {
+        validateAmount(request == null ? null : request.getAmountRequired());
         var recipeOpt = recipeRepository.findById(id.intValue());
         if (recipeOpt.isPresent()) {
             Recipe recipe = recipeOpt.get();
@@ -90,6 +101,17 @@ public class RecipeController {
             return ResponseEntity.ok(RecipeResponse.from(saved));
         }
         return ResponseEntity.badRequest().body("Không tìm thấy công thức!");
+    }
+
+    private void validateAmount(BigDecimal amount) {
+        if (amount == null || amount.signum() <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Định lượng nguyên liệu phải lớn hơn 0");
+        }
+        if (amount.scale() > 4) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Định lượng chỉ được tối đa 4 chữ số thập phân");
+        }
     }
 
     // 5. Xóa công thức

@@ -64,6 +64,7 @@ public class StaffAccountService {
         account.setEmail(request.email().trim().toLowerCase(Locale.ROOT));
         account.setShift(trimToNull(request.shift()));
         account.setAssignedArea(trimToNull(request.assignedArea()));
+        account.setShiftRate(request.shiftRate());
         account.setEnabled(true);
         account.setTokenVersion(0L);
         account.setMustChangePassword(true);
@@ -84,6 +85,7 @@ public class StaffAccountService {
         if (request.email() != null) account.setEmail(request.email().trim().toLowerCase(Locale.ROOT));
         if (request.shift() != null) account.setShift(trimToNull(request.shift()));
         if (request.assignedArea() != null) account.setAssignedArea(trimToNull(request.assignedArea()));
+        if (request.shiftRate() != null) account.setShiftRate(request.shiftRate());
         if (request.password() != null && !request.password().isBlank()) {
             PasswordPolicy.validate(request.password());
             account.setPassword(passwordEncoder.encode(request.password()));

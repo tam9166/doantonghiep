@@ -17,5 +17,9 @@ public interface VoucherRepository extends JpaRepository<Voucher, Long> {
     @Query("select v from Voucher v left join fetch v.account where v.code = :code")
     Optional<Voucher> findLockedByCode(@Param("code") String code);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select v from Voucher v left join fetch v.account where v.id = :id")
+    Optional<Voucher> findLockedById(@Param("id") Long id);
+
     List<Voucher> findByAccountUsername(String username);
 }

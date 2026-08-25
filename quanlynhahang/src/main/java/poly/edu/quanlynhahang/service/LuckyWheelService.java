@@ -97,6 +97,9 @@ public class LuckyWheelService {
             voucher.setDiscountPercent(discount);
             voucher.setCreateDate(new Date());
             voucher.setIsUsed(false);
+            voucher.setActive(true);
+            voucher.setUsageLimit(1);
+            voucher.setUsedCount(0);
             voucher.setAccount(account);
             voucherRepository.save(voucher);
             history.setVoucherCode(voucherCode);

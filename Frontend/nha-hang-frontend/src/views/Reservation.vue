@@ -413,6 +413,7 @@
               <div><span>{{ text.areaInfo }}</span><strong>{{ selectedAreaName }}</strong></div>
               <div><span>{{ text.tableInfo }}</span><strong>{{ quote?.proposedTableName || selectedTable?.name || 'Nhà hàng sẽ bố trí' }}</strong></div>
               <div><span>{{ text.selectedDishes }}</span><strong>{{ cartItems.length }}</strong></div>
+              <div><span>{{ text.requestInfo }}</span><strong>{{ selectedPreferences.join(', ') || 'Không có' }}</strong></div>
               <div><span>{{ text.paymentTitle }}</span><strong>{{ skipPaymentStep ? 'Không cần thanh toán trước' : paymentOptionLabel(form.paymentOption) }}</strong></div>
               <div><span>{{ text.total }}</span><strong>{{ money(quote?.totalAmount || selectedTable?.reservationPrice || 0) }}</strong></div>
             </div>
@@ -421,7 +422,9 @@
           <div v-if="serverError" class="error-banner">{{ serverError }}</div>
           <div class="actions">
             <button class="ghost-btn" type="button" @click="previousStep" :disabled="step === 1 || submitting">{{ text.back }}</button>
-            <button v-if="step < 9" class="primary-btn" type="button" @click="nextStep">{{ text.next }}</button>
+            <button v-if="step < 9" class="primary-btn" type="button" :disabled="submitting || navigating" @click="nextStep">
+              {{ navigating ? 'Đang xử lý...' : text.next }}
+            </button>
             <button v-else class="primary-btn" type="submit" :disabled="submitting">
               {{ submitting ? text.submitting : text.submit }}
             </button>
@@ -443,6 +446,9 @@ import { useFormatters } from '@/composables/useFormatters'
 import { toBusinessDate } from '@/utils/businessDate'
 import { isTimeWithinWindow, minuteBefore } from '@/utils/businessHours'
 import { nextReservationStep, previousReservationStep, shouldSkipReservationPayment } from '@/utils/reservationPaymentFlow'
+import { normalizeSpecialRequirements, serializeRequirementFlags } from '@/utils/reservationSpecialRequirements'
+import { getApiErrorMessage } from '@/services/errorMessage'
+import { useToast } from '@/composables/useToast'
 import indoorAreaImage from '@/assets/reservation-areas/reservation-area-indoor.png'
 import privateAreaImage from '@/assets/reservation-areas/reservation-area-private.png'
 import gardenAreaImage from '@/assets/reservation-areas/reservation-area-garden.png'
@@ -456,6 +462,7 @@ import {
 
 const { locale, tm } = useI18n()
 const { formatCurrency, formatDateTime } = useFormatters()
+const toast = useToast()
 const lang = computed(() => locale.value)
 const step = ref(1)
 const router = useRouter()
@@ -477,6 +484,7 @@ const serverError = ref('')
 const loadingAreas = ref(false)
 const loadingTables = ref(false)
 const submitting = ref(false)
+const navigating = ref(false)
 const submitResult = ref(null)
 const waitlistResult = ref(null)
 const copiedCode = ref('')
@@ -677,12 +685,25 @@ function validateCurrentStep() {
 }
 
 async function nextStep() {
-  if (!validateCurrentStep()) return
-  if (step.value === 3) await refreshAreaCounts()
-  if (step.value === 4) await loadAvailableTables()
-  if (step.value === 5 && !menuItems.value.length) await loadPreorderMenu()
-  if (step.value === 7 || step.value === 8) await loadQuote()
-  step.value = nextReservationStep(step.value, quote.value)
+  if (navigating.value || !validateCurrentStep()) return
+  navigating.value = true
+  try {
+    if (step.value === 3) await refreshAreaCounts()
+    if (step.value === 4) await loadAvailableTables()
+    if (step.value === 5 && !menuItems.value.length) await loadPreorderMenu()
+    if (step.value === 7 || step.value === 8) await loadQuote()
+    step.value = nextReservationStep(step.value, quote.value)
+  } catch (error) {
+    serverError.value = getApiErrorMessage(
+      error,
+      step.value === 7
+        ? 'Không thể lưu yêu cầu đặc biệt. Vui lòng thử lại.'
+        : 'Không thể tính lại thông tin đặt bàn. Vui lòng thử lại.'
+    )
+    toast.error(serverError.value)
+  } finally {
+    navigating.value = false
+  }
 }
 
 function previousStep() {
@@ -811,13 +832,14 @@ watch(
 
 async function loadTableSuggestions() {
   try {
+    const requirements = normalizeSpecialRequirements(selectedPreferences.value, form.value.specialRequest)
     const res = await api.post('/api/reservations/table-suggestions', {
       reservationDate: form.value.reservationDate,
       arrivalTime: form.value.arrivalTime,
       durationMinutes: form.value.expectedDurationMinutes,
       guestCount: form.value.guestCount,
       areaId: form.value.areaId,
-      seatingPreference: selectedPreferences.value.join(', '),
+      seatingPreference: serializeRequirementFlags(requirements),
       customerPhone: form.value.customerPhone
     })
     suggestedTables.value = Array.isArray(res.data) ? res.data : []
@@ -831,13 +853,14 @@ async function loadTableCombination() {
   const hasSingleFit = hasAvailableSingleTable(tables.value, form.value.guestCount)
   if (hasSingleFit) return
   try {
+    const requirements = normalizeSpecialRequirements(selectedPreferences.value, form.value.specialRequest)
     const res = await api.post('/api/reservations/table-combinations', {
       reservationDate: form.value.reservationDate,
       arrivalTime: form.value.arrivalTime,
       durationMinutes: form.value.expectedDurationMinutes,
       guestCount: form.value.guestCount,
       areaId: form.value.areaId,
-      seatingPreference: selectedPreferences.value.join(', '),
+      seatingPreference: serializeRequirementFlags(requirements),
       customerPhone: form.value.customerPhone
     })
     tableCombo.value = res.data || null
@@ -914,7 +937,7 @@ async function loadQuote() {
     durationMinutes: form.value.expectedDurationMinutes,
     guestCount: form.value.guestCount,
     preorderItems: preorderPayload(),
-    paymentOption: form.value.paymentOption,
+    paymentOption: form.value.paymentOption || 'DEPOSIT_50',
     voucherCode: form.value.voucherCode
   })
   quote.value = res.data
@@ -930,10 +953,13 @@ async function submitReservation() {
   qrError.value = ''
   try {
     await loadQuote()
+    const requirements = normalizeSpecialRequirements(selectedPreferences.value, form.value.specialRequest)
     const payload = {
       ...form.value,
       customerPhone: form.value.customerPhone.replace(/\s/g, ''),
-      seatingPreference: selectedPreferences.value.join(', '),
+      seatingPreference: serializeRequirementFlags(requirements),
+      specialRequest: requirements.note,
+      paymentOption: form.value.paymentOption || quote.value?.paymentOption || 'DEPOSIT_50',
       lateDiningConfirmed: lateDiningConfirmed.value,
       preorderItems: preorderPayload()
     }
@@ -1078,6 +1104,7 @@ async function submitWaitlist() {
   submitting.value = true
   serverError.value = ''
   try {
+    const requirements = normalizeSpecialRequirements(selectedPreferences.value, form.value.specialRequest)
     const [hour, minute] = form.value.arrivalTime.split(':').map(Number)
     const endDate = new Date()
     endDate.setHours(hour, minute + Number(form.value.expectedDurationMinutes || 120), 0, 0)
@@ -1091,8 +1118,8 @@ async function submitWaitlist() {
       preferredEndTime,
       guestCount: form.value.guestCount,
       areaId: form.value.areaId,
-      seatingPreference: selectedPreferences.value.join(', '),
-      specialRequest: form.value.specialRequest,
+      seatingPreference: serializeRequirementFlags(requirements),
+      specialRequest: requirements.note,
       overflowReason: waitlistOverflowReason(form.value.guestCount)
     })
     waitlistResult.value = res.data

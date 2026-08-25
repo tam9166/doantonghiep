@@ -15,6 +15,6 @@ class ReservationVoucherLockingTest {
 
         assertThat(source).contains(
                 "markAsUsed\n                ? voucherRepository.findLockedByCode(code)\n                : voucherRepository.findByCode(code)");
-        assertThat(source).contains("voucher.setIsUsed(true)");
+        assertThat(source).contains("voucherLifecycleService.redeemLocked(voucher, currentUsername)");
     }
 }

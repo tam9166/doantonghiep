@@ -10,14 +10,12 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import poly.edu.quanlynhahang.dto.AdminProductResponse;
-import poly.edu.quanlynhahang.entity.Ingredient;
 import poly.edu.quanlynhahang.entity.Product;
-import poly.edu.quanlynhahang.entity.Recipe;
 import poly.edu.quanlynhahang.repository.CategoryRepository;
 import poly.edu.quanlynhahang.repository.ProductRepository;
-import poly.edu.quanlynhahang.repository.RecipeRepository;
 import poly.edu.quanlynhahang.repository.ReviewRepository;
 import poly.edu.quanlynhahang.service.ActivityLogService;
+import poly.edu.quanlynhahang.service.MenuEconomicsService;
 
 class AdminProductControllerTest {
     @Test
@@ -25,26 +23,23 @@ class AdminProductControllerTest {
         ProductRepository productRepository = mock(ProductRepository.class);
         CategoryRepository categoryRepository = mock(CategoryRepository.class);
         ReviewRepository reviewRepository = mock(ReviewRepository.class);
-        RecipeRepository recipeRepository = mock(RecipeRepository.class);
         ActivityLogService activityLogService = mock(ActivityLogService.class);
+        MenuEconomicsService menuEconomicsService = mock(MenuEconomicsService.class);
         AdminProductController controller = new AdminProductController(productRepository, categoryRepository,
-                reviewRepository, recipeRepository, activityLogService);
+                reviewRepository, activityLogService, menuEconomicsService);
 
         Product product = new Product();
         product.setId(1);
         product.setName("Mon thu nghiem");
-        Ingredient ingredient = new Ingredient();
-        ingredient.setUnitPrice(BigDecimal.valueOf(0.1));
-        Recipe recipe = new Recipe();
-        recipe.setIngredient(ingredient);
-        recipe.setAmountRequired(new BigDecimal("3.0000"));
-
         when(productRepository.findAll()).thenReturn(List.of(product));
-        when(recipeRepository.findByProduct(product)).thenReturn(List.of(recipe));
+        when(menuEconomicsService.assess(product)).thenReturn(
+                new MenuEconomicsService.Assessment(new BigDecimal("0.3000"), 12, true));
         when(reviewRepository.getAverageRatingByProductId(1)).thenReturn(null);
 
         List<AdminProductResponse> responses = controller.getProductsForOperations();
 
         assertEquals(new BigDecimal("0.30"), responses.getFirst().costPrice());
+        assertEquals(12, responses.getFirst().availableServings());
+        assertEquals(true, responses.getFirst().hasRecipe());
     }
 }

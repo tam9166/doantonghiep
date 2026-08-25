@@ -75,6 +75,7 @@ public class OrderCheckoutService {
     private final InventoryReservationService inventoryReservationService;
     private final OrderStateMachineService orderStateMachineService;
     private final SqlServerApplicationLockService applicationLockService;
+    private final VoucherLifecycleService voucherLifecycleService;
 
     public OrderCheckoutService(OrderRepository orderRepository,
                                 OrderDetailRepository orderDetailRepository,
@@ -110,6 +111,7 @@ public class OrderCheckoutService {
         this.inventoryReservationService = inventoryReservationService;
         this.orderStateMachineService = orderStateMachineService;
         this.applicationLockService = applicationLockService;
+        this.voucherLifecycleService = new VoucherLifecycleService(voucherRepository);
     }
 
     private String generateSecureOrderCode() {
@@ -599,18 +601,7 @@ public class OrderCheckoutService {
         Voucher voucher = voucherRepository.findLockedByCode(voucherCode.trim())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
                         "Voucher không tồn tại"));
-        if (Boolean.TRUE.equals(voucher.getIsUsed())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Voucher đã được sử dụng");
-        }
-        if (voucher.getAccount() != null
-                && !account.getUsername().equals(voucher.getAccount().getUsername())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Voucher không thuộc tài khoản này");
-        }
-        if (voucher.getDiscountPercent() == null
-                || voucher.getDiscountPercent() <= 0
-                || voucher.getDiscountPercent() > 100) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Voucher có mức giảm không hợp lệ");
-        }
+        voucherLifecycleService.validateForUse(voucher, account.getUsername());
         return voucher;
     }
 
@@ -638,9 +629,7 @@ public class OrderCheckoutService {
         usage.setUsedAt(new Date());
         orderVoucherUsageRepository.save(usage);
 
-        // Đánh dấu voucher đã dùng
-        voucher.setIsUsed(true);
-        voucherRepository.save(voucher);
+        voucherLifecycleService.redeemLocked(voucher, account == null ? null : account.getUsername());
 
         activityLogService.log("VOUCHER_USED", "Order", String.valueOf(order.getId()),
                 "Áp dụng voucher " + voucher.getCode() + " giảm " + discountAmount.toPlainString() + " VND");

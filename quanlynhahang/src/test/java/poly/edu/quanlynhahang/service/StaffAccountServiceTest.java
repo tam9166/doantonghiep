@@ -48,7 +48,7 @@ class StaffAccountServiceTest {
     void managerCannotCreateAdmin() {
         authenticate("manager01", "ROLE_MANAGER");
         CreateStaffRequest request = new CreateStaffRequest(
-                "newadmin", "strong-password", "New Admin", "admin@example.com", null, null);
+                "newadmin", "strong-password", "New Admin", "admin@example.com", null, null, null);
 
         assertThrows(AccessDeniedException.class, () -> service.create(request, "ROLE_ADMIN"));
 
@@ -75,7 +75,7 @@ class StaffAccountServiceTest {
         Role waiter = new Role();
         waiter.setName("ROLE_WAITER");
         CreateStaffRequest request = new CreateStaffRequest(
-                "waiter01", "strong-password", "Waiter One", "waiter@example.com", null, null);
+                "waiter01", "strong-password", "Waiter One", "waiter@example.com", null, null, null);
         when(roleRepository.findByNameIgnoreCase("ROLE_WAITER")).thenReturn(Optional.of(waiter));
         when(passwordEncoder.encode("strong-password")).thenReturn("encoded-password");
         when(accountRepository.save(any(Account.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -135,7 +135,7 @@ class StaffAccountServiceTest {
     }
 
     private UpdateStaffRequest emptyUpdate() {
-        return new UpdateStaffRequest(null, null, null, null, null);
+        return new UpdateStaffRequest(null, null, null, null, null, null);
     }
 
     private Account account(String username, long tokenVersion) {

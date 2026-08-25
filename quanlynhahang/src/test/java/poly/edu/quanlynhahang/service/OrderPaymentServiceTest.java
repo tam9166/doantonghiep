@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -43,6 +44,8 @@ class OrderPaymentServiceTest {
 
     @BeforeEach
     void setUp() {
+        clearInvocations(intentRepository, orderRepository, activityLogService, messagingTemplate,
+                tableRepository, inventoryReservationService);
         when(orderRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(intentRepository.save(any())).thenAnswer(invocation -> {
             PaymentIntent intent = invocation.getArgument(0);
@@ -156,6 +159,48 @@ class OrderPaymentServiceTest {
         verify(messagingTemplate).convertAndSend("/topic/kitchen", "NEW_ORDER");
         verify(activityLogService).log("MANUAL_ORDER_CONFIRM", "Order", "12",
                 "Xác nhận thủ công đơn COD/tại quán và chuyển xuống bếp");
+    }
+
+    @Test
+    void paidTransferOrderCanBeDispatchedByAnAuthorizedOperator() {
+        Order order = order(12, OrderPaymentOption.PREPAID_TRANSFER, PaymentStatus.PAID, 216_000.0);
+        order.setIsPaid(true);
+        when(orderRepository.findLockedById(12)).thenReturn(Optional.of(order));
+
+        Order result = service.confirmManualDispatch(12);
+
+        assertEquals(1, result.getStatus());
+        verify(inventoryReservationService).consume(12);
+        verify(messagingTemplate).convertAndSend("/topic/kitchen", "NEW_ORDER");
+    }
+
+    @Test
+    void repeatedDispatchIsRejectedWithoutDuplicatingKitchenNotification() {
+        Order order = order(12, OrderPaymentOption.PAY_AT_RESTAURANT, PaymentStatus.UNPAID, 216_000.0);
+        order.setStatus(1);
+        when(orderRepository.findLockedById(12)).thenReturn(Optional.of(order));
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+                () -> service.confirmManualDispatch(12));
+
+        assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
+        assertEquals("Đơn đã được chuyển xuống bếp trước đó", error.getReason());
+        verify(inventoryReservationService, never()).consume(12);
+        verify(messagingTemplate, never()).convertAndSend("/topic/kitchen", "NEW_ORDER");
+    }
+
+    @Test
+    void legacyOrderWithoutPaymentOptionReturnsASpecificConflictInsteadOfCrashing() {
+        Order order = order(12, null, PaymentStatus.UNPAID, 216_000.0);
+        order.setOrderCode("ORD-LEGACY-0000000012");
+        when(orderRepository.findLockedById(12)).thenReturn(Optional.of(order));
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+                () -> service.confirmManualDispatch(12));
+
+        assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
+        assertTrue(error.getReason().contains("legacy thiếu hình thức thanh toán"));
+        verify(messagingTemplate, never()).convertAndSend("/topic/kitchen", "NEW_ORDER");
     }
 
     @Test

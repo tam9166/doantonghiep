@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Method;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -13,6 +14,7 @@ import poly.edu.quanlynhahang.controller.CategoryController;
 import poly.edu.quanlynhahang.controller.ChatbotController;
 import poly.edu.quanlynhahang.controller.AdminOrderController;
 import poly.edu.quanlynhahang.controller.AdminProductController;
+import poly.edu.quanlynhahang.controller.IngredientController;
 import poly.edu.quanlynhahang.controller.OrderController;
 import poly.edu.quanlynhahang.controller.PostController;
 import poly.edu.quanlynhahang.controller.VoucherController;
@@ -78,6 +80,37 @@ class EndpointAuthorizationMatrixTest {
     void kitchenBoardIsNotExposedToWaiterOrCashier() throws Exception {
         assertRoles(AdminOrderController.class.getMethod("getKitchenBoard"),
                 "KITCHEN", "ADMIN", "MANAGER");
+    }
+
+    @Test
+    void kitchenDispatchAllowsOnlyAdminManagerAndWaiter() throws Exception {
+        Method method = AdminOrderController.class.getMethod("dispatchToKitchen", Integer.class);
+        PreAuthorize rule = method.getAnnotation(PreAuthorize.class);
+        assertNotNull(rule);
+        assertTrue(rule.value().contains("'ADMIN'"));
+        assertTrue(rule.value().contains("'MANAGER'"));
+        assertTrue(rule.value().contains("'WAITER'"));
+        assertFalse(rule.value().contains("KITCHEN"));
+        assertFalse(rule.value().contains("CASHIER"));
+        assertFalse(rule.value().contains("CUSTOMER"));
+        assertFalse(rule.value().contains("permitAll"));
+    }
+
+    @Test
+    void kitchenCanReadInventoryButCannotDeleteIt() throws Exception {
+        PreAuthorize controllerRule = IngredientController.class.getAnnotation(PreAuthorize.class);
+        assertNotNull(controllerRule);
+        assertTrue(controllerRule.value().contains("ROLE_KITCHEN"));
+
+        for (Method method : List.of(
+                IngredientController.class.getMethod("delete", Long.class),
+                IngredientController.class.getMethod("deleteBatch", Long.class))) {
+            PreAuthorize writeRule = method.getAnnotation(PreAuthorize.class);
+            assertNotNull(writeRule);
+            assertTrue(writeRule.value().contains("ROLE_ADMIN"));
+            assertTrue(writeRule.value().contains("ROLE_MANAGER"));
+            assertFalse(writeRule.value().contains("ROLE_KITCHEN"));
+        }
     }
 
     @Test

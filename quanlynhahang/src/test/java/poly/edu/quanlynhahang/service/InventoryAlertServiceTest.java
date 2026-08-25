@@ -56,11 +56,12 @@ class InventoryAlertServiceTest {
 
         assertEquals(24, analysis.expiredBatchesCount());
         assertEquals(1, analysis.handlingCount());
-        assertEquals(0, analysis.totalItems());
+        assertEquals(1, analysis.totalItems());
         assertEquals(1, analysis.criticalCount());
         assertEquals(1, analysis.suggestions().size());
         assertEquals("expired", analysis.suggestions().getFirst().urgency());
-        assertEquals(0, analysis.suggestions().getFirst().suggestedAmount().signum());
+        assertEquals(new BigDecimal("10.0"), analysis.suggestions().getFirst().suggestedAmount());
+        assertTrue(analysis.suggestions().getFirst().needsPurchase());
         assertTrue(analysis.toAiContext().contains("expiredBatches=24"));
         assertFalse(analysis.toAiContext().contains("Kho đang an toàn"));
         verify(recipeRepository, never()).findAll();
@@ -95,6 +96,40 @@ class InventoryAlertServiceTest {
         assertEquals(new BigDecimal("510000"), item.estimatedCost());
         assertTrue(item.needsPurchase());
         assertEquals("warning", item.urgency());
+    }
+
+    @Test
+    void nearExpiryStockTriggersReplacementUsingOnlyQuantityConsumableBeforeExpiry() {
+        Ingredient beef = ingredient(3L, "Thịt bò", "kg", "5", "180000");
+        IngredientBatch nearExpiry = batch(30L, beef, "15", 2);
+        IngredientBatch longLived = batch(31L, beef, "5", 30);
+        Product product = new Product();
+        product.setId(11);
+        OrderDetail detail = new OrderDetail();
+        detail.setProduct(product);
+        detail.setQuantity(28);
+        Order order = new Order();
+        order.setOrderDetails(List.of(detail));
+        Recipe recipe = new Recipe();
+        recipe.setProduct(product);
+        recipe.setIngredient(beef);
+        recipe.setAmountRequired(BigDecimal.ONE);
+
+        when(ingredientRepository.findAll()).thenReturn(List.of(beef));
+        when(ingredientBatchRepository.findPositiveBatchesWithIngredient())
+                .thenReturn(List.of(nearExpiry, longLived));
+        when(orderRepository.findByStatusSinceWithDetails(eq(OrderStatus.COMPLETED.code()), any(Date.class)))
+                .thenReturn(List.of(order));
+        when(recipeRepository.findByProductIdsWithIngredient(List.of(11))).thenReturn(List.of(recipe));
+
+        InventoryAlertService.Item item = service.analyze(3).suggestions().getFirst();
+
+        assertEquals(new BigDecimal("20"), item.currentStock());
+        assertEquals(new BigDecimal("15"), item.nearExpiryStock());
+        assertEquals(new BigDecimal("5"), item.longLivedStock());
+        assertEquals(new BigDecimal("15.0"), item.suggestedAmount());
+        assertTrue(item.needsPurchase());
+        assertTrue(item.action().contains("chuẩn bị nhập lô mới"));
     }
 
     private Ingredient ingredient(Long id, String name, String unit, String minStock, String unitPrice) {

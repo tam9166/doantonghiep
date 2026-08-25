@@ -1,5 +1,13 @@
 # Regression tests
 
+## Operations, staff, inventory and voucher release check (2026-08-25)
+
+- Inventory/menu: `InventoryAlertServiceTest`, `IngredientBatchLifecycleServiceTest`, `MenuAvailabilityServiceTest`, `MenuEconomicsServiceTest`, `AdminProductControllerTest`, `OrderCheckoutServiceTest`.
+- Waiter/Cashier: `tableOperations.test.js`, `OrderWorkflowGuardTest`, `OrderPaymentServiceTest`, `TableLifecycleServiceTest`, `EndpointAuthorizationMatrixTest`.
+- Staff: `WorkScheduleConflictServiceTest`, `PayrollServiceTest`, `AttendancePolicyServiceTest`, `StaffAccountServiceTest`, `staffVoucherFlowContracts.test.js`.
+- Voucher: `VoucherLifecycleServiceTest`, `VoucherConcurrencyIntegrationTest`, `ReservationVoucherLockingTest`, `VoucherResponsePrivacyTest`, `staffVoucherFlowContracts.test.js`.
+- Schema: `BlankDatabaseMigrationIntegrationTest` must apply V001–V077 and verify disposal, shift-rate and voucher lifecycle schema.
+
 | ID | Scope | Assertion | Command/status |
 |---|---|---|---|
 | REG-SEC-001 | External API | No Authorization or X-Captcha-Token on `externalApi`. | `npm test` (existing `api.test.js`) |
@@ -149,3 +157,14 @@ Latest completed full verification (2026-08-24): backend `clean test` passed 427
 | REG-CRM-180 | The customer-history modal retains its data while using opaque high-contrast theme surfaces and readable controls. | `latestCustomerFlowContracts.test.js`, full frontend build |
 
 Latest customer-flow verification (2026-08-25): backend full suite passed 435 tests with 0 failures/errors/skips; frontend lint, 81 tests across 24 files and the Vite production build passed. Flyway validated the complete 73-version migration chain through V073 on a blank SQL Server database, with legacy unique-constraint preflight coverage through V072.
+
+## Kitchen dispatch and reservation checks (2026-08-25)
+
+| ID | Contract | Evidence |
+|---|---|---|
+| REG-KITCHEN-181 | KITCHEN can enter or refresh `/kitchen`; queue success/empty/failure and inventory success/failure all retain the page shell and explicit section state. | `kitchenRender.test.js`, `kitchenData.test.js`, `router/index.test.js` |
+| REG-SECURITY-182 | KITCHEN can read its queue/inventory/menu data but cannot delete ingredients or batches; customer/cashier/kitchen cannot invoke the ADMIN/MANAGER/WAITER dispatch endpoint. | `EndpointAuthorizationMatrixTest` |
+| REG-DISPATCH-183 | A valid COD/pay-at-restaurant or paid transfer order dispatches once, consumes its hold and publishes Kitchen realtime; repeats do not publish duplicates and legacy gaps return a specific conflict. | `OrderPaymentServiceTest`, `kitchenReservationFlowContracts.test.js` |
+| REG-RESERVATION-184 | Empty/single/multiple/allergy/note requirements remain optional and bounded; Step 7 routes payable=0 to Confirm, payable>0 to Payment and exposes quote failures. | `reservationSpecialRequirements.test.js`, `reservationPaymentFlow.test.js`, `kitchenReservationFlowContracts.test.js` |
+
+Latest Kitchen/dispatch/reservation verification (2026-08-25): backend `test` and `clean test` each passed 440 tests with 0 failures/errors/skips; frontend lint, 94 tests across 28 files and the Vite production build passed.

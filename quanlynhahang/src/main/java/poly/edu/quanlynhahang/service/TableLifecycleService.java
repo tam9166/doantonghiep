@@ -74,6 +74,17 @@ public class TableLifecycleService {
     }
 
     @Transactional
+    public RestaurantTable markCleaningAfterPayment(Integer tableId) {
+        RestaurantTable table = tableRepository.findLockedById(tableId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy bàn"));
+        releaseGuard.prepareForRelease(tableId);
+        table.setIsOccupied(3);
+        table.setReservedTime("Đã thanh toán - chờ dọn");
+        tableSessionService.revokeActiveForTable(tableId);
+        return tableRepository.save(table);
+    }
+
+    @Transactional
     public void releaseReservationTables(Reservation reservation) {
         if (reservation == null) return;
         List<Integer> ids = reservation.getTableAssignments() != null

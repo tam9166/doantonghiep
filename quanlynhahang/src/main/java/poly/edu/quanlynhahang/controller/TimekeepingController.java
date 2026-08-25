@@ -8,6 +8,9 @@ import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Optional;
 import java.util.Date;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -79,7 +82,15 @@ public class TimekeepingController {
             LocalDate start = parseDate(startDate);
             LocalDate end = parseDate(endDate);
             List<Timekeeping> records = timekeepingRepository.findByWorkDateBetweenOrderByWorkDateAsc(start, end);
-            return ResponseEntity.ok(records.stream().map(TimekeepingResponse::from).toList());
+            Date scheduleStart = Date.from(start.atStartOfDay(ZONE_ID).toInstant());
+            Date scheduleEnd = Date.from(end.atStartOfDay(ZONE_ID).toInstant());
+            Map<String, poly.edu.quanlynhahang.entity.WorkSchedule> schedules = workScheduleRepository
+                    .findByWorkDateBetweenOrderByWorkDateAsc(scheduleStart, scheduleEnd).stream()
+                    .collect(Collectors.toMap(this::scheduleKey, Function.identity(), (first, ignored) -> first));
+            return ResponseEntity.ok(records.stream()
+                    .map(record -> TimekeepingResponse.from(record,
+                            schedules.get(record.getAccount().getUsername() + "|" + record.getWorkDate())))
+                    .toList());
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
@@ -158,5 +169,11 @@ public class TimekeepingController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
+    }
+
+    private String scheduleKey(poly.edu.quanlynhahang.entity.WorkSchedule schedule) {
+        LocalDate date = java.time.Instant.ofEpochMilli(schedule.getWorkDate().getTime())
+                .atZone(ZONE_ID).toLocalDate();
+        return schedule.getAccount().getUsername() + "|" + date;
     }
 }

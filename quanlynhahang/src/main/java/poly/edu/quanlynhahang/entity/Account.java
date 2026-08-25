@@ -1,5 +1,6 @@
 package poly.edu.quanlynhahang.entity;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -50,6 +51,9 @@ public class Account {
 
     @Column(name = "assigned_area", columnDefinition = "nvarchar(100)")
     private String assignedArea;
+
+    @Column(name = "shift_rate", precision = 19, scale = 2)
+    private BigDecimal shiftRate;
 
     @JsonIgnore
     @Column(name = "token_version", nullable = false)

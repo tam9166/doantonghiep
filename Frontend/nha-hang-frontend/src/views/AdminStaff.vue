@@ -127,8 +127,11 @@
           <label style="display:flex; align-items:center; gap:5px; font-weight:bold; color:var(--primary);">
             <input type="checkbox" v-model="repeatForWeek" /> Áp dụng 1 tuần (7 ngày)
           </label>
-          <button class="g-btn-primary" @click="addSchedule">Phân Ca</button>
+          <button class="g-btn-primary" @click="addSchedule">{{ editingScheduleId ? 'Lưu Ca' : 'Phân Ca' }}</button>
+          <button v-if="editingScheduleId" class="g-btn-danger" @click="cancelScheduleEdit">Hủy sửa</button>
         </div>
+        <p v-if="scheduleError" class="section-error">{{ scheduleError }}</p>
+        <p v-else-if="scheduleLoading" class="section-state">Đang tải lịch làm việc...</p>
         <table class="data-table mt-20">
           <thead>
             <tr>
@@ -143,9 +146,12 @@
             <tr v-for="sched in filteredScheduleList" :key="sched.id">
               <td>{{ new Date(sched.workDate).toLocaleDateString('vi-VN') }}</td>
               <td>{{ sched.shift }}</td>
-              <td>{{ sched.account.fullname }}</td>
-              <td>{{ sched.account.username }}</td>
-              <td><button class="g-btn-danger" @click="deleteSchedule(sched.id)">Hủy Ca</button></td>
+              <td>{{ sched.employee?.fullname || 'Chưa xác định' }}</td>
+              <td>{{ sched.employee?.username || '-' }}</td>
+              <td class="staff-actions">
+                <button class="g-btn-primary" @click="startScheduleEdit(sched)">Sửa</button>
+                <button class="g-btn-danger" @click="deleteSchedule(sched.id)">Hủy Ca</button>
+              </td>
             </tr>
             <tr v-if="filteredScheduleList.length === 0">
               <td colspan="5" class="text-center">Không có lịch làm việc nào phù hợp.</td>
@@ -260,28 +266,38 @@
             </div>
           </div>
         </div>
+        <p v-if="timekeepingError" class="section-error">{{ timekeepingError }}</p>
+        <p v-else-if="timekeepingLoading" class="section-state">Đang tải báo cáo chấm công...</p>
         <table class="data-table">
           <thead>
             <tr>
               <th>Ngày</th>
               <th>Nhân Viên</th>
+              <th>Ca</th>
               <th>Giờ Check-in</th>
               <th>Giờ Check-out</th>
+              <th>Đi trễ</th>
+              <th>Về sớm</th>
+              <th>Tổng giờ</th>
               <th>Trạng Thái</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="tk in filteredTimekeepingList" :key="tk.id">
               <td>{{ new Date(tk.workDate).toLocaleDateString('vi-VN') }}</td>
-              <td>{{ tk.account.fullname }}</td>
+              <td>{{ tk.employee?.fullname || 'Chưa xác định' }}</td>
+              <td>{{ tk.shift || '-' }}</td>
               <td>{{ formatTime(tk.checkInTime) }}</td>
               <td>{{ formatTime(tk.checkOutTime) }}</td>
+              <td>{{ tk.lateMinutes || 0 }} phút</td>
+              <td>{{ tk.earlyMinutes || 0 }} phút</td>
+              <td>{{ Number(tk.totalHours || 0).toFixed(2) }}</td>
               <td>
                 <span class="status-badge" :class="getStatusClass(tk.status)">{{ tk.status }}</span>
               </td>
             </tr>
             <tr v-if="filteredTimekeepingList.length === 0">
-              <td colspan="5" class="text-center">Không có dữ liệu chấm công nào phù hợp.</td>
+              <td colspan="9" class="text-center">Không có dữ liệu chấm công nào phù hợp.</td>
             </tr>
           </tbody>
         </table>
@@ -296,6 +312,8 @@
             <input type="month" v-model="salaryMonth" @change="fetchSalary" />
           </div>
         </div>
+        <p v-if="salaryError" class="section-error">{{ salaryError }}</p>
+        <p v-else-if="salaryLoading" class="section-state">Đang tính bảng lương...</p>
         <table class="data-table">
           <thead>
             <tr>
@@ -315,8 +333,10 @@
               <td><span class="role-badge" :class="sal.role">{{ translateRole(sal.role) }}</span></td>
               <td style="text-align:center; font-weight:bold;">{{ sal.scheduledShifts }}</td>
               <td style="text-align:center; font-weight:bold; color:var(--primary);">{{ sal.workedShifts }}</td>
-              <td style="text-align:right;">{{ sal.rate.toLocaleString() }}đ</td>
-              <td style="text-align:right; font-weight:bold; color:var(--primary); font-size:1.1em;">{{ sal.totalSalary.toLocaleString() }}đ</td>
+              <td v-if="sal.rateConfigured" style="text-align:right;">{{ formatMoney(sal.rate) }}đ</td>
+              <td v-else class="salary-missing">Chưa cấu hình</td>
+              <td v-if="sal.rateConfigured" style="text-align:right; font-weight:bold; color:var(--primary); font-size:1.1em;">{{ formatMoney(sal.totalSalary) }}đ</td>
+              <td v-else class="salary-missing">Cần nhập đơn giá/ca</td>
             </tr>
             <tr v-if="salaryList.length === 0">
               <td colspan="7" class="text-center">Chưa có dữ liệu lương tháng này.</td>
@@ -369,6 +389,10 @@
           <label>Khu Vực Phục Vụ</label>
           <input type="text" class="g-form-control" v-model="newStaff.assignedArea" placeholder="Vd: Tầng 1, Tầng 2..." />
         </div>
+        <div class="form-group">
+          <label>Đơn Giá / Ca</label>
+          <input type="number" min="1" class="g-form-control" v-model.number="newStaff.shiftRate" placeholder="Ví dụ: 250000" />
+        </div>
         <div class="modal-actions" style="margin-top: 20px; text-align: right;">
           <button class="g-btn-danger" style="margin-right: 10px;" @click="showAddModal = false">Hủy</button>
           <button class="g-btn-primary" @click="createStaff">Xác Nhận</button>
@@ -418,6 +442,10 @@
         <div class="form-group" v-if="editStaff.role === 'ROLE_WAITER'">
           <label>Khu Vực Phục Vụ</label>
           <input type="text" class="g-form-control" v-model="editStaff.assignedArea" placeholder="Vd: Tầng 1, Tầng 2..." />
+        </div>
+        <div class="form-group">
+          <label>Đơn Giá / Ca</label>
+          <input type="number" min="1" class="g-form-control" v-model.number="editStaff.shiftRate" placeholder="Chưa cấu hình" />
         </div>
         <div class="modal-actions" style="margin-top: 20px; text-align: right;">
           <button class="g-btn-danger" style="margin-right: 10px;" @click="showEditModal = false">Đóng</button>
@@ -557,12 +585,17 @@ import { ref, computed, onMounted } from 'vue';
 import api from '@/services/api';
 import { toBusinessDate } from '@/utils/businessDate';
 import { useToast } from '@/composables/useToast';
+import { getApiErrorMessage } from '@/services/errorMessage';
 
 const currentTab = ref('staff');
 const staffList = ref([]);
 const customerList = ref([]);
 const scheduleList = ref([]);
 const timekeepingList = ref([]);
+const scheduleLoading = ref(false);
+const scheduleError = ref('');
+const timekeepingLoading = ref(false);
+const timekeepingError = ref('');
 
 const searchStaffQuery = ref('');
 const filteredStaffList = computed(() => {
@@ -623,8 +656,8 @@ const filteredScheduleList = computed(() => {
   const q = searchScheduleQuery.value.toLowerCase();
   if (!q) return scheduleList.value;
   return scheduleList.value.filter(s => 
-    s.account.fullname.toLowerCase().includes(q) || 
-    s.account.username.toLowerCase().includes(q)
+    String(s.employee?.fullname || '').toLowerCase().includes(q) ||
+    String(s.employee?.username || '').toLowerCase().includes(q)
   );
 });
 
@@ -633,16 +666,16 @@ const filteredTimekeepingList = computed(() => {
   const q = searchTimekeepingQuery.value.toLowerCase();
   if (!q) return timekeepingList.value;
   return timekeepingList.value.filter(t => 
-    t.account.fullname.toLowerCase().includes(q) || 
-    t.account.username.toLowerCase().includes(q)
+    String(t.employee?.fullname || '').toLowerCase().includes(q) ||
+    String(t.employee?.username || '').toLowerCase().includes(q)
   );
 });
 
 const showAddModal = ref(false);
-const newStaff = ref({ username: '', password: '', fullname: '', email: '', role: 'ROLE_WAITER', shift: '', assignedArea: '' });
+const newStaff = ref({ username: '', password: '', fullname: '', email: '', role: 'ROLE_WAITER', shift: '', assignedArea: '', shiftRate: null });
 
 const showEditModal = ref(false);
-const editStaff = ref({ username: '', password: '', fullname: '', email: '', role: '', shift: '', assignedArea: '' });
+const editStaff = ref({ username: '', password: '', fullname: '', email: '', role: '', shift: '', assignedArea: '', shiftRate: null });
 
 // Lấy ngày hôm nay định dạng yyyy-MM-dd
 const todayStr = toBusinessDate();
@@ -653,9 +686,12 @@ const timekeepingEndDate = ref(todayStr);
 
 const repeatForWeek = ref(false);
 const newSchedule = ref({ username: '', shift: 'Sáng', workDate: '' });
+const editingScheduleId = ref(null);
 
 const salaryMonth = ref(todayStr.slice(0, 7)); // YYYY-MM
 const salaryList = ref([]);
+const salaryLoading = ref(false);
+const salaryError = ref('');
 
 const configHeader = () => {
   const token = sessionStorage.getItem('staff_token');
@@ -675,8 +711,10 @@ const translateRole = (role) => {
 
 const formatTime = (dateStr) => {
   if (!dateStr) return '-';
-  return new Date(dateStr).toLocaleTimeString('vi-VN');
+  const parts = String(dateStr).split(':');
+  return parts.length >= 2 ? `${parts[0]}:${parts[1]}` : String(dateStr);
 };
+const formatMoney = (value) => Number(value || 0).toLocaleString('vi-VN');
 
 const getStatusClass = (status) => {
   if (status === 'Đã Check-in') return 'status-warning';
@@ -765,7 +803,7 @@ const createStaff = async () => {
     await api.post(`/api/admin/staff?roleId=${roleId}`, payload, configHeader());
     alert('Thêm nhân viên thành công!');
     showAddModal.value = false;
-    newStaff.value = { username: '', password: '', fullname: '', email: '', role: 'ROLE_WAITER', shift: '', assignedArea: '' };
+    newStaff.value = { username: '', password: '', fullname: '', email: '', role: 'ROLE_WAITER', shift: '', assignedArea: '', shiftRate: null };
     fetchStaff();
   } catch (err) {
     alert('Lỗi tạo nhân viên: ' + (err.response?.data || err.message));
@@ -780,7 +818,8 @@ const openEditModal = (staff) => {
     email: staff.email,
     role: staff.role,
     shift: staff.shift || '',
-    assignedArea: staff.assignedArea || ''
+    assignedArea: staff.assignedArea || '',
+    shiftRate: staff.shiftRate || null
   };
   showEditModal.value = true;
 };
@@ -791,7 +830,8 @@ const updateStaff = async () => {
       fullname: editStaff.value.fullname, 
       email: editStaff.value.email,
       shift: editStaff.value.shift,
-      assignedArea: editStaff.value.assignedArea
+      assignedArea: editStaff.value.assignedArea,
+      shiftRate: editStaff.value.shiftRate || null
     };
     if (editStaff.value.password) {
       payload.password = editStaff.value.password;
@@ -818,18 +858,24 @@ const deleteStaff = async (username) => {
 };
 
 const fetchSchedules = async () => {
+  scheduleLoading.value = true;
+  scheduleError.value = '';
   try {
     const res = await api.get(`/api/schedules?startDate=${scheduleStartDate.value}&endDate=${scheduleEndDate.value}`, configHeader());
-    scheduleList.value = res.data;
+    scheduleList.value = Array.isArray(res.data) ? res.data : [];
   } catch (err) {
-    console.error('Lỗi lấy lịch', err);
+    scheduleList.value = [];
+    scheduleError.value = getApiErrorMessage(err, 'Không thể tải lịch làm việc.');
+  } finally {
+    scheduleLoading.value = false;
   }
 };
 
 const addSchedule = async () => {
   if (!newSchedule.value.username) return alert('Vui lòng chọn nhân viên!');
   try {
-    const daysToAdd = repeatForWeek.value ? 7 : 1;
+    const daysToAdd = editingScheduleId.value ? 1 : (repeatForWeek.value ? 7 : 1);
+    const wasWeekly = daysToAdd === 7;
     const baseDate = new Date(scheduleStartDate.value);
     
     // Tạo mảng các request API
@@ -839,18 +885,37 @@ const addSchedule = async () => {
       d.setDate(d.getDate() + i);
       const dateStr = toBusinessDate(d);
       const payload = { ...newSchedule.value, workDate: dateStr };
-      requests.push(api.post('/api/schedules', payload, configHeader()));
+      requests.push(editingScheduleId.value
+        ? api.put(`/api/schedules/${editingScheduleId.value}`, payload, configHeader())
+        : api.post('/api/schedules', payload, configHeader()));
     }
     
     await Promise.all(requests);
+    cancelScheduleEdit();
     fetchSchedules();
-    if (repeatForWeek.value) {
+    if (wasWeekly) {
       alert('Đã xếp lịch cho 7 ngày liên tiếp thành công!');
     }
   } catch (err) {
     alert(err.response?.data || 'Lỗi xếp lịch, có thể nhân viên đã bị trùng ca trong một số ngày.');
     fetchSchedules(); // Vẫn fetch lại vì có thể lưu thành công vài ngày
   }
+};
+
+const startScheduleEdit = (schedule) => {
+  editingScheduleId.value = schedule.id;
+  newSchedule.value = {
+    username: schedule.employee?.username || '',
+    shift: schedule.shift,
+    workDate: schedule.workDate
+  };
+  scheduleStartDate.value = String(schedule.workDate).slice(0, 10);
+  repeatForWeek.value = false;
+};
+
+const cancelScheduleEdit = () => {
+  editingScheduleId.value = null;
+  newSchedule.value = { username: '', shift: 'Sáng', workDate: '' };
 };
 
 const deleteSchedule = async (id) => {
@@ -864,61 +929,30 @@ const deleteSchedule = async (id) => {
 };
 
 const fetchTimekeeping = async () => {
+  timekeepingLoading.value = true;
+  timekeepingError.value = '';
   try {
     const res = await api.get(`/api/timekeeping?startDate=${timekeepingStartDate.value}&endDate=${timekeepingEndDate.value}`, configHeader());
-    timekeepingList.value = res.data;
+    timekeepingList.value = Array.isArray(res.data) ? res.data : [];
   } catch (err) {
-    console.error('Lỗi lấy báo cáo chấm công', err);
+    timekeepingList.value = [];
+    timekeepingError.value = getApiErrorMessage(err, 'Không thể tải báo cáo chấm công.');
+  } finally {
+    timekeepingLoading.value = false;
   }
 };
 
 const fetchSalary = async () => {
+  salaryLoading.value = true;
+  salaryError.value = '';
   try {
-    const year = salaryMonth.value.split('-')[0];
-    const month = salaryMonth.value.split('-')[1];
-    const startDate = `${year}-${month}-01`;
-    const lastDay = new Date(year, month, 0).getDate();
-    const endDate = `${year}-${month}-${lastDay}`;
-    
-    const [resSched, resTk] = await Promise.all([
-      api.get(`/api/schedules?startDate=${startDate}&endDate=${endDate}`, configHeader()),
-      api.get(`/api/timekeeping?startDate=${startDate}&endDate=${endDate}`, configHeader())
-    ]);
-    
-    const schedules = resSched.data;
-    const timekeepings = resTk.data;
-    
-    const map = {};
-    staffList.value.forEach(st => {
-      if (st.role === 'ROLE_ADMIN' || st.role === 'ADMIN') return; // Không tính lương theo tháng cho admin
-      map[st.username] = {
-        username: st.username,
-        fullname: st.fullname,
-        role: st.role,
-        scheduledShifts: 0,
-        workedShifts: 0,
-        rate: st.role === 'ROLE_KITCHEN' ? 250000 : (st.role === 'ROLE_MANAGER' ? 357143 : 214286),
-        totalSalary: 0
-      };
-    });
-    
-    schedules.forEach(s => {
-      if (map[s.account.username]) map[s.account.username].scheduledShifts++;
-    });
-    
-    timekeepings.forEach(tk => {
-      if (tk.checkInTime && map[tk.account.username]) {
-        map[tk.account.username].workedShifts++;
-      }
-    });
-    
-    Object.values(map).forEach(m => {
-      m.totalSalary = m.workedShifts * m.rate;
-    });
-    
-    salaryList.value = Object.values(map).filter(m => m.scheduledShifts > 0 || m.workedShifts > 0);
+    const response = await api.get(`/api/admin/payroll?month=${salaryMonth.value}`, configHeader());
+    salaryList.value = Array.isArray(response.data) ? response.data : [];
   } catch (err) {
-    console.error('Lỗi tính lương', err);
+    salaryList.value = [];
+    salaryError.value = getApiErrorMessage(err, 'Không thể tính bảng lương tháng này.');
+  } finally {
+    salaryLoading.value = false;
   }
 };
 
@@ -1038,6 +1072,9 @@ onMounted(() => {
 .customer-history-table tbody td { color: var(--text-primary, #2B171A); opacity: 1; }
 .customer-order-total { color: var(--primary) !important; font-weight: 850; }
 .customer-points { color: var(--primary); font-weight: 850; }
+.section-error { margin: 12px 0; padding: 12px 14px; border: 1px solid var(--danger, #b42318); border-radius: 8px; color: var(--danger, #b42318); background: color-mix(in srgb, var(--danger, #b42318) 8%, var(--bg-card)); }
+.section-state { margin: 12px 0; color: var(--text-secondary); }
+.salary-missing { color: var(--danger, #b42318); font-weight: 750; }
 .customer-invoice-button { min-height: 38px; white-space: nowrap; color: var(--color-on-primary); }
 @media (max-width: 640px) { .crm-summary { grid-template-columns: 1fr; } }
 @media print {

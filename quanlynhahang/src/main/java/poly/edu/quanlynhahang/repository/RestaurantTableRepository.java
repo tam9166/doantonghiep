@@ -31,6 +31,9 @@ public interface RestaurantTableRepository extends JpaRepository<RestaurantTable
 
     List<RestaurantTable> findByActiveTrueOrderByAreaIdAscIdAsc();
 
+    @Query("select t from RestaurantTable t left join fetch t.area order by t.floor, t.areaId, t.displayOrder, t.name")
+    List<RestaurantTable> findAllWithArea();
+
     @Query("select t from RestaurantTable t "
             + "where t.active = true or t.active is null "
             + "order by t.areaId asc, t.id asc")

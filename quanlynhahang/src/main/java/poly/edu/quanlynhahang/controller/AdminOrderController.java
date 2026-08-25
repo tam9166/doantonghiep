@@ -232,6 +232,11 @@ public class AdminOrderController {
             if (Integer.valueOf(3).equals(order.getStatus())) {
                 return ResponseEntity.status(409).body("Không thể thanh toán đơn đã hủy!");
             }
+            if (Boolean.TRUE.equals(order.getIsPaid())
+                    || PaymentStatus.PAID.equals(order.getPaymentStatus())
+                    || PaymentStatus.OVERPAID.equals(order.getPaymentStatus())) {
+                return ResponseEntity.status(409).body("Đơn hàng đã được thanh toán trước đó");
+            }
             if (OrderPaymentOption.PREPAID_TRANSFER.equals(order.getPaymentOption())) {
                 return ResponseEntity.status(409)
                         .body("Đơn chuyển khoản chỉ được xác nhận qua payment ledger/webhook!");
@@ -247,7 +252,10 @@ public class AdminOrderController {
             order.setPaymentConfirmedAt(new Date());
             inventoryReservationService.consume(id);
             orderStateMachineService.transition(order, OrderStatus.COMPLETED);
-            orderRepository.save(order);
+            orderRepository.saveAndFlush(order);
+            if (order.getTableId() != null) {
+                tableLifecycleService.markCleaningAfterPayment(order.getTableId());
+            }
             if (firstPaymentConfirmation) {
                 awardOrderPoints(order);
             }
@@ -263,6 +271,12 @@ public class AdminOrderController {
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'CASHIER')")
     public ResponseEntity<?> confirmManualOrder(@PathVariable Integer id) {
         return ResponseEntity.ok(orderPaymentService.confirmManualDispatch(id));
+    }
+
+    @PutMapping("/{id}/dispatch-to-kitchen")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'WAITER')")
+    public ResponseEntity<?> dispatchToKitchen(@PathVariable Integer id) {
+        return ResponseEntity.ok(OrderResponse.from(orderPaymentService.confirmManualDispatch(id)));
     }
 
     @PostMapping("/{id}/payment-qr")

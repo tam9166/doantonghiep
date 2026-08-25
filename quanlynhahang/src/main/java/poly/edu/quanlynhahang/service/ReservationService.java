@@ -108,6 +108,7 @@ public class ReservationService {
     private final TableAreaRepository areaRepository;
     private final ProductRepository productRepository;
     private final VoucherRepository voucherRepository;
+    private final VoucherLifecycleService voucherLifecycleService;
     private final ReservationVoucherUsageRepository voucherUsageRepository;
     private final NotificationService notificationService;
     private final ActivityLogService activityLogService;
@@ -163,6 +164,7 @@ public class ReservationService {
         this.areaRepository = areaRepository;
         this.productRepository = productRepository;
         this.voucherRepository = voucherRepository;
+        this.voucherLifecycleService = new VoucherLifecycleService(voucherRepository);
         this.voucherUsageRepository = voucherUsageRepository;
         this.notificationService = notificationService;
         this.activityLogService = activityLogService;
@@ -1161,18 +1163,8 @@ public class ReservationService {
                 ? voucherRepository.findLockedByCode(code)
                 : voucherRepository.findByCode(code))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Mã giảm giá không tồn tại"));
-        if (Boolean.TRUE.equals(voucher.getIsUsed())) {
-            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Mã giảm giá đã được sử dụng");
-        }
-        if (voucher.getDiscountPercent() == null || voucher.getDiscountPercent() <= 0) {
-            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Mã giảm giá không hợp lệ");
-        }
-        if (voucher.getAccount() != null) {
-            String currentUsername = currentUsernameOrNull();
-            if (currentUsername == null || !voucher.getAccount().getUsername().equals(currentUsername)) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Mã giảm giá này không dành cho bạn");
-            }
-        }
+        String currentUsername = currentUsernameOrNull();
+        voucherLifecycleService.validateForUse(voucher, currentUsername);
         BigDecimal discount = originalTotal
                 .multiply(BigDecimal.valueOf(voucher.getDiscountPercent()))
                 .divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP)
@@ -1180,8 +1172,7 @@ public class ReservationService {
                 .max(BigDecimal.ZERO);
         BigDecimal totalAfterDiscount = originalTotal.subtract(discount).setScale(0, RoundingMode.HALF_UP);
         if (markAsUsed) {
-            voucher.setIsUsed(true);
-            voucherRepository.save(voucher);
+            voucherLifecycleService.redeemLocked(voucher, currentUsername);
         }
         return new VoucherApplication(voucher, voucher.getCode(), discount, totalAfterDiscount);
     }

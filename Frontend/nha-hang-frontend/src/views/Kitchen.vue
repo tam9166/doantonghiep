@@ -16,7 +16,10 @@
         </button>
         <button @click="activeTab = 'menu'" :class="['tab-btn', { active: activeTab === 'menu' }]"> Thực Đơn</button>
         <button @click="activeTab = 'ai-kitchen'" :class="['tab-btn', { active: activeTab === 'ai-kitchen' }]"> Gom Món (AI)</button>
-        <button @click="$router.push('/staff/profile')" class="btn-profile"> Cá Nhân</button>
+        <button @click="$router.push('/staff/profile')" class="btn-profile">
+          <UiIcon name="profile" />
+          <span>Hồ sơ</span>
+        </button>
         <button @click="fetchOrders" class="btn-refresh"><UiIcon name="refresh" /></button>
         <button @click="handleLogout" class="btn-logout"> Đăng Xuất</button>
       </div>
@@ -54,20 +57,14 @@
     </div>
 
     <main v-else class="kitchen-main">
-      <div v-if="loadError" class="empty-state">
+      <div v-if="activeTab === 'orders' && loadError" class="empty-state section-error" role="alert">
         <div class="empty-icon"><UiIcon name="warning" /></div>
         <h2>Không thể tải dữ liệu bếp</h2>
         <p>{{ loadError }}</p>
         <button class="btn-refresh" @click="fetchOrders">Thử lại</button>
       </div>
       <!-- ========== TAB 1: ĐƠN HÀNG ========== -->
-      <div v-if="activeTab === 'orders'">
-        <div v-if="pendingOrders.length === 0" class="empty-state">
-          <div class="empty-icon"><UiIcon name="check" /></div>
-          <h2>Không có đơn nào cần nấu!</h2>
-          <p>Hệ thống sẽ tự động cập nhật khi có đơn mới.</p>
-        </div>
-
+      <div v-if="activeTab === 'orders' && !loadError">
         <div v-if="pendingOrders.length === 0" class="empty-state">
           <div class="empty-icon"><UiIcon name="check" /></div>
           <h2>Không có đơn nào cần nấu!</h2>
@@ -129,7 +126,14 @@
           </button>
         </div>
 
-        <div v-if="ingredients.length === 0" class="empty-state">
+        <div v-if="inventoryError" class="empty-state section-error" role="alert">
+          <div class="empty-icon"><UiIcon name="warning" /></div>
+          <h2>Không thể tải dữ liệu tồn kho</h2>
+          <p>{{ inventoryError }}</p>
+          <button class="btn-refresh" type="button" @click="fetchIngredients">Thử lại</button>
+        </div>
+
+        <div v-else-if="ingredients.length === 0" class="empty-state">
           <div class="empty-icon"><UiIcon name="box" /></div>
           <h2>Chưa có nguyên liệu nào</h2>
           <p>Quản lý cần thêm nguyên liệu từ trang Admin.</p>
@@ -139,13 +143,13 @@
           <h3 style="color: var(--primary); margin-top: 0;"> Cảnh báo: Sắp hết hạn sử dụng</h3>
           <ul style="margin: 0; padding-left: 20px;">
             <li v-for="b in expiringBatches" :key="b.id">
-              <strong>{{ b.ingredient.name }}</strong> - Còn <strong>{{ b.quantity }} {{ b.ingredient.unit }}</strong> 
+              <strong>{{ ingredientForBatch(b).name }}</strong> - Còn <strong>{{ b.quantity }} {{ ingredientForBatch(b).unit }}</strong>
               (Hết hạn: {{ new Date(b.expirationDate).toLocaleDateString('vi-VN') }})
             </li>
           </ul>
         </div>
 
-        <div class="inv-grid" v-else-if="ingredients.length > 0">
+        <div class="inv-grid" v-if="ingredients.length > 0">
           <div v-for="ing in ingredients" :key="ing.id" :class="['inv-card', getStockClass(ing)]">
             <div class="inv-card-top">
               <div class="inv-icon">{{ getStockIcon(ing) }}</div>
@@ -156,7 +160,7 @@
             </div>
             <div class="inv-card-bottom">
               <div class="inv-qty">
-                <span class="inv-qty-value">{{ ing.quantity?.toFixed(1) || '0' }}</span>
+                <span class="inv-qty-value">{{ formatQuantity(ing.quantity) }}</span>
                 <span class="inv-qty-unit">{{ ing.unit }}</span>
               </div>
               <div class="inv-status">
@@ -179,7 +183,17 @@
           <p class="inv-sub">Xem chi phí nguyên liệu của món và quản lý trạng thái bán (Báo hết/Mở bán).</p>
         </div>
 
-        <div class="menu-grid">
+        <div v-if="menuError" class="empty-state section-error" role="alert">
+          <div class="empty-icon"><UiIcon name="warning" /></div>
+          <h2>Không thể tải thực đơn</h2>
+          <p>{{ menuError }}</p>
+          <button class="btn-refresh" type="button" @click="fetchProducts">Thử lại</button>
+        </div>
+        <div v-else-if="products.length === 0" class="empty-state">
+          <div class="empty-icon"><UiIcon name="dish" /></div>
+          <h2>Chưa có món trong thực đơn</h2>
+        </div>
+        <div v-else class="menu-grid">
           <div v-for="product in products" :key="product.id" :class="['menu-card', { 'menu-disabled': !product.available }]">
             <img :src="foodImage(product.image)" class="menu-img" @error="replaceFoodImage" />
             <div class="menu-info">
@@ -187,12 +201,22 @@
               <span class="menu-price">Bán: {{ product.price?.toLocaleString() }}đ</span>
               <span class="menu-cost" v-if="product.costPrice > 0">Vốn: {{ product.costPrice?.toLocaleString() }}đ</span>
               <span class="menu-cost" v-else>Vốn: Chưa tính</span>
+              <span :class="['menu-profit', { loss: Number(product.expectedProfit) <= 0 }]">
+                Lợi nhuận: {{ Number(product.expectedProfit || 0).toLocaleString('vi-VN') }}đ
+                <template v-if="product.profitMarginPercent != null"> ({{ Number(product.profitMarginPercent).toFixed(1) }}%)</template>
+              </span>
+              <span class="menu-servings">Có thể làm: <strong>{{ product.availableServings || 0 }} suất</strong></span>
+              <span v-if="!product.hasRecipe" class="menu-warning" role="alert">Chưa có công thức</span>
+              <span v-else-if="Number(product.price) <= Number(product.costPrice)" class="menu-warning" role="alert">
+                Cảnh báo: Giá bán không cao hơn giá vốn
+              </span>
             </div>
             <div class="menu-action">
               <span :class="['menu-status', product.available ? 'status-on' : 'status-off']">
                 {{ product.available ? ' Đang bán' : ' Hết món' }}
               </span>
-              <button @click="viewRecipeDetails(product)" class="btn-toggle-menu" style="border-color: var(--secondary); color: var(--secondary); background: color-mix(in srgb, var(--secondary) 10%, transparent)"> Công thức</button>
+              <button v-if="product.hasRecipe" @click="viewRecipeDetails(product)" class="btn-toggle-menu" style="border-color: var(--secondary); color: var(--secondary); background: color-mix(in srgb, var(--secondary) 10%, transparent)">Công thức</button>
+              <button v-else @click="$router.push('/admin/ingredients')" class="btn-toggle-menu btn-recipe-setup">Thiết lập công thức</button>
               <button @click="toggleAvailable(product)" :class="['btn-toggle-menu', product.available ? 'btn-off' : 'btn-on']">
                 {{ product.available ? ' Báo Hết' : ' Mở Bán' }}
               </button>
@@ -317,6 +341,7 @@ import TimekeepingWidget from '../components/TimekeepingWidget.vue';
 import { foodImage, replaceFoodImage } from '@/utils/imageFallback';
 import { clearStaffSession, getStaffToken } from '@/services/session';
 import { useDialog } from '@/composables/useDialog';
+import { kitchenQuantity, normalizeKitchenCollection } from '@/utils/kitchenData';
 
 const { confirmDialog, promptDialog } = useDialog();
 
@@ -329,6 +354,8 @@ const expiringBatches = ref([]);
 const products = ref([]);
 const isLoading = ref(true);
 const loadError = ref('');
+const inventoryError = ref('');
+const menuError = ref('');
 const toastMsg = ref('');
 const now = ref(new Date());
 const activeTab = ref('orders');
@@ -400,21 +427,40 @@ const fetchOrders = async () => {
 };
 
 const fetchIngredients = async () => {
-  try {
-    const res = await api.get('/api/admin/ingredients', configHeader());
-    ingredients.value = res.data;
-    
-    // Lấy lô hàng sắp hết hạn
-    const resExp = await api.get('/api/admin/ingredients/expiring-batches', configHeader());
-    expiringBatches.value = resExp.data;
-  } catch (err) { console.error('Lỗi lấy nguyên liệu:', err); }
+  inventoryError.value = '';
+  const [ingredientResult, expiryResult] = await Promise.allSettled([
+    api.get('/api/admin/ingredients', configHeader()),
+    api.get('/api/admin/ingredients/expiring-batches', configHeader())
+  ]);
+  if (ingredientResult.status === 'fulfilled') {
+    ingredients.value = normalizeKitchenCollection(ingredientResult.value.data);
+  } else {
+    ingredients.value = [];
+    inventoryError.value = getApiErrorMessage(
+      ingredientResult.reason,
+      'Không thể tải dữ liệu tồn kho. Vui lòng thử lại.'
+    );
+  }
+  if (expiryResult.status === 'fulfilled') {
+    expiringBatches.value = normalizeKitchenCollection(expiryResult.value.data);
+  } else {
+    expiringBatches.value = [];
+    inventoryError.value ||= getApiErrorMessage(
+      expiryResult.reason,
+      'Không thể tải dữ liệu tồn kho. Vui lòng thử lại.'
+    );
+  }
 };
 
 const fetchProducts = async () => {
+  menuError.value = '';
   try {
     const res = await api.get('/api/admin/products', configHeader());
-products.value = res.data;
-  } catch (err) { console.error('Lỗi lấy sản phẩm:', err); }
+    products.value = normalizeKitchenCollection(res.data);
+  } catch (err) {
+    products.value = [];
+    menuError.value = getApiErrorMessage(err, 'Không thể tải thực đơn. Vui lòng thử lại.');
+  }
 };
 
 // === COMPUTED ===
@@ -425,7 +471,8 @@ const totalDishes = computed(() => {
   }, 0);
 });
 const sortedOrders = computed(() => [...pendingOrders.value].sort((a, b) => new Date(a.createDate) - new Date(b.createDate)));
-const lowStockCount = computed(() => ingredients.value.filter(i => i.quantity <= i.minStock).length);
+const lowStockCount = computed(() => normalizeKitchenCollection(ingredients.value)
+  .filter(i => kitchenQuantity(i.quantity) <= kitchenQuantity(i.minStock)).length);
 
 const todayOrders = computed(() => {
   const today = new Date().toDateString();
@@ -437,6 +484,9 @@ const todayDishes = computed(() => todayOrders.value.filter(o => kitchenComplete
 
 // === HELPERS ===
 const showToast = (msg) => { toastMsg.value = msg; setTimeout(() => { toastMsg.value = ''; }, 3000); };
+const formatQuantity = value => kitchenQuantity(value).toFixed(1);
+const ingredientForBatch = batch => ingredients.value.find(item => Number(item.id) === Number(batch?.ingredientId))
+  || { name: `Nguyên liệu #${batch?.ingredientId || '?'}`, unit: '' };
 const getDishCount = (order) => order.orderDetails?.reduce((s, d) => s + d.quantity, 0) || 0;
 const unfinishedDishCount = (order) => (order.orderDetails || [])
   .filter(detail => Number(detail.status) < 1 || detail.status == null)
@@ -646,21 +696,27 @@ const handleLogout = () => { clearStaffSession(); router.push('/staff-login'); }
 
 // === WEBSOCKET ===
 const connectWebSocket = () => {
-  const socket = new SockJS('/ws');
-  stompClient = Stomp.over(socket);
-  stompClient.debug = () => {}; // Tắt log debug
-  const token = getStaffToken();
-  stompClient.connect(token ? { Authorization: `Bearer ${token}` } : {}, () => {
-    stompClient.subscribe('/topic/kitchen', (message) => {
-      if (message.body === 'NEW_ORDER') {
-        fetchOrders();
-      }
+  try {
+    const socket = new SockJS('/ws');
+    stompClient = Stomp.over(socket);
+    stompClient.debug = () => {};
+    const token = getStaffToken();
+    stompClient.connect(token ? { Authorization: `Bearer ${token}` } : {}, () => {
+      stompClient.subscribe('/topic/kitchen', message => {
+        if (message.body === 'NEW_ORDER') fetchOrders();
+      });
+    }, () => {
+      stompClient = null;
     });
-  });
+  } catch (error) {
+    console.warn('Kitchen realtime unavailable; polling remains active.', error);
+    stompClient = null;
+  }
 };
 
 const disconnectWebSocket = () => {
-  if (stompClient) stompClient.disconnect();
+  if (stompClient?.disconnect) stompClient.disconnect();
+  stompClient = null;
 };
 
 // === LIFECYCLE ===
@@ -725,6 +781,14 @@ onUnmounted(() => {
 }
 .btn-refresh:hover { border-color: var(--primary); color: var(--primary); }
 .btn-logout:hover { border-color: var(--primary); color: var(--primary); }
+.btn-profile {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  min-height: 36px; padding: 8px 14px; border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--primary) 35%, transparent);
+  background: color-mix(in srgb, var(--primary) 10%, #fff); color: var(--primary);
+  font: 700 0.83rem var(--font-primary); cursor: pointer; white-space: nowrap;
+}
+.btn-profile:hover { background: var(--primary); color: #fff; }
 
 /* Stats Bar */
 .stats-bar { display: flex; justify-content: center; gap: 6px; padding: 14px 24px; background: rgba(43, 36, 32, 0.18); border-bottom: 1px solid var(--border-light); flex-wrap: wrap; }
@@ -864,6 +928,9 @@ onUnmounted(() => {
 .menu-info h4 { margin: 0 0 4px 0; color: var(--text-heading); font-size: 0.95rem; }
 .menu-price { color: var(--primary); font-weight: 700; font-size: 0.88rem; }
 .menu-cost { color: var(--primary); font-weight: 700; font-size: 0.85rem; margin-top: 3px; }
+.menu-profit, .menu-servings { color: var(--text-muted); font-weight: 650; font-size: 0.8rem; margin-top: 3px; }
+.menu-profit.loss, .menu-warning { color: var(--danger); font-weight: 800; }
+.menu-warning { margin-top: 5px; font-size: 0.78rem; }
 .menu-cat { margin-left: 8px; color: var(--text-muted); font-size: 0.78rem; }
 .menu-action { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; flex-shrink: 0; }
 .menu-status { font-size: 0.78rem; font-weight: 700; }
@@ -874,6 +941,7 @@ onUnmounted(() => {
 .btn-off:hover { background: var(--primary); color: #FFFFFF; }
 .btn-on { background: color-mix(in srgb, var(--secondary) 10%, transparent); color: var(--primary); border-color: color-mix(in srgb, var(--secondary) 30%, transparent); }
 .btn-on:hover { background: var(--primary); color: var(--bg-dark); }
+.btn-recipe-setup { color: var(--primary); border-color: var(--primary); background: #fff; }
 
 /* Toast */
 .toast-notification { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--bg-card); color: var(--primary); padding: 14px 28px; border-radius: 30px; border: 1px solid var(--primary); box-shadow: 0 0 30px color-mix(in srgb, var(--secondary) 30%, transparent); font-weight: 700; z-index: 1000; animation: slideUp 0.3s ease; }

@@ -215,15 +215,26 @@ public class OrderPaymentService {
     public Order confirmManualDispatch(Integer orderId) {
         Order order = orderRepository.findLockedById(orderId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Đơn hàng không tồn tại"));
-        if (Integer.valueOf(3).equals(order.getStatus()) || Boolean.TRUE.equals(order.getIsPaid())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Không thể xác nhận đơn đã hủy hoặc đã thanh toán");
+        if (Integer.valueOf(poly.edu.quanlynhahang.entity.OrderStatus.CANCELLED.code()).equals(order.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Không thể chuyển đơn đã hủy xuống bếp");
         }
-        if (OrderPaymentOption.PREPAID_TRANSFER.equals(order.getPaymentOption())
-                && !PaymentStatus.PAID.equals(order.getPaymentStatus())
-                && !PaymentStatus.OVERPAID.equals(order.getPaymentStatus())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Đơn chuyển khoản chưa được xác nhận đủ tiền");
+        if (Integer.valueOf(poly.edu.quanlynhahang.entity.OrderStatus.IN_PREPARATION.code()).equals(order.getStatus())
+                || Integer.valueOf(poly.edu.quanlynhahang.entity.OrderStatus.PARTIALLY_READY.code()).equals(order.getStatus())
+                || Integer.valueOf(poly.edu.quanlynhahang.entity.OrderStatus.READY.code()).equals(order.getStatus())
+                || Integer.valueOf(poly.edu.quanlynhahang.entity.OrderStatus.SERVED.code()).equals(order.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Đơn đã được chuyển xuống bếp trước đó");
         }
-        if (!OrderPaymentOption.COD.equals(order.getPaymentOption())
+        if (order.getPaymentOption() == null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Đơn legacy thiếu hình thức thanh toán; vui lòng cập nhật trước khi chuyển bếp");
+        }
+        if (OrderPaymentOption.PREPAID_TRANSFER.equals(order.getPaymentOption())) {
+            if (!PaymentStatus.PAID.equals(order.getPaymentStatus())
+                    && !PaymentStatus.OVERPAID.equals(order.getPaymentStatus())) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Đơn chuyển khoản chưa được xác nhận đủ tiền");
+            }
+        } else if (!OrderPaymentOption.COD.equals(order.getPaymentOption())
                 && !OrderPaymentOption.PAY_AT_RESTAURANT.equals(order.getPaymentOption())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Đơn này không dùng luồng xác nhận thủ công");
         }

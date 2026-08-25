@@ -16,6 +16,9 @@ public interface RecipeRepository extends JpaRepository<Recipe, Integer> { // DÃ
 
     List<Recipe> findByIngredient(poly.edu.quanlynhahang.entity.Ingredient ingredient);
 
+    boolean existsByProductAndIngredient(Product product,
+            poly.edu.quanlynhahang.entity.Ingredient ingredient);
+
     @Query("select r from Recipe r join fetch r.ingredient where r.product.id in :productIds")
     List<Recipe> findByProductIdsWithIngredient(@Param("productIds") List<Integer> productIds);
 }

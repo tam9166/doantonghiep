@@ -56,6 +56,7 @@ public class AdminAccountController {
             map.put("email", acc.getEmail());
             map.put("shift", acc.getShift());
             map.put("assignedArea", acc.getAssignedArea());
+            map.put("shiftRate", acc.getShiftRate());
             String roleStr = "ROLE_USER";
             List<Authority> auths = acc.getAuthorities();
             if (auths != null && !auths.isEmpty()) {

@@ -13,5 +13,6 @@ public interface WorkScheduleRepository extends JpaRepository<WorkSchedule, Long
     List<WorkSchedule> findByWorkDateBetweenOrderByWorkDateAsc(Date startDate, Date endDate);
     List<WorkSchedule> findByAccountUsernameAndWorkDateBetweenOrderByWorkDateAsc(String username, Date startDate, Date endDate);
     List<WorkSchedule> findByAccountUsernameAndWorkDate(String username, Date workDate);
+    List<WorkSchedule> findByAccountUsernameAndWorkDateBetween(String username, Date startDate, Date endDate);
     List<WorkSchedule> findByWorkDateOrderByShiftAsc(Date workDate);
 }

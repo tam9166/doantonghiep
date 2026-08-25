@@ -20,6 +20,7 @@ import poly.edu.quanlynhahang.entity.WorkShiftDefinition;
 import poly.edu.quanlynhahang.dto.WorkScheduleResponse;
 import poly.edu.quanlynhahang.repository.AccountRepository;
 import poly.edu.quanlynhahang.repository.WorkScheduleRepository;
+import poly.edu.quanlynhahang.service.WorkScheduleConflictService;
 @RestController
 @RequestMapping("/api/schedules")
 public class ScheduleController {
@@ -30,6 +31,9 @@ public class ScheduleController {
 
     @Autowired
     private AccountRepository accountRepository;
+
+    @Autowired
+    private WorkScheduleConflictService conflictService;
 
     // Lấy lịch làm việc theo khoảng thời gian (dành cho Admin xem tất cả)
     @GetMapping
@@ -70,24 +74,40 @@ public class ScheduleController {
         }
 
         try {
+            LocalDate businessDate = LocalDate.parse(request.getWorkDate());
             Date workDate = parseBusinessDate(request.getWorkDate());
-            
-            // Kiểm tra xem ngày đó nhân viên đã có ca này chưa
-            List<WorkSchedule> existing = workScheduleRepository.findByAccountUsernameAndWorkDate(request.getUsername(), workDate);
-            for (WorkSchedule ws : existing) {
-                if (ws.getShift().equals(request.getShift())) {
-                    return ResponseEntity.badRequest().body("Nhân viên này đã được xếp ca " + request.getShift() + " vào ngày này rồi!");
-                }
-            }
+            WorkShiftDefinition shift = WorkShiftDefinition.fromLabel(request.getShift());
+            conflictService.requireAvailable(request.getUsername(), businessDate, shift, null);
 
             WorkSchedule ws = new WorkSchedule();
             ws.setAccount(accOpt.get());
             ws.setWorkDate(workDate);
-            ws.applyShift(WorkShiftDefinition.fromLabel(request.getShift()));
+            ws.applyShift(shift);
             
             return ResponseEntity.ok(WorkScheduleResponse.from(workScheduleRepository.save(ws)));
-        } catch (DateTimeParseException e) {
-            return ResponseEntity.badRequest().body("Ngày không hợp lệ.");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
+    public ResponseEntity<?> updateSchedule(@PathVariable Long id,
+                                             @Valid @RequestBody poly.edu.quanlynhahang.dto.WorkScheduleRequest request) {
+        try {
+            WorkSchedule schedule = workScheduleRepository.findById(id).orElse(null);
+            if (schedule == null) return ResponseEntity.notFound().build();
+            Account account = accountRepository.findById(request.getUsername()).orElse(null);
+            if (account == null) return ResponseEntity.badRequest().body("Tài khoản không tồn tại!");
+            LocalDate businessDate = LocalDate.parse(request.getWorkDate());
+            WorkShiftDefinition shift = WorkShiftDefinition.fromLabel(request.getShift());
+            conflictService.requireAvailable(request.getUsername(), businessDate, shift, id);
+            schedule.setAccount(account);
+            schedule.setWorkDate(parseBusinessDate(request.getWorkDate()));
+            schedule.applyShift(shift);
+            return ResponseEntity.ok(WorkScheduleResponse.from(workScheduleRepository.save(schedule)));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 

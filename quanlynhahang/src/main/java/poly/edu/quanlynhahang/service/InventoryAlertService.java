@@ -71,6 +71,8 @@ public class InventoryAlertService {
             List<Batch> expired = new ArrayList<>();
             List<Batch> expiring = new ArrayList<>();
             BigDecimal usableStock = BigDecimal.ZERO;
+            BigDecimal longLivedStock = BigDecimal.ZERO;
+            BigDecimal nearExpiryStock = BigDecimal.ZERO;
             for (IngredientBatch batch : batchesByIngredient.getOrDefault(ingredient.getId(), List.of())) {
                 BigDecimal quantity = zeroIfNull(batch.getQuantity());
                 Date expiry = batch.getExpirationDate();
@@ -81,6 +83,9 @@ public class InventoryAlertService {
                 usableStock = usableStock.add(quantity);
                 if (expiry != null && !expiry.after(expiringAt)) {
                     expiring.add(toBatch(batch, now));
+                    nearExpiryStock = nearExpiryStock.add(quantity);
+                } else {
+                    longLivedStock = longLivedStock.add(quantity);
                 }
             }
 
@@ -91,7 +96,14 @@ public class InventoryAlertService {
             boolean isOut = usableStock.signum() <= 0;
             boolean isLow = usableStock.compareTo(minStock) <= 0;
             boolean expiryRisk = !expired.isEmpty() || !expiring.isEmpty();
-            boolean purchaseRisk = isOut || isLow || daysLeft <= SHORTAGE_WARNING_DAYS;
+            BigDecimal nearExpiryUsableBeforeExpiry = projectedNearExpiryUse(expiring, dailyConsumption);
+            BigDecimal forecastUsableStock = longLivedStock.add(nearExpiryUsableBeforeExpiry);
+            BigDecimal targetStock = minStock.multiply(BigDecimal.valueOf(2))
+                    .max(dailyConsumption.multiply(BigDecimal.valueOf(FORECAST_DAYS)));
+            BigDecimal suggestedAmount = targetStock.subtract(forecastUsableStock)
+                    .max(BigDecimal.ZERO).setScale(1, RoundingMode.HALF_UP);
+            boolean purchaseRisk = isOut || isLow || daysLeft <= SHORTAGE_WARNING_DAYS
+                    || (expiryRisk && suggestedAmount.signum() > 0);
 
             if (isOut) outOfStock++;
             if (isLow) lowStock++;
@@ -100,19 +112,13 @@ public class InventoryAlertService {
 
             if (!expiryRisk && !purchaseRisk) continue;
 
-            BigDecimal suggestedAmount = expiryRisk
-                    ? BigDecimal.ZERO
-                    : minStock.multiply(BigDecimal.valueOf(2))
-                            .max(dailyConsumption.multiply(BigDecimal.valueOf(FORECAST_DAYS)))
-                            .subtract(usableStock)
-                            .max(BigDecimal.ZERO)
-                            .setScale(1, RoundingMode.HALF_UP);
             BigDecimal estimatedCost = suggestedAmount.multiply(zeroIfNull(ingredient.getUnitPrice()))
                     .setScale(0, RoundingMode.HALF_UP);
             AlertText alertText = describe(expired, expiring, isOut, isLow, daysLeft, suggestedAmount);
             alerts.add(new Item(
                     ingredient.getId(), ingredient.getName(), ingredient.getUnit(), ingredient.getImage(),
-                    usableStock, minStock, dailyConsumption.setScale(2, RoundingMode.HALF_UP),
+                    usableStock, nearExpiryStock, longLivedStock, minStock,
+                    dailyConsumption.setScale(2, RoundingMode.HALF_UP),
                     roundOneDecimal(daysLeft), suggestedAmount, estimatedCost,
                     alertText.urgency(), alertText.label(), alertText.reason(), alertText.action(),
                     suggestedAmount.signum() > 0, expired, expiring));
@@ -123,7 +129,8 @@ public class InventoryAlertService {
                 priority.getOrDefault(left.urgency(), 9), priority.getOrDefault(right.urgency(), 9)));
 
         long purchaseCount = alerts.stream().filter(Item::needsPurchase).count();
-        long handlingCount = alerts.size() - purchaseCount;
+        long handlingCount = alerts.stream()
+                .filter(item -> !item.expiredBatches().isEmpty() || !item.expiringBatches().isEmpty()).count();
         BigDecimal totalEstimatedCost = alerts.stream().map(Item::estimatedCost)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         long criticalCount = outOfStock;
@@ -179,13 +186,17 @@ public class InventoryAlertService {
         if (!expired.isEmpty()) {
             return new AlertText("expired", "Có lô hết hạn",
                     expired.size() + " lô đã hết hạn, không được tính vào tồn dùng được.",
-                    "Cách ly/loại bỏ lô hết hạn; ưu tiên các lô còn hạn và tạm không nhập thêm.");
+                    suggestedAmount.signum() > 0
+                            ? "Cách ly/tiêu hủy lô hết hạn và nhập bù " + suggestedAmount + "."
+                            : "Cách ly/tiêu hủy lô hết hạn; tiếp tục dùng các lô còn hạn theo FEFO.");
         }
         if (!expiring.isEmpty()) {
             long nearest = expiring.stream().mapToLong(Batch::daysRemaining).min().orElse(0);
             return new AlertText("expiring", "Sắp hết hạn",
                     expiring.size() + " lô sẽ hết hạn, gần nhất còn " + Math.max(0, nearest) + " ngày.",
-                    "Ưu tiên sử dụng lô sắp hết hạn và tạm không nhập thêm.");
+                    suggestedAmount.signum() > 0
+                            ? "Ưu tiên dùng lô cũ theo FEFO và chuẩn bị nhập lô mới " + suggestedAmount + " ngay."
+                            : "Ưu tiên sử dụng lô sắp hết hạn theo FEFO.");
         }
         if (outOfStock) {
             return new AlertText("critical", "Hết hàng", "Không còn tồn kho dùng được.",
@@ -206,6 +217,20 @@ public class InventoryAlertService {
         return stock.divide(dailyConsumption, 4, RoundingMode.HALF_UP).doubleValue();
     }
 
+    private BigDecimal projectedNearExpiryUse(List<Batch> expiring, BigDecimal dailyConsumption) {
+        if (dailyConsumption.signum() <= 0 || expiring.isEmpty()) return BigDecimal.ZERO;
+        BigDecimal usable = BigDecimal.ZERO;
+        for (Batch batch : expiring.stream()
+                .sorted(java.util.Comparator.comparingLong(Batch::daysRemaining)).toList()) {
+            long day = Math.max(0, batch.daysRemaining());
+            BigDecimal cumulativeCapacity = dailyConsumption.multiply(BigDecimal.valueOf(day));
+            BigDecimal remainingCapacity = cumulativeCapacity.subtract(usable).max(BigDecimal.ZERO);
+            BigDecimal consumed = batch.quantity().min(remainingCapacity);
+            usable = usable.add(consumed);
+        }
+        return usable;
+    }
+
     private double roundOneDecimal(double value) {
         return value >= 999 ? 999 : Math.round(value * 10.0) / 10.0;
     }
@@ -219,7 +244,8 @@ public class InventoryAlertService {
     public record Batch(Long batchId, BigDecimal quantity, Date importDate, Date expiryDate, long daysRemaining) {}
 
     public record Item(Long ingredientId, String name, String unit, String image,
-                       BigDecimal currentStock, BigDecimal minStock, BigDecimal dailyConsumption,
+                       BigDecimal currentStock, BigDecimal nearExpiryStock, BigDecimal longLivedStock,
+                       BigDecimal minStock, BigDecimal dailyConsumption,
                        double daysLeft, BigDecimal suggestedAmount, BigDecimal estimatedCost,
                        String urgency, String urgencyLabel, String reason, String action,
                        boolean needsPurchase, List<Batch> expiredBatches, List<Batch> expiringBatches) {}
@@ -238,6 +264,8 @@ public class InventoryAlertService {
                     .append(", handlingItems=").append(handlingCount).append('\n');
             suggestions.stream().limit(100).forEach(item -> result
                     .append("- ").append(item.name()).append(": stock=").append(item.currentStock()).append(item.unit())
+                    .append(", nearExpiryStock=").append(item.nearExpiryStock()).append(item.unit())
+                    .append(", longLivedStock=").append(item.longLivedStock()).append(item.unit())
                     .append(", consumption/day=").append(item.dailyConsumption()).append(item.unit())
                     .append(", daysLeft=").append(item.daysLeft())
                     .append(", suggestedPurchase=").append(item.suggestedAmount()).append(item.unit())

@@ -17,6 +17,7 @@ public record PublicRestaurantTableResponse(
         Integer seatCount,
         BigDecimal reservationPrice,
         Integer areaId,
+        String areaName,
         String positionDescription,
         Boolean windowSeat,
         Boolean privateRoom,
@@ -28,7 +29,8 @@ public record PublicRestaurantTableResponse(
         return new PublicRestaurantTableResponse(
                 table.getId(), table.getName(), table.getFloor(), table.getIsOccupied(), table.getHasView(),
                 table.getCapacity(), table.getViewType(), table.getMinCapacity(), table.getMaxCapacity(),
-                table.getSeatCount(), table.getReservationPrice(), table.getAreaId(), table.getPositionDescription(),
+                table.getSeatCount(), table.getReservationPrice(), table.getAreaId(),
+                table.getArea() == null ? null : table.getArea().getNameVi(), table.getPositionDescription(),
                 table.getWindowSeat(), table.getPrivateRoom(), table.getChildFriendly(), table.getActive(),
                 table.getImageUrl());
     }

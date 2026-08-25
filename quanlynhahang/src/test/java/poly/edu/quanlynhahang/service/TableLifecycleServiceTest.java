@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -63,6 +64,20 @@ class TableLifecycleServiceTest {
         verify(guard).prepareForRelease(9);
         verify(tables, never()).save(table);
         verifyNoInteractions(sessions);
+    }
+
+    @Test
+    void paidTableMovesToCleaningWithinBackendLifecycle() {
+        RestaurantTable table = table(10, 2);
+        when(tables.findLockedById(10)).thenReturn(Optional.of(table));
+        when(tables.save(table)).thenReturn(table);
+
+        service.markCleaningAfterPayment(10);
+
+        assertEquals(3, table.getIsOccupied());
+        assertEquals("Đã thanh toán - chờ dọn", table.getReservedTime());
+        verify(guard).prepareForRelease(10);
+        verify(sessions).revokeActiveForTable(10);
     }
 
     private RestaurantTable table(int id, int status) {

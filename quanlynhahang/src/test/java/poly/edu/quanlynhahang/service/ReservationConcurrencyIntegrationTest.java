@@ -165,6 +165,7 @@ class ReservationConcurrencyIntegrationTest {
         voucherCode = "REGV-" + UUID.randomUUID().toString().substring(0, 12).toUpperCase();
         voucher.setCode(voucherCode);
         voucher.setDiscountPercent(10);
+        voucher.setUsageLimit(1);
         voucher.setIsUsed(false);
         voucher.setCreateDate(new java.util.Date());
         voucherId = voucherRepository.save(voucher).getId();
@@ -186,7 +187,7 @@ class ReservationConcurrencyIntegrationTest {
             assertEquals(1, outcomes.stream().filter(java.util.Objects::isNull).count(), outcomeSummary);
             Throwable failure = outcomes.stream().filter(java.util.Objects::nonNull).findFirst().orElseThrow();
             assertInstanceOf(ResponseStatusException.class, failure);
-            assertEquals(422, ((ResponseStatusException) failure).getStatusCode().value());
+            assertEquals(409, ((ResponseStatusException) failure).getStatusCode().value());
             assertEquals(1, jdbc.queryForObject(
                     "SELECT COUNT(*) FROM reservations WHERE customer_name = ?",
                     Integer.class, customerMarker));

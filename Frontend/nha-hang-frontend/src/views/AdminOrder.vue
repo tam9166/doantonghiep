@@ -226,6 +226,7 @@ import api from '@/services/api';
 import { foodImage, replaceFoodImage } from '@/utils/imageFallback';
 import { useDialog } from '@/composables/useDialog';
 import { useToast } from '@/composables/useToast';
+import { getApiErrorMessage } from '@/services/errorMessage';
 
 const { confirmDialog } = useDialog();
 const toast = useToast();
@@ -256,11 +257,11 @@ const approveOrderToKitchen = async (orderId) => {
   });
   if (confirmed) {
     try {
-      await api.put(`/api/admin/orders/${orderId}/status?status=1`, {}, configHeader());
+      await api.put(`/api/admin/orders/${orderId}/dispatch-to-kitchen`, {}, configHeader());
       toast.success('Đã chuyển đơn xuống Bếp thành công!');
-      loadData();
+      await loadData();
     } catch (error) {
-      toast.error('Không thể chuyển đơn xuống bếp. Vui lòng kiểm tra quyền.');
+      toast.error(getApiErrorMessage(error, 'Không thể chuyển đơn xuống bếp. Vui lòng thử lại.'));
     }
   }
 };

@@ -12,7 +12,11 @@ import jakarta.validation.constraints.Size;
 public record VoucherUpsertRequest(
         @Size(max = 100) String code,
         @NotNull @Min(1) @Max(100) Integer discountPercent,
-        @Valid AccountReference account) {
+        @Valid AccountReference account,
+        Boolean active,
+        @Min(1) Integer usageLimit,
+        java.util.Date startAt,
+        java.util.Date endAt) {
 
     public record AccountReference(@NotBlank @Size(max = 80) String username) {
     }

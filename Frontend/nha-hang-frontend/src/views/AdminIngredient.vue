@@ -395,6 +395,7 @@
               <th>Ngày Nhập</th>
               <th>Hạn Sử Dụng</th>
               <th>Số Lượng Còn</th>
+              <th>Trạng Thái</th>
               <th>Đơn Giá</th>
               <th>Tổng Tiền</th>
               <th>Thao Tác</th>
@@ -408,17 +409,35 @@
                 <span v-if="isExpiring(b.expirationDate)"><UiIcon name="warning" /></span>
               </td>
               <td>{{ b.quantity }}</td>
+              <td><span :class="['g-badge', batchStatusClass(b.status)]">{{ batchStatusLabel(b.status) }}</span></td>
               <td>{{ b.unitPrice?.toLocaleString() }}đ</td>
               <td style="color: var(--primary); font-weight: bold;">{{ (b.quantity * (b.unitPrice || 0)).toLocaleString() }}đ</td>
               <td>
-                <button @click="deleteBatch(b.id)" class="btn-sm btn-delete"> Xóa</button>
+                <button v-if="b.status === 'EXPIRED' && Number(b.quantity) > 0" @click="prepareDisposal(b)" class="btn-sm btn-delete">Xác nhận tiêu hủy</button>
+                <button v-if="b.status === 'DISPOSED'" @click="loadDisposalHistory(b.id)" class="btn-sm btn-secondary">Lịch sử xử lý</button>
+                <button v-if="b.status === 'AVAILABLE' && Number(b.quantity) <= 0" @click="deleteBatch(b.id)" class="btn-sm btn-delete">Xóa lô rỗng</button>
               </td>
             </tr>
             <tr v-if="selectedBatches.length === 0">
-              <td colspan="6" style="text-align: center; color: var(--text-muted)">Chưa có lô hàng nào!</td>
+              <td colspan="7" style="text-align: center; color: var(--text-muted)">Chưa có lô hàng nào!</td>
             </tr>
           </tbody>
         </table>
+        <div v-if="disposalBatch" class="disposal-panel">
+          <h4>Tiêu hủy lô LOT-{{ disposalBatch.id }}</h4>
+          <p>Lượng ghi nhận hao hụt: <strong>{{ disposalBatch.quantity }}</strong></p>
+          <textarea v-model.trim="disposalReason" maxlength="500" class="g-form-control" rows="3" placeholder="Nhập lý do tiêu hủy (bắt buộc)"></textarea>
+          <div class="form-actions">
+            <button class="g-btn-primary" :disabled="!disposalReason || disposing" @click="confirmDisposal">{{ disposing ? 'Đang xử lý...' : 'Xác nhận tiêu hủy và lưu audit' }}</button>
+            <button class="btn-cancel" @click="disposalBatch = null">Hủy</button>
+          </div>
+        </div>
+        <div v-if="disposalHistory.length" class="disposal-panel">
+          <h4>Lịch sử xử lý lô</h4>
+          <p v-for="item in disposalHistory" :key="item.id">
+            {{ new Date(item.disposalDate).toLocaleString('vi-VN') }} · {{ item.quantityDisposed }} · {{ item.confirmedBy }} · {{ item.reason }}
+          </p>
+        </div>
       </div>
     </div>
 
@@ -566,6 +585,7 @@ import UiIcon from '@/components/UiIcon.vue';
 
 import { ref, computed, onMounted } from 'vue';
 import api from '@/services/api';
+import { getApiErrorMessage } from '@/services/errorMessage';
 import { foodImage, ingredientImage, replaceFoodImage, replaceIngredientImage } from '@/utils/imageFallback';
 
 // Kiểm tra quyền để hiển thị Navbar phù hợp
@@ -603,6 +623,11 @@ const batchForm = ref({ quantity: 0, unitPrice: 0, expirationDate: '' });
 
 const showBatchesModal = ref(false);
 const selectedBatches = ref([]);
+const selectedIngredientId = ref(null);
+const disposalBatch = ref(null);
+const disposalReason = ref('');
+const disposalHistory = ref([]);
+const disposing = ref(false);
 
 const isExpiring = (dateStr) => {
   if (!dateStr) return false;
@@ -612,6 +637,8 @@ const isExpiring = (dateStr) => {
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   return diffDays <= 3; // <= 3 days is considered expiring
 };
+const batchStatusLabel = status => ({ AVAILABLE: 'Còn hạn', EXPIRED: 'Hết hạn', DISPOSED: 'Đã tiêu hủy' }[status] || status || 'Chưa xác định');
+const batchStatusClass = status => status === 'AVAILABLE' ? 'g-badge-success' : 'g-badge-danger';
 
 // Tab 2 State
 const searchProduct = ref('');
@@ -756,8 +783,43 @@ const viewBatches = async (id) => {
   try {
     const res = await api.get(`/api/admin/ingredients/${id}/batches`, configHeader());
     selectedBatches.value = res.data;
+    selectedIngredientId.value = id;
+    disposalBatch.value = null;
+    disposalHistory.value = [];
     showBatchesModal.value = true;
   } catch (err) { alert('Lỗi tải danh sách lô hàng'); }
+};
+
+const prepareDisposal = batch => {
+  disposalBatch.value = batch;
+  disposalReason.value = '';
+  disposalHistory.value = [];
+};
+
+const confirmDisposal = async () => {
+  if (!disposalBatch.value || !disposalReason.value) return;
+  disposing.value = true;
+  try {
+    await api.post(`/api/admin/ingredients/batches/${disposalBatch.value.id}/dispose`,
+      { reason: disposalReason.value }, configHeader());
+    showToast('Đã ghi nhận tiêu hủy và hao hụt lô nguyên liệu.');
+    await viewBatches(selectedIngredientId.value);
+    await loadData();
+  } catch (err) {
+    showToast(getApiErrorMessage(err, 'Không thể xử lý lô hết hạn.'));
+  } finally {
+    disposing.value = false;
+  }
+};
+
+const loadDisposalHistory = async batchId => {
+  try {
+    const response = await api.get(`/api/admin/ingredients/batches/${batchId}/disposals`, configHeader());
+    disposalHistory.value = Array.isArray(response.data) ? response.data : [];
+    disposalBatch.value = null;
+  } catch (err) {
+    showToast(getApiErrorMessage(err, 'Không thể tải lịch sử tiêu hủy.'));
+  }
 };
 
 const deleteBatch = async (batchId) => {
@@ -986,6 +1048,10 @@ onMounted(() => {
 .restock-group { display: flex; gap: 6px; }
 .restock-input { width: 70px; background: var(--bg-input); border: 1px solid var(--border); color: #FFFFFF; padding: 6px; border-radius: 4px; text-align: center; }
 .btn-restock { background: var(--primary); color: var(--color-on-primary); border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+
+.disposal-panel { margin-top: 18px; padding: 16px; border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent); border-radius: 12px; background: color-mix(in srgb, var(--primary) 5%, #fff); }
+.disposal-panel h4 { margin: 0 0 8px; color: var(--primary); }
+.disposal-panel p { margin: 6px 0; color: var(--text-secondary); }
 
 /* Recipes Layout */
 .recipe-layout { display: grid; grid-template-columns: 350px 1fr; gap: 24px; height: 600px; }

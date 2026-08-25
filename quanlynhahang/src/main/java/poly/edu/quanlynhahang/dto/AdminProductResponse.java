@@ -18,6 +18,10 @@ public record AdminProductResponse(
         Boolean available,
         Double averageRating,
         BigDecimal costPrice,
+        BigDecimal expectedProfit,
+        BigDecimal profitMarginPercent,
+        Integer availableServings,
+        Boolean hasRecipe,
         DietType dietType,
         CookingMethod cookingMethod,
         Integer spicyLevel,
@@ -28,8 +32,24 @@ public record AdminProductResponse(
         return new AdminProductResponse(
                 product.getId(), product.getName(), money(product.getPrice()), product.getTaxRate(),
                 product.getImage(), product.getDescription(), product.getStatus(), product.getAvailable(),
-                product.getAverageRating(), money(product.getCostPrice()),
+                product.getAverageRating(), money(product.getCostPrice()), null, null, 0, false,
                 product.getDietType(), product.getCookingMethod(), product.getSpicyLevel(), product.getIsSignatureDish(),
+                product.getCategory() == null ? null : CategoryResponse.from(product.getCategory()));
+    }
+
+    public static AdminProductResponse from(Product product, BigDecimal costPrice, int availableServings,
+                                            boolean hasRecipe) {
+        BigDecimal price = money(product.getPrice());
+        BigDecimal cost = money(costPrice);
+        BigDecimal profit = price == null || cost == null ? null : price.subtract(cost);
+        BigDecimal margin = price == null || price.signum() <= 0 || profit == null ? null
+                : profit.multiply(BigDecimal.valueOf(100)).divide(price, 2, RoundingMode.HALF_UP);
+        return new AdminProductResponse(
+                product.getId(), product.getName(), price, product.getTaxRate(), product.getImage(),
+                product.getDescription(), product.getStatus(), product.getAvailable(), product.getAverageRating(),
+                cost, money(profit), margin, availableServings, hasRecipe,
+                product.getDietType(), product.getCookingMethod(), product.getSpicyLevel(),
+                product.getIsSignatureDish(),
                 product.getCategory() == null ? null : CategoryResponse.from(product.getCategory()));
     }
 

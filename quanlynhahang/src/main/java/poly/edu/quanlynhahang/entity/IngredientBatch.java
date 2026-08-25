@@ -6,6 +6,8 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
@@ -48,4 +50,8 @@ public class IngredientBatch {
 
     @Column(name = "unit_price", precision = 18, scale = 2)
     private BigDecimal unitPrice; // Đơn giá lúc nhập
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private IngredientBatchStatus status = IngredientBatchStatus.AVAILABLE;
 }

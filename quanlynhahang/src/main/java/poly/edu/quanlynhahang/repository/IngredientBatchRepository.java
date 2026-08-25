@@ -13,19 +13,35 @@ import java.util.Date;
 import java.math.BigDecimal;
 
 import jakarta.persistence.LockModeType;
+import java.util.Optional;
+import org.springframework.data.jpa.repository.Modifying;
 
 @Repository
 public interface IngredientBatchRepository extends JpaRepository<IngredientBatch, Long> {
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT b FROM IngredientBatch b JOIN FETCH b.ingredient WHERE b.id = :batchId")
+    Optional<IngredientBatch> findLockedById(@Param("batchId") Long batchId);
+
+    @Modifying
+    @Query("UPDATE IngredientBatch b SET b.status = poly.edu.quanlynhahang.entity.IngredientBatchStatus.EXPIRED "
+            + "WHERE b.status = poly.edu.quanlynhahang.entity.IngredientBatchStatus.AVAILABLE "
+            + "AND b.expirationDate < :now")
+    int markExpired(@Param("now") Date now);
     
     List<IngredientBatch> findByIngredientIdOrderByExpirationDateAsc(Long ingredientId);
 
     // Lấy các lô hàng của 1 nguyên liệu, ưu tiên lô có hạn sử dụng gần nhất (FEFO - First Expired First Out)
     // Chỉ lấy lô còn số lượng > 0
-    @Query("SELECT b FROM IngredientBatch b WHERE b.ingredient = :ingredient AND b.quantity > 0 ORDER BY b.expirationDate ASC")
+    @Query("SELECT b FROM IngredientBatch b WHERE b.ingredient = :ingredient AND b.quantity > 0 "
+            + "AND (b.expirationDate IS NULL OR b.expirationDate >= CURRENT_TIMESTAMP) "
+            + "ORDER BY b.expirationDate ASC")
     List<IngredientBatch> findAvailableBatchesOrderByExpirationAsc(Ingredient ingredient);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT b FROM IngredientBatch b WHERE b.ingredient.id = :ingredientId AND b.quantity > 0 ORDER BY b.expirationDate ASC, b.id ASC")
+    @Query("SELECT b FROM IngredientBatch b WHERE b.ingredient.id = :ingredientId AND b.quantity > 0 "
+            + "AND (b.expirationDate IS NULL OR b.expirationDate >= CURRENT_TIMESTAMP) "
+            + "ORDER BY b.expirationDate ASC, b.id ASC")
     List<IngredientBatch> findAvailableBatchesForUpdate(@Param("ingredientId") Long ingredientId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -36,7 +52,8 @@ public interface IngredientBatchRepository extends JpaRepository<IngredientBatch
                                                          @Param("now") Date now);
 
     @Query("SELECT COALESCE(SUM(b.quantity), 0) FROM IngredientBatch b "
-            + "WHERE b.ingredient.id = :ingredientId AND b.quantity > 0")
+            + "WHERE b.ingredient.id = :ingredientId AND b.quantity > 0 "
+            + "AND (b.expirationDate IS NULL OR b.expirationDate >= CURRENT_TIMESTAMP)")
     BigDecimal sumAvailableByIngredientId(@Param("ingredientId") Long ingredientId);
 
     // Lấy các lô hàng sắp hết hạn (còn <= X ngày) và còn số lượng > 0

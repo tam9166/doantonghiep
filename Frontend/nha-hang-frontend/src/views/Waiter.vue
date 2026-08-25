@@ -175,7 +175,11 @@
           </div>
         </div>
 
-        <div v-for="(tablesInFloor, floorName) in tablesByFloor" :key="floorName" class="floor-section" :class="{ 'floor-collapsed': !showAllFloors && myAssignedFloors.length > 0 && !isMyFloor(floorName) }">
+        <div class="table-filters">
+          <select v-model="selectedFloor"><option value="">Tất cả tầng</option><option v-for="floor in floorOptions" :key="floor" :value="floor">{{ floor }}</option></select>
+          <select v-model="selectedArea"><option value="">Tất cả khu vực</option><option v-for="area in areaOptions" :key="area" :value="area">{{ area }}</option></select>
+        </div>
+        <div v-for="(areasInFloor, floorName) in tablesByFloorArea" :key="floorName" class="floor-section" :class="{ 'floor-collapsed': !showAllFloors && myAssignedFloors.length > 0 && !isMyFloor(floorName) }">
           <div class="floor-header" @click="toggleCollapsedFloor(floorName)">
             <h3 class="floor-title">
               <span><UiIcon :name="floorName.toLowerCase().includes('vip') ? 'private' : 'indoor'" /></span>
@@ -186,22 +190,23 @@
             <div class="floor-divider"></div>
           </div>
 
-          <div class="table-grid" v-show="showAllFloors || myAssignedFloors.length === 0 || isMyFloor(floorName) || expandedFloors.includes(floorName)">
-            <div
-              v-for="table in tablesInFloor"
-              :key="table.id"
-              :class="['table-box', getTableClass(table.isOccupied), { 'vip-table': table.floor && table.floor.toLowerCase().includes('vip') }]"
-              @click="openTableDetail(table)"
-            >
+          <div v-show="showAllFloors || myAssignedFloors.length === 0 || isMyFloor(floorName) || expandedFloors.includes(floorName)">
+            <section v-for="(tablesInArea, areaName) in areasInFloor" :key="areaName" class="area-section">
+              <h4 class="area-title">{{ areaName }}</h4>
+              <div class="table-grid">
+                <div v-for="table in tablesInArea" :key="table.id"
+                  :class="['table-box', getTableClass(table.isOccupied), { 'vip-table': table.areaName?.toLowerCase().includes('vip') }]"
+                  @click="openTableDetail(table)">
               <div class="tc-top">
                 <span class="tc-capacity"> {{ table.capacity || 4 }}</span>
               <span class="tc-icon"><UiIcon name="table" /></span>
               </div>
               <div class="tc-center">
                 <div class="tc-dot"></div>
-                <h4>{{ table.name }}</h4>
+                <h4 class="table-code">{{ table.name }}</h4>
+                <p class="table-location">{{ table.floor }} · {{ table.areaName || 'Khu vực chung' }}</p>
                 <p class="tc-subtitle">
-                  {{ table.isOccupied === 0 ? 'Sẵn sàng phục vụ' : table.isOccupied === 1 ? 'Đã được đặt cọc' : table.isOccupied === 3 ? 'Đang dọn dẹp' : 'Khách đang ăn' }}
+                  {{ tableLifecycleText(table) }}
                 </p>
               </div>
               <div class="tc-bottom">
@@ -209,7 +214,9 @@
                   {{ table.isOccupied === 0 ? ' Trống ⌄' : table.isOccupied === 1 ? ' Đã cọc ⌄' : table.isOccupied === 3 ? ' Cần dọn ⌄' : table.isOccupied === 5 ? ' Đã ghép ⌄' : ' Có khách ⌄' }}
                 </span>
               </div>
-            </div>
+                </div>
+              </div>
+            </section>
           </div>
         </div>
       </section>
@@ -602,6 +609,7 @@ import TimekeepingWidget from '../components/TimekeepingWidget.vue';
 import { foodImage, replaceFoodImage } from '@/utils/imageFallback';
 import { clearStaffSession, getStaffToken, getStaffUser } from '@/services/session';
 import { useDialog } from '@/composables/useDialog';
+import { findAwaitingPaymentOrder, groupTablesByFloorAndArea, orderLifecycleLabel, tableArea, tableFloor } from '@/utils/tableOperations';
 
 const { confirmDialog } = useDialog();
 
@@ -626,6 +634,8 @@ const aiResponse = ref('');
 const myAssignedFloors = ref([]);
 const showAllFloors = ref(false);
 const expandedFloors = ref([]);
+const selectedFloor = ref('');
+const selectedArea = ref('');
 
 // Lấy khu vực phân công của nhân viên hiện tại
 const fetchMyZones = async () => {
@@ -681,25 +691,11 @@ const isOrderInMyZone = (order) => {
   return myAssignedFloors.value.some(f => matchedTable.floor && (matchedTable.floor.includes(f) || f.includes(matchedTable.floor)));
 };
 
-const tablesByFloor = computed(() => {
-  const groups = {};
-  tables.value.forEach(table => {
-    let floorName = table.floor || 'Khu Vực Chung';
-    if (!groups[floorName]) groups[floorName] = [];
-    groups[floorName].push(table);
-  });
-  // Sắp xếp: tầng mình phụ trách lên trước
-  return Object.keys(groups).sort((a, b) => {
-    const aIsMine = isMyFloor(a);
-    const bIsMine = isMyFloor(b);
-    if (aIsMine && !bIsMine) return -1;
-    if (!aIsMine && bIsMine) return 1;
-    return a.localeCompare(b);
-  }).reduce((acc, key) => {
-    acc[key] = groups[key];
-    return acc;
-  }, {});
-});
+const floorOptions = computed(() => [...new Set(tables.value.map(tableFloor))]);
+const areaOptions = computed(() => [...new Set(tables.value.map(tableArea))]);
+const tablesByFloorArea = computed(() => groupTablesByFloorAndArea(tables.value.filter(table =>
+  (!selectedFloor.value || tableFloor(table) === selectedFloor.value)
+  && (!selectedArea.value || tableArea(table) === selectedArea.value))));
 
 // FIX LỖI ÉP KIỂU: Dùng Number() để đảm bảo lọc đúng số 2
 const readyOrders = computed(() => {
@@ -895,11 +891,13 @@ const selectedOrder = ref(null);
 const selectedTableName = ref('');
 
 const getActiveOrderForTable = (table) => {
-  return orders.value.find(o => 
-    o.status !== 4 && 
-    o.orderType === 'DINE_IN' &&
-    Number(o.tableId) === Number(table.id)
-  );
+  return findAwaitingPaymentOrder(orders.value, table.id);
+};
+const tableLifecycleText = table => {
+  if (table.isOccupied === 0) return 'Trống';
+  if (table.isOccupied === 1) return 'Đã được đặt cọc';
+  if (table.isOccupied === 3) return 'Chờ dọn';
+  return orderLifecycleLabel(findAwaitingPaymentOrder(orders.value, table.id));
 };
 
 const openInvoice = (table) => {
@@ -1783,6 +1781,12 @@ onUnmounted(() => {
   width: 32px; height: 32px; border-radius: 4px; object-fit: cover;
   border: 1px solid var(--border);
 }
+.table-filters { display: flex; gap: 10px; margin: 14px 0 18px; flex-wrap: wrap; }
+.table-filters select { min-width: 180px; padding: 9px 12px; border: 1px solid var(--border); border-radius: 9px; background: var(--bg-card); color: var(--text-primary); }
+.area-section { margin: 12px 0 22px; }
+.area-title { margin: 0 0 8px; color: var(--primary); font-size: 1rem; }
+.table-code { font-size: 1.25rem !important; font-weight: 900 !important; }
+.table-location { margin: 2px 0 5px; color: var(--text-muted); font-size: 0.72rem; }
 .no-img-icon { font-size: 1.2rem; }
 .total-row { display: flex; justify-content: space-between; font-weight: bold; font-size: 1.1rem; border-top: 1px dashed var(--text-primary); padding-top: 10px; }
 .qr-payment { text-align: center; margin-top: 20px; border-top: 1px dashed var(--text-primary); padding-top: 10px; }

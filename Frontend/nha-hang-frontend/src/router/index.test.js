@@ -14,6 +14,13 @@ describe('role route guard', () => {
     expect(canAccessOperationalWorkspace('/cashier', roles)).toBe(true)
   })
 
+  it('allows Kitchen on direct and refreshed Kitchen routes but blocks unrelated staff roles', () => {
+    expect(canAccessOperationalWorkspace('/kitchen', ['ROLE_KITCHEN'])).toBe(true)
+    expect(canAccessOperationalWorkspace('/kitchen', ['ROLE_WAITER'])).toBe(false)
+    expect(canAccessOperationalWorkspace('/kitchen', ['ROLE_CASHIER'])).toBe(false)
+    expect(isStaffWorkspacePath('/kitchen')).toBe(true)
+  })
+
   it('redirects cashier accounts away from customer reservation pages', () => {
     expect(customerRouteRedirect('/reservation', ['ROLE_CASHIER'])).toBe('/cashier')
     expect(customerRouteRedirect('/reservation', ['ROLE_MANAGER'])).toBeNull()

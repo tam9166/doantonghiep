@@ -50,7 +50,7 @@ class OrderWorkflowGuardTest {
         Order order = new Order();
         order.setId(31);
         order.setStatus(7);
-        order.setIsPaid(true);
+        order.setIsPaid(false);
         order.setTotalAmount(new BigDecimal("108.00"));
         when(orderRepository.findLockedById(31)).thenReturn(Optional.of(order));
         ReflectionTestUtils.setField(controller, "orderRepository", orderRepository);
@@ -69,6 +69,24 @@ class OrderWorkflowGuardTest {
         }
         verify(inventory).consume(31);
         assertEquals(4, order.getStatus());
+    }
+
+    @Test
+    void repeatedCashierPaymentIsRejectedBeforeInventoryOrTableMutation() {
+        AdminOrderController controller = new AdminOrderController();
+        OrderRepository orderRepository = mock(OrderRepository.class);
+        InventoryReservationService inventory = mock(InventoryReservationService.class);
+        Order order = new Order();
+        order.setId(32);
+        order.setStatus(4);
+        order.setIsPaid(true);
+        order.setPaymentStatus(poly.edu.quanlynhahang.entity.PaymentStatus.PAID);
+        when(orderRepository.findLockedById(32)).thenReturn(Optional.of(order));
+        ReflectionTestUtils.setField(controller, "orderRepository", orderRepository);
+        ReflectionTestUtils.setField(controller, "inventoryReservationService", inventory);
+
+        assertEquals(HttpStatus.CONFLICT, controller.payOrder(32).getStatusCode());
+        verify(inventory, never()).consume(32);
     }
 
     @Test

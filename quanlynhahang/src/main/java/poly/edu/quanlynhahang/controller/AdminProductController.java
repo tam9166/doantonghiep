@@ -1,7 +1,6 @@
 package poly.edu.quanlynhahang.controller;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.List;
 
 import jakarta.validation.Valid;
@@ -25,9 +24,9 @@ import poly.edu.quanlynhahang.entity.Category;
 import poly.edu.quanlynhahang.entity.Product;
 import poly.edu.quanlynhahang.repository.CategoryRepository;
 import poly.edu.quanlynhahang.repository.ProductRepository;
-import poly.edu.quanlynhahang.repository.RecipeRepository;
 import poly.edu.quanlynhahang.repository.ReviewRepository;
 import poly.edu.quanlynhahang.service.ActivityLogService;
+import poly.edu.quanlynhahang.service.MenuEconomicsService;
 
 @RestController
 @RequestMapping("/api/admin/products")
@@ -37,19 +36,19 @@ public class AdminProductController {
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
     private final ReviewRepository reviewRepository;
-    private final RecipeRepository recipeRepository;
     private final ActivityLogService activityLogService;
+    private final MenuEconomicsService menuEconomicsService;
 
     public AdminProductController(ProductRepository productRepository,
                                   CategoryRepository categoryRepository,
                                   ReviewRepository reviewRepository,
-                                  RecipeRepository recipeRepository,
-                                  ActivityLogService activityLogService) {
+                                  ActivityLogService activityLogService,
+                                  MenuEconomicsService menuEconomicsService) {
         this.productRepository = productRepository;
         this.categoryRepository = categoryRepository;
         this.reviewRepository = reviewRepository;
-        this.recipeRepository = recipeRepository;
         this.activityLogService = activityLogService;
+        this.menuEconomicsService = menuEconomicsService;
     }
 
     @GetMapping
@@ -60,25 +59,20 @@ public class AdminProductController {
             Double average = reviewRepository.getAverageRatingByProductId(product.getId());
             product.setAverageRating(average == null ? 0.0 : Math.round(average * 10.0) / 10.0);
 
-            BigDecimal recipeCost = recipeRepository.findByProduct(product).stream()
-                    .filter(recipe -> recipe.getIngredient() != null
-                            && recipe.getIngredient().getUnitPrice() != null
-                            && recipe.getAmountRequired() != null)
-                    .map(recipe -> recipe.getIngredient().getUnitPrice()
-                            .multiply(recipe.getAmountRequired()))
-                    .reduce(BigDecimal.ZERO, BigDecimal::add)
-                    .setScale(2, RoundingMode.HALF_UP);
-            if (recipeCost.signum() > 0) {
-                product.setCostPrice(recipeCost);
-            }
         }
-        return products.stream().map(AdminProductResponse::from).toList();
+        return products.stream().map(product -> {
+            MenuEconomicsService.Assessment assessment = menuEconomicsService.assess(product);
+            return AdminProductResponse.from(product, assessment.costPrice(),
+                    assessment.availableServings(), assessment.hasRecipe());
+        }).toList();
     }
 
     @PostMapping
     public ResponseEntity<AdminProductResponse> addProduct(@Valid @RequestBody ProductUpsertRequest request) {
         Product product = new Product();
         applyRequest(product, request, true);
+        product.setStatus(false);
+        product.setAvailable(false);
         Product saved = productRepository.save(product);
         activityLogService.log("CREATE", "Product", String.valueOf(saved.getId()),
                 "Them mon an moi: " + saved.getName() + " - Gia: " + saved.getPrice());
@@ -101,6 +95,9 @@ public class AdminProductController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "PRODUCT_NOT_FOUND"));
         String oldInfo = product.getName() + " | Gia: " + product.getPrice();
         applyRequest(product, request, false);
+        if (Boolean.TRUE.equals(request.status()) || Boolean.TRUE.equals(request.available())) {
+            menuEconomicsService.requireSellable(product);
+        }
         Product saved = productRepository.save(product);
         activityLogService.log("UPDATE", "Product", String.valueOf(id),
                 "Cap nhat mon an: " + saved.getName(), oldInfo,
@@ -114,6 +111,9 @@ public class AdminProductController {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "PRODUCT_NOT_FOUND"));
         boolean available = !Boolean.TRUE.equals(product.getAvailable());
+        if (available) {
+            menuEconomicsService.requireSellable(product);
+        }
         product.setAvailable(available);
         product.setStatus(available);
         productRepository.save(product);
