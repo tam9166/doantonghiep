@@ -15,12 +15,18 @@ public record MenuRecommendationRequest(
         @NotNull @Size(max = 20) List<@NotNull @Positive Integer> productIds,
         @Min(1) @Max(100) Integer guestCount,
         @Size(max = 12) List<@Size(max = 40) String> preferences,
-        @DecimalMin("0") @DecimalMax("100000000") BigDecimal maxBudget) {
+        @DecimalMin("0") @DecimalMax("100000000") BigDecimal maxBudget,
+        @Size(max = 10) List<@Size(max = 60) String> allergies) {
     public MenuRecommendationRequest(List<Integer> productIds) {
-        this(productIds, null, List.of(), null);
+        this(productIds, null, List.of(), null, List.of());
     }
 
     public MenuRecommendationRequest(List<Integer> productIds, Integer guestCount, List<String> preferences) {
-        this(productIds, guestCount, preferences, null);
+        this(productIds, guestCount, preferences, null, List.of());
+    }
+
+    public MenuRecommendationRequest(List<Integer> productIds, Integer guestCount,
+                                     List<String> preferences, BigDecimal maxBudget) {
+        this(productIds, guestCount, preferences, maxBudget, List.of());
     }
 }

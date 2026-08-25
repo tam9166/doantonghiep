@@ -86,7 +86,7 @@
               <td>{{ cus.username }}</td>
               <td>{{ cus.fullname }}</td>
               <td>{{ cus.email }}</td>
-              <td><span style="color: gold; font-weight: bold;"> {{ cus.points }}</span></td>
+              <td><span class="customer-points">{{ cus.points }}</span></td>
               <td><span class="role-badge" :class="cus.membershipTier === 'Vàng' ? 'ROLE_ADMIN' : 'ROLE_USER'">{{ cus.membershipTier }}</span></td>
               <td>
                 <button class="g-btn-primary" @click="viewCustomerOrders(cus)">Xem Lịch Sử</button>
@@ -426,19 +426,19 @@
       </div>
     </div>
     <!-- MODAL LỊCH SỬ KHÁCH HÀNG -->
-    <div class="g-modal-overlay" v-if="showCustomerOrdersModal" @click.self="showCustomerOrdersModal = false">
-      <div class="g-modal" style="max-width: 800px; width: 90%; max-height: 90vh; overflow-y: auto; position: relative;">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <h3 style="margin: 0;">Lịch Sử Hóa Đơn Khách Hàng</h3>
-          <button class="g-btn-danger" style="padding: 5px 10px; border-radius: 4px;" @click="showCustomerOrdersModal = false"> Đóng</button>
+    <div class="g-modal-overlay customer-history-overlay" v-if="showCustomerOrdersModal" @click.self="showCustomerOrdersModal = false">
+      <div class="g-modal customer-history-modal">
+        <div class="customer-history-header">
+          <h3>Lịch Sử Hóa Đơn Khách Hàng</h3>
+          <button class="g-btn-danger customer-history-close" @click="showCustomerOrdersModal = false">Đóng</button>
         </div>
         <div class="crm-summary">
           <div><span>Tổng chi tiêu</span><strong>{{ customerTotalSpend.toLocaleString('vi-VN') }}đ</strong></div>
           <div><span>Số lần sử dụng</span><strong>{{ customerUsageCount }}</strong></div>
           <div><span>Điểm tích lũy</span><strong>{{ Number(currentCustomerView?.points || 0).toLocaleString('vi-VN') }}</strong></div>
         </div>
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 15px;">
-          <input type="text" class="g-form-control" v-model="searchCustomerOrderQuery" placeholder="Tìm kiếm theo mã đơn..." style="width: 250px;" />
+        <div class="customer-history-tools">
+          <input type="text" class="g-form-control customer-history-search" v-model="searchCustomerOrderQuery" placeholder="Tìm kiếm theo mã đơn..." />
           <button class="g-btn-warning" @click="analyzeCustomer" :disabled="isAnalyzing">
              {{ isAnalyzing ? 'Đang phân tích...' : 'AI Phân Tích Khách Hàng' }}
           </button>
@@ -447,8 +447,8 @@
           <h4 style="margin:0 0 10px 0; color:var(--color-tertiary);"> Đánh Giá Từ AI:</h4>
           <p style="margin:0; font-size:0.95rem; line-height:1.6; white-space:pre-wrap;">{{ aiCustomerAnalysis }}</p>
         </div>
-        <div style="max-height: 400px; overflow-y: auto;">
-          <table class="data-table mt-10">
+        <div class="customer-history-table-wrap">
+          <table class="data-table customer-history-table mt-10">
             <thead>
               <tr>
                 <th>Mã Đơn</th>
@@ -462,14 +462,14 @@
               <tr v-for="order in filteredCustomerOrders" :key="order.id">
                 <td>#{{ order.id }}</td>
                 <td>{{ new Date(order.createDate).toLocaleString('vi-VN') }}</td>
-                <td style="color: gold; font-weight: bold;">{{ calculateOrderTotal(order).toLocaleString() }}đ</td>
+                <td class="customer-order-total">{{ calculateOrderTotal(order).toLocaleString() }}đ</td>
                 <td>
                   <span class="status-badge" :class="'status-' + order.status">
                     {{ order.status === 0 ? 'Chờ Duyệt' : order.status === 1 ? 'Đang Nấu' : order.status === 2 ? 'Đã Lên Món' : order.status === 3 ? 'Đã Hủy' : order.status === 4 ? 'Hoàn Thành' : order.status === 5 ? 'Chờ Hẹn Giờ' : 'Đang Phục Vụ' }}
                   </span>
                 </td>
                 <td>
-                  <button class="g-btn-primary" @click="viewCustomerInvoice(order)"> Xem & In</button>
+                  <button class="g-btn-primary customer-invoice-button" @click="viewCustomerInvoice(order)">Xem & In</button>
                 </td>
               </tr>
               <tr v-if="filteredCustomerOrders.length === 0">
@@ -1021,9 +1021,24 @@ onMounted(() => {
 
 <style scoped>
 .crm-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 16px 0; }
-.crm-summary > div { display: grid; gap: 5px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-card2); }
-.crm-summary span { color: var(--text-muted); font-size: .8rem; font-weight: 700; }
-.crm-summary strong { color: var(--primary); font-size: 1.05rem; }
+.customer-history-overlay { background: rgba(43, 23, 26, 0.72); backdrop-filter: blur(3px); }
+.customer-history-modal { max-width: 800px; width: 90%; max-height: 90vh; overflow-y: auto; position: relative; background: var(--bg-card); color: var(--text-primary, #2B171A); border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--border)); box-shadow: 0 22px 60px rgba(43, 23, 26, 0.34); }
+.customer-history-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.customer-history-header h3 { margin: 0; color: var(--text-heading, #2B171A); font-weight: 900; }
+.customer-history-close { min-height: 38px; padding: 7px 14px; border-radius: 8px; }
+.crm-summary > div { display: grid; gap: 5px; padding: 13px; border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--border)); border-radius: 10px; background: color-mix(in srgb, var(--primary) 6%, var(--bg-card)); }
+.crm-summary span { color: var(--text-secondary, #563B40); font-size: .8rem; font-weight: 750; }
+.crm-summary strong { color: var(--primary); font-size: 1.08rem; }
+.customer-history-tools { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 15px; }
+.customer-history-search { width: 250px; background: var(--bg-input); color: var(--text-primary, #2B171A); border-color: color-mix(in srgb, var(--primary) 24%, var(--border)); }
+.customer-history-search::placeholder { color: var(--text-secondary, #563B40); opacity: 1; }
+.customer-history-table-wrap { max-height: 400px; overflow: auto; }
+.customer-history-table { color: var(--text-primary, #2B171A); }
+.customer-history-table thead th { background: color-mix(in srgb, var(--primary) 14%, var(--bg-card)); color: var(--text-heading, #2B171A); font-weight: 850; }
+.customer-history-table tbody td { color: var(--text-primary, #2B171A); opacity: 1; }
+.customer-order-total { color: var(--primary) !important; font-weight: 850; }
+.customer-points { color: var(--primary); font-weight: 850; }
+.customer-invoice-button { min-height: 38px; white-space: nowrap; color: var(--color-on-primary); }
 @media (max-width: 640px) { .crm-summary { grid-template-columns: 1fr; } }
 @media print {
   body * { visibility: hidden !important; }

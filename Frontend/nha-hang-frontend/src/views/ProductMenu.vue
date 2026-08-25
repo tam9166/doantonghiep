@@ -52,8 +52,8 @@
         <span>{{ text.noItemsHint }}</span>
       </div>
 
-      <div v-else class="product-grid">
-        <div v-for="product in filteredProducts" :key="product.id" class="product-card">
+      <div v-else ref="menuSectionRef" class="product-grid">
+        <div v-for="product in paginatedProducts" :key="product.id" class="product-card">
           <img :src="foodImage(product.image)" :alt="productName(product)" loading="lazy" @error="replaceFoodImage" />
           <h3>{{ productName(product) }}</h3>
           <div class="menu-tags" aria-label="Phân loại món">
@@ -69,13 +69,22 @@
             <span style="color: var(--text-secondary); font-size: 0.8rem">{{ text.noRatings }}</span>
           </div>
           <p class="price">{{ formatCurrency(product.price) }}</p>
-          <small v-if="product.availableQuantity > 0">Còn tối đa {{ product.availableQuantity }} suất</small>
+          <small class="remaining-servings" :class="{ low: product.availableQuantity > 0 && product.availableQuantity <= 5, soldout: product.availableQuantity <= 0 }">
+            {{ product.availableQuantity > 0 ? `Còn tối đa ${product.availableQuantity} suất` : 'Tạm hết hàng' }}
+          </small>
           <button v-if="!isAdminOrManager" class="btn-add" :disabled="product.availableQuantity <= 0" @click="addToCart(product)">
             {{ product.availableQuantity > 0 ? `+ ${text.addToCart}` : 'Tạm hết hàng' }}
           </button>
           <button v-else class="btn-add btn-disabled" disabled>{{ text.viewOnly }}</button>
         </div>
       </div>
+
+      <nav v-if="filteredProducts.length > 0 && totalPages > 1" class="menu-pagination" aria-label="Phân trang thực đơn">
+        <button type="button" :disabled="currentPage === 1" aria-label="Trang trước" @click="goToPage(currentPage - 1)">‹</button>
+        <button v-for="page in totalPages" :key="page" type="button" :class="{ active: currentPage === page }"
+          :aria-current="currentPage === page ? 'page' : undefined" @click="goToPage(page)">{{ page }}</button>
+        <button type="button" :disabled="currentPage === totalPages" aria-label="Trang sau" @click="goToPage(currentPage + 1)">›</button>
+      </nav>
 
       <!-- Floating Cart Button -->
       <div v-if="cart.length > 0 && !isAdminOrManager" class="floating-cart" @click="openCheckout">
@@ -203,6 +212,7 @@ import CustomerLayout from '@/components/CustomerLayout.vue';
 import SkeletonLoader from '@/components/SkeletonLoader.vue';
 import { foodImage, replaceFoodImage } from '@/utils/imageFallback';
 import { useFormatters } from '@/composables/useFormatters';
+import { MENU_PAGE_SIZE, paginateMenu } from '@/utils/menuPagination';
 
 const products = ref([]);
 const suggestedProducts = ref([]);
@@ -224,10 +234,13 @@ const isAdminOrManager = computed(() => {
 const showCheckoutModal = ref(false);
 const selectedCategory = ref(null);
 const menuQuery = ref('');
+const currentPage = ref(1);
+const menuSectionRef = ref(null);
 
 const orderInfo = ref({ fullname: '', phone: '', address: '', note: '' });
 const paymentQr = ref(null);
 const checkoutSubmitting = ref(false);
+const checkoutIdempotencyKey = ref(crypto.randomUUID());
 const cartRecommendations = ref([]);
 const recommendationMessage = ref('');
 const recommendationLoading = ref(false);
@@ -318,6 +331,19 @@ const filteredProducts = computed(() => {
   });
 });
 
+const pagination = computed(() => paginateMenu(filteredProducts.value, currentPage.value, MENU_PAGE_SIZE));
+const totalPages = computed(() => pagination.value.totalPages);
+const paginatedProducts = computed(() => pagination.value.items);
+
+watch([selectedCategory, menuQuery], () => {
+  currentPage.value = 1;
+});
+
+const goToPage = (page) => {
+  currentPage.value = Math.min(totalPages.value, Math.max(1, page));
+  requestAnimationFrame(() => menuSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+};
+
 const addToCart = (product) => {
   const existing = cart.value.find(item => item.productId === product.id);
   const availableQuantity = Math.max(0, Number(product.availableQuantity || 0));
@@ -332,6 +358,7 @@ const addToCart = (product) => {
     cart.value.push({ productId: product.id, quantity: 1, name: productName(product), price: product.price,
       taxRate: product.taxRate || 8, availableQuantity });
   }
+  checkoutIdempotencyKey.value = crypto.randomUUID();
   alert(t('menu.addedToCart', { name: productName(product) }));
 };
 
@@ -409,12 +436,22 @@ const submitShipOrder = async () => {
       deliveryAddress: orderInfo.value.address.trim(),
       deliveryNote: orderInfo.value.note,
       items: formattedItems
-    }), { headers: token ? { 'Authorization': `Bearer ${token}` } : {} });
+    }), { headers: {
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      'X-Idempotency-Key': checkoutIdempotencyKey.value
+    } });
 
     paymentQr.value = response.data.payment;
     cart.value = [];
+    checkoutIdempotencyKey.value = crypto.randomUUID();
   } catch (error) {
-    alert(error.response?.data?.message || t('menu.checkoutError'));
+    const payload = error.response?.data;
+    const message = payload?.message || t('menu.checkoutError');
+    const affectedItems = payload?.fieldErrors && Object.keys(payload.fieldErrors).length
+      ? `\nMón bị ảnh hưởng: ${Object.entries(payload.fieldErrors).map(([name, reason]) => `${name}: ${reason}`).join('; ')}`
+      : '';
+    alert(`${message}${affectedItems}`);
+    if (error.response?.status === 409) await loadMenu();
   } finally {
     checkoutSubmitting.value = false;
   }
@@ -672,30 +709,40 @@ onMounted(async () => {
 .category-filter { justify-content: flex-start; gap: 8px; margin-bottom: 30px; }
 .category-filter button { background: var(--bg-card); border-color: var(--color-outline-variant); color: var(--text-secondary); border-radius: 999px; }
 .category-filter button.active { background: var(--primary); color: var(--color-on-primary); border-color: var(--primary); box-shadow: none; }
-.product-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.product-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; scroll-margin-top: 90px; }
 .product-card { display: flex; flex-direction: column; align-items: flex-start; padding: 0 0 14px; background: var(--bg-card); border: 1px solid var(--color-outline-variant); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); text-align: left; }
 .product-card::before { display: none; }
 .product-card:hover { border-color: var(--primary); box-shadow: var(--shadow-md); transform: translateY(-2px); }
-.product-card img { width: 100%; height: 170px; margin: 0 0 14px; border: 0; border-radius: 0; box-shadow: none; }
+.product-card img { width: 100%; aspect-ratio: 4 / 3; height: auto; margin: 0 0 11px; border: 0; border-radius: 0; box-shadow: none; }
 .product-card:hover img { transform: none; border: 0; }
 .product-card h3, .product-card .product-rating, .product-card .price { margin-right: 14px; margin-left: 14px; }
-.product-card h3 { color: var(--text-primary); font-family: var(--font-display); font-size: 1rem; margin-bottom: 4px; }
+.product-card h3 { color: var(--text-primary); font-family: var(--font-display); font-size: .94rem; line-height: 1.35; margin-bottom: 4px; min-height: 2.55em; }
 .product-rating { color: var(--warning); margin-bottom: 8px; }
 .price { color: var(--primary); font-size: 1rem; margin-bottom: 14px; }
+.remaining-servings { width: calc(100% - 20px); margin: -5px 10px 11px; color: var(--text-muted); font-size: 12.5px; font-weight: 500; line-height: 1.4; text-align: center; }
+.remaining-servings.low, .remaining-servings.soldout { color: var(--danger); font-weight: 750; }
 .btn-add { width: calc(100% - 28px); margin: auto 14px 0; min-height: 40px; background: var(--color-surface-container); border-color: var(--color-outline-variant); border-radius: var(--radius-sm); color: var(--primary); }
 .btn-add:hover { background: var(--primary); color: var(--color-on-primary); box-shadow: none; }
 .floating-cart { background: var(--primary); color: var(--color-on-primary); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); }
 .cart-count { background: var(--color-on-primary); color: var(--primary); }
 .cart-checkout { background: rgba(255, 255, 255, 0.18); }
+.menu-pagination { display: flex; justify-content: center; flex-wrap: wrap; gap: 7px; margin: 30px 0 0; }
+.menu-pagination button { min-width: 38px; min-height: 38px; border: 1px solid var(--color-outline-variant); border-radius: 9px; background: var(--bg-card); color: var(--text-primary); font: inherit; font-weight: 750; cursor: pointer; }
+.menu-pagination button.active { background: var(--primary); border-color: var(--primary); color: var(--color-on-primary); }
+.menu-pagination button:disabled { opacity: .45; cursor: not-allowed; }
 
 @media (max-width: 1024px) {
   .menu-content { margin: 44px auto; }
   .page-title { font-size: 2.4rem; }
   .product-grid,
-  .menu-loading-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+  .menu-loading-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
   .floating-cart { right: 20px; bottom: 20px; }
   .menu-content { padding-right: 20px; padding-left: 20px; }
   .suggested-card { min-width: 220px; }
+}
+
+@media (max-width: 760px) and (min-width: 641px) {
+  .product-grid, .menu-loading-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 @media (max-width: 640px) {
@@ -716,11 +763,12 @@ onMounted(async () => {
   .modal-actions button { min-height: 44px; }
   .category-filter button { flex: 1 1 calc(50% - 8px); padding: 10px 12px; }
   .product-grid,
-  .menu-loading-grid { grid-template-columns: 1fr; gap: 18px; }
+  .menu-loading-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .menu-state { min-height: 180px; padding: 22px 16px; }
   .menu-error .g-btn-outline { min-height: 44px; width: 100%; }
   .product-card { padding: 0 0 14px; }
-  .product-card img { width: 100%; height: min(54vw, 210px); object-fit: cover; }
+  .product-card img { width: 100%; aspect-ratio: 4 / 3; height: auto; object-fit: cover; }
+  .product-card h3 { font-size: .9rem; }
   .product-card h3 { overflow-wrap: anywhere; }
   .suggested-section { overflow: hidden; }
   .floating-cart {

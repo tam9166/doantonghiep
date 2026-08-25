@@ -142,14 +142,14 @@
             </div>
 
             <label class="terms-check">
-              <input type="checkbox" v-model="agreedTerms" />
+              <input type="checkbox" v-model="termsAccepted" />
               <span class="checkmark"></span>
               Tôi đồng ý với <a href="#">Điều khoản sử dụng</a> và <a href="#">Chính sách bảo mật</a>
             </label>
 
             <div class="btn-row">
               <button @click="step = 1" class="btn-back">← Quay lại</button>
-              <button @click="handleRegister" class="btn-register" :disabled="isLoading || !agreedTerms">
+              <button @click="handleRegister" class="btn-register" :disabled="isLoading || !termsAccepted">
                 <span v-if="!isLoading"> Đăng Ký</span>
                 <span v-else class="btn-loading"><span class="spinner"></span> Đang xử lý...</span>
               </button>
@@ -190,7 +190,7 @@ const isLoading = ref(false)
 const errorMsg = ref('')
 const step = ref(1)
 const showPw = ref(false)
-const agreedTerms = ref(false)
+const termsAccepted = ref(false)
 
 // Password strength
 const pwStrength = computed(() => {
@@ -229,6 +229,10 @@ function goStep2() {
 
 async function handleRegister() {
   errorMsg.value = ''
+  if (!termsAccepted.value) {
+    errorMsg.value = 'Bạn cần đồng ý với Điều khoản sử dụng và Chính sách bảo mật.'
+    return
+  }
   const validationError = getRegistrationValidationError(form.value)
   if (validationError) {
     errorMsg.value = validationError
@@ -238,7 +242,7 @@ async function handleRegister() {
   form.value = normalizeRegistration(form.value)
   isLoading.value = true
   try {
-    await api.post('/api/auth/signup', form.value)
+    await api.post('/api/auth/signup', { ...form.value, termsAccepted: true })
     toast.success('Tài khoản đã được tạo. Hãy đăng nhập!', 'Đăng ký thành công')
     router.push('/login')
   } catch (error) {
@@ -396,12 +400,13 @@ async function handleRegister() {
   color: var(--text-muted); font-size: 0.82rem; cursor: pointer;
   user-select: none; margin-bottom: 24px; line-height: 1.5;
 }
-.terms-check input { display: none; }
+.terms-check input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .terms-check .checkmark {
-  width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.15);
+  width: 18px; height: 18px; border: 2px solid var(--primary);
   border-radius: 5px; flex-shrink: 0; margin-top: 2px;
-  transition: var(--transition); position: relative;
+  background: var(--bg-input); transition: var(--transition); position: relative;
 }
+.terms-check input:focus-visible + .checkmark { outline: 3px solid color-mix(in srgb, var(--primary) 30%, transparent); outline-offset: 2px; }
 .terms-check input:checked + .checkmark { background: var(--primary); border-color: var(--primary); }
 .terms-check input:checked + .checkmark::after {
   content: '✓'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);

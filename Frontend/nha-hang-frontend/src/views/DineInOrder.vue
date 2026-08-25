@@ -37,12 +37,33 @@
             <span class="ai-badge">AI Gợi Ý</span>
           </div>
           
-          <div v-if="aiCombo.length === 0 && !isFetchingAI">
-            <p class="ai-desc">Để đưa ra gợi ý hợp lý nhất, bạn đi mấy người?</p>
-            <div class="party-size-row" style="display: flex; gap: 10px; margin-bottom: 10px;">
-              <input type="number" v-model="partySize" min="1" placeholder="Nhập số người" class="form-control" style="width: 150px; background: rgba(0,0,0,0.2); color: #FFFFFF;" />
-              <button class="btn-add-item" @click="fetchComboForParty">Nhận gợi ý</button>
+          <div v-if="aiCombo.length === 0 && !isFetchingAI" class="smart-profile">
+            <p class="ai-desc">Cho Mộc Vị biết nhóm của bạn để chỉ gợi ý các món đang bán và còn đủ khả năng phục vụ.</p>
+            <label class="smart-field">
+              <span>Số người</span>
+              <input type="number" v-model.number="partySize" min="1" max="100" placeholder="Ví dụ: 2" class="form-control" />
+            </label>
+            <div class="smart-field">
+              <span>Món hoặc nhóm món yêu thích (có thể chọn nhiều)</span>
+              <div class="smart-chips">
+                <button v-for="option in favoriteOptions" :key="option.value" type="button"
+                  :class="{ active: favoritePreferences.includes(option.value) }"
+                  @click="toggleFavorite(option.value)">{{ option.label }}</button>
+              </div>
             </div>
+            <div class="smart-field">
+              <span>Khẩu vị</span>
+              <div class="smart-chips">
+                <button v-for="option in palateOptions" :key="option.value" type="button"
+                  :class="{ active: palatePreference === option.value }"
+                  @click="palatePreference = option.value">{{ option.label }}</button>
+              </div>
+            </div>
+            <label class="smart-field">
+              <span>Dị ứng cần loại trừ (nếu có)</span>
+              <input v-model.trim="allergyInput" maxlength="160" class="form-control" placeholder="Ví dụ: đậu phộng, hải sản" />
+            </label>
+            <button class="btn-add-item smart-submit" @click="fetchComboForParty">AI Gợi Ý Món</button>
           </div>
           <div v-else-if="isFetchingAI">
             <p class="ai-desc">Đang phân tích và thiết kế thực đơn cho {{ partySize }} người...</p>
@@ -56,6 +77,7 @@
                 <div class="product-info">
                   <h4>{{ product.name }} <span v-if="product.suggestedQuantity > 1" style="color: var(--primary);">x{{ product.suggestedQuantity }}</span></h4>
                   <p class="price">{{ product.price.toLocaleString() }}đ</p>
+                  <small>{{ product.suggestionReason }}</small>
                 </div>
                 <button v-if="!isAdminOrManager" class="btn-add-item" :disabled="product.availableQuantity <= 0" @click="addToCart(product, product.suggestedQuantity || 1)">{{ product.availableQuantity > 0 ? 'Thêm' : 'Tạm hết hàng' }}</button>
                 <button v-else class="btn-add-item btn-disabled" disabled>Chỉ xem</button>
@@ -200,7 +222,7 @@ import CustomerLayout from '@/components/CustomerLayout.vue';
 import UiIcon from '@/components/UiIcon.vue';
 
 import { ref, computed, onMounted } from 'vue';
-import api, { externalApi } from '@/services/api';
+import api from '@/services/api';
 import { useRoute } from 'vue-router';
 import { foodImage, replaceFoodImage } from '@/utils/imageFallback';
 
@@ -216,6 +238,7 @@ const toastMsg = ref('');
 const isSubmitting = ref(false);
 const userRoles = ref([]);
 const addItemsIdempotencyKey = ref(crypto.randomUUID());
+const checkoutIdempotencyKey = ref(crypto.randomUUID());
 const tableSessionToken = ref(typeof route.query.cap === 'string' ? route.query.cap : '');
 const capabilityOrder = ref(null);
 
@@ -272,6 +295,32 @@ const aiCombo = ref([]);
 const aiRecommendationReason = ref('');
 const partySize = ref('');
 const isFetchingAI = ref(false);
+const favoritePreferences = ref([]);
+const palatePreference = ref('không yêu cầu');
+const allergyInput = ref('');
+const favoriteOptions = [
+  { value: 'thịt bò', label: 'Thịt bò' }, { value: 'gà', label: 'Gà' },
+  { value: 'hải sản', label: 'Hải sản' }, { value: 'nướng', label: 'Món nướng' },
+  { value: 'món nước', label: 'Món nước' }, { value: 'rau', label: 'Rau' },
+  { value: 'đồ uống', label: 'Đồ uống' }, { value: 'không quan trọng', label: 'Không quan trọng' }
+];
+const palateOptions = [
+  { value: 'không cay', label: 'Không cay' }, { value: 'cay nhẹ', label: 'Cay nhẹ' },
+  { value: 'cay vừa', label: 'Cay vừa' }, { value: 'cay nhiều', label: 'Cay nhiều' },
+  { value: 'thanh nhẹ', label: 'Thanh nhẹ' }, { value: 'đậm vị', label: 'Đậm vị' },
+  { value: 'ít dầu', label: 'Ít dầu' }, { value: 'không yêu cầu', label: 'Không yêu cầu' }
+];
+
+const toggleFavorite = (value) => {
+  if (value === 'không quan trọng') {
+    favoritePreferences.value = favoritePreferences.value.includes(value) ? [] : [value];
+    return;
+  }
+  favoritePreferences.value = favoritePreferences.value.filter(item => item !== 'không quan trọng');
+  favoritePreferences.value = favoritePreferences.value.includes(value)
+    ? favoritePreferences.value.filter(item => item !== value)
+    : [...favoritePreferences.value, value];
+};
 
 const fetchComboForParty = async () => {
   if (!partySize.value || partySize.value < 1) {
@@ -280,90 +329,31 @@ const fetchComboForParty = async () => {
   }
   isFetchingAI.value = true;
   try {
-    // Gọi API thời tiết Đà Nẵng
-    const wRes = await externalApi.get('https://api.open-meteo.com/v1/forecast?latitude=16.0678&longitude=108.2208&current_weather=true');
-    const weather = wRes.data.current_weather;
-    const weatherCode = weather.weathercode;
-    let weatherStr = `Trời quang, nhiệt độ ${weather.temperature}°C`;
-    if (weatherCode >= 50 && weatherCode <= 69) weatherStr = `Trời đang mưa lất phất, nhiệt độ ${weather.temperature}°C`;
-    else if (weatherCode >= 70) weatherStr = `Trời mưa to/tuyết, nhiệt độ ${weather.temperature}°C`;
-    else if (weather.temperature > 30) weatherStr = `Trời nắng nóng, nhiệt độ ${weather.temperature}°C`;
-
-    // Gọi Backend AI
-    const menuStr = activeProducts.value.map(p => `${p.id}-${p.name}`).join(', ');
-    const message = `Khách đi ${partySize.value} người. Thời tiết hiện tại: ${weatherStr}`;
-    
-    const aiRes = await api.post('/api/chatbot/chat', {
-      type: 'COMBO_RECOMMEND',
-      message: message,
-      menu: menuStr
+    const preferences = [
+      ...favoritePreferences.value.filter(value => value !== 'không quan trọng'),
+      ...(palatePreference.value === 'không yêu cầu' ? [] : [palatePreference.value])
+    ];
+    const allergies = allergyInput.value.split(',').map(value => value.trim()).filter(Boolean);
+    const response = await api.post('/api/customer/ai/menu-suggestion', {
+      productIds: [], guestCount: Number(partySize.value), preferences, maxBudget: null, allergies
     });
-
-    let reply = aiRes.data.reply;
-    reply = reply.replace(/```json/g, '').replace(/```/g, '').trim();
-    
-    // Kiểm tra xem phản hồi có phải là JSON hợp lệ không để tránh lỗi console
-    if (!reply.startsWith('[') && !reply.startsWith('{')) {
-      throw new Error("AI trả về định dạng không hợp lệ: " + reply);
-    }
-    
-    const suggestions = JSON.parse(reply);
-
-    aiCombo.value = suggestions.map(s => {
-      const p = activeProducts.value.find(prod => prod.id == s.id);
-      if (p) return { ...p, suggestedQuantity: s.quantity || 1 };
-      return null;
-    }).filter(p => p != null);
-    
-    if(suggestions.length > 0) aiRecommendationReason.value = suggestions[0].reason;
+    aiCombo.value = (response.data?.suggestions || []).map((suggestion, index) => {
+      const product = activeProducts.value.find(item => item.id === suggestion.productId && item.availableQuantity > 0);
+      if (!product) return null;
+      return {
+        ...product,
+        suggestedQuantity: Math.max(1, Math.ceil(Number(partySize.value) / Math.max(2, Math.min(4, response.data.suggestions.length))) - (index > 1 ? 1 : 0)),
+        suggestionReason: `Phù hợp nhóm ${partySize.value} người${preferences.length ? `, ưu tiên ${preferences.join(', ')}` : ''}.`
+      };
+    }).filter(Boolean).slice(0, 4);
+    aiRecommendationReason.value = response.data?.message
+      || `Đã chọn ${aiCombo.value.length} món có thật trong menu và còn khả năng phục vụ.`;
+    if (!aiCombo.value.length) toastMsg.value = 'Hiện chưa có món còn hàng phù hợp với lựa chọn này.';
 
   } catch(e) {
     console.error("Lỗi AI Recommend:", e);
-    // Fallback thông minh theo số lượng người khi AI bị lỗi
-    if (activeProducts.value.length >= 2) {
-      let pSize = parseInt(partySize.value) || 2;
-      
-      // Phân loại món ăn và nước uống
-      let drinks = activeProducts.value.filter(p => p.category && (p.category.name.toLowerCase().includes('nước') || p.category.name.toLowerCase().includes('uống') || p.category.name.toLowerCase().includes('trà') || p.category.name.toLowerCase().includes('cafe')));
-      let foods = activeProducts.value.filter(p => !p.category || (!p.category.name.toLowerCase().includes('nước') && !p.category.name.toLowerCase().includes('uống') && !p.category.name.toLowerCase().includes('trà') && !p.category.name.toLowerCase().includes('cafe')));
-      
-      // Số món ăn khác nhau: ceil(số người * 0.7), tối thiểu 2, tối đa số món có sẵn
-      let numFoodTypes = Math.max(2, Math.ceil(pSize * 0.7));
-      numFoodTypes = Math.min(numFoodTypes, foods.length);
-      
-      // Chọn ngẫu nhiên các món ăn khác nhau
-      let shuffledFoods = [...foods].sort(() => Math.random() - 0.5);
-      let selectedFoods = shuffledFoods.slice(0, numFoodTypes);
-      
-      // Chọn 1-2 loại nước uống khác nhau
-      let numDrinkTypes = Math.min(Math.max(1, Math.ceil(pSize / 3)), drinks.length || 1);
-      let shuffledDrinks = [...drinks].sort(() => Math.random() - 0.5);
-      let selectedDrinks = shuffledDrinks.slice(0, numDrinkTypes);
-      
-      // Tính số lượng mỗi món
-      let combo = [];
-      selectedFoods.forEach((food, idx) => {
-        let qty = idx === 0 ? Math.ceil(pSize / numFoodTypes) + 1 : Math.ceil(pSize / numFoodTypes);
-        combo.push({ ...food, suggestedQuantity: Math.max(1, qty) });
-      });
-      
-      // Mỗi người 1 nước, chia đều cho các loại nước
-      let drinksPerType = Math.ceil(pSize / numDrinkTypes);
-      selectedDrinks.forEach(drink => {
-        combo.push({ ...drink, suggestedQuantity: drinksPerType });
-      });
-      
-      // Nếu không có nước riêng, chọn bất kỳ sản phẩm nào chưa được chọn
-      if (selectedDrinks.length === 0 && activeProducts.value.length > numFoodTypes) {
-        let remaining = activeProducts.value.filter(p => !selectedFoods.find(f => f.id === p.id));
-        if (remaining.length > 0) {
-          combo.push({ ...remaining[0], suggestedQuantity: pSize });
-        }
-      }
-
-      aiCombo.value = combo;
-      aiRecommendationReason.value = `(Hệ thống AI đang bảo trì) Gợi ý Combo dự phòng ${combo.length} món đa dạng cho ${pSize} người (Gồm ${selectedFoods.length} món ăn + ${selectedDrinks.length || 1} loại nước uống).`;
-    }
+    aiCombo.value = [];
+    toastMsg.value = e.response?.data?.message || 'Chưa thể lấy gợi ý phù hợp. Vui lòng thử lại.';
   } finally {
     isFetchingAI.value = false;
   }
@@ -451,6 +441,8 @@ const addToCart = (product, qty = 1) => {
   if (existing) existing.quantity = requestedQuantity;
   else cart.value.push({ productId: product.id, name: product.name, price: product.price, quantity: qty,
     taxRate: product.taxRate || 8, note: '', allergyNote: '', availableQuantity });
+  checkoutIdempotencyKey.value = crypto.randomUUID();
+  addItemsIdempotencyKey.value = crypto.randomUUID();
 };
 
 const increaseQty = (idx) => {
@@ -460,6 +452,8 @@ const increaseQty = (idx) => {
     return;
   }
   item.quantity++;
+  checkoutIdempotencyKey.value = crypto.randomUUID();
+  addItemsIdempotencyKey.value = crypto.randomUUID();
 };
 
 const decreaseQty = (idx) => {
@@ -468,6 +462,8 @@ const decreaseQty = (idx) => {
   } else {
     cart.value.splice(idx, 1);
   }
+  checkoutIdempotencyKey.value = crypto.randomUUID();
+  addItemsIdempotencyKey.value = crypto.randomUUID();
 };
 
 const closeVoiceModal = () => {
@@ -612,7 +608,8 @@ const submitOrder = async () => {
       }, {
         headers: {
           ...headers,
-          ...(tableSessionToken.value ? { 'X-Table-Session-Token': tableSessionToken.value } : {})
+          ...(tableSessionToken.value ? { 'X-Table-Session-Token': tableSessionToken.value } : {}),
+          'X-Idempotency-Key': checkoutIdempotencyKey.value
         }
       });
       if (tableSessionToken.value && created.data?.orderId) {
@@ -622,6 +619,7 @@ const submitOrder = async () => {
 
     cart.value = [];
     addItemsIdempotencyKey.value = crypto.randomUUID();
+    checkoutIdempotencyKey.value = crypto.randomUUID();
     showModal.value = false;
     toastMsg.value = 'Đã ghi nhận đơn. Nhân viên sẽ xác nhận trước khi chuyển xuống bếp.';
     setTimeout(() => { toastMsg.value = ''; }, 4000);
@@ -738,6 +736,14 @@ onMounted(loadData);
   color: var(--text-heading);
 }
 .dine-in-wrapper { font-family: var(--font-primary); background-color: var(--bg-root); min-height: 100vh; padding-bottom: 80px; color: var(--text-primary); }
+.smart-profile { display: grid; gap: 14px; }
+.smart-field { display: grid; gap: 7px; color: var(--text-secondary); font-size: .84rem; font-weight: 750; }
+.smart-field input { max-width: 360px; background: var(--bg-input); color: var(--text-primary); border-color: var(--border); }
+.smart-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.smart-chips button { min-height: 34px; padding: 6px 11px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg-card); color: var(--text-secondary); font: inherit; cursor: pointer; }
+.smart-chips button.active { background: var(--primary); border-color: var(--primary); color: var(--color-on-primary); }
+.smart-submit { justify-self: start; min-width: 160px; }
+.combo-item small { display: block; margin-top: 4px; color: var(--text-muted); line-height: 1.4; }
 
 /* Navbar */
 .dinein-navbar {

@@ -22,6 +22,7 @@ import org.springframework.data.domain.Pageable;
 @Repository
 public interface OrderRepository extends JpaRepository<Order, Integer> {
     boolean existsByOrderCode(String orderCode);
+    Optional<Order> findByCheckoutIdempotencyKey(String checkoutIdempotencyKey);
 
     List<Order> findByStatusAndScheduledAtLessThanEqualOrderByScheduledAtAsc(Integer status, LocalDateTime cutoff);
     @Lock(LockModeType.PESSIMISTIC_WRITE)

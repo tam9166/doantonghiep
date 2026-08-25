@@ -1,5 +1,6 @@
 package poly.edu.quanlynhahang.dto;
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -22,4 +23,7 @@ public class SignupRequest {
     @Pattern(regexp = "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$", message = "Email không đúng định dạng")
     @Size(max = 100, message = "Email không được vượt quá 100 ký tự")
     private String email;
+
+    @AssertTrue(message = "Bạn phải đồng ý với Điều khoản sử dụng và Chính sách bảo mật")
+    private boolean termsAccepted;
 }

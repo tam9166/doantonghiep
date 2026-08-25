@@ -41,8 +41,14 @@ public class Product {
     @Column(name = "tax_rate", precision = 5, scale = 2)
     private BigDecimal taxRate = new BigDecimal("8.00");
 
-    @Column(length = 255)
+    @Column(length = 1000)
     private String image;
+
+    @Column(name = "volume_ml")
+    private Integer volumeMl;
+
+    @Column(name = "alcohol_percentage", precision = 5, scale = 2)
+    private BigDecimal alcoholPercentage;
 
     @Column(columnDefinition = "NVARCHAR(MAX)")
     private String description;

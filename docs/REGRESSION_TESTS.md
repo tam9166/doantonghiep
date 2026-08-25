@@ -134,3 +134,18 @@
 | REG-INVENTORY-172 | One canonical inventory analysis | Dashboard stats, AI forecast and purchase suggestions consume the same batch/sales/recipe analysis; 24 expired batches cannot yield a safe result, expired stock is excluded from usable stock and expiry-risk items receive handling actions instead of purchase quantities. | `InventoryAlertServiceTest`, `ChatbotControllerSecurityTest`, `OperationalOrderQueryScopeTest`, `finalFixContracts.test.js` |
 
 Latest completed full verification (2026-08-24): backend `clean test` passed 427 tests with 0 failures/errors/skips; frontend lint, 74 tests across 22 files and the Vite production build passed. Flyway validated 72 migrations and blank/preflight SQL Server paths pass through V071.
+
+## Latest customer-flow release checks (2026-08-25)
+
+| ID | Contract | Evidence |
+|---|---|---|
+| REG-AUTH-173 | Registration is blocked in browser and backend until the customer accepts terms. | `AuthRequestValidationTest`, `registrationValidation.test.js`, `latestCustomerFlowContracts.test.js` |
+| REG-ORDER-174 | Valid checkout creates one order, inventory hold and reusable payment intent; duplicate keys are safe and changed carts conflict specifically. | `OrderCheckoutServiceTest`, `OrderPaymentServiceTest`, `OrderCheckoutPersistenceIntegrationTest` |
+| REG-PAYMENT-175 | Independent order QR intents no longer collide through a nullable reservation key. | V072 assertions in `BlankDatabaseMigrationIntegrationTest` |
+| REG-DINEIN-176 | A real active available table accepts a public order without QR; missing/disabled/occupied tables are rejected, the table becomes occupied and Kitchen receives an event. | `OrderWorkflowGuardTest`, `OrderCheckoutServiceTest` |
+| REG-AI-177 | Party/favorite/palate/allergy suggestions contain only persisted active products with positive recipe-backed availability. | `MenuRecommendationServiceTest`, `latestCustomerFlowContracts.test.js` |
+| REG-MENU-178 | Filtering precedes 24-item pagination; a 30-item category yields 24+6 and page navigation preserves cart. | `menuPagination.test.js`, `latestCustomerFlowContracts.test.js` |
+| REG-SEED-179 | The alcohol migration contains 40 products, eight categories, unique non-search image URLs and succeeds from a blank canonical database. | `AlcoholMenuSeedContractTest`, `BlankDatabaseMigrationIntegrationTest` |
+| REG-CRM-180 | The customer-history modal retains its data while using opaque high-contrast theme surfaces and readable controls. | `latestCustomerFlowContracts.test.js`, full frontend build |
+
+Latest customer-flow verification (2026-08-25): backend full suite passed 435 tests with 0 failures/errors/skips; frontend lint, 81 tests across 24 files and the Vite production build passed. Flyway validated the complete 73-version migration chain through V073 on a blank SQL Server database, with legacy unique-constraint preflight coverage through V072.

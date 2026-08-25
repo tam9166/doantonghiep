@@ -117,27 +117,21 @@ public class OrderController {
 
     @PostMapping("/checkout")
     public ResponseEntity<?> checkout(@Valid @RequestBody OrderRequest orderRequest,
-                                      @RequestHeader(value = "X-Table-Session-Token", required = false) String tableSessionToken) {
+                                      @RequestHeader(value = "X-Table-Session-Token", required = false) String tableSessionToken,
+                                      @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey) {
         if (OrderType.DINE_IN.equals(orderRequest.getOrderType())) {
             if (tableSessionToken != null && !tableSessionToken.isBlank()) {
                 tableSessionService.requireForTable(tableSessionToken, orderRequest.getTableId());
-            } else if (!hasOperationalStaffRole()) {
-                throw new org.springframework.web.server.ResponseStatusException(
-                        HttpStatus.UNAUTHORIZED, "Đơn tại bàn phải được tạo từ mã QR hợp lệ");
             }
         }
         String username = SecurityContextHolder.getContext().getAuthentication() == null
                 ? null
                 : SecurityContextHolder.getContext().getAuthentication().getName();
-        return ResponseEntity.ok(orderCheckoutService.checkout(orderRequest, username));
-    }
-
-    private boolean hasOperationalStaffRole() {
-        var authentication = SecurityContextHolder.getContext().getAuthentication();
-        return authentication != null && authentication.getAuthorities().stream()
-                .map(authority -> authority.getAuthority())
-                .anyMatch(role -> role.equals("ROLE_WAITER") || role.equals("ROLE_CASHIER")
-                        || role.equals("ROLE_MANAGER") || role.equals("ROLE_ADMIN"));
+        var result = orderCheckoutService.checkout(orderRequest, username, idempotencyKey);
+        if (OrderType.DINE_IN.equals(orderRequest.getOrderType())) {
+            publishSafely("/topic/kitchen", "NEW_ORDER");
+        }
+        return ResponseEntity.ok(result);
     }
 
     @PutMapping("/{id}/add-items")

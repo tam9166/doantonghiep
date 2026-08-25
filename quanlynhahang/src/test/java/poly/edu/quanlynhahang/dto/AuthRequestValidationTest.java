@@ -44,6 +44,15 @@ class AuthRequestValidationTest {
     }
 
     @Test
+    void signupRequiresExplicitTermsAcceptance() {
+        SignupRequest request = validSignup();
+        request.setTermsAccepted(false);
+
+        assertTrue(validator.validate(request).stream()
+                .anyMatch(violation -> violation.getPropertyPath().toString().equals("termsAccepted")));
+    }
+
+    @Test
     void loginRejectsBlankCredentials() {
         LoginRequest request = new LoginRequest();
         request.setUsername(" ");
@@ -62,6 +71,7 @@ class AuthRequestValidationTest {
         request.setPassword("MocVi-2026-Secure");
         request.setFullname("Nguyễn Văn A");
         request.setEmail("customer@example.com");
+        request.setTermsAccepted(true);
         return request;
     }
 }

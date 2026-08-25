@@ -25,7 +25,7 @@ class UniqueConstraintMigrationPreflightIntegrationTest {
             statement.executeUpdate("INSERT INTO dbo.reservation_reviews(reservation_id) VALUES (1), (2)");
             statement.executeUpdate("INSERT INTO dbo.reservations(reservation_code) VALUES ('MV-1'), ('MV-2')");
         }, (flyway, statement) -> {
-            assertEquals(26, flyway.migrate().migrationsExecuted);
+            assertEquals(27, flyway.migrate().migrationsExecuted);
             assertTrue(indexExists(statement, "reservation_reviews", "UX_reservation_reviews_reservation_id"));
             assertTrue(indexExists(statement, "reservations", "UX_reservations_reservation_code"));
             assertTrue(indexExists(statement, "reservations", "UX_reservations_idempotency_key"));
@@ -102,6 +102,10 @@ class UniqueConstraintMigrationPreflightIntegrationTest {
                         .locations("classpath:db/migration")
                         .baselineOnMigrate(true)
                         .baselineVersion("45")
+                        // This fixture intentionally models only the legacy tables
+                        // needed by the integrity migrations. Later menu seed
+                        // migrations require the canonical menu/inventory schema.
+                        .target("72")
                         .load();
                 assertion.run(flyway, statement);
             }

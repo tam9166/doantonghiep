@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -24,12 +25,17 @@ import poly.edu.quanlynhahang.dto.MenuRecommendationRequest;
 class MenuRecommendationServiceTest {
     @Mock
     private ProductRepository productRepository;
+    @Mock
+    private HotMenuItemService hotMenuItemService;
+    @Mock
+    private MenuAvailabilityService menuAvailabilityService;
 
     private MenuRecommendationService service;
 
     @BeforeEach
     void setUp() {
-        service = new MenuRecommendationService(productRepository);
+        service = new MenuRecommendationService(productRepository, hotMenuItemService, menuAvailabilityService);
+        when(menuAvailabilityService.availableQuantity(any(Product.class))).thenReturn(10);
     }
 
     @Test
@@ -128,6 +134,39 @@ class MenuRecommendationServiceTest {
                 List.of(), 4, List.of("nướng"), BigDecimal.valueOf(400_000)));
 
         assertEquals(List.of(2), result.stream().map(item -> item.productId()).toList());
+    }
+
+    @Test
+    void excludesDishWithNoRemainingServingAndSelectedAllergen() {
+        Product soldOutBeef = product(2, DietType.MAN, CookingMethod.NUONG, false, true);
+        soldOutBeef.setName("Bò nướng");
+        Product peanutChicken = product(3, DietType.MAN, CookingMethod.NUONG, false, true);
+        peanutChicken.setName("Gà sốt đậu phộng");
+        Product safeChicken = product(4, DietType.MAN, CookingMethod.NUONG, false, true);
+        safeChicken.setName("Gà nướng lá chanh");
+        when(productRepository.findByAvailableTrueAndStatusTrue())
+                .thenReturn(List.of(soldOutBeef, peanutChicken, safeChicken));
+        when(menuAvailabilityService.availableQuantity(soldOutBeef)).thenReturn(0);
+
+        var result = service.recommend(new MenuRecommendationRequest(
+                List.of(), 2, List.of("nướng"), null, List.of("đậu phộng")));
+
+        assertEquals(List.of(4), result.stream().map(item -> item.productId()).toList());
+    }
+
+    @Test
+    void appliesAllergyExclusionEvenWithoutTastePreferences() {
+        Product peanutChicken = product(3, DietType.MAN, CookingMethod.NUONG, false, true);
+        peanutChicken.setName("Gà sốt đậu phộng");
+        Product safeChicken = product(4, DietType.MAN, CookingMethod.HAP, false, true);
+        safeChicken.setName("Gà hấp lá chanh");
+        when(productRepository.findByAvailableTrueAndStatusTrue())
+                .thenReturn(List.of(peanutChicken, safeChicken));
+
+        var result = service.recommend(new MenuRecommendationRequest(
+                List.of(), 2, List.of(), null, List.of("đậu phộng")));
+
+        assertEquals(List.of(4), result.stream().map(item -> item.productId()).toList());
     }
 
     private Product product(int id, DietType dietType, CookingMethod cookingMethod,

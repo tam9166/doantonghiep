@@ -39,6 +39,12 @@ public class Order {
     @Column(name = "order_code", length = 40, nullable = false, unique = true)
     private String orderCode = "ORD-" + UUID.randomUUID().toString().substring(0, 12).toUpperCase(Locale.ROOT);
 
+    @Column(name = "checkout_idempotency_key", length = 100, unique = true)
+    private String checkoutIdempotencyKey;
+
+    @Column(name = "checkout_request_hash", length = 64)
+    private String checkoutRequestHash;
+
     @Column(name = "scheduled_at")
     private LocalDateTime scheduledAt;
 

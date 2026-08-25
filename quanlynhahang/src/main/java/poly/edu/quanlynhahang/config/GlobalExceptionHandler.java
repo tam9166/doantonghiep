@@ -93,7 +93,8 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleInsufficientInventory(
             InsufficientInventoryException exception, HttpServletRequest request) {
         return response(HttpStatus.CONFLICT, "INSUFFICIENT_INVENTORY",
-                "Insufficient inventory for this request.", request, exception.getShortages());
+                "Một số món trong giỏ đã thay đổi số lượng hoặc không còn đủ hàng. Vui lòng kiểm tra lại giỏ hàng.",
+                request, exception.getShortages());
     }
 
     @ExceptionHandler({OptimisticLockException.class, ObjectOptimisticLockingFailureException.class})

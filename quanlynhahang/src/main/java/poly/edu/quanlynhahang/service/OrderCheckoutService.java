@@ -74,6 +74,7 @@ public class OrderCheckoutService {
     private final MenuAvailabilityService menuAvailabilityService;
     private final InventoryReservationService inventoryReservationService;
     private final OrderStateMachineService orderStateMachineService;
+    private final SqlServerApplicationLockService applicationLockService;
 
     public OrderCheckoutService(OrderRepository orderRepository,
                                 OrderDetailRepository orderDetailRepository,
@@ -90,7 +91,8 @@ public class OrderCheckoutService {
                                 OrderPaymentService orderPaymentService,
                                 MenuAvailabilityService menuAvailabilityService,
                                InventoryReservationService inventoryReservationService,
-                               OrderStateMachineService orderStateMachineService) {
+                               OrderStateMachineService orderStateMachineService,
+                               SqlServerApplicationLockService applicationLockService) {
         this.orderRepository = orderRepository;
         this.orderDetailRepository = orderDetailRepository;
         this.orderItemOperationRepository = orderItemOperationRepository;
@@ -107,6 +109,7 @@ public class OrderCheckoutService {
         this.menuAvailabilityService = menuAvailabilityService;
         this.inventoryReservationService = inventoryReservationService;
         this.orderStateMachineService = orderStateMachineService;
+        this.applicationLockService = applicationLockService;
     }
 
     private String generateSecureOrderCode() {
@@ -122,7 +125,31 @@ public class OrderCheckoutService {
 
     @Transactional
     public CheckoutResult checkout(OrderRequest request, String username) {
+        return checkout(request, username, null);
+    }
+
+    @Transactional
+    public CheckoutResult checkout(OrderRequest request, String username, String idempotencyKey) {
         validateRequest(request);
+        String normalizedIdempotencyKey = normalizeCheckoutIdempotencyKey(idempotencyKey);
+        String requestHash = checkoutRequestHash(request, username);
+        if (normalizedIdempotencyKey != null) {
+            int lockResult = applicationLockService.acquireExclusive("order-checkout:" + normalizedIdempotencyKey, 10_000);
+            if (lockResult < 0) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Yêu cầu tạo đơn đang được xử lý. Vui lòng chờ kết quả hiện tại.");
+            }
+            var existing = orderRepository.findByCheckoutIdempotencyKey(normalizedIdempotencyKey);
+            if (existing.isPresent()) {
+                Order existingOrder = existing.get();
+                if (!MessageDigest.isEqual(requestHash.getBytes(StandardCharsets.US_ASCII),
+                        existingOrder.getCheckoutRequestHash().getBytes(StandardCharsets.US_ASCII))) {
+                    throw new ResponseStatusException(HttpStatus.CONFLICT,
+                            "Mã yêu cầu đã được dùng cho một giỏ hàng khác.");
+                }
+                return checkoutResult(existingOrder, orderPaymentService.createForOrder(existingOrder));
+            }
+        }
         Account account = authenticatedAccount(username);
         // The caller must choose the business flow explicitly. A silent fallback can
         // misclassify dine-in orders and corrupt historical reporting.
@@ -141,6 +168,10 @@ public class OrderCheckoutService {
                 ? tableRepository.findLockedById(request.getTableId())
                         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy bàn."))
                 : null;
+        if (dineInTable != null && Boolean.FALSE.equals(dineInTable.getActive())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Bàn đã chọn đang ngừng hoạt động hoặc bảo trì.");
+        }
         if (dineIn && !orderRepository.findOpenDineInOrdersByTableIdWithDetails(request.getTableId()).isEmpty()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Bàn đã có đơn đang mở. Vui lòng gọi thêm món vào đơn hiện tại.");
@@ -160,6 +191,8 @@ public class OrderCheckoutService {
         String orderCode = generateSecureOrderCode();
         Order order = new Order();
         order.setOrderCode(orderCode);
+        order.setCheckoutIdempotencyKey(normalizedIdempotencyKey);
+        order.setCheckoutRequestHash(normalizedIdempotencyKey == null ? null : requestHash);
         order.setAccount(account);
         order.setAddress(delivery == null ? normalizedNullable(request.getAddress()) : delivery.address());
         if (delivery != null) {
@@ -246,6 +279,45 @@ public class OrderCheckoutService {
         return new CheckoutResult(savedOrder.getId(), orderCode, savedOrder.getStatus(),
                 originalSubtotal, membershipDiscount, voucherDiscount, subTotal, taxAmount, totalAmount,
                 savedOrder.getPaymentOption(), savedOrder.getPaymentStatus(), payment);
+    }
+
+    private CheckoutResult checkoutResult(Order order, PaymentQrResponse payment) {
+        return new CheckoutResult(order.getId(), order.getOrderCode(), order.getStatus(),
+                money(order.getOriginalSubtotal()), money(order.getMembershipDiscount()),
+                money(order.getVoucherDiscount()), money(order.getSubTotal()), money(order.getTaxAmount()),
+                money(order.getTotalAmount()), order.getPaymentOption(), order.getPaymentStatus(), payment);
+    }
+
+    private String normalizeCheckoutIdempotencyKey(String idempotencyKey) {
+        if (idempotencyKey == null || idempotencyKey.isBlank()) return null;
+        String normalized = idempotencyKey.trim();
+        if (normalized.length() < 8 || normalized.length() > 100) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Mã chống gửi trùng không hợp lệ.");
+        }
+        return normalized;
+    }
+
+    private String checkoutRequestHash(OrderRequest request, String username) {
+        String items = request.getItems().stream()
+                .sorted(Comparator.comparing(OrderDetailRequest::getProductId)
+                        .thenComparing(item -> normalizedText(item.getNote()))
+                        .thenComparing(item -> normalizedText(item.getAllergyNote())))
+                .map(item -> item.getProductId() + ":" + item.getQuantity() + ":"
+                        + normalizedText(item.getNote()) + ":" + normalizedText(item.getAllergyNote()) + ":"
+                        + (item.getPriority() == null ? 0 : item.getPriority()))
+                .reduce("", (left, right) -> left + "|" + right);
+        String payload = String.join("|", normalizedText(username), String.valueOf(request.getOrderType()),
+                String.valueOf(request.getTableId()), String.valueOf(request.getPaymentOption()),
+                normalizedText(request.getRecipientName()), normalizedText(request.getRecipientPhone()),
+                normalizedText(request.getDeliveryAddress()), normalizedText(request.getDeliveryNote()),
+                normalizedText(request.getVoucherCode()), items);
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+                    .digest(payload.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 is unavailable", exception);
+        }
     }
 
     /**

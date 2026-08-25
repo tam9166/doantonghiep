@@ -37,7 +37,7 @@ class BlankDatabaseMigrationIntegrationTest {
                     .baselineOnMigrate(true)
                     .baselineVersion("2")
                     .load();
-            assertEquals(71, flyway.migrate().migrationsExecuted);
+            assertEquals(73, flyway.migrate().migrationsExecuted);
 
             try (Connection target = DriverManager.getConnection(targetUrl, username, password);
                  Statement statement = target.createStatement()) {
@@ -83,6 +83,16 @@ class BlankDatabaseMigrationIntegrationTest {
                         "SELECT COUNT(*) FROM sys.views WHERE name = 'v_customer_reservation_history'"));
                 assertEquals(1, count(statement,
                         "SELECT COUNT(*) FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.payment_webhook_logs') AND name = 'UX_payment_webhook_provider_tx' AND is_unique = 1"));
+                assertEquals(1, count(statement,
+                        "SELECT COUNT(*) FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.payment_intents') AND name = 'uk_payment_intent_active_aggregate_purpose' AND is_unique = 1"));
+                assertEquals(0, count(statement,
+                        "SELECT COUNT(*) FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.payment_intents') AND name = 'uk_payment_intent_active_purpose'"));
+                assertEquals(40, count(statement,
+                        "SELECT COUNT(*) FROM dbo.Products WHERE alcohol_percentage IS NOT NULL AND volume_ml IS NOT NULL"));
+                assertEquals(40, count(statement,
+                        "SELECT COUNT(DISTINCT image) FROM dbo.Products WHERE alcohol_percentage IS NOT NULL"));
+                assertEquals(0, count(statement,
+                        "SELECT COUNT(*) FROM dbo.Products WHERE alcohol_percentage IS NOT NULL AND image LIKE '%google.com/imgres%'"));
                 assertEquals(1, count(statement,
                         "SELECT COUNT(*) FROM sys.default_constraints dc JOIN sys.columns c ON c.object_id = dc.parent_object_id AND c.column_id = dc.parent_column_id WHERE dc.parent_object_id = OBJECT_ID('dbo.order_details') AND c.name = 'unit_price'"));
                 assertEquals(1, count(statement,

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
 import { getRegistrationValidationError, normalizeRegistration } from './registrationValidation'
 
 const validForm = {
@@ -9,6 +10,14 @@ const validForm = {
 }
 
 describe('registration validation contract', () => {
+  it('requires explicit terms acceptance in both UI state and signup payload', () => {
+    const registerView = readFileSync(new URL('../views/Register.vue', import.meta.url), 'utf8')
+    expect(registerView).toContain('const termsAccepted = ref(false)')
+    expect(registerView).toContain(':disabled="isLoading || !termsAccepted"')
+    expect(registerView).toContain("termsAccepted: true")
+    expect(registerView).toContain('if (!termsAccepted.value)')
+  })
+
   it('normalizes the fields normalized by the backend before submission', () => {
     expect(normalizeRegistration({
       ...validForm,

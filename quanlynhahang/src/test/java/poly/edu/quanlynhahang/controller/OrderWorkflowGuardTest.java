@@ -191,6 +191,34 @@ class OrderWorkflowGuardTest {
     }
 
     @Test
+    void publicDineInCheckoutNoLongerRequiresQrAndNotifiesKitchen() {
+        OrderController controller = new OrderController();
+        OrderCheckoutService checkoutService = mock(OrderCheckoutService.class);
+        TableSessionService tableSessionService = mock(TableSessionService.class);
+        org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate =
+                mock(org.springframework.messaging.simp.SimpMessagingTemplate.class);
+        poly.edu.quanlynhahang.dto.OrderRequest request = new poly.edu.quanlynhahang.dto.OrderRequest();
+        request.setOrderType(OrderType.DINE_IN);
+        request.setTableId(5);
+        when(checkoutService.checkout(request, null, "checkout-key-5"))
+                .thenReturn(new OrderCheckoutService.CheckoutResult(81, "ORD-DINEIN", 0,
+                        BigDecimal.TEN, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.TEN,
+                        BigDecimal.ZERO, BigDecimal.TEN,
+                        poly.edu.quanlynhahang.entity.OrderPaymentOption.PAY_AT_RESTAURANT,
+                        poly.edu.quanlynhahang.entity.PaymentStatus.UNPAID, null));
+        ReflectionTestUtils.setField(controller, "orderCheckoutService", checkoutService);
+        ReflectionTestUtils.setField(controller, "tableSessionService", tableSessionService);
+        ReflectionTestUtils.setField(controller, "messagingTemplate", messagingTemplate);
+        SecurityContextHolder.clearContext();
+
+        var response = controller.checkout(request, null, "checkout-key-5");
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        verify(tableSessionService, never()).requireForTable(any(), any());
+        verify(messagingTemplate).convertAndSend("/topic/kitchen", "NEW_ORDER");
+    }
+
+    @Test
     void rejectsServingADishThatTheKitchenHasNotCompleted() {
         OrderController controller = new OrderController();
         KitchenOrderDetailService kitchenService = mock(KitchenOrderDetailService.class);

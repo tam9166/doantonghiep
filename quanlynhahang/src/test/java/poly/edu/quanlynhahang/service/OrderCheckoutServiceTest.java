@@ -17,6 +17,7 @@ import poly.edu.quanlynhahang.entity.OrderItemOperation;
 import poly.edu.quanlynhahang.entity.OrderType;
 import poly.edu.quanlynhahang.entity.Product;
 import poly.edu.quanlynhahang.entity.Recipe;
+import poly.edu.quanlynhahang.entity.RestaurantTable;
 import poly.edu.quanlynhahang.entity.Voucher;
 import poly.edu.quanlynhahang.repository.AccountRepository;
 import poly.edu.quanlynhahang.repository.IngredientBatchRepository;
@@ -41,6 +42,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.doThrow;
 import org.mockito.ArgumentCaptor;
 
@@ -60,6 +62,7 @@ class OrderCheckoutServiceTest {
     private final OrderPaymentService orderPaymentService = mock(OrderPaymentService.class);
     private final MenuAvailabilityService menuAvailabilityService = mock(MenuAvailabilityService.class);
     private final InventoryReservationService inventoryReservationService = mock(InventoryReservationService.class);
+    private final SqlServerApplicationLockService applicationLockService = mock(SqlServerApplicationLockService.class);
 
     private final OrderCheckoutService service = new OrderCheckoutService(
             orderRepository,
@@ -77,11 +80,13 @@ class OrderCheckoutServiceTest {
             orderPaymentService,
             menuAvailabilityService,
             inventoryReservationService,
-            new OrderStateMachineService());
+            new OrderStateMachineService(),
+            applicationLockService);
 
     @BeforeEach
     void allowInventoryUnlessTestOverridesIt() {
         when(menuAvailabilityService.availableQuantity(any(Product.class))).thenReturn(100);
+        when(applicationLockService.acquireExclusive(any(), any(Integer.class))).thenReturn(0);
         when(inventoryReservationService.defaultExpiry()).thenReturn(new java.util.Date(System.currentTimeMillis() + 60_000));
         when(orderRepository.save(any())).thenAnswer(invocation -> {
             Order order = invocation.getArgument(0);
@@ -89,6 +94,37 @@ class OrderCheckoutServiceTest {
             if (order.getId() == null) order.setId(22);
             return order;
         });
+    }
+
+    @Test
+    void duplicateCheckoutKeyReturnsTheExistingOrderAndPaymentIntent() {
+        OrderRequest request = request(1, 2);
+        request.setOrderType(poly.edu.quanlynhahang.entity.OrderType.DELIVERY);
+        request.setPaymentOption(poly.edu.quanlynhahang.entity.OrderPaymentOption.PREPAID_TRANSFER);
+        request.setRecipientName("Nguyễn Văn A");
+        request.setRecipientPhone("0905123456");
+        request.setDeliveryAddress("Đà Nẵng");
+        Product product = product(1, 100_000.0);
+        Ingredient ingredient = ingredient(10L, "Thịt bò");
+        Recipe recipe = recipe(product, ingredient, 1.0);
+        when(productRepository.findById(1)).thenReturn(Optional.of(product));
+        when(recipeRepository.findByProduct(product)).thenReturn(List.of(recipe));
+
+        OrderCheckoutService.CheckoutResult first = service.checkout(request, "anonymousUser", "checkout-key-001");
+        ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
+        verify(orderRepository, org.mockito.Mockito.atLeastOnce()).save(orderCaptor.capture());
+        Order saved = orderCaptor.getAllValues().stream()
+                .filter(order -> "checkout-key-001".equals(order.getCheckoutIdempotencyKey()))
+                .findFirst().orElseThrow();
+        when(orderRepository.findByCheckoutIdempotencyKey("checkout-key-001"))
+                .thenReturn(Optional.of(saved));
+
+        OrderCheckoutService.CheckoutResult duplicate = service.checkout(
+                request, "anonymousUser", "checkout-key-001");
+
+        assertEquals(first.orderId(), duplicate.orderId());
+        assertEquals(first.orderCode(), duplicate.orderCode());
+        verify(applicationLockService, times(2)).acquireExclusive("order-checkout:checkout-key-001", 10_000);
     }
 
     @Test
@@ -143,6 +179,50 @@ class OrderCheckoutServiceTest {
         assertEquals(HttpStatus.NOT_FOUND, error.getStatusCode());
         verify(tableRepository).findLockedById(404);
         verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    void dineInCheckoutRejectsDisabledTable() {
+        OrderRequest request = request(1, 1);
+        request.setOrderType(OrderType.DINE_IN);
+        request.setTableId(5);
+        RestaurantTable table = new RestaurantTable();
+        table.setId(5);
+        table.setActive(false);
+        when(tableRepository.findLockedById(5)).thenReturn(Optional.of(table));
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+                () -> service.checkout(request, "anonymousUser"));
+
+        assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    void directDineInCheckoutOccupiesAvailableTableAndReservesInventory() {
+        OrderRequest request = request(1, 1);
+        request.setOrderType(OrderType.DINE_IN);
+        request.setPaymentOption(poly.edu.quanlynhahang.entity.OrderPaymentOption.PAY_AT_RESTAURANT);
+        request.setTableId(5);
+        RestaurantTable table = new RestaurantTable();
+        table.setId(5);
+        table.setName("B05");
+        table.setActive(true);
+        table.setIsOccupied(0);
+        Product product = product(1, 100_000.0);
+        Ingredient ingredient = ingredient(10L, "Thịt bò");
+        when(tableRepository.findLockedById(5)).thenReturn(Optional.of(table));
+        when(orderRepository.findOpenDineInOrdersByTableIdWithDetails(5)).thenReturn(List.of());
+        when(productRepository.findById(1)).thenReturn(Optional.of(product));
+        when(recipeRepository.findByProduct(product)).thenReturn(List.of(recipe(product, ingredient, 1.0)));
+
+        OrderCheckoutService.CheckoutResult result = service.checkout(
+                request, "anonymousUser", "dinein-checkout-5");
+
+        assertEquals(22, result.orderId());
+        assertEquals(1, table.getIsOccupied());
+        verify(tableRepository).save(table);
+        verify(inventoryReservationService).reserve(any(), any(), any());
     }
 
     @Test

@@ -28,19 +28,22 @@ import poly.edu.quanlynhahang.repository.ProductRepository;
  */
 @Service
 public class MenuRecommendationService {
-    private static final int MAX_SUGGESTIONS = 5;
+    private static final int MAX_SUGGESTIONS = 4;
 
     private final ProductRepository productRepository;
     private final HotMenuItemService hotMenuItemService;
+    private final MenuAvailabilityService menuAvailabilityService;
 
     public MenuRecommendationService(ProductRepository productRepository) {
-        this(productRepository, null);
+        this(productRepository, null, null);
     }
 
     @Autowired
-    public MenuRecommendationService(ProductRepository productRepository, HotMenuItemService hotMenuItemService) {
+    public MenuRecommendationService(ProductRepository productRepository, HotMenuItemService hotMenuItemService,
+                                     MenuAvailabilityService menuAvailabilityService) {
         this.productRepository = productRepository;
         this.hotMenuItemService = hotMenuItemService;
+        this.menuAvailabilityService = menuAvailabilityService;
     }
 
     @Transactional(readOnly = true)
@@ -50,7 +53,10 @@ public class MenuRecommendationService {
                 .collect(java.util.stream.Collectors.toSet());
         Set<String> preferences = request.preferences() == null ? Set.of() : request.preferences().stream()
                 .filter(Objects::nonNull).map(this::normalize).collect(java.util.stream.Collectors.toSet());
-        if (preferences.isEmpty() && request.maxBudget() == null) return recommend(selected);
+        Set<String> allergies = request.allergies() == null ? Set.of() : request.allergies().stream()
+                .filter(Objects::nonNull).map(this::normalize).filter(value -> !value.isBlank())
+                .collect(java.util.stream.Collectors.toSet());
+        if (preferences.isEmpty() && request.maxBudget() == null && allergies.isEmpty()) return recommend(selected);
 
         BigDecimal perDishBudget = calculatePerDishBudget(request.maxBudget(), request.guestCount());
 
@@ -63,7 +69,13 @@ public class MenuRecommendationService {
         }
         List<Integer> finalHotIds = hotIds;
         boolean vegetarian = preferences.stream().anyMatch(value -> value.contains("chay") || value.contains("vegetarian"));
-        List<MenuRecommendationItemResponse> preferenceMatches = productRepository.findByAvailableTrueAndStatusTrue().stream()
+        List<Product> recommendableProducts = productRepository.findByAvailableTrueAndStatusTrue().stream()
+                .filter(this::canServe)
+                .filter(product -> isAllergySafe(product, allergies))
+                .toList();
+        Set<Integer> allergySafeIds = recommendableProducts.stream().map(Product::getId)
+                .filter(Objects::nonNull).collect(java.util.stream.Collectors.toSet());
+        List<MenuRecommendationItemResponse> preferenceMatches = recommendableProducts.stream()
                 .filter(product -> product.getId() != null && !selectedIds.contains(product.getId()))
                 .filter(product -> !vegetarian || product.getDietType() == DietType.CHAY)
                 .filter(product -> isWithinBudget(product, perDishBudget))
@@ -77,6 +89,7 @@ public class MenuRecommendationService {
         LinkedHashMap<Integer, MenuRecommendationItemResponse> combined = new LinkedHashMap<>();
         preferenceMatches.forEach(item -> combined.putIfAbsent(item.productId(), item));
         recommend(selected).stream()
+                .filter(item -> allergies.isEmpty() || allergySafeIds.contains(item.productId()))
                 .filter(item -> perDishBudget == null || item.price() == null || item.price().compareTo(perDishBudget) <= 0)
                 .forEach(item -> combined.putIfAbsent(item.productId(), item));
         return combined.values().stream().limit(MAX_SUGGESTIONS).toList();
@@ -101,6 +114,15 @@ public class MenuRecommendationService {
         if ((preferences.contains("nuong") || preferences.contains("grilled")) && product.getCookingMethod() == CookingMethod.NUONG) score += 45;
         if ((preferences.contains("hap") || preferences.contains("steamed")) && product.getCookingMethod() == CookingMethod.HAP) score += 40;
         if ((preferences.contains("it cay") || preferences.contains("khong cay")) && (product.getSpicyLevel() == null || product.getSpicyLevel() <= 1)) score += 35;
+        if (preferences.contains("cay nhe") && product.getSpicyLevel() != null && product.getSpicyLevel() == 1) score += 38;
+        if (preferences.contains("cay vua") && product.getSpicyLevel() != null && product.getSpicyLevel() == 2) score += 40;
+        if (preferences.contains("cay nhieu") && product.getSpicyLevel() != null && product.getSpicyLevel() >= 3) score += 42;
+        if (preferences.contains("thanh nhe") && (product.getCookingMethod() == CookingMethod.HAP
+                || product.getCookingMethod() == CookingMethod.LUOC || product.getDietType() == DietType.CHAY)) score += 34;
+        if (preferences.contains("dam vi") && (product.getCookingMethod() == CookingMethod.NUONG
+                || product.getCookingMethod() == CookingMethod.XAO)) score += 34;
+        if (preferences.contains("it dau") && (product.getCookingMethod() == CookingMethod.HAP
+                || product.getCookingMethod() == CookingMethod.LUOC)) score += 38;
         for (String preference : preferences) if (searchable.contains(preference)) score += 20;
         return score;
     }
@@ -114,6 +136,7 @@ public class MenuRecommendationService {
                 .collect(java.util.stream.Collectors.toSet());
         List<Product> availableProducts = productRepository.findByAvailableTrueAndStatusTrue().stream()
                 .filter(product -> product.getId() != null)
+                .filter(this::canServe)
                 .sorted(Comparator.comparing(Product::getId))
                 .toList();
 
@@ -247,6 +270,18 @@ public class MenuRecommendationService {
                 safe(product.getCategory().getNameEn()));
         return normalize(categoryName + " " + safe(product.getName()) + " " + safe(product.getNameVi())
                 + " " + safe(product.getNameEn()));
+    }
+
+    private boolean canServe(Product product) {
+        return Boolean.TRUE.equals(product.getStatus()) && Boolean.TRUE.equals(product.getAvailable())
+                && (menuAvailabilityService == null || menuAvailabilityService.availableQuantity(product) > 0);
+    }
+
+    private boolean isAllergySafe(Product product, Set<String> allergies) {
+        if (allergies.isEmpty()) return true;
+        String searchable = categoryAndName(product) + " " + normalize(safe(product.getDescription()))
+                + " " + normalize(safe(product.getDescriptionVi())) + " " + normalize(safe(product.getDescriptionEn()));
+        return allergies.stream().noneMatch(searchable::contains);
     }
 
     private String safe(String value) {
