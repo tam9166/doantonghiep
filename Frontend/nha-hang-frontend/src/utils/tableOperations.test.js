@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { findAwaitingPaymentOrder, groupTablesByFloorAndArea, isAwaitingPayment } from './tableOperations'
+import { findAwaitingPaymentOrder, groupTablesByFloorAndArea, isAwaitingPayment, tableIdentifier } from './tableOperations'
 
 describe('shared Waiter/Cashier table operations', () => {
   it('keeps a legacy table order visible to both workspaces until financially paid', () => {
@@ -18,5 +18,11 @@ describe('shared Waiter/Cashier table operations', () => {
     expect(grouped['Tầng 1']['Khu trong nhà'][0].name).toBe('B03')
     expect(grouped['Tầng 1']['Phòng VIP'][0].name).toBe('VIP01')
     expect(grouped['Tầng 2']['Sân vườn'][0].name).toBe('B08')
+  })
+
+  it('uses one business identifier without exposing the database id', () => {
+    expect(tableIdentifier({ id: 3, name: 'B03' })).toBe('B03')
+    expect(tableIdentifier({ id: 8, code: 'VIP01', name: 'Bàn nội bộ' })).toBe('VIP01')
+    expect(tableIdentifier({ id: 15 })).toBe('Chưa đặt mã bàn')
   })
 })

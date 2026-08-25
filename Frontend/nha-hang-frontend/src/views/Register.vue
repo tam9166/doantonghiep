@@ -1,37 +1,37 @@
 <template>
   <div class="register-page">
     <router-link to="/" class="g-back-btn-floating">
-      <span>←</span> Về Trang Chủ
+      <span>←</span> {{ t('customer.backHome') }}
     </router-link>
     
     <!-- Left Panel -->
     <div class="register-visual">
       <div class="visual-overlay"></div>
       <div class="visual-content">
-        <div class="visual-badge">✦ GIA NHẬP MỘC VỊ</div>
-        <h1 class="text-gradient">Tạo tài khoản<br><span>miễn phí</span></h1>
-        <p>Đăng ký để đặt bàn, gọi món, tích điểm và nhận nhiều ưu đãi hấp dẫn.</p>
+        <div class="visual-badge">✦ {{ t('customer.register.badge') }}</div>
+        <h1 class="text-gradient">{{ t('customer.register.headline') }}</h1>
+        <p>{{ t('customer.register.intro') }}</p>
         
         <div class="benefits-list">
           <div class="benefit-item">
             <span class="benefit-icon"><UiIcon name="sparkles" /></span>
             <div>
-              <strong>Tích điểm VIP</strong>
-              <p>Mỗi đơn hàng đều được tích điểm đổi quà</p>
+              <strong>{{ t('customer.register.vipPoints') }}</strong>
+              <p>{{ t('customer.register.vipPointsHint') }}</p>
             </div>
           </div>
           <div class="benefit-item">
             <span class="benefit-icon"><UiIcon name="note" /></span>
             <div>
-              <strong>Voucher độc quyền</strong>
-              <p>Nhận mã giảm giá dành riêng cho thành viên</p>
+              <strong>{{ t('customer.register.vouchers') }}</strong>
+              <p>{{ t('customer.register.vouchersHint') }}</p>
             </div>
           </div>
           <div class="benefit-item">
             <span class="benefit-icon"><UiIcon name="clock" /></span>
             <div>
-              <strong>Đặt món nhanh</strong>
-              <p>Lưu lịch sử, đặt lại chỉ 1 click</p>
+              <strong>{{ t('customer.register.quickOrder') }}</strong>
+              <p>{{ t('customer.register.quickOrderHint') }}</p>
             </div>
           </div>
         </div>
@@ -54,12 +54,12 @@
         <div class="steps-bar">
           <div class="step" :class="{ active: step >= 1, done: step > 1 }">
             <div class="step-circle">{{ step > 1 ? '✓' : '1' }}</div>
-            <span>Thông tin</span>
+            <span>{{ t('customer.register.information') }}</span>
           </div>
           <div class="step-line" :class="{ active: step > 1 }"></div>
           <div class="step" :class="{ active: step >= 2 }">
             <div class="step-circle">2</div>
-            <span>Xác nhận</span>
+            <span>{{ t('customer.register.confirmation') }}</span>
           </div>
         </div>
 
@@ -67,29 +67,29 @@
         <Transition name="step" mode="out-in">
           <div v-if="step === 1" key="step1" class="step-content">
             <div class="form-header">
-              <h2>Thông tin tài khoản</h2>
-              <p>Điền thông tin cơ bản để tạo tài khoản</p>
+              <h2>{{ t('customer.register.accountTitle') }}</h2>
+              <p>{{ t('customer.register.accountHint') }}</p>
             </div>
 
             <div class="form-grid">
               <div class="input-group">
-                <label>Tên đăng nhập *</label>
+                <label>{{ t('customer.register.username') }}</label>
                 <div class="input-field">
                   <span class="field-icon"><UiIcon name="user" /></span>
                   <input v-model="form.username" type="text" required minlength="4" maxlength="50" pattern="[a-zA-Z0-9._-]+" autocomplete="username" placeholder="username..." />
                 </div>
               </div>
               <div class="input-group">
-                <label>Họ và Tên *</label>
+                <label>{{ t('customer.register.fullName') }}</label>
                 <div class="input-field">
                   <span class="field-icon"><UiIcon name="profile" /></span>
-                  <input v-model="form.fullname" type="text" required maxlength="100" autocomplete="name" placeholder="Nguyễn Văn A..." />
+                <input v-model="form.fullname" type="text" required maxlength="100" autocomplete="name" :placeholder="t('customer.register.fullNamePlaceholder')" />
                 </div>
               </div>
             </div>
 
             <div class="input-group">
-              <label>Email *</label>
+              <label>{{ t('customer.register.email') }}</label>
               <div class="input-field">
                 <span class="field-icon"><UiIcon name="mail" /></span>
                 <input v-model="form.email" type="email" required maxlength="100" autocomplete="email" placeholder="email@gmail.com" />
@@ -97,11 +97,11 @@
             </div>
 
             <div class="input-group">
-              <label>Mật khẩu *</label>
+              <label>{{ t('customer.register.password') }}</label>
               <div class="input-field">
                 <span class="field-icon"><UiIcon name="settings" /></span>
-                <input v-model="form.password" :type="showPw ? 'text' : 'password'" required minlength="10" maxlength="72" autocomplete="new-password" placeholder="Từ 10 đến 72 ký tự..." />
-                <button class="toggle-pw" @click="showPw = !showPw" type="button" :aria-label="showPw ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'"><UiIcon name="eye" /></button>
+                <input v-model="form.password" :type="showPw ? 'text' : 'password'" required minlength="10" maxlength="72" autocomplete="new-password" :placeholder="t('customer.register.passwordPlaceholder')" />
+                <button class="toggle-pw" @click="showPw = !showPw" type="button" :aria-label="showPw ? t('customer.register.hidePassword') : t('customer.register.showPassword')"><UiIcon name="eye" /></button>
               </div>
               <!-- Password Strength -->
               <div class="pw-strength" v-if="form.password">
@@ -112,14 +112,14 @@
               </div>
             </div>
 
-            <button @click="goStep2" class="btn-next">Tiếp tục →</button>
+            <button @click="goStep2" class="btn-next">{{ t('customer.register.continue') }}</button>
           </div>
 
           <!-- Step 2: Confirm -->
           <div v-else-if="step === 2" key="step2" class="step-content">
             <div class="form-header">
-              <h2>Xác nhận thông tin</h2>
-              <p>Kiểm tra lại thông tin trước khi đăng ký</p>
+              <h2>{{ t('customer.register.confirmTitle') }}</h2>
+              <p>{{ t('customer.register.confirmHint') }}</p>
             </div>
 
             <div class="confirm-card">
@@ -128,7 +128,7 @@
                 <span class="confirm-value">{{ form.username }}</span>
               </div>
               <div class="confirm-row">
-                <span class="confirm-label"> Họ và Tên</span>
+                <span class="confirm-label">{{ t('customer.register.fullName') }}</span>
                 <span class="confirm-value">{{ form.fullname }}</span>
               </div>
               <div class="confirm-row">
@@ -136,7 +136,7 @@
                 <span class="confirm-value">{{ form.email }}</span>
               </div>
               <div class="confirm-row">
-                <span class="confirm-label"> Mật khẩu</span>
+                <span class="confirm-label">{{ t('customer.register.password') }}</span>
                 <span class="confirm-value">••••••••</span>
               </div>
             </div>
@@ -144,14 +144,14 @@
             <label class="terms-check">
               <input type="checkbox" v-model="termsAccepted" />
               <span class="checkmark"></span>
-              Tôi đồng ý với <a href="#">Điều khoản sử dụng</a> và <a href="#">Chính sách bảo mật</a>
+              {{ t('customer.register.termsPrefix') }} <a href="#">{{ t('customer.register.terms') }}</a> {{ t('customer.register.and') }} <a href="#">{{ t('customer.register.privacy') }}</a>
             </label>
 
             <div class="btn-row">
-              <button @click="step = 1" class="btn-back">← Quay lại</button>
+              <button @click="step = 1" class="btn-back">← {{ t('customer.back') }}</button>
               <button @click="handleRegister" class="btn-register" :disabled="isLoading || !termsAccepted">
-                <span v-if="!isLoading"> Đăng Ký</span>
-                <span v-else class="btn-loading"><span class="spinner"></span> Đang xử lý...</span>
+                <span v-if="!isLoading">{{ t('customer.register.submit') }}</span>
+                <span v-else class="btn-loading"><span class="spinner"></span> {{ t('customer.processing') }}</span>
               </button>
             </div>
           </div>
@@ -167,8 +167,8 @@
 
         <!-- Footer -->
         <div class="form-footer">
-          <p>Đã có tài khoản? <router-link to="/login">Đăng nhập →</router-link></p>
-          <router-link to="/" class="back-home">← Về trang chủ</router-link>
+          <p>{{ t('customer.register.hasAccount') }} <router-link to="/login">{{ t('customer.register.login') }}</router-link></p>
+          <router-link to="/" class="back-home">← {{ t('customer.backHome') }}</router-link>
         </div>
       </div>
     </div>
@@ -182,9 +182,11 @@ import api from '@/services/api'
 import { getApiErrorMessage } from '@/services/errorMessage'
 import { useToast } from '@/composables/useToast'
 import { getRegistrationValidationError, normalizeRegistration } from '@/utils/registrationValidation'
+import { useI18n } from 'vue-i18n'
 
 const router = useRouter()
 const toast = useToast()
+const { t } = useI18n()
 const form = ref({ username: '', password: '', fullname: '', email: '' })
 const isLoading = ref(false)
 const errorMsg = ref('')
@@ -211,14 +213,16 @@ const pwStrengthClass = computed(() => {
   return 'pw-strong'
 })
 const pwStrengthLabel = computed(() => {
-  if (pwStrength.value <= 1) return 'Yếu'
-  if (pwStrength.value <= 3) return 'Trung bình'
-  return 'Mạnh'
+  if (pwStrength.value <= 1) return t('customer.register.strength.weak')
+  if (pwStrength.value <= 3) return t('customer.register.strength.medium')
+  return t('customer.register.strength.strong')
 })
+
+const registrationValidationMessage = key => t(`customer.register.validation.${key}`)
 
 function goStep2() {
   errorMsg.value = ''
-  const validationError = getRegistrationValidationError(form.value)
+  const validationError = getRegistrationValidationError(form.value, registrationValidationMessage)
   if (validationError) {
     errorMsg.value = validationError
     return
@@ -230,10 +234,10 @@ function goStep2() {
 async function handleRegister() {
   errorMsg.value = ''
   if (!termsAccepted.value) {
-    errorMsg.value = 'Bạn cần đồng ý với Điều khoản sử dụng và Chính sách bảo mật.'
+    errorMsg.value = t('customer.register.termsRequired')
     return
   }
-  const validationError = getRegistrationValidationError(form.value)
+  const validationError = getRegistrationValidationError(form.value, registrationValidationMessage)
   if (validationError) {
     errorMsg.value = validationError
     step.value = 1
@@ -243,10 +247,10 @@ async function handleRegister() {
   isLoading.value = true
   try {
     await api.post('/api/auth/signup', { ...form.value, termsAccepted: true })
-    toast.success('Tài khoản đã được tạo. Hãy đăng nhập!', 'Đăng ký thành công')
+    toast.success(t('customer.register.success'), t('customer.register.successTitle'))
     router.push('/login')
   } catch (error) {
-    errorMsg.value = getApiErrorMessage(error, 'Đăng ký thất bại! Vui lòng thử lại.')
+    errorMsg.value = getApiErrorMessage(error, t('customer.register.failed'))
   } finally {
     isLoading.value = false
   }

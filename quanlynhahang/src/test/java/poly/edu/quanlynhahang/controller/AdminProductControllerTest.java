@@ -33,7 +33,8 @@ class AdminProductControllerTest {
         product.setName("Mon thu nghiem");
         when(productRepository.findAll()).thenReturn(List.of(product));
         when(menuEconomicsService.assess(product)).thenReturn(
-                new MenuEconomicsService.Assessment(new BigDecimal("0.3000"), 12, true));
+                new MenuEconomicsService.Assessment(new BigDecimal("0.3000"), 12, true,
+                        new BigDecimal("5000.00"), new BigDecimal("30.00"), "VALID"));
         when(reviewRepository.getAverageRatingByProductId(1)).thenReturn(null);
 
         List<AdminProductResponse> responses = controller.getProductsForOperations();

@@ -6,7 +6,7 @@
     <div class="history-container">
       <div style="margin-bottom: 20px;">
         <button @click="$router.back()" class="g-btn-outline" style="border-radius: 100px; padding: 8px 20px; border-color: rgba(255,255,255,0.2);">
-          ← Quay Lại
+          ← {{ t('customer.back') }}
         </button>
       </div>
       
@@ -14,49 +14,49 @@
       <div v-if="userProfile" class="vip-card-wrapper">
         <div :class="['vip-card', getTierClass(userProfile.membershipTier)]">
           <div class="vip-top">
-            <span class="vip-logo"> Mộc Vị VIP</span>
-            <span class="vip-tier">{{ userProfile.membershipTier }}</span>
+            <span class="vip-logo">{{ t('customer.history.vip') }}</span>
+            <span class="vip-tier">{{ tierLabel(userProfile.membershipTier) }}</span>
           </div>
           <div class="vip-chip"></div>
           <div class="vip-number">{{ userProfile.username.toUpperCase() }} - {{ String(userProfile.points).padStart(4, '0') }} PT</div>
           <div class="vip-bottom">
             <div class="vip-name">{{ userProfile.fullname }}</div>
-            <div class="vip-discount">Giảm: {{ getDiscountByTier(userProfile.membershipTier) }}%</div>
+            <div class="vip-discount">{{ t('customer.history.discount', { percent: getDiscountByTier(userProfile.membershipTier) }) }}</div>
           </div>
         </div>
       </div>
 
-    <h1>Lịch Sử Đặt Món</h1>
+    <h1>{{ t('customer.history.orderHistory') }}</h1>
     
     <div v-if="orders.length > 0">
       <table class="history-table">
         <thead>
           <tr>
-            <th>Mã Đơn</th>
-            <th>Ngày Đặt</th>
-            <th>Địa Chỉ</th>
-            <th>Trạng Thái</th>
-            <th>Hành Động</th>
+            <th>{{ t('customer.history.orderCode') }}</th>
+            <th>{{ t('customer.history.orderDate') }}</th>
+            <th>{{ t('customer.history.address') }}</th>
+            <th>{{ t('customer.history.status') }}</th>
+            <th>{{ t('customer.history.actions') }}</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="order in orders" :key="order.id">
             <td>#{{ order.id }}</td>
-            <td>{{ new Date(order.createDate).toLocaleString() }}</td>
+            <td>{{ formatDateTime(order.createDate) }}</td>
             <td>{{ order.address }}</td>
             <td>
               <span :class="order.status === 0 ? 'status-pending' : (order.status === 4 ? 'status-done' : 'status-pending')">
-                {{ order.status === 0 ? 'Đang xử lý' : (order.status === 4 ? 'Đã hoàn thành' : 'Đang thực hiện') }}
+                {{ order.status === 0 ? t('customer.history.processing') : (order.status === 4 ? t('customer.history.completed') : t('customer.history.inProgress')) }}
               </span>
               <small class="payment-summary">{{ paymentSummary(order) }}</small>
             </td>
             <td>
-              <button v-if="order.isPaid" @click="selectedInvoice = order" class="btn-review">Xem hóa đơn</button>
+              <button v-if="order.isPaid" @click="selectedInvoice = order" class="btn-review">{{ t('customer.history.viewInvoice') }}</button>
               <button v-if="order.isPaid" @click="requestInvoice(order)" class="btn-review" :disabled="invoiceRequesting === order.id">
-                {{ order.invoiceRequested ? 'Đã yêu cầu xuất hóa đơn' : invoiceRequesting === order.id ? 'Đang gửi yêu cầu...' : 'Yêu cầu xuất hóa đơn' }}
+                {{ order.invoiceRequested ? t('customer.history.invoiceRequested') : invoiceRequesting === order.id ? t('customer.history.requestingInvoice') : t('customer.history.requestInvoice') }}
               </button>
-              <button v-if="order.status === 4 && !reviewedOrders.includes(order.id)" @click="openReviewModal(order)" class="btn-review"> Đánh giá (Nhận +2 Điểm)</button>
-              <span v-if="order.status === 4 && reviewedOrders.includes(order.id)" class="text-success"> Đã đánh giá</span>
+              <button v-if="order.status === 4 && !reviewedOrders.includes(order.id)" @click="openReviewModal(order)" class="btn-review">{{ t('customer.history.reviewReward') }}</button>
+              <span v-if="order.status === 4 && reviewedOrders.includes(order.id)" class="text-success">{{ t('customer.history.reviewed') }}</span>
             </td>
           </tr>
         </tbody>
@@ -64,15 +64,15 @@
     </div>
 
     <section v-if="reservations.length > 0" class="reservation-history">
-      <h2>Lịch sử đặt bàn</h2>
+      <h2>{{ t('customer.history.reservationHistory') }}</h2>
       <table class="history-table">
         <thead>
           <tr>
-            <th>Mã đặt bàn</th>
-            <th>Thời gian</th>
-            <th>Bàn</th>
-            <th>Món đặt trước</th>
-            <th>Trạng thái</th>
+            <th>{{ t('customer.history.reservationCode') }}</th>
+            <th>{{ t('customer.history.time') }}</th>
+            <th>{{ t('customer.history.table') }}</th>
+            <th>{{ t('customer.history.preorder') }}</th>
+            <th>{{ t('customer.history.status') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -80,7 +80,7 @@
             <td>{{ reservation.reservationCode }}</td>
             <td>{{ reservation.reservationDate }} {{ reservation.arrivalTime }}</td>
             <td>{{ reservation.tableName || '-' }}</td>
-            <td>{{ reservation.preorderItems?.length || 0 }} món</td>
+            <td>{{ t('customer.history.items', { count: reservation.preorderItems?.length || 0 }) }}</td>
             <td>{{ reservationStatusText(reservation.reservationStatus) }}</td>
           </tr>
         </tbody>
@@ -89,43 +89,43 @@
 
     <div v-if="selectedInvoice" class="modal-overlay" @click.self="selectedInvoice = null">
       <div class="review-modal invoice-modal">
-        <h3>Hóa đơn #{{ selectedInvoice.id }}</h3>
-        <p>{{ new Date(selectedInvoice.createDate).toLocaleString('vi-VN') }}</p>
+        <h3>{{ t('customer.history.invoice', { id: selectedInvoice.id }) }}</h3>
+        <p>{{ formatDateTime(selectedInvoice.createDate) }}</p>
         <div v-for="detail in selectedInvoice.orderDetails" :key="detail.id" class="invoice-row">
           <span>{{ detail.product?.name }} x{{ detail.quantity }}</span>
-          <strong>{{ Number(detail.price || 0).toLocaleString('vi-VN') }} đ</strong>
+          <strong>{{ formatMoney(detail.price) }}</strong>
         </div>
         <div class="invoice-row invoice-total-row">
-          <span>Tổng thanh toán</span>
-          <strong>{{ Number(selectedInvoice.totalAmount || 0).toLocaleString('vi-VN') }} đ</strong>
+          <span>{{ t('customer.history.totalPaid') }}</span>
+          <strong>{{ formatMoney(selectedInvoice.totalAmount) }}</strong>
         </div>
         <p class="text-success">{{ paymentSummary(selectedInvoice) }}</p>
-        <button @click="printInvoice" class="btn-submit-review">In hóa đơn</button>
-        <button @click="selectedInvoice = null" class="btn-close-review">Đóng</button>
+        <button @click="printInvoice" class="btn-submit-review">{{ t('customer.history.print') }}</button>
+        <button @click="selectedInvoice = null" class="btn-close-review">{{ t('customer.close') }}</button>
       </div>
     </div>
-    <p v-if="orders.length === 0 && reservations.length === 0" class="no-order">Bạn chưa có đơn hàng hoặc đặt bàn nào.</p>
+    <p v-if="orders.length === 0 && reservations.length === 0" class="no-order">{{ t('customer.history.noHistory') }}</p>
     </div>
     
     <!-- Modal Đánh Giá -->
     <div v-if="showReview" class="modal-overlay" @click.self="showReview = false">
       <div class="review-modal">
-        <h3>Đánh giá món ăn - Đơn #{{ currentReviewOrder?.id }}</h3>
+        <h3>{{ t('customer.history.reviewTitle', { id: currentReviewOrder?.id }) }}</h3>
         <div class="review-list">
           <div v-for="detail in currentReviewOrder?.orderDetails" :key="detail.id" class="review-item">
             <p><strong>{{ detail.product.name }}</strong></p>
             <select v-model="reviewData[detail.product.id].rating" class="r-select">
-              <option value="5"> Tuyệt vời</option>
-              <option value="4"> Tốt</option>
-              <option value="3"> Bình thường</option>
-              <option value="2"> Tệ</option>
-              <option value="1"> Rất tệ</option>
+              <option value="5">{{ t('customer.history.ratingExcellent') }}</option>
+              <option value="4">{{ t('customer.history.ratingGood') }}</option>
+              <option value="3">{{ t('customer.history.ratingAverage') }}</option>
+              <option value="2">{{ t('customer.history.ratingBad') }}</option>
+              <option value="1">{{ t('customer.history.ratingVeryBad') }}</option>
             </select>
-            <input v-model="reviewData[detail.product.id].comment" placeholder="Chia sẻ cảm nhận của bạn..." class="r-input" />
-            <button @click="submitReview(detail.product.id)" class="btn-submit-review">Gửi</button>
+            <input v-model="reviewData[detail.product.id].comment" :placeholder="t('customer.history.reviewPlaceholder')" class="r-input" />
+            <button @click="submitReview(detail.product.id)" class="btn-submit-review">{{ t('customer.history.send') }}</button>
           </div>
         </div>
-        <button @click="closeReviewModal" class="btn-close-review">Đóng & Hoàn tất</button>
+        <button @click="closeReviewModal" class="btn-close-review">{{ t('customer.history.closeComplete') }}</button>
       </div>
     </div>
   </div>
@@ -136,6 +136,9 @@
 import { ref, onMounted } from 'vue';
 import api from '@/services/api';
 import CustomerLayout from '@/components/CustomerLayout.vue';
+import { useI18n } from 'vue-i18n';
+
+const { t, locale } = useI18n();
 
 const orders = ref([]);
 const reservations = ref([]);
@@ -149,12 +152,17 @@ const invoiceRequesting = ref(null);
 
 const paymentSummary = (order) => {
   if (order.isPaid || order.paymentStatus === 'PAID' || order.paymentStatus === 'OVERPAID') {
-    return 'Đã thanh toán đủ 100%';
+    return t('customer.history.paidFull');
   }
   const paid = Number(order.paidAmount || order.deposit || 0);
-  if (paid > 0) return `Đã thanh toán trước ${paid.toLocaleString('vi-VN')} đ`;
-  return 'Chưa thanh toán';
+  if (paid > 0) return t('customer.history.paidAdvance', { amount: formatMoney(paid) });
+  return t('customer.history.unpaid');
 };
+
+const formatDateTime = (value) => new Date(value).toLocaleString(locale.value === 'vi' ? 'vi-VN' : 'en-US');
+const formatMoney = (value) => new Intl.NumberFormat(locale.value === 'vi' ? 'vi-VN' : 'en-US', {
+  style: 'currency', currency: 'VND', maximumFractionDigits: 0,
+}).format(Number(value || 0));
 
 const requestInvoice = async (order) => {
   if (invoiceRequesting.value || order.invoiceRequested) return;
@@ -165,9 +173,9 @@ const requestInvoice = async (order) => {
       headers: { Authorization: `Bearer ${token}` },
     });
     order.invoiceRequested = true;
-    alert(response.data?.message || 'Đã ghi nhận yêu cầu xuất hóa đơn.');
+    alert(locale.value === 'vi' && response.data?.message ? response.data.message : t('customer.history.invoiceRequestRecorded'));
   } catch (error) {
-    alert(error.response?.data?.message || error.response?.data || 'Không thể gửi yêu cầu xuất hóa đơn.');
+    alert(t('customer.history.invoiceRequestFailed'));
   } finally {
     invoiceRequesting.value = null;
   }
@@ -203,17 +211,19 @@ const fetchReservationHistory = async () => {
   }
 };
 
-const reservationStatusText = (status) => ({
-  PENDING: 'Chờ xác nhận',
-  CONFIRMED: 'Đã xác nhận',
-  DEPOSIT_REQUIRED: 'Chờ đặt cọc',
-  DEPOSIT_PAID: 'Đã đặt cọc',
-  FULLY_PAID: 'Đã thanh toán',
-  CHECKED_IN: 'Đã nhận bàn',
-  COMPLETED: 'Hoàn thành',
-  CANCELLED: 'Đã hủy',
-  REJECTED: 'Từ chối',
-}[status] || status || '-');
+const reservationStatusText = (status) => {
+  const key = ({
+    PENDING: 'pending', CONFIRMED: 'confirmed', DEPOSIT_REQUIRED: 'depositRequired',
+    DEPOSIT_PAID: 'depositPaid', FULLY_PAID: 'fullyPaid', CHECKED_IN: 'checkedIn',
+    COMPLETED: 'completed', CANCELLED: 'cancelled', REJECTED: 'rejected',
+  })[status];
+  return key ? t(`customer.history.reservationStatuses.${key}`) : (status || '-');
+};
+
+const tierLabel = (tier) => {
+  const key = tier === 'Kim Cương' ? 'diamond' : tier === 'Vàng' ? 'gold' : tier === 'Bạc' ? 'silver' : 'bronze';
+  return t(`customer.tiers.${key}`);
+};
 
 const fetchProfile = async () => {
   const token = sessionStorage.getItem('token');
@@ -263,10 +273,10 @@ const submitReview = async (productId) => {
     }, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    alert(res.data.message || "Cảm ơn bạn đã đánh giá món ăn này!");
+    alert(locale.value === 'vi' && res.data?.message ? res.data.message : t('customer.history.reviewThanks'));
     fetchProfile(); // Cập nhật lại thẻ VIP
   } catch (err) {
-    alert("Có lỗi khi gửi đánh giá.");
+    alert(t('customer.history.reviewFailed'));
   }
 };
 

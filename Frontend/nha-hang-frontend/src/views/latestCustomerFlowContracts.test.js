@@ -33,7 +33,7 @@ describe('latest customer flow contracts', () => {
     const menu = read('./ProductMenu.vue')
     expect(menu).toContain('v-for="product in paginatedProducts"')
     expect(menu).toContain('repeat(6, minmax(0, 1fr))')
-    expect(menu).toContain('Còn tối đa ${product.availableQuantity} suất')
+    expect(menu).toContain("t('menu.remaining', { count: product.availableQuantity })")
     expect(menu).toContain('class="menu-pagination"')
   })
 })

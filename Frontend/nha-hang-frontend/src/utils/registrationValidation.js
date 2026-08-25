@@ -20,29 +20,39 @@ export function normalizeRegistration(form) {
   }
 }
 
-export function getRegistrationValidationError(form) {
+const DEFAULT_VALIDATION_MESSAGES = {
+  required: 'Vui lòng điền đầy đủ thông tin bắt buộc!',
+  usernameLength: 'Tên đăng nhập phải có từ 4 đến 50 ký tự!',
+  usernamePattern: 'Tên đăng nhập chỉ được chứa chữ, số, dấu chấm, gạch dưới hoặc gạch ngang!',
+  fullNameLength: 'Họ và tên không được vượt quá 100 ký tự!',
+  email: 'Email không đúng định dạng hoặc vượt quá 100 ký tự!',
+  passwordLength: 'Mật khẩu phải có từ 10 đến 72 ký tự!',
+  commonPassword: 'Mật khẩu quá phổ biến, vui lòng chọn mật khẩu khác!',
+}
+
+export function getRegistrationValidationError(form, translate = key => DEFAULT_VALIDATION_MESSAGES[key]) {
   const normalized = normalizeRegistration(form)
 
   if (!normalized.username || !normalized.fullname || !normalized.email || !normalized.password) {
-    return 'Vui lòng điền đầy đủ thông tin bắt buộc!'
+    return translate('required')
   }
   if (normalized.username.length < 4 || normalized.username.length > 50) {
-    return 'Tên đăng nhập phải có từ 4 đến 50 ký tự!'
+    return translate('usernameLength')
   }
   if (!USERNAME_PATTERN.test(normalized.username)) {
-    return 'Tên đăng nhập chỉ được chứa chữ, số, dấu chấm, gạch dưới hoặc gạch ngang!'
+    return translate('usernamePattern')
   }
   if (normalized.fullname.length > 100) {
-    return 'Họ và tên không được vượt quá 100 ký tự!'
+    return translate('fullNameLength')
   }
   if (normalized.email.length > 100 || !EMAIL_PATTERN.test(normalized.email)) {
-    return 'Email không đúng định dạng hoặc vượt quá 100 ký tự!'
+    return translate('email')
   }
   if (normalized.password.length < 10 || normalized.password.length > 72) {
-    return 'Mật khẩu phải có từ 10 đến 72 ký tự!'
+    return translate('passwordLength')
   }
   if (COMMON_PASSWORDS.has(normalized.password.toLowerCase())) {
-    return 'Mật khẩu quá phổ biến, vui lòng chọn mật khẩu khác!'
+    return translate('commonPassword')
   }
   return ''
 }

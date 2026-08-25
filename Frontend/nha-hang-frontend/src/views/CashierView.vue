@@ -41,12 +41,12 @@
                 :class="['table-box', getTableClass(table.isOccupied), { 'selected-table': selectedOrder && orderMatchesTable(selectedOrder, table), 'payment-priority': cashierTableStatus(table) === 'WAITING_PAYMENT' }]"
                 @click="selectOrderForTable(table)">
             <div class="tc-top">
-              <span class="tc-capacity"> {{ table.capacity || 4 }}</span>
+              <span class="tc-capacity">{{ table.capacity || 4 }} người</span>
               <span class="tc-icon"><UiIcon name="table" /></span>
             </div>
             <div class="tc-center">
               <div class="tc-dot"></div>
-              <h4 class="cashier-table-code">{{ table.name }}</h4>
+              <h4 class="cashier-table-code" :title="tableIdentifier(table)">{{ tableIdentifier(table) }}</h4>
               <p class="cashier-table-location">{{ table.floor }} · {{ table.areaName || 'Khu vực chung' }}</p>
               <p class="tc-subtitle">
                 <span v-if="getOpenOrderForTable(table)" style="color:var(--color-tertiary); font-weight: bold;">
@@ -76,7 +76,7 @@
             <p>Địa chỉ: 137 Nguyễn Thị Thập, Hòa Minh, Liên Chiểu, Đà Nẵng</p>
             <p>Hotline: 0905.XXX.XXX | Email: contact@mocvirestaurant.vn</p>
             <hr />
-            <h3>HÓA ĐƠN THANH TOÁN</h3>
+            <h3>Thanh toán — {{ selectedTableIdentifier }}</h3>
             <p>Mã HĐ: #{{ selectedOrder.id }}</p>
             <p>Bàn: {{ getTableName(selectedOrder) }}</p>
             <p>Ngày: {{ new Date(selectedOrder.createDate).toLocaleString('vi-VN') }}</p>
@@ -318,7 +318,7 @@ import { clearStaffSession, getStaffToken, getStaffUser } from '@/services/sessi
 import { useDialog } from '@/composables/useDialog';
 import { useToast } from '@/composables/useToast';
 import { printElement } from '@/utils/printElement';
-import { findAwaitingPaymentOrder, groupTablesByFloorAndArea, isAwaitingPayment, orderLifecycleLabel, tableArea, tableFloor } from '@/utils/tableOperations';
+import { findAwaitingPaymentOrder, groupTablesByFloorAndArea, isAwaitingPayment, orderLifecycleLabel, tableArea, tableFloor, tableIdentifier } from '@/utils/tableOperations';
 
 const { confirmDialog } = useDialog();
 const toast = useToast();
@@ -327,6 +327,7 @@ const router = useRouter();
 const pendingOrders = ref([]);
 const allOrders = ref([]);
 const selectedOrder = ref(null);
+const selectedTableIdentifier = ref('');
 const paymentQr = ref(null);
 const paymentQrLoading = ref(false);
 const paymentQrError = ref('');
@@ -476,10 +477,12 @@ const selectOrderForTable = (table) => {
   const order = getOpenOrderForTable(table);
   if (order) {
     selectedOrder.value = order;
+    selectedTableIdentifier.value = tableIdentifier(table);
     paymentQr.value = null;
     paymentQrError.value = '';
   } else {
     selectedOrder.value = null;
+    selectedTableIdentifier.value = '';
     toast.info('Bàn này chưa gọi món hoặc đã thanh toán xong!');
   }
 };
@@ -687,7 +690,18 @@ onUnmounted(() => {
 .cashier-floor { margin-top: 18px; }
 .cashier-floor-title { padding-bottom: 8px; border-bottom: 1px solid var(--border); font-size: 1.15rem; }
 .cashier-area > h4 { color: var(--primary); margin: 12px 0 4px; }
-.cashier-table-code { font-size: 1.3rem !important; font-weight: 900 !important; }
+.cashier-table-code {
+  display: block;
+  width: 100%;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 1.45rem !important;
+  line-height: 1.2;
+  font-weight: 900 !important;
+  color: var(--text-heading);
+}
 .cashier-table-location { margin: 2px 0 5px; color: var(--text-muted); font-size: 0.72rem; }
 .table-box.payment-priority { border: 2px solid var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 12%, transparent); }
 

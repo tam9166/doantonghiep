@@ -44,8 +44,9 @@
             </select>
           </div>
           <div class="form-group">
-            <label>Sức chứa (Số người)</label>
+            <label>Sức chứa chuẩn (người)</label>
             <select v-model="newTable.capacity" class="g-form-control">
+              <option value="2">2 người</option>
               <option value="4">4 Người</option>
               <option value="6">6 Người</option>
               <option value="8">8 Người</option>
@@ -53,7 +54,7 @@
             </select>
           </div>
           <div class="form-group">
-            <label>Sức chứa tối đa</label>
+            <label>Sức chứa tối đa (người)</label>
             <input v-model.number="newTable.maxCapacity" type="number" min="1" class="g-form-control" />
           </div>
           <div class="form-group">
@@ -111,13 +112,13 @@
               <button @click="showMergeModal = true" class="g-btn-warning" style="padding: 8px 16px; border-radius: 20px; font-weight: bold; border: none; cursor: pointer;">
                  Gộp Bàn
               </button>
-              <button @click="isRealisticView = !isRealisticView" class="btn-heatmap" :class="{'active': isRealisticView}" style="border-color: var(--primary); color: var(--primary);">
+              <button @click="isRealisticView = !isRealisticView" class="btn-heatmap" :class="{'active': isRealisticView}">
                  {{ isRealisticView ? 'Tắt Sơ Đồ Thực Tế' : 'Bật Sơ Đồ Thực Tế' }}
               </button>
               <button @click="toggleHeatmap" class="btn-heatmap" :class="{'active': showHeatmap}">
                  {{ showHeatmap ? 'Tắt Bản Đồ Nhiệt' : 'Bật Bản Đồ Nhiệt' }}
               </button>
-              <button @click="toggleLayoutMode" class="btn-heatmap" :class="{'active': layoutEditMode}" style="border-color: var(--secondary); color: var(--secondary);">
+              <button @click="toggleLayoutMode" class="btn-heatmap" :class="{'active': layoutEditMode}">
                  {{ layoutEditMode ? 'Tắt Chỉnh Layout' : 'Chỉnh Layout' }}
               </button>
               <button v-if="layoutEditMode" @click="saveLayouts" class="g-btn-primary" style="padding: 8px 16px; border-radius: 20px;">
@@ -127,8 +128,10 @@
           </div>
           <p v-if="showHeatmap && !heatmapHasData" class="heatmap-empty">Chưa đủ dữ liệu phân tích</p>
 
-          <div v-for="(tables, floorName) in groupedTables" :key="floorName" class="floor-section">
+          <div v-for="(areasByName, floorName) in groupedTables" :key="floorName" class="floor-section">
             <h2 class="floor-title"> {{ floorName }}</h2>
+            <section v-for="(tables, areaName) in areasByName" :key="`${floorName}-${areaName}`" class="admin-area-section">
+              <h3 class="admin-area-title">{{ areaName }}</h3>
             <div v-if="layoutEditMode" class="layout-canvas">
               <div class="layout-hint">Kéo bàn để sắp xếp mặt bằng {{ floorName }}. Bấm "Lưu Layout" sau khi chỉnh.</div>
               <div
@@ -143,7 +146,7 @@
               >
                 <button @click.stop="openEditModal(t)" class="btn-edit" title="Sửa bàn"><UiIcon name="edit" /></button>
                 <button @click.stop="openQrModal(t)" class="btn-qr" title="Mã QR gọi món"><UiIcon name="qr" /></button>
-                <span v-if="t.capacity" class="capacity-tag"> {{ t.capacity }}</span>
+                <span v-if="t.capacity" class="capacity-tag">{{ t.capacity }} người</span>
                 <div class="table-status-dot"></div>
                 <h3 class="t-name">{{ t.name }}</h3>
                 <div class="t-area-text">{{ selectedAreaName(t.areaId) }}</div>
@@ -165,7 +168,7 @@
                 <button @click="openEditModal(t)" class="btn-edit" title="Sửa bàn"><UiIcon name="edit" /></button>
                 <button @click="openQrModal(t)" class="btn-qr" title="Mã QR gọi món"><UiIcon name="qr" /></button>
                 <span v-if="t.viewType" class="view-tag"> {{ t.viewType }}</span>
-                <span v-if="t.capacity" class="capacity-tag"> {{ t.capacity }}</span>
+                <span v-if="t.capacity" class="capacity-tag">{{ t.capacity }} người</span>
 
                 <div class="heatmap-overlay" v-if="showHeatmap" :class="getHeatLevel(t.id)">
                    {{ heatLabel(t.id) }}
@@ -185,6 +188,7 @@
                 </select>
               </div>
             </div>
+            </section>
           </div>
 
           <div v-if="Object.keys(groupedTables).length === 0" class="empty-floor">
@@ -261,15 +265,15 @@
             </select>
           </div>
           <div class="form-group">
-            <label>Sức chứa chuẩn</label>
+            <label>Sức chứa chuẩn (người)</label>
             <input v-model.number="editTable.capacity" type="number" min="1" class="g-form-control" />
           </div>
           <div class="form-group">
-            <label>Sức chứa tối thiểu</label>
+            <label>Sức chứa tối thiểu (người)</label>
             <input v-model.number="editTable.minCapacity" type="number" min="1" class="g-form-control" />
           </div>
           <div class="form-group">
-            <label>Sức chứa tối đa</label>
+            <label>Sức chứa tối đa (người)</label>
             <input v-model.number="editTable.maxCapacity" type="number" min="1" class="g-form-control" />
           </div>
           <div class="form-group">
@@ -346,6 +350,7 @@ import api from '@/services/api';
 import QrcodeVue from 'qrcode.vue';
 import { useDialog } from '@/composables/useDialog';
 import { useToast } from '@/composables/useToast';
+import { groupTablesByFloorAndArea } from '@/utils/tableOperations';
 
 const { confirmDialog } = useDialog();
 const toast = useToast();
@@ -821,15 +826,12 @@ const deleteTable = async (id) => {
 
 const groupedTables = computed(() => {
   const query = tableSearch.value.toLocaleLowerCase('vi-VN');
-  return tablesList.value.filter((table) => {
+  const filtered = tablesList.value.filter((table) => {
     if (!query) return true;
     const status = tableStatusLabels[table.isOccupied] || '';
     return `${table.name || ''} ${table.floor || ''} ${table.areaName || ''} ${table.capacity || ''} ${status}`.toLocaleLowerCase('vi-VN').includes(query);
-  }).reduce((groups, table) => {
-    if (!groups[table.floor]) groups[table.floor] = [];
-    groups[table.floor].push(table);
-    return groups;
-  }, {});
+  });
+  return groupTablesByFloorAndArea(filtered);
 });
 
 watch(tableSearchInput, (value) => {
@@ -1036,7 +1038,7 @@ onUnmounted(() => {
   cursor: pointer; transition: var(--transition);
   display: flex; align-items: center; justify-content: center;
 }
-.btn-del:hover { background: color-mix(in srgb, var(--primary) 40%, transparent); color: var(--primary); }
+.btn-del:hover, .btn-del:active { background: var(--primary); color: var(--color-on-primary); }
 
 .btn-unlink {
   position: absolute; top: 8px; left: 8px;
@@ -1046,7 +1048,7 @@ onUnmounted(() => {
   cursor: pointer; transition: var(--transition);
   display: flex; align-items: center; justify-content: center;
 }
-.btn-unlink:hover { background: color-mix(in srgb, var(--secondary) 40%, transparent); transform: scale(1.1); }
+.btn-unlink:hover, .btn-unlink:active { background: var(--primary); color: var(--color-on-primary); transform: scale(1.1); }
 
 .btn-qr {
   position: absolute; top: 8px; right: 8px;
@@ -1056,7 +1058,7 @@ onUnmounted(() => {
   cursor: pointer; transition: var(--transition);
   display: flex; align-items: center; justify-content: center;
 }
-.btn-qr:hover { background: color-mix(in srgb, var(--success) 40%, transparent); transform: scale(1.1); }
+.btn-qr:hover, .btn-qr:active { background: var(--primary); color: var(--color-on-primary); transform: scale(1.1); }
 
 .btn-edit {
   position: absolute; top: 38px; right: 8px;
@@ -1066,7 +1068,8 @@ onUnmounted(() => {
   cursor: pointer; transition: var(--transition);
   display: flex; align-items: center; justify-content: center;
 }
-.btn-edit:hover { background: color-mix(in srgb, var(--color-tertiary) 40%, transparent); transform: scale(1.1); }
+.btn-edit:hover, .btn-edit:active { background: var(--primary); color: var(--color-on-primary); transform: scale(1.1); }
+.btn-del :deep(svg), .btn-unlink :deep(svg), .btn-qr :deep(svg), .btn-edit :deep(svg) { color: currentColor; }
 
 .view-tag {
   position: absolute; top: 8px; right: 38px;
@@ -1110,12 +1113,25 @@ onUnmounted(() => {
 .btn-heatmap {
   display: flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap; background: transparent; border: 1px solid var(--primary); color: var(--primary); padding: 8px 20px; border-radius: 20px; font-weight: bold; cursor: pointer; transition: 0.3s; font-size: 0.9rem;
 }
+.admin-area-section { margin: 0 0 24px; }
+.admin-area-title { margin: 0 0 10px; color: var(--text-heading); font-size: 0.95rem; font-weight: 800; }
 .map-actions .g-btn-warning, .map-actions .g-btn-primary { display: flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap; }
-.heatmap-empty { margin: -14px 0 20px; padding: 12px 16px; border: 1px dashed var(--border); border-radius: 10px; background: var(--color-primary-fixed); color: var(--text-muted); text-align: center; font-weight: 700; }
-.btn-heatmap:hover { background: color-mix(in srgb, var(--primary) 10%, transparent); }
-.btn-heatmap.active {
-  background: var(--primary); color: #FFFFFF; box-shadow: 0 0 15px color-mix(in srgb, var(--primary) 60%, transparent);
+.map-actions .g-btn-warning:hover, .map-actions .g-btn-warning:active,
+.map-actions .g-btn-primary:hover, .map-actions .g-btn-primary:active {
+  background: var(--primary); border-color: var(--primary); color: var(--color-on-primary);
 }
+.heatmap-empty { margin: -14px 0 20px; padding: 12px 16px; border: 1px dashed var(--border); border-radius: 10px; background: var(--color-primary-fixed); color: var(--text-muted); text-align: center; font-weight: 700; }
+.btn-heatmap:hover:not(.active) { background: color-mix(in srgb, var(--primary) 10%, transparent); }
+.btn-heatmap:active:not(.active) { background: color-mix(in srgb, var(--primary) 18%, transparent); }
+.btn-heatmap.active,
+.btn-heatmap.active:hover,
+.btn-heatmap.active:active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--color-on-primary);
+  box-shadow: 0 0 15px color-mix(in srgb, var(--primary) 60%, transparent);
+}
+.btn-heatmap.active :deep(svg) { color: currentColor; }
 
 .table-box { overflow: hidden; }
 

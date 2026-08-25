@@ -17,11 +17,14 @@ import poly.edu.quanlynhahang.repository.RecipeRepository;
 public class MenuEconomicsService {
     private final RecipeRepository recipeRepository;
     private final MenuAvailabilityService menuAvailabilityService;
+    private final RestaurantSettingsService restaurantSettingsService;
 
     public MenuEconomicsService(RecipeRepository recipeRepository,
-                                MenuAvailabilityService menuAvailabilityService) {
+                                MenuAvailabilityService menuAvailabilityService,
+                                RestaurantSettingsService restaurantSettingsService) {
         this.recipeRepository = recipeRepository;
         this.menuAvailabilityService = menuAvailabilityService;
+        this.restaurantSettingsService = restaurantSettingsService;
     }
 
     @Transactional(readOnly = true)
@@ -32,7 +35,9 @@ public class MenuEconomicsService {
                 .map(recipe -> recipe.getIngredient().getUnitPrice().multiply(recipe.getAmountRequired()))
                 .reduce(BigDecimal.ZERO, BigDecimal::add).setScale(2, RoundingMode.HALF_UP);
         int servings = completeRecipe ? menuAvailabilityService.potentialAvailableQuantity(product) : 0;
-        return new Assessment(cost, servings, completeRecipe);
+        BigDecimal margin = restaurantSettingsService.minimumProfitMarginPercent();
+        return new Assessment(cost, servings, completeRecipe, recommendedPrice(cost, margin), margin,
+                marginStatus(product.getPrice(), cost));
     }
 
     @Transactional(readOnly = true)
@@ -58,5 +63,20 @@ public class MenuEconomicsService {
                 && recipe.getAmountRequired() != null && recipe.getAmountRequired().signum() > 0;
     }
 
-    public record Assessment(BigDecimal costPrice, int availableServings, boolean hasRecipe) {}
+    BigDecimal recommendedPrice(BigDecimal costPrice, BigDecimal targetMarginPercent) {
+        if (costPrice == null || costPrice.signum() <= 0) return BigDecimal.ZERO.setScale(2);
+        BigDecimal divisor = BigDecimal.ONE.subtract(
+                targetMarginPercent.divide(BigDecimal.valueOf(100), 6, RoundingMode.HALF_UP));
+        BigDecimal raw = costPrice.divide(divisor, 0, RoundingMode.CEILING);
+        BigDecimal step = new BigDecimal("5000");
+        return raw.divide(step, 0, RoundingMode.CEILING).multiply(step).setScale(2);
+    }
+
+    private String marginStatus(BigDecimal price, BigDecimal cost) {
+        return price == null || price.compareTo(cost) <= 0 ? "NEGATIVE_MARGIN" : "VALID";
+    }
+
+    public record Assessment(BigDecimal costPrice, int availableServings, boolean hasRecipe,
+                             BigDecimal recommendedPrice, BigDecimal targetMarginPercent,
+                             String marginStatus) {}
 }

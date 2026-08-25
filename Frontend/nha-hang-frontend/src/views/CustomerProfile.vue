@@ -7,7 +7,7 @@
     <main class="profile-content">
       <div style="margin-bottom: 20px;">
         <button @click="$router.back()" class="g-btn-outline" style="border-radius: 100px; padding: 8px 20px; border-color: rgba(255,255,255,0.2);">
-          ← Quay Lại
+          ← {{ t('customer.back') }}
         </button>
       </div>
       <div class="profile-card">
@@ -16,51 +16,51 @@
             {{ userProfile.fullname ? userProfile.fullname.charAt(0).toUpperCase() : 'U' }}
           </div>
           <div class="header-info">
-            <h2>{{ userProfile.fullname || 'Người dùng' }}</h2>
+            <h2>{{ userProfile.fullname || t('customer.profile.defaultUser') }}</h2>
             <p>{{ userProfile.username }}</p>
           </div>
           <div class="tier-badge" :class="getTierClass(userProfile.membershipTier)">
             <span class="tier-icon">{{ getTierIcon(userProfile.membershipTier) }}</span>
             <div class="tier-info">
-              <span class="tier-name">Thành viên {{ userProfile.membershipTier }}</span>
-              <span class="tier-points">{{ userProfile.points }} điểm</span>
+              <span class="tier-name">{{ t('customer.profile.member', { tier: tierLabel(userProfile.membershipTier) }) }}</span>
+              <span class="tier-points">{{ t('customer.profile.points', { points: userProfile.points }) }}</span>
             </div>
           </div>
         </div>
 
         <div class="profile-tabs">
-          <button :class="{ active: currentTab === 'info' }" @click="currentTab = 'info'">Thông tin cá nhân</button>
-          <button :class="{ active: currentTab === 'password' }" @click="currentTab = 'password'">Đổi mật khẩu</button>
+          <button :class="{ active: currentTab === 'info' }" @click="currentTab = 'info'">{{ t('customer.profile.personalInfo') }}</button>
+          <button :class="{ active: currentTab === 'password' }" @click="currentTab = 'password'">{{ t('customer.profile.changePassword') }}</button>
         </div>
 
         <!-- Tab Thông tin -->
         <div v-if="currentTab === 'info'" class="tab-content">
           <div class="form-group">
-            <label>Họ và Tên</label>
+            <label>{{ t('customer.profile.fullName') }}</label>
             <input type="text" v-model="editProfile.fullname" class="g-form-control" />
           </div>
           <div class="form-group">
             <label>Email</label>
             <input type="email" v-model="editProfile.email" class="g-form-control" />
           </div>
-          <button class="g-btn-primary mt-4" @click="saveProfile">Lưu thay đổi</button>
+          <button class="g-btn-primary mt-4" @click="saveProfile">{{ t('customer.profile.save') }}</button>
         </div>
 
         <!-- Tab Đổi mật khẩu -->
         <div v-if="currentTab === 'password'" class="tab-content">
           <div class="form-group">
-            <label>Mật khẩu cũ</label>
-            <input type="password" v-model="passwordForm.oldPassword" class="g-form-control" placeholder="Nhập mật khẩu hiện tại" />
+            <label>{{ t('customer.profile.oldPassword') }}</label>
+            <input type="password" v-model="passwordForm.oldPassword" class="g-form-control" :placeholder="t('customer.profile.oldPasswordPlaceholder')" />
           </div>
           <div class="form-group">
-            <label>Mật khẩu mới</label>
-            <input type="password" v-model="passwordForm.newPassword" class="g-form-control" placeholder="Nhập mật khẩu mới" />
+            <label>{{ t('customer.profile.newPassword') }}</label>
+            <input type="password" v-model="passwordForm.newPassword" class="g-form-control" :placeholder="t('customer.profile.newPasswordPlaceholder')" />
           </div>
           <div class="form-group">
-            <label>Xác nhận mật khẩu mới</label>
-            <input type="password" v-model="passwordForm.confirmPassword" class="g-form-control" placeholder="Nhập lại mật khẩu mới" />
+            <label>{{ t('customer.profile.confirmPassword') }}</label>
+            <input type="password" v-model="passwordForm.confirmPassword" class="g-form-control" :placeholder="t('customer.profile.confirmPasswordPlaceholder')" />
           </div>
-          <button class="g-btn-primary mt-4" @click="changePassword">Đổi mật khẩu</button>
+          <button class="g-btn-primary mt-4" @click="changePassword">{{ t('customer.profile.changePassword') }}</button>
         </div>
 
       </div>
@@ -75,8 +75,10 @@ import CustomerLayout from '@/components/CustomerLayout.vue';
 import { ref, onMounted } from 'vue';
 import api from '@/services/api';
 import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 
 const router = useRouter();
+const { t } = useI18n();
 const currentTab = ref('info');
 
 const userProfile = ref({
@@ -101,7 +103,7 @@ const passwordForm = ref({
 const loadProfile = async () => {
   const token = sessionStorage.getItem('token');
   if (!token) {
-    alert("Vui lòng đăng nhập!");
+    alert(t('customer.profile.loginRequired'));
     router.push('/login');
     return;
   }
@@ -120,7 +122,7 @@ const loadProfile = async () => {
 const saveProfile = async () => {
   const token = sessionStorage.getItem('token');
   if (!editProfile.value.fullname) {
-    alert("Họ tên không được để trống!");
+    alert(t('customer.profile.nameRequired'));
     return;
   }
   try {
@@ -130,21 +132,21 @@ const saveProfile = async () => {
     }, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    alert("Cập nhật thông tin thành công!");
+    alert(t('customer.profile.updated'));
     loadProfile();
   } catch (error) {
-    alert("Lỗi cập nhật: " + (error.response?.data || "Vui lòng thử lại"));
+    alert(t('customer.profile.updateFailed', { message: error.response?.data || t('customer.profile.retry') }));
   }
 };
 
 const changePassword = async () => {
   const token = sessionStorage.getItem('token');
   if (!passwordForm.value.oldPassword || !passwordForm.value.newPassword) {
-    alert("Vui lòng điền đủ mật khẩu cũ và mới!");
+    alert(t('customer.profile.passwordRequired'));
     return;
   }
   if (passwordForm.value.newPassword !== passwordForm.value.confirmPassword) {
-    alert("Mật khẩu mới không khớp!");
+    alert(t('customer.profile.passwordMismatch'));
     return;
   }
   try {
@@ -154,10 +156,10 @@ const changePassword = async () => {
     }, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    alert("Đổi mật khẩu thành công! Vui lòng đăng nhập lại.");
+    alert(t('customer.profile.passwordChanged'));
     handleLogout();
   } catch (error) {
-    alert("Lỗi đổi mật khẩu: " + (error.response?.data || "Vui lòng thử lại"));
+    alert(t('customer.profile.passwordFailed', { message: error.response?.data || t('customer.profile.retry') }));
   }
 };
 
@@ -173,6 +175,11 @@ const getTierClass = (tier) => {
   if (tier === 'Vàng') return 'tier-gold';
   if (tier === 'Bạc') return 'tier-silver';
   return 'tier-bronze';
+};
+
+const tierLabel = tier => {
+  const key = ({ 'Kim Cương': 'diamond', 'Vàng': 'gold', 'Bạc': 'silver', 'Đồng': 'bronze' })[tier];
+  return key ? t(`customer.tiers.${key}`) : tier;
 };
 
 const getTierIcon = (tier) => {

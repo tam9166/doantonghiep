@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import vi from './vi.json'
 import en from './en.json'
-import productMenuMessages from './productMenuMessages'
-import reservationMessages from './reservationMessages'
 
 function sortedKeys(value) {
   return Object.keys(value).sort().map(key => [
@@ -19,15 +17,12 @@ describe('locale dictionaries', () => {
     expect(Object.keys(en).length).toBeGreaterThan(0)
   })
 
-  it('keeps key parity for top-level namespaces', () => {
-    expect(Object.keys(en).sort()).toEqual(Object.keys(vi).sort())
+  it('keeps recursive key parity for JSON dictionaries', () => {
+    expect(sortedKeys(en)).toEqual(sortedKeys(vi))
   })
 
-  it('keeps reservation translation keys in sync', () => {
-    expect(sortedKeys(reservationMessages.en)).toEqual(sortedKeys(reservationMessages.vi))
-  })
-
-  it('keeps product menu translation keys in sync', () => {
-    expect(sortedKeys(productMenuMessages.en)).toEqual(sortedKeys(productMenuMessages.vi))
+  it('contains the complete customer menu and booking dictionaries', () => {
+    expect(Object.keys(en.menu).length).toBeGreaterThan(40)
+    expect(Object.keys(en.reservation).length).toBeGreaterThan(40)
   })
 })

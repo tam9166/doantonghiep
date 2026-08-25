@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -23,7 +24,13 @@ import poly.edu.quanlynhahang.repository.RecipeRepository;
 class MenuEconomicsServiceTest {
     @Mock RecipeRepository recipeRepository;
     @Mock MenuAvailabilityService menuAvailabilityService;
+    @Mock RestaurantSettingsService restaurantSettingsService;
     @InjectMocks MenuEconomicsService service;
+
+    @BeforeEach
+    void pricingPolicy() {
+        when(restaurantSettingsService.minimumProfitMarginPercent()).thenReturn(new BigDecimal("30.00"));
+    }
 
     @Test
     void computesRecipeCostAndAvailableServingsFromCanonicalInventoryService() {
@@ -39,6 +46,8 @@ class MenuEconomicsServiceTest {
         assertEquals(new BigDecimal("46000.00"), result.costPrice());
         assertEquals(20, result.availableServings());
         assertEquals(true, result.hasRecipe());
+        assertEquals("VALID", result.marginStatus());
+        assertEquals(new BigDecimal("70000.00"), result.recommendedPrice());
     }
 
     @Test
@@ -53,6 +62,36 @@ class MenuEconomicsServiceTest {
                 .thenReturn(List.of(recipe(lossMaking, ingredient, "1")));
         when(menuAvailabilityService.potentialAvailableQuantity(lossMaking)).thenReturn(5);
         assertThrows(ResponseStatusException.class, () -> service.requireSellable(lossMaking));
+    }
+
+    @Test
+    void rejectsBreakEvenAndMarksLossMakingMenuItems() {
+        Product breakEven = product("50000");
+        Ingredient ingredient = ingredient("100000");
+        when(recipeRepository.findByProduct(breakEven))
+                .thenReturn(List.of(recipe(breakEven, ingredient, "0.5")));
+        when(menuAvailabilityService.potentialAvailableQuantity(breakEven)).thenReturn(5);
+
+        MenuEconomicsService.Assessment assessment = service.assess(breakEven);
+
+        assertEquals("NEGATIVE_MARGIN", assessment.marginStatus());
+        assertEquals(new BigDecimal("75000.00"), assessment.recommendedPrice());
+        assertThrows(ResponseStatusException.class, () -> service.requireSellable(breakEven));
+    }
+
+    @Test
+    void usesIngredientBaseUnitAndRecalculatesWhenItsPriceChanges() {
+        Product product = product("150000");
+        Ingredient beefPerKilogram = ingredient("420000");
+        beefPerKilogram.setUnit("kg");
+        Recipe twoHundredGrams = recipe(product, beefPerKilogram, "0.2000");
+        when(recipeRepository.findByProduct(product)).thenReturn(List.of(twoHundredGrams));
+        when(menuAvailabilityService.potentialAvailableQuantity(product)).thenReturn(10);
+
+        assertEquals(new BigDecimal("84000.00"), service.assess(product).costPrice());
+
+        beefPerKilogram.setUnitPrice(new BigDecimal("450000"));
+        assertEquals(new BigDecimal("90000.00"), service.assess(product).costPrice());
     }
 
     private Product product(String price) {

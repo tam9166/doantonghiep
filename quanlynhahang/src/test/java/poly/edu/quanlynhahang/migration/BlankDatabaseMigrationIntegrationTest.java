@@ -37,7 +37,7 @@ class BlankDatabaseMigrationIntegrationTest {
                     .baselineOnMigrate(true)
                     .baselineVersion("2")
                     .load();
-            assertEquals(77, flyway.migrate().migrationsExecuted);
+            assertEquals(79, flyway.migrate().migrationsExecuted);
 
             try (Connection target = DriverManager.getConnection(targetUrl, username, password);
                  Statement statement = target.createStatement()) {
@@ -81,7 +81,7 @@ class BlankDatabaseMigrationIntegrationTest {
                 assertEquals(4, count(statement,
                         "SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('dbo.reservations') AND name IN ('preorder_enabled','table_amount','food_amount','payment_option') AND is_nullable = 0"));
                 assertEquals(20, count(statement,
-                        "SELECT COUNT(*) FROM dbo.restaurant_table WHERE name LIKE N'Bàn %' AND area_id IS NOT NULL"));
+                        "SELECT COUNT(*) FROM dbo.restaurant_table WHERE TRY_CONVERT(INT, SUBSTRING(name, 2, 10)) BETWEEN 1 AND 20 AND area_id IS NOT NULL"));
                 assertEquals(8, count(statement,
                         "SELECT COUNT(*) FROM sys.tables WHERE name IN ('activity_logs','notifications','payment_webhook_logs','table_layouts','deposit_policies','reservation_preorder_items','reservation_voucher_usages','reservation_reviews')"));
                 assertEquals(1, count(statement,
@@ -108,6 +108,34 @@ class BlankDatabaseMigrationIntegrationTest {
                         "SELECT COUNT(*) FROM sys.check_constraints WHERE parent_object_id = OBJECT_ID('dbo.ingredient_batches') AND name IN ('CK_ingredient_batches_quantity_positive','CK_ingredient_batches_remaining_lte_quantity')"));
                 assertEquals(1, count(statement,
                         "SELECT COUNT(*) FROM sys.check_constraints WHERE parent_object_id = OBJECT_ID('dbo.restaurant_table') AND name = 'CK_restaurant_table_is_occupied' AND definition LIKE '%(0)%' AND definition LIKE '%(1)%' AND definition LIKE '%(2)%' AND definition LIKE '%(3)%' AND definition LIKE '%(5)%'"));
+                assertEquals(1, count(statement,
+                        "SELECT COUNT(*) FROM dbo.restaurant_settings WHERE setting_key = 'min_profit_margin_percent' AND setting_value = '30.00'"));
+                assertEquals(0, count(statement, """
+                        SELECT COUNT(*)
+                        FROM dbo.products product
+                        JOIN (
+                            SELECT recipe.product_id, SUM(recipe.amount_required * ingredient.unit_price) calculated_cost
+                            FROM dbo.recipes recipe
+                            JOIN dbo.ingredients ingredient ON ingredient.id = recipe.ingredient_id
+                            GROUP BY recipe.product_id
+                        ) economics ON economics.product_id = product.id
+                        WHERE (product.status = 1 OR product.available = 1)
+                          AND product.price <= economics.calculated_cost
+                        """));
+                assertEquals(40, count(statement, "SELECT COUNT(*) FROM dbo.restaurant_table"));
+                assertEquals(3, count(statement, """
+                        SELECT COUNT(*)
+                        FROM dbo.table_areas area
+                        JOIN (
+                            SELECT area_id, SUM(capacity) total_capacity
+                            FROM dbo.restaurant_table
+                            WHERE is_active = 1
+                            GROUP BY area_id
+                        ) table_capacity ON table_capacity.area_id = area.id
+                        WHERE (area.name_en = 'Indoor Dining' AND area.capacity = 100 AND table_capacity.total_capacity = 100)
+                           OR (area.name_en = 'Private / VIP' AND area.capacity = 50 AND table_capacity.total_capacity = 50)
+                           OR (area.name_en = 'Garden / Outdoor' AND area.capacity = 70 AND table_capacity.total_capacity = 70)
+                        """));
                 assertTrue(count(statement, "SELECT COUNT(*) FROM dbo.Accounts") >= 6);
                 assertTrue(count(statement, "SELECT COUNT(*) FROM dbo.Products") >= 10);
                 assertTrue(count(statement, "SELECT COUNT(*) FROM dbo.ingredients") >= 10);

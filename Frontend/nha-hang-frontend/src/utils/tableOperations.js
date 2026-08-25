@@ -36,6 +36,10 @@ export function tableArea(table) {
   return String(table?.areaName || '').trim() || 'Khu vực chung'
 }
 
+export function tableIdentifier(table) {
+  return String(table?.code || table?.name || '').trim() || 'Chưa đặt mã bàn'
+}
+
 export function groupTablesByFloorAndArea(tables) {
   const grouped = {}
   for (const table of Array.isArray(tables) ? tables : []) {

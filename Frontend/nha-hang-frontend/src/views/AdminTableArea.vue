@@ -29,7 +29,7 @@
             <textarea v-model.trim="form.descriptionEn" class="g-form-control" rows="3" />
           </div>
           <div class="form-row">
-            <label>Sức chứa</label>
+            <label>Sức chứa tối đa (người)</label>
             <input v-model.number="form.capacity" type="number" min="0" class="g-form-control" />
           </div>
           <div class="form-row">
@@ -91,7 +91,7 @@
                 </div>
                 <p class="area-desc">{{ area.descriptionVi || 'Chưa có mô tả.' }}</p>
                 <div class="area-meta">
-                  <span>Sức chứa: {{ area.capacity || 0 }}</span>
+                  <span>Sức chứa: {{ area.capacity || 0 }} người</span>
                   <span v-if="area.areaType === 'DINING'">Miễn phí đặt khu vực</span>
                   <span v-if="area.areaType === 'PRIVATE_ROOM'">Phí phòng: {{ formatCurrency(area.roomFee) }} · Chi tối thiểu: {{ formatCurrency(area.minimumSpend) }}</span>
                   <span v-if="area.areaType === 'EVENT_HALL'">Sảnh: {{ area.minGuestCount }}–{{ area.maxGuestCount }} khách · tối đa {{ area.maxTables || '-' }} bàn</span>

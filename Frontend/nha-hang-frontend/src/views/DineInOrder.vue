@@ -4,47 +4,47 @@
     <main class="main-content">
       <div style="margin-bottom: 20px;">
         <button v-if="userRoles.includes('ROLE_WAITER')" @click="$router.push('/waiter')" class="g-btn-outline" style="border-radius: 100px; padding: 8px 20px; border-color: rgba(255,255,255,0.2);">
-          ← Quay Lại Phục Vụ
+          ← {{ text.backWaiter }}
         </button>
         <button v-else @click="$router.back()" class="g-btn-outline" style="border-radius: 100px; padding: 8px 20px; border-color: rgba(255,255,255,0.2);">
-          ← Quay Lại
+          ← {{ text.back }}
         </button>
       </div>
       <div class="table-selection-box">
-        <label> Bạn đang ngồi ở bàn nào?</label>
+        <label>{{ text.tableQuestion }}</label>
         <select v-model="selectedTable" class="form-control table-select" :disabled="isTableLocked">
-          <option value="" disabled>-- Vui lòng chọn bàn của bạn --</option>
+          <option value="" disabled>-- {{ text.selectTable }} --</option>
           <optgroup v-for="(tables, floor) in groupedTables" :key="floor" :label="floor">
           <!-- ĐÃ NÂNG CẤP: Hiện trạng thái và chặn khách chọn bàn đã có người -->
           <option 
-            v-for="t in tables" 
-            :key="t.id" 
-            :value="t.name" 
-            :disabled="t.isOccupied !== 0 && t.name !== selectedTable"
-          >
-            {{ t.name }} {{ t.isOccupied === 0 ? '( Trống)' : (t.isOccupied === 1 ? '( Đã cọc)' : '( Có khách)') }}
+              v-for="table in tables"
+              :key="table.id"
+              :value="table.name"
+              :disabled="table.isOccupied !== 0 && table.name !== selectedTable"
+            >
+              {{ tableName(table) }} {{ table.isOccupied === 0 ? `(${text.empty})` : (table.isOccupied === 1 ? `(${text.reserved})` : `(${text.occupied})`) }}
           </option>
         </optgroup>
         </select>
-        <p v-if="isTableLocked" style="color:var(--primary); font-size: 0.85rem; margin-top: 5px;"> Bạn đã quét mã QR cho bàn này. Không thể đổi bàn.</p>
+        <p v-if="isTableLocked" style="color:var(--primary); font-size: 0.85rem; margin-top: 5px;">{{ text.qrLocked }}</p>
       </div>
       <div class="product-list" v-if="selectedTable">
         <div class="menu-column">
         <!-- AI Suggestion Section -->
         <div class="ai-suggestion-box">
           <div class="ai-header">
-            <h3> Smart Suggestion</h3>
-            <span class="ai-badge">AI Gợi Ý</span>
+                  <h3>{{ text.smartSuggestion }}</h3>
+                  <span class="ai-badge">{{ text.aiSuggestion }}</span>
           </div>
           
           <div v-if="aiCombo.length === 0 && !isFetchingAI" class="smart-profile">
-            <p class="ai-desc">Cho Mộc Vị biết nhóm của bạn để chỉ gợi ý các món đang bán và còn đủ khả năng phục vụ.</p>
+                <p class="ai-desc">{{ text.aiDescription }}</p>
             <label class="smart-field">
-              <span>Số người</span>
-              <input type="number" v-model.number="partySize" min="1" max="100" placeholder="Ví dụ: 2" class="form-control" />
+                    <span>{{ text.people }}</span>
+                    <input type="number" v-model.number="partySize" min="1" max="100" :placeholder="text.guestPlaceholder" class="form-control" />
             </label>
             <div class="smart-field">
-              <span>Món hoặc nhóm món yêu thích (có thể chọn nhiều)</span>
+                    <span>{{ text.favorite }}</span>
               <div class="smart-chips">
                 <button v-for="option in favoriteOptions" :key="option.value" type="button"
                   :class="{ active: favoritePreferences.includes(option.value) }"
@@ -52,7 +52,7 @@
               </div>
             </div>
             <div class="smart-field">
-              <span>Khẩu vị</span>
+                    <span>{{ text.palate }}</span>
               <div class="smart-chips">
                 <button v-for="option in palateOptions" :key="option.value" type="button"
                   :class="{ active: palatePreference === option.value }"
@@ -60,85 +60,85 @@
               </div>
             </div>
             <label class="smart-field">
-              <span>Dị ứng cần loại trừ (nếu có)</span>
-              <input v-model.trim="allergyInput" maxlength="160" class="form-control" placeholder="Ví dụ: đậu phộng, hải sản" />
+                    <span>{{ text.allergies }}</span>
+                    <input v-model.trim="allergyInput" maxlength="160" class="form-control" :placeholder="text.allergyPlaceholder" />
             </label>
-            <button class="btn-add-item smart-submit" @click="fetchComboForParty">AI Gợi Ý Món</button>
+                <button class="btn-add-item smart-submit" @click="fetchComboForParty">{{ text.suggest }}</button>
           </div>
           <div v-else-if="isFetchingAI">
-            <p class="ai-desc">Đang phân tích và thiết kế thực đơn cho {{ partySize }} người...</p>
+                <p class="ai-desc">{{ t('dineIn.analyzing', { count: partySize }) }}</p>
           </div>
           <div v-else>
             <p class="ai-desc">{{ aiRecommendationReason }}</p>
             
             <div class="combo-grid">
               <div v-for="product in aiCombo" :key="'ai-'+product.id" class="combo-item">
-                <img :src="foodImage(product.image)" :alt="product.name" loading="lazy" @error="replaceFoodImage" />
+                    <img :src="foodImage(product.image)" :alt="productName(product)" loading="lazy" @error="replaceFoodImage" />
                 <div class="product-info">
-                  <h4>{{ product.name }} <span v-if="product.suggestedQuantity > 1" style="color: var(--primary);">x{{ product.suggestedQuantity }}</span></h4>
-                  <p class="price">{{ product.price.toLocaleString() }}đ</p>
+                      <h4>{{ productName(product) }} <span v-if="product.suggestedQuantity > 1" style="color: var(--primary);">x{{ product.suggestedQuantity }}</span></h4>
+                      <p class="price">{{ formatCurrency(product.price) }}</p>
                   <small>{{ product.suggestionReason }}</small>
                 </div>
-                <button v-if="!isAdminOrManager" class="btn-add-item" :disabled="product.availableQuantity <= 0" @click="addToCart(product, product.suggestedQuantity || 1)">{{ product.availableQuantity > 0 ? 'Thêm' : 'Tạm hết hàng' }}</button>
-                <button v-else class="btn-add-item btn-disabled" disabled>Chỉ xem</button>
+                    <button v-if="!isAdminOrManager" class="btn-add-item" :disabled="product.availableQuantity <= 0" @click="addToCart(product, product.suggestedQuantity || 1)">{{ product.availableQuantity > 0 ? text.add : text.soldOut }}</button>
+                    <button v-else class="btn-add-item btn-disabled" disabled>{{ text.viewOnly }}</button>
               </div>
             </div>
             <div class="ai-action" style="display: flex; gap: 10px; justify-content: center;">
-              <button v-if="!isAdminOrManager" class="btn-add-combo" @click="addComboToCart"> Thêm Cả Combo</button>
-              <button v-else class="btn-add-combo btn-disabled" disabled>Chỉ xem (Admin)</button>
-              <button class="btn-cancel" style="padding: 10px 20px; border-radius: 20px;" @click="aiCombo = []">Thử lại</button>
+                  <button v-if="!isAdminOrManager" class="btn-add-combo" @click="addComboToCart">{{ text.addCombo }}</button>
+                  <button v-else class="btn-add-combo btn-disabled" disabled>{{ text.viewOnly }}</button>
+                  <button class="btn-cancel" style="padding: 10px 20px; border-radius: 20px;" @click="aiCombo = []">{{ text.retry }}</button>
             </div>
           </div>
         </div>
 
         <!-- Món ăn bán chạy / Gợi ý -->
         <div v-if="suggestedProducts.length > 0" class="suggested-section">
-        <h3 class="section-title"><span style="color: var(--color-tertiary)"><UiIcon name="sparkles" /></span> Gợi Ý Cho Bạn (Bán Chạy)</h3>
+            <h3 class="section-title"><span style="color: var(--color-tertiary)"><UiIcon name="sparkles" /></span> {{ text.popular }}</h3>
           <div class="suggested-grid">
             <div v-for="product in suggestedProducts" :key="'sugg-'+product.id" class="suggested-card">
               <div class="sugg-badge">HOT</div>
-              <img :src="foodImage(product.image)" :alt="product.name" loading="lazy" @error="replaceFoodImage" />
+                <img :src="foodImage(product.image)" :alt="productName(product)" loading="lazy" @error="replaceFoodImage" />
               <div class="sugg-info">
-                <h4>{{ product.name }}</h4>
-                <p class="price">{{ product.price.toLocaleString() }}đ</p>
+                  <h4>{{ productName(product) }}</h4>
+                  <p class="price">{{ formatCurrency(product.price) }}</p>
               </div>
-              <button v-if="!isAdminOrManager" class="btn-sugg-add" :disabled="product.availableQuantity <= 0" @click="addToCart(product, 1)">{{ product.availableQuantity > 0 ? 'Thêm Ngay' : 'Tạm hết hàng' }}</button>
+                <button v-if="!isAdminOrManager" class="btn-sugg-add" :disabled="product.availableQuantity <= 0" @click="addToCart(product, 1)">{{ product.availableQuantity > 0 ? text.addNow : text.soldOut }}</button>
             </div>
           </div>
         </div>
 
-        <h3 class="section-title">Thực Đơn Đầy Đủ</h3>
+          <h3 class="section-title">{{ text.fullMenu }}</h3>
         <div v-for="product in activeProducts" :key="product.id" class="product-item">
-          <img :src="foodImage(product.image)" :alt="product.name" loading="lazy" @error="replaceFoodImage" />
+            <img :src="foodImage(product.image)" :alt="productName(product)" loading="lazy" @error="replaceFoodImage" />
           <div class="product-info">
-            <h4>{{ product.name }}</h4>
-            <p class="price">{{ product.price.toLocaleString() }}đ</p>
-            <small v-if="product.availableQuantity > 0">Còn tối đa {{ product.availableQuantity }} suất</small>
+              <h4>{{ productName(product) }}</h4>
+              <p class="price">{{ formatCurrency(product.price) }}</p>
+              <small v-if="product.availableQuantity > 0">{{ t('dineIn.remaining', { count: product.availableQuantity }) }}</small>
           </div>
-          <button v-if="!isAdminOrManager" class="btn-add-item" :disabled="product.availableQuantity <= 0" @click="addToCart(product)">{{ product.availableQuantity > 0 ? 'Thêm' : 'Tạm hết hàng' }}</button>
-          <button v-else class="btn-add-item btn-disabled" disabled>Chỉ xem</button>
+            <button v-if="!isAdminOrManager" class="btn-add-item" :disabled="product.availableQuantity <= 0" @click="addToCart(product)">{{ product.availableQuantity > 0 ? text.add : text.soldOut }}</button>
+            <button v-else class="btn-add-item btn-disabled" disabled>{{ text.viewOnly }}</button>
         </div>
         </div>
-        <aside v-if="cart.length > 0" class="inline-cart" aria-label="Đơn món đang chọn">
-          <h3>Đơn đang chọn</h3>
+        <aside v-if="cart.length > 0" class="inline-cart" :aria-label="text.selectedOrder">
+          <h3>{{ text.selectedOrder }}</h3>
           <div v-for="(item, idx) in cart" :key="item.productId" class="inline-cart-item">
             <div>
               <strong>{{ item.name }}</strong>
-              <span>{{ (item.price * item.quantity).toLocaleString() }}đ</span>
+              <span>{{ formatCurrency(item.price * item.quantity) }}</span>
             </div>
             <div class="inline-cart-controls">
-              <button type="button" aria-label="Giảm số lượng" @click="decreaseQty(idx)">−</button>
+              <button type="button" :aria-label="text.decrease" @click="decreaseQty(idx)">−</button>
               <b>{{ item.quantity }}</b>
-              <button type="button" aria-label="Tăng số lượng" @click="increaseQty(idx)">+</button>
-              <button type="button" class="inline-remove" aria-label="Xóa món" @click="cart.splice(idx, 1)">×</button>
+              <button type="button" :aria-label="text.increase" @click="increaseQty(idx)">+</button>
+              <button type="button" class="inline-remove" :aria-label="text.remove" @click="cart.splice(idx, 1)">×</button>
             </div>
           </div>
-          <div class="inline-cart-total">Tạm tính <strong>{{ cartSubtotal.toLocaleString() }}đ</strong></div>
-          <button type="button" class="btn-checkout" @click="showModal = true">Gửi bếp</button>
+          <div class="inline-cart-total">{{ text.subtotal }} <strong>{{ formatCurrency(cartSubtotal) }}</strong></div>
+          <button type="button" class="btn-checkout" @click="showModal = true">{{ text.sendKitchen }}</button>
         </aside>
       </div>
       <div v-else class="empty-state">
-        <p>Vui lòng chọn bàn để xem thực đơn và gọi món nhé!</p>
+        <p>{{ text.selectTableHint }}</p>
       </div>
 
       <!-- FAB Voice Order -->
@@ -150,9 +150,9 @@
       <div v-if="showVoiceModal" class="modal-overlay voice-modal">
         <div class="voice-box">
             <div class="mic-icon" :class="{'pulse': isListening}"><UiIcon name="mic" /></div>
-          <h3>Trợ lý Gọi Món AI</h3>
+          <h3>{{ text.voiceAssistant }}</h3>
           <p class="voice-text">{{ voiceText }}</p>
-          <button class="btn-cancel" style="margin-top:20px;" @click="closeVoiceModal">Hủy</button>
+          <button class="btn-cancel" style="margin-top:20px;" @click="closeVoiceModal">{{ text.cancel }}</button>
         </div>
       </div>
     </main>
@@ -161,29 +161,29 @@
       <div class="cart-summary" @click="showModal = true">
         <span class="cart-icon"> <span class="badge">{{ totalItems }}</span></span>
         <div class="cart-text">
-          <span class="cart-price">{{ cartSubtotal.toLocaleString() }}đ</span>
+          <span class="cart-price">{{ formatCurrency(cartSubtotal) }}</span>
         </div>
       </div>
-      <button class="btn-checkout" @click="showModal = true"> Gửi Bếp</button>
+      <button class="btn-checkout" @click="showModal = true">{{ text.sendKitchen }}</button>
     </div>
 
     <!-- Xác nhận gọi món Modal -->
     <div v-if="showModal" class="g-modal-overlay" @click.self="showModal = false">
       <div class="g-modal-box" style="max-width: 550px; max-height: 90vh; overflow-y: auto;">
-        <h3> Xác Nhận Gọi Món</h3>
+        <h3>{{ text.confirmOrder }}</h3>
         
         <div class="cart-details" style="max-height: 300px; overflow-y: auto; margin-bottom: 15px; padding-right: 10px;">
           <div v-for="(item, idx) in cart" :key="idx" class="cart-item-row">
             <div class="cart-item-info">
               <span class="cart-item-name">{{ item.name }}</span>
-              <span class="cart-item-price">{{ (item.price * item.quantity).toLocaleString() }}đ</span>
+              <span class="cart-item-price">{{ formatCurrency(item.price * item.quantity) }}</span>
               <label class="dish-note-label">
-                Ghi chú món
-                <input v-model.trim="item.note" maxlength="500" placeholder="Ví dụ: ít cay, không hành" />
+                {{ text.dishNote }}
+                <input v-model.trim="item.note" maxlength="500" :placeholder="text.dishNotePlaceholder" />
               </label>
               <label class="dish-note-label allergy-note-label">
-                Dị ứng (nếu có)
-                <input v-model.trim="item.allergyNote" maxlength="500" placeholder="Ví dụ: dị ứng đậu phộng" />
+                {{ text.allergyNote }}
+                <input v-model.trim="item.allergyNote" maxlength="500" :placeholder="text.allergyNotePlaceholder" />
               </label>
             </div>
             <div class="cart-item-controls">
@@ -196,16 +196,16 @@
         </div>
 
         <div class="cart-total" style="margin-top: 20px; text-align: center;">
-          <h4 style="color: var(--primary); font-size: 1.1rem; border-top: 1px dashed color-mix(in srgb, var(--secondary) 30%, transparent); padding-top: 10px;">Tạm tính: {{ cartSubtotal.toLocaleString() }}đ</h4>
-          <h4 style="color: var(--primary); font-size: 1.1rem;">Thuế GTGT: {{ cartTax.toLocaleString() }}đ</h4>
-          <h4 style="color: var(--primary); font-size: 1.4rem; margin-top: 5px;">Tổng cộng: {{ finalTotal.toLocaleString() }}đ</h4>
-          <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 5px;"> Thanh toán sau khi dùng bữa xong</p>
+          <h4 style="color: var(--primary); font-size: 1.1rem; border-top: 1px dashed color-mix(in srgb, var(--secondary) 30%, transparent); padding-top: 10px;">{{ text.subtotal }}: {{ formatCurrency(cartSubtotal) }}</h4>
+          <h4 style="color: var(--primary); font-size: 1.1rem;">{{ text.vat }}: {{ formatCurrency(cartTax) }}</h4>
+          <h4 style="color: var(--primary); font-size: 1.4rem; margin-top: 5px;">{{ text.total }}: {{ formatCurrency(finalTotal) }}</h4>
+          <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 5px;">{{ text.payAfterMeal }}</p>
         </div>
 
         <div class="modal-actions mt-4" style="display: flex; gap: 10px;">
-          <button @click="showModal = false" class="g-btn-outline" style="flex:1;">Quay lại</button>
+          <button @click="showModal = false" class="g-btn-outline" style="flex:1;">{{ text.back }}</button>
           <button @click="submitOrder" :disabled="isSubmitting" class="g-btn-primary" style="flex:1;">
-            {{ isSubmitting ? 'Đang gửi...' : ' Gửi Bếp Ngay' }}
+            {{ isSubmitting ? text.sending : text.sendNow }}
           </button>
         </div>
       </div>
@@ -225,8 +225,13 @@ import { ref, computed, onMounted } from 'vue';
 import api from '@/services/api';
 import { useRoute } from 'vue-router';
 import { foodImage, replaceFoodImage } from '@/utils/imageFallback';
+import { useI18n } from 'vue-i18n';
+import { useFormatters } from '@/composables/useFormatters';
 
 const route = useRoute();
+const { locale, tm, t } = useI18n();
+const { formatCurrency } = useFormatters();
+const text = computed(() => tm('dineIn'));
 const products = ref([]);
 const suggestedProducts = ref([]);
 const allTables = ref([]);
@@ -258,6 +263,10 @@ const tierDiscount = ref(0);
 const voucherDiscountPercent = ref(0);
 
 const activeProducts = computed(() => products.value.filter(p => p.status !== false));
+const productName = product => locale.value === 'en'
+  ? (product?.nameEn || product?.nameVi || product?.name)
+  : (product?.nameVi || product?.name || product?.nameEn);
+const tableName = table => table?.code || table?.name || '';
 
 // Gom nhóm bàn theo tầng để khách dễ tìm trong thẻ <select>
 const groupedTables = computed(() => {
@@ -298,18 +307,14 @@ const isFetchingAI = ref(false);
 const favoritePreferences = ref([]);
 const palatePreference = ref('không yêu cầu');
 const allergyInput = ref('');
-const favoriteOptions = [
-  { value: 'thịt bò', label: 'Thịt bò' }, { value: 'gà', label: 'Gà' },
-  { value: 'hải sản', label: 'Hải sản' }, { value: 'nướng', label: 'Món nướng' },
-  { value: 'món nước', label: 'Món nước' }, { value: 'rau', label: 'Rau' },
-  { value: 'đồ uống', label: 'Đồ uống' }, { value: 'không quan trọng', label: 'Không quan trọng' }
-];
-const palateOptions = [
-  { value: 'không cay', label: 'Không cay' }, { value: 'cay nhẹ', label: 'Cay nhẹ' },
-  { value: 'cay vừa', label: 'Cay vừa' }, { value: 'cay nhiều', label: 'Cay nhiều' },
-  { value: 'thanh nhẹ', label: 'Thanh nhẹ' }, { value: 'đậm vị', label: 'Đậm vị' },
-  { value: 'ít dầu', label: 'Ít dầu' }, { value: 'không yêu cầu', label: 'Không yêu cầu' }
-];
+const favoriteOptions = computed(() => [
+  ['thịt bò', 'beef'], ['gà', 'chicken'], ['hải sản', 'seafood'], ['nướng', 'grilled'],
+  ['món nước', 'soup'], ['rau', 'vegetables'], ['đồ uống', 'drinks'], ['không quan trọng', 'any'],
+].map(([value, key]) => ({ value, label: text.value.preferences[key] })));
+const palateOptions = computed(() => [
+  ['không cay', 'notSpicy'], ['cay nhẹ', 'mild'], ['cay vừa', 'medium'], ['cay nhiều', 'hot'],
+  ['thanh nhẹ', 'light'], ['đậm vị', 'rich'], ['ít dầu', 'lowOil'], ['không yêu cầu', 'none'],
+].map(([value, key]) => ({ value, label: text.value.preferences[key] })));
 
 const toggleFavorite = (value) => {
   if (value === 'không quan trọng') {
@@ -324,7 +329,7 @@ const toggleFavorite = (value) => {
 
 const fetchComboForParty = async () => {
   if (!partySize.value || partySize.value < 1) {
-    toastMsg.value = 'Vui lòng nhập số người hợp lệ!';
+    toastMsg.value = t('dineIn.invalidGuests');
     return;
   }
   isFetchingAI.value = true;
@@ -343,17 +348,17 @@ const fetchComboForParty = async () => {
       return {
         ...product,
         suggestedQuantity: Math.max(1, Math.ceil(Number(partySize.value) / Math.max(2, Math.min(4, response.data.suggestions.length))) - (index > 1 ? 1 : 0)),
-        suggestionReason: `Phù hợp nhóm ${partySize.value} người${preferences.length ? `, ưu tiên ${preferences.join(', ')}` : ''}.`
+        suggestionReason: t('dineIn.suggestionFallback', { count: 1 })
       };
     }).filter(Boolean).slice(0, 4);
     aiRecommendationReason.value = response.data?.message
-      || `Đã chọn ${aiCombo.value.length} món có thật trong menu và còn khả năng phục vụ.`;
-    if (!aiCombo.value.length) toastMsg.value = 'Hiện chưa có món còn hàng phù hợp với lựa chọn này.';
+      || t('dineIn.suggestionFallback', { count: aiCombo.value.length });
+    if (!aiCombo.value.length) toastMsg.value = t('dineIn.noSuggestion');
 
   } catch(e) {
     console.error("Lỗi AI Recommend:", e);
     aiCombo.value = [];
-    toastMsg.value = e.response?.data?.message || 'Chưa thể lấy gợi ý phù hợp. Vui lòng thử lại.';
+    toastMsg.value = locale.value === 'vi' && e.response?.data?.message ? e.response.data.message : t('dineIn.suggestionFailed');
   } finally {
     isFetchingAI.value = false;
   }
@@ -361,7 +366,7 @@ const fetchComboForParty = async () => {
 
 const addComboToCart = () => {
   aiCombo.value.forEach(p => addToCart(p, p.suggestedQuantity || 1));
-  toastMsg.value = 'Đã thêm Combo gợi ý vào giỏ hàng!';
+  toastMsg.value = t('dineIn.comboAdded');
 };
 
 const loadData = async () => {
@@ -379,13 +384,13 @@ const loadData = async () => {
           headers: { 'X-Table-Session-Token': tableSessionToken.value }
         })).data;
         const table = allTables.value.find(item => Number(item.id) === Number(resolved.tableId));
-        if (!table) throw new Error('Bàn trong mã QR không còn khả dụng.');
+        if (!table) throw new Error(t('dineIn.tableUnavailable'));
         selectedTable.value = table.name;
         capabilityOrder.value = resolved.currentOrder || null;
         isTableLocked.value = true;
       } catch (error) {
         tableSessionToken.value = '';
-        toastMsg.value = error.response?.data?.message || error.message || 'Mã QR không hợp lệ hoặc đã hết hạn.';
+        toastMsg.value = locale.value === 'vi' && error.response?.data?.message ? error.response.data.message : (error.message || t('dineIn.invalidQr'));
       }
     } else if (route.query.table && sessionStorage.getItem('staff_token')) {
       // Staff may open a table directly; public customers must use a capability QR.
@@ -435,11 +440,11 @@ const addToCart = (product, qty = 1) => {
   const availableQuantity = Math.max(0, Number(product.availableQuantity || 0));
   const requestedQuantity = (existing?.quantity || 0) + qty;
   if (requestedQuantity > availableQuantity) {
-    toastMsg.value = `Món này hiện chỉ còn tối đa ${availableQuantity} suất.`;
+    toastMsg.value = t('dineIn.quantityLimit', { count: availableQuantity });
     return;
   }
   if (existing) existing.quantity = requestedQuantity;
-  else cart.value.push({ productId: product.id, name: product.name, price: product.price, quantity: qty,
+  else cart.value.push({ productId: product.id, name: productName(product), price: product.price, quantity: qty,
     taxRate: product.taxRate || 8, note: '', allergyNote: '', availableQuantity });
   checkoutIdempotencyKey.value = crypto.randomUUID();
   addItemsIdempotencyKey.value = crypto.randomUUID();
@@ -448,7 +453,7 @@ const addToCart = (product, qty = 1) => {
 const increaseQty = (idx) => {
   const item = cart.value[idx];
   if (item.quantity >= item.availableQuantity) {
-    toastMsg.value = `Món này hiện chỉ còn tối đa ${item.availableQuantity} suất.`;
+    toastMsg.value = t('dineIn.quantityLimit', { count: item.availableQuantity });
     return;
   }
   item.quantity++;
@@ -475,30 +480,30 @@ const closeVoiceModal = () => {
 const startVoiceOrder = () => {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
-    toastMsg.value = 'Trình duyệt chưa hỗ trợ nhận diện giọng nói. Vui lòng dùng Chrome hoặc Edge.';
+    toastMsg.value = t('dineIn.speechUnsupported');
     return;
   }
   
   if (!recognition) {
     recognition = new SpeechRecognition();
-    recognition.lang = 'vi-VN';
+    recognition.lang = locale.value === 'vi' ? 'vi-VN' : 'en-US';
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
 
     recognition.onstart = () => {
       isListening.value = true;
       showVoiceModal.value = true;
-      voiceText.value = 'Đang lắng nghe... Hãy nói: "Cho mình 2 trà đào và 1 mì ý".';
+      voiceText.value = t('dineIn.listening');
     };
 
     recognition.onresult = async (event) => {
       isListening.value = false;
       const transcript = event.results[0][0].transcript;
-      voiceText.value = `Bạn vừa nói: "${transcript}"\n\nĐang nhờ AI phân tích... `;
+      voiceText.value = t('dineIn.heard', { text: transcript });
       
       try {
         // Gửi danh sách tên món cho AI
-        const menuStr = activeProducts.value.map(p => `${p.id}: ${p.name}`).join(', ');
+        const menuStr = activeProducts.value.map(p => `${p.id}: ${productName(p)}`).join(', ');
         const res = await api.post('/api/chatbot/chat', {
           message: transcript,
           type: 'VOICE_ORDER',
@@ -510,7 +515,7 @@ const startVoiceOrder = () => {
         
         const items = JSON.parse(reply);
         if (!Array.isArray(items) || items.length === 0) {
-          voiceText.value = 'AI không tìm thấy món ăn nào khớp với menu. Vui lòng thử lại!';
+          voiceText.value = t('dineIn.voiceNoMatch');
           setTimeout(() => { if(!isListening.value) showVoiceModal.value = false; }, 3000);
           return;
         }
@@ -520,33 +525,33 @@ const startVoiceOrder = () => {
           const prod = activeProducts.value.find(p => p.id === item.productId);
           if (prod) {
             addToCart(prod, item.quantity || 1);
-            addedNames.push(`${item.quantity || 1} ${prod.name}`);
+            addedNames.push(`${item.quantity || 1} ${productName(prod)}`);
           }
         });
         
         if (addedNames.length > 0) {
-          voiceText.value = ` Đã thêm vào giỏ: ${addedNames.join(', ')}`;
+          voiceText.value = t('dineIn.voiceAdded', { items: addedNames.join(', ') });
         } else {
-          voiceText.value = 'AI không tìm thấy món ăn nào khớp với menu.';
+          voiceText.value = t('dineIn.voiceNoMatch');
         }
         setTimeout(() => { if(!isListening.value) showVoiceModal.value = false; }, 3500);
         
       } catch (e) {
-        voiceText.value = 'Lỗi xử lý AI hoặc định dạng trả về không đúng!';
+        voiceText.value = t('dineIn.voiceError');
         setTimeout(() => { if(!isListening.value) showVoiceModal.value = false; }, 3000);
       }
     };
 
     recognition.onerror = (event) => {
-      voiceText.value = `Lỗi: ${event.error}`;
+      voiceText.value = t('dineIn.speechError', { error: event.error });
       isListening.value = false;
       setTimeout(() => { if(!isListening.value) showVoiceModal.value = false; }, 3000);
     };
 
     recognition.onend = () => {
       isListening.value = false;
-      if(showVoiceModal.value && voiceText.value.includes('Đang lắng nghe')) {
-          voiceText.value = 'Không nghe thấy gì. Đã tự động tắt mic.';
+      if(showVoiceModal.value && voiceText.value === t('dineIn.listening')) {
+          voiceText.value = t('dineIn.voiceNothing');
           setTimeout(() => { if(!isListening.value) showVoiceModal.value = false; }, 2000);
       }
     };
@@ -557,11 +562,11 @@ const startVoiceOrder = () => {
 
 const submitOrder = async () => {
   if (cart.value.length === 0) {
-    toastMsg.value = 'Giỏ hàng đang trống.';
+    toastMsg.value = t('dineIn.emptyCart');
     return;
   }
   if (!selectedTable.value) {
-    toastMsg.value = 'Vui lòng chọn bàn trước khi gửi bếp.';
+    toastMsg.value = t('dineIn.selectBeforeSend');
     return;
   }
   if (isSubmitting.value) return;
@@ -580,7 +585,7 @@ const submitOrder = async () => {
     let existingOrder = capabilityOrder.value;
     if (!existingOrder && token) {
       const selectedTableRecord = allTables.value.find(table => table.name === selectedTable.value);
-      if (!selectedTableRecord) throw new Error('Không tìm thấy bàn đã chọn.');
+      if (!selectedTableRecord) throw new Error(t('dineIn.tableNotFound'));
       try { existingOrder = (await api.get('/api/orders/open-by-table', { params: { tableId: selectedTableRecord.id }, headers })).data; } catch (lookupError) {
         if (lookupError.response?.status !== 404) throw lookupError;
       }
@@ -598,7 +603,7 @@ const submitOrder = async () => {
       });
     } else {
       const selectedTableRecord = allTables.value.find(table => table.name === selectedTable.value);
-      if (!selectedTableRecord) throw new Error('Không tìm thấy bàn đã chọn.');
+      if (!selectedTableRecord) throw new Error(t('dineIn.tableNotFound'));
       const created = await api.post('/api/orders/checkout', {
       address: null,
       tableId: selectedTableRecord.id,
@@ -621,14 +626,14 @@ const submitOrder = async () => {
     addItemsIdempotencyKey.value = crypto.randomUUID();
     checkoutIdempotencyKey.value = crypto.randomUUID();
     showModal.value = false;
-    toastMsg.value = 'Đã ghi nhận đơn. Nhân viên sẽ xác nhận trước khi chuyển xuống bếp.';
+    toastMsg.value = t('dineIn.orderRecorded');
     setTimeout(() => { toastMsg.value = ''; }, 4000);
   } catch (error) {
     const payload = error.response?.data;
     const message = typeof payload === 'string'
       ? payload
-      : payload?.message || 'Không thể gửi đơn xuống bếp. Vui lòng thử lại.';
-    const reference = payload?.correlationId ? ` Mã hỗ trợ: ${payload.correlationId}` : '';
+      : (locale.value === 'vi' ? payload?.message : null) || t('dineIn.orderFailed');
+    const reference = payload?.correlationId ? ` ${t('dineIn.supportCode', { code: payload.correlationId })}` : '';
     toastMsg.value = `${message}${reference}`;
     setTimeout(() => { toastMsg.value = ''; }, 6000);
   } finally {

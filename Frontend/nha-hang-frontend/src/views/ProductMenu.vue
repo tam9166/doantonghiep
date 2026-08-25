@@ -6,10 +6,10 @@
       <h1 class="page-title">{{ text.title }}</h1>
       <p class="page-subtitle">{{ text.subtitle }}</p>
       <div v-if="!isLoading && !loadError" class="menu-search">
-        <label class="sr-only" for="menu-search-input">Tìm món ăn</label>
+        <label class="sr-only" for="menu-search-input">{{ text.searchLabel }}</label>
         <span aria-hidden="true">⌕</span>
-        <input id="menu-search-input" v-model.trim="menuQuery" type="search" placeholder="Tìm món ăn, mô tả hoặc danh mục..." @keydown.esc="menuQuery = ''" />
-        <button v-if="menuQuery" type="button" aria-label="Xóa tìm kiếm" @click="menuQuery = ''">×</button>
+        <input id="menu-search-input" v-model.trim="menuQuery" type="search" :placeholder="text.searchPlaceholder" @keydown.esc="menuQuery = ''" />
+        <button v-if="menuQuery" type="button" :aria-label="text.clearSearch" @click="menuQuery = ''">×</button>
       </div>
 
       <!-- Món ăn gợi ý -->
@@ -24,7 +24,7 @@
               <p class="price">{{ formatCurrency(product.price) }}</p>
             </div>
             <button v-if="!isAdminOrManager" class="btn-sugg-add" :disabled="product.availableQuantity <= 0" @click="addToCart(product)">
-              {{ product.availableQuantity > 0 ? text.addNow : 'Tạm hết hàng' }}
+            {{ product.availableQuantity > 0 ? text.addNow : text.soldOut }}
             </button>
           </div>
         </div>
@@ -56,10 +56,10 @@
         <div v-for="product in paginatedProducts" :key="product.id" class="product-card">
           <img :src="foodImage(product.image)" :alt="productName(product)" loading="lazy" @error="replaceFoodImage" />
           <h3>{{ productName(product) }}</h3>
-          <div class="menu-tags" aria-label="Phân loại món">
-            <span v-if="product.isSignatureDish"> Đặc trưng</span>
-            <span v-if="product.dietType === 'CHAY'"> Chay</span>
-            <span v-if="product.cookingMethod === 'NUONG'"> Nướng</span>
+            <div class="menu-tags" :aria-label="text.tagsLabel">
+              <span v-if="product.isSignatureDish">{{ text.signature }}</span>
+              <span v-if="product.dietType === 'CHAY'">{{ text.vegetarian }}</span>
+              <span v-if="product.cookingMethod === 'NUONG'">{{ text.grilled }}</span>
             <span v-if="product.spicyLevel > 0"> {{ product.spicyLevel }}</span>
           </div>
           <div class="product-rating" v-if="product.averageRating > 0">
@@ -70,20 +70,20 @@
           </div>
           <p class="price">{{ formatCurrency(product.price) }}</p>
           <small class="remaining-servings" :class="{ low: product.availableQuantity > 0 && product.availableQuantity <= 5, soldout: product.availableQuantity <= 0 }">
-            {{ product.availableQuantity > 0 ? `Còn tối đa ${product.availableQuantity} suất` : 'Tạm hết hàng' }}
+              {{ product.availableQuantity > 0 ? t('menu.remaining', { count: product.availableQuantity }) : text.soldOut }}
           </small>
           <button v-if="!isAdminOrManager" class="btn-add" :disabled="product.availableQuantity <= 0" @click="addToCart(product)">
-            {{ product.availableQuantity > 0 ? `+ ${text.addToCart}` : 'Tạm hết hàng' }}
+              {{ product.availableQuantity > 0 ? `+ ${text.addToCart}` : text.soldOut }}
           </button>
           <button v-else class="btn-add btn-disabled" disabled>{{ text.viewOnly }}</button>
         </div>
       </div>
 
-      <nav v-if="filteredProducts.length > 0 && totalPages > 1" class="menu-pagination" aria-label="Phân trang thực đơn">
-        <button type="button" :disabled="currentPage === 1" aria-label="Trang trước" @click="goToPage(currentPage - 1)">‹</button>
+      <nav v-if="filteredProducts.length > 0 && totalPages > 1" class="menu-pagination" :aria-label="text.menuPagination">
+        <button type="button" :disabled="currentPage === 1" :aria-label="text.previousPage" @click="goToPage(currentPage - 1)">‹</button>
         <button v-for="page in totalPages" :key="page" type="button" :class="{ active: currentPage === page }"
           :aria-current="currentPage === page ? 'page' : undefined" @click="goToPage(page)">{{ page }}</button>
-        <button type="button" :disabled="currentPage === totalPages" aria-label="Trang sau" @click="goToPage(currentPage + 1)">›</button>
+        <button type="button" :disabled="currentPage === totalPages" :aria-label="text.nextPage" @click="goToPage(currentPage + 1)">›</button>
       </nav>
 
       <!-- Floating Cart Button -->
@@ -109,15 +109,15 @@
             </div>
             <div class="recommendation-controls">
               <label>
-                <span>Số khách</span>
+                  <span>{{ text.guests }}</span>
                 <input v-model.number="recommendationProfile.guestCount" type="number" min="1" max="100" />
               </label>
               <label>
-                <span>Ngân sách tối đa</span>
-                <input v-model.number="recommendationProfile.maxBudget" type="number" min="0" max="100000000" step="50000" placeholder="Ví dụ: 1.000.000đ" />
+                  <span>{{ text.maximumBudget }}</span>
+                  <input v-model.number="recommendationProfile.maxBudget" type="number" min="0" max="100000000" step="50000" :placeholder="text.budgetPlaceholder" />
               </label>
               <div class="preference-field">
-                <span>Sở thích</span>
+                  <span>{{ text.preferences }}</span>
                 <div class="preference-chips">
                   <button
                     v-for="option in recommendationPreferences"
@@ -246,20 +246,11 @@ const recommendationMessage = ref('');
 const recommendationLoading = ref(false);
 const recommendationError = ref('');
 const recommendationProfile = ref({ guestCount: 2, maxBudget: null, preferences: [] });
-const recommendationPreferences = [
-  { value: 'chay', label: ' Chay' },
-  { value: 'mặn', label: 'Món mặn' },
-  { value: 'nướng', label: ' Nướng' },
-  { value: 'hấp', label: 'Hấp' },
-  { value: 'lẩu', label: 'Lẩu' },
-  { value: 'hải sản', label: 'Hải sản' },
-  { value: 'ít cay', label: 'Ít cay' },
-  { value: 'không cay', label: 'Không cay' },
-  { value: 'khai vị', label: 'Khai vị' },
-  { value: 'món chính', label: 'Món chính' },
-  { value: 'tráng miệng', label: 'Tráng miệng' },
-  { value: 'signature', label: ' Đặc trưng' }
-];
+const recommendationPreferences = computed(() => [
+  ['chay', 'vegetarian'], ['mặn', 'savory'], ['nướng', 'grilled'], ['hấp', 'steamed'],
+  ['lẩu', 'hotpot'], ['hải sản', 'seafood'], ['ít cay', 'mild'], ['không cay', 'nonSpicy'],
+  ['khai vị', 'appetizer'], ['món chính', 'main'], ['tráng miệng', 'dessert'], ['signature', 'signature'],
+].map(([value, key]) => ({ value, label: text.value.preferenceLabels[key] })));
 let recommendationRequestId = 0;
 
 const cartSubtotal = computed(() => {
@@ -349,7 +340,7 @@ const addToCart = (product) => {
   const availableQuantity = Math.max(0, Number(product.availableQuantity || 0));
   const requestedQuantity = (existing?.quantity || 0) + 1;
   if (requestedQuantity > availableQuantity) {
-    alert(`Món này hiện chỉ còn tối đa ${availableQuantity} suất.`);
+    alert(t('menu.quantityLimit', { count: availableQuantity }));
     return;
   }
   if (existing) {
@@ -448,7 +439,7 @@ const submitShipOrder = async () => {
     const payload = error.response?.data;
     const message = payload?.message || t('menu.checkoutError');
     const affectedItems = payload?.fieldErrors && Object.keys(payload.fieldErrors).length
-      ? `\nMón bị ảnh hưởng: ${Object.entries(payload.fieldErrors).map(([name, reason]) => `${name}: ${reason}`).join('; ')}`
+      ? `\n${t('menu.affectedItems', { items: Object.entries(payload.fieldErrors).map(([name, reason]) => `${name}: ${reason}`).join('; ') })}`
       : '';
     alert(`${message}${affectedItems}`);
     if (error.response?.status === 409) await loadMenu();

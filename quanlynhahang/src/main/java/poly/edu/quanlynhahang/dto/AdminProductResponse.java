@@ -20,6 +20,9 @@ public record AdminProductResponse(
         BigDecimal costPrice,
         BigDecimal expectedProfit,
         BigDecimal profitMarginPercent,
+        BigDecimal recommendedPrice,
+        BigDecimal targetMarginPercent,
+        String marginStatus,
         Integer availableServings,
         Boolean hasRecipe,
         DietType dietType,
@@ -32,13 +35,15 @@ public record AdminProductResponse(
         return new AdminProductResponse(
                 product.getId(), product.getName(), money(product.getPrice()), product.getTaxRate(),
                 product.getImage(), product.getDescription(), product.getStatus(), product.getAvailable(),
-                product.getAverageRating(), money(product.getCostPrice()), null, null, 0, false,
+                product.getAverageRating(), money(product.getCostPrice()), null, null,
+                null, null, null, 0, false,
                 product.getDietType(), product.getCookingMethod(), product.getSpicyLevel(), product.getIsSignatureDish(),
                 product.getCategory() == null ? null : CategoryResponse.from(product.getCategory()));
     }
 
     public static AdminProductResponse from(Product product, BigDecimal costPrice, int availableServings,
-                                            boolean hasRecipe) {
+                                            boolean hasRecipe, BigDecimal recommendedPrice,
+                                            BigDecimal targetMarginPercent, String marginStatus) {
         BigDecimal price = money(product.getPrice());
         BigDecimal cost = money(costPrice);
         BigDecimal profit = price == null || cost == null ? null : price.subtract(cost);
@@ -47,7 +52,8 @@ public record AdminProductResponse(
         return new AdminProductResponse(
                 product.getId(), product.getName(), price, product.getTaxRate(), product.getImage(),
                 product.getDescription(), product.getStatus(), product.getAvailable(), product.getAverageRating(),
-                cost, money(profit), margin, availableServings, hasRecipe,
+                cost, money(profit), margin, money(recommendedPrice), targetMarginPercent,
+                marginStatus, availableServings, hasRecipe,
                 product.getDietType(), product.getCookingMethod(), product.getSpicyLevel(),
                 product.getIsSignatureDish(),
                 product.getCategory() == null ? null : CategoryResponse.from(product.getCategory()));

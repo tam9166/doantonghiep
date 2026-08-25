@@ -10,7 +10,7 @@
           </div>
         </header>
 
-        <nav class="stepper" aria-label="Reservation steps">
+        <nav class="stepper" :aria-label="text.stepperLabel">
           <button
             v-for="(label, index) in text.steps"
             :key="label"
@@ -33,10 +33,10 @@
             <button
               class="code-copy-btn"
               type="button"
-              :aria-label="copiedCode === submitResult.reservationCode ? 'Đã sao chép mã đặt bàn' : 'Sao chép mã đặt bàn'"
+              :aria-label="copiedCode === submitResult.reservationCode ? text.copiedBookingCode : text.copyBookingCode"
               @click="copyCode(submitResult.reservationCode)"
             >
-              {{ copiedCode === submitResult.reservationCode ? 'Đã sao chép' : 'Sao chép' }}
+              {{ copiedCode === submitResult.reservationCode ? text.copied : text.copy }}
             </button>
           </div>
           <div class="summary-grid">
@@ -46,18 +46,18 @@
           </div>
           <article v-if="submitResult.tables?.length" class="qr-card">
             <div>
-              <h3>Bàn được sắp xếp: {{ submitResult.tables[0].tableName }}</h3>
-              <p>Khu vực: {{ submitResult.areaName }} · Sức chứa: {{ submitResult.tables[0].capacity }} khách</p>
+              <h3>{{ t('reservation.assignedTable', { table: submitResult.tables[0].tableName }) }}</h3>
+              <p>{{ t('reservation.areaCapacity', { area: submitResult.areaName, capacity: submitResult.tables[0].capacity }) }}</p>
             </div>
             <img
               :src="submitResult.tables[0].imageUrl || fallbackTableImage"
-              :alt="`Ảnh thật của ${submitResult.tables[0].tableName}`"
+              :alt="t('reservation.tableImageAlt', { table: submitResult.tables[0].tableName })"
               @error="replaceTableImage"
             />
           </article>
           <div v-else-if="submitResult.reservationStatus === 'WAITING_TABLE_ASSIGNMENT'" class="staff-info">
             <UiIcon name="info" />
-            <p>Đặt chỗ đang chờ nhà hàng xác nhận phương án bố trí hoặc ghép bàn.</p>
+            <p>{{ text.waitingAssignment }}</p>
           </div>
           <article v-if="paymentQr" class="qr-card">
             <div>
@@ -65,29 +65,29 @@
               <p>{{ text.qrHint }}</p>
               <p :class="['payment-state', { paid: paymentQr.status === 'PAID' }]">
                 <UiIcon :name="paymentQr.status === 'PAID' ? 'check' : 'clock'" />
-                {{ paymentQr.status === 'PAID' ? 'Đã nhận thanh toán' : 'Đang chờ thanh toán' }}
+                {{ paymentQr.status === 'PAID' ? text.paymentReceived : text.paymentPending }}
               </p>
               <dl>
                 <div><dt>{{ text.bank }}</dt><dd>{{ paymentQr.bankName || paymentQr.bankCode }}</dd></div>
-                <div><dt>{{ text.accountNumber }}</dt><dd><span>{{ paymentQr.accountNumber }}</span><button class="copy-field-btn" type="button" @click="copyPaymentValue(paymentQr.accountNumber, 'account')"><UiIcon name="copy" />{{ copiedPaymentValue === 'account' ? 'Đã sao chép' : 'Sao chép' }}</button></dd></div>
+                <div><dt>{{ text.accountNumber }}</dt><dd><span>{{ paymentQr.accountNumber }}</span><button class="copy-field-btn" type="button" @click="copyPaymentValue(paymentQr.accountNumber, 'account')"><UiIcon name="copy" />{{ copiedPaymentValue === 'account' ? text.copied : text.copy }}</button></dd></div>
                 <div><dt>{{ text.accountHolder }}</dt><dd>{{ paymentQr.accountHolder }}</dd></div>
-                <div><dt>{{ text.transferContent }}</dt><dd><span>{{ paymentQr.transferContent }}</span><button class="copy-field-btn" type="button" @click="copyPaymentValue(paymentQr.transferContent, 'content')"><UiIcon name="copy" />{{ copiedPaymentValue === 'content' ? 'Đã sao chép' : 'Sao chép' }}</button></dd></div>
+                <div><dt>{{ text.transferContent }}</dt><dd><span>{{ paymentQr.transferContent }}</span><button class="copy-field-btn" type="button" @click="copyPaymentValue(paymentQr.transferContent, 'content')"><UiIcon name="copy" />{{ copiedPaymentValue === 'content' ? text.copied : text.copy }}</button></dd></div>
                 <div><dt>{{ text.expiresAt }}</dt><dd>{{ formatDateTime(paymentQr.expiresAt) }}</dd></div>
               </dl>
             </div>
             <img :src="paymentQr.qrUrl" :alt="text.qrTitle" />
             <div class="qr-actions">
-              <button class="secondary-btn" type="button" :disabled="qrLoading" @click="refreshPaymentStatus">Kiểm tra trạng thái</button>
-              <button class="secondary-btn" type="button" :disabled="qrLoading" @click="regeneratePaymentQr">{{ lang === 'vi' ? 'Tạo lại QR' : 'Regenerate QR' }}</button>
+              <button class="secondary-btn" type="button" :disabled="qrLoading" @click="refreshPaymentStatus">{{ text.checkPayment }}</button>
+              <button class="secondary-btn" type="button" :disabled="qrLoading" @click="regeneratePaymentQr">{{ text.regenerateQr }}</button>
             </div>
           </article>
           <div v-else-if="qrLoading" class="qr-local-state">
-            {{ lang === 'vi' ? 'Đang tạo QR...' : 'Creating QR...' }}
+            {{ text.creatingQr }}
           </div>
           <div v-else-if="qrError" class="qr-local-state qr-error-state">
             <p>{{ qrError }}</p>
             <button class="secondary-btn" type="button" @click="createPaymentQr">
-              {{ lang === 'vi' ? 'Thử lại QR' : 'Retry QR' }}
+              {{ text.retryQr }}
             </button>
           </div>
           <button class="primary-btn" type="button" @click="resetForm">{{ text.newBooking }}</button>
@@ -104,10 +104,10 @@
             <button
               class="code-copy-btn"
               type="button"
-              :aria-label="copiedCode === waitlistResult.waitlistCode ? 'Đã sao chép mã chờ' : 'Sao chép mã chờ'"
+              :aria-label="copiedCode === waitlistResult.waitlistCode ? text.copiedWaitlistCode : text.copyWaitlistCode"
               @click="copyCode(waitlistResult.waitlistCode)"
             >
-              {{ copiedCode === waitlistResult.waitlistCode ? 'Đã sao chép' : 'Sao chép' }}
+              {{ copiedCode === waitlistResult.waitlistCode ? text.copied : text.copy }}
             </button>
           </div>
           <div class="summary-grid">
@@ -120,7 +120,7 @@
 
         <form v-else class="reservation-card" @submit.prevent="submitReservation">
           <section v-show="step === 1" class="panel">
-          <div class="section-heading"><span class="section-icon"><UiIcon name="user" /></span><div><h2>{{ text.customerInfo }}</h2><p>Vui lòng cung cấp thông tin để nhà hàng xác nhận đặt bàn.</p></div></div>
+          <div class="section-heading"><span class="section-icon"><UiIcon name="user" /></span><div><h2>{{ text.customerInfo }}</h2><p>{{ text.customerHint }}</p></div></div>
             <div class="form-grid">
               <label>
                 {{ text.fullName }}
@@ -133,19 +133,19 @@
                 <small v-if="errors.customerPhone">{{ errors.customerPhone }}</small>
               </label>
               <label>
-                Email (có thể để trống)
+                {{ text.emailOptional }}
                 <input v-model.trim="form.customerEmail" type="email" autocomplete="email" />
                 <small v-if="errors.customerEmail">{{ errors.customerEmail }}</small>
               </label>
               <label>
                 {{ text.contactNote }}
-                <textarea v-model.trim="form.contactNote" rows="3" placeholder="Có thể để trống"></textarea>
+                <textarea v-model.trim="form.contactNote" rows="3" :placeholder="text.optionalPlaceholder"></textarea>
               </label>
             </div>
           </section>
 
           <section v-show="step === 2" class="panel">
-            <div class="section-heading"><span class="section-icon">◷</span><div><h2>{{ text.timeInfo }}</h2><p>Chọn thời gian phù hợp cho buổi dùng bữa của bạn.</p></div></div>
+            <div class="section-heading"><span class="section-icon">◷</span><div><h2>{{ text.timeInfo }}</h2><p>{{ text.timeHint }}</p></div></div>
             <div class="form-grid time-grid">
               <label>
                 {{ text.date }}
@@ -167,11 +167,11 @@
               </label>
             </div>
             <div v-if="lateDiningEndTime" class="late-dining-confirmation" role="alert">
-              <strong>Thời gian dùng bữa vượt quá giờ phục vụ</strong>
-              <p>Dự kiến kết thúc lúc {{ lateDiningEndTime }}; nhà hàng phục vụ đến {{ businessHours.closingTime }}.</p>
+              <strong>{{ text.lateTitle }}</strong>
+              <p>{{ t('reservation.lateDescription', { end: lateDiningEndTime, close: businessHours.closingTime }) }}</p>
               <label>
                 <input v-model="lateDiningConfirmed" type="checkbox" />
-                Tôi xác nhận vẫn muốn dùng bữa tại nhà hàng theo thời gian đã chọn.
+                {{ text.lateConfirm }}
               </label>
               <small v-if="errors.lateDiningConfirmed">{{ errors.lateDiningConfirmed }}</small>
             </div>
@@ -182,7 +182,7 @@
               <div>
           <div class="section-heading"><span class="section-icon"><UiIcon name="users" /></span><div><h2>{{ text.guestInfo }}</h2><p>{{ text.guestHint }}</p></div></div>
                 <div class="guest-counter">
-                  <button type="button" aria-label="Giảm số khách" @click="form.guestCount = Math.max(1, Number(form.guestCount || 1) - 1)">−</button>
+                  <button type="button" :aria-label="text.decreaseGuests" @click="form.guestCount = Math.max(1, Number(form.guestCount || 1) - 1)">−</button>
                   <label class="guest-count-input">
                     <input
                       v-model.number="form.guestCount"
@@ -190,25 +190,25 @@
                       min="1"
                       max="10000"
                       inputmode="numeric"
-                      aria-label="Nhập số khách"
+                      :aria-label="text.guestInput"
                       @change="form.guestCount = Math.max(1, Number(form.guestCount || 1))"
                     />
-                    <small>khách</small>
+                    <small>{{ text.guestWord }}</small>
                   </label>
-                  <button type="button" aria-label="Tăng số khách" @click="form.guestCount = Number(form.guestCount || 0) + 1">+</button>
+                  <button type="button" :aria-label="text.increaseGuests" @click="form.guestCount = Number(form.guestCount || 0) + 1">+</button>
                 </div>
                 <div class="guest-presets">
-                  <button v-for="count in [1, 2, 4, 6, 8]" :key="count" type="button" :class="{ selected: form.guestCount === count }" @click="form.guestCount = count">{{ count === 8 ? 'Nhóm 8+' : `${count} người` }}</button>
+                  <button v-for="count in [1, 2, 4, 6, 8]" :key="count" type="button" :class="{ selected: form.guestCount === count }" @click="form.guestCount = count">{{ count === 8 ? text.groupEight : t('reservation.peopleCount', { count }) }}</button>
                 </div>
                 <small v-if="errors.guestCount">{{ errors.guestCount }}</small>
                 <small v-if="earlyGroupWarning" class="group-warning">{{ earlyGroupWarning }}</small>
-                <p class="guest-tip">Hệ thống ưu tiên bàn có sức chứa gần nhất với số khách.</p>
+                <p class="guest-tip">{{ text.guestTip }}</p>
               </div>
               <aside class="quick-summary">
-                <h3>Tóm tắt nhanh</h3>
-                <div><span>Khách hàng</span><strong>{{ form.customerName || 'Chưa nhập' }}</strong></div>
-                <div><span>Ngày giờ</span><strong>{{ form.reservationDate }} · {{ form.arrivalTime }}</strong></div>
-                <p>Gợi ý bàn phù hợp cho <strong>{{ form.guestCount }} khách</strong></p>
+                <h3>{{ text.quickSummary }}</h3>
+                <div><span>{{ text.customer }}</span><strong>{{ form.customerName || text.notEntered }}</strong></div>
+                <div><span>{{ text.dateTime }}</span><strong>{{ form.reservationDate }} · {{ form.arrivalTime }}</strong></div>
+                <p>{{ t('reservation.suggestionFor', { count: form.guestCount }) }}</p>
               </aside>
             </div>
           </section>
@@ -237,12 +237,12 @@
                 :aria-pressed="form.areaId === area.id"
                 @click="selectArea(area)"
               >
-                <img class="area-chip-image" :src="areaImage(area)" :alt="`Không gian ${areaName(area)}`" />
+                <img class="area-chip-image" :src="areaImage(area)" :alt="t('reservation.areaImageAlt', { area: areaName(area) })" />
                 <span class="area-chip-icon"><UiIcon :name="areaIcon(area)" /></span>
                 <span class="area-chip-title">{{ areaName(area) }}</span>
                 <span class="area-chip-description">{{ areaDescription(area) }}</span>
                 <span class="area-chip-meta">
-                  {{ text.capacity }}: {{ area.capacity || '-' }} · {{ text.availableTables }}: {{ areaAvailableCount(area.id) }}
+                  {{ text.capacity }}: {{ area.capacity || '-' }} {{ text.people }} · {{ text.availableTables }}: {{ areaAvailableCount(area.id) }}
                 </span>
                 <span v-if="form.areaId === area.id" class="area-chip-selected">{{ text.selected }}</span>
               </button>
@@ -253,18 +253,18 @@
             <div class="section-heading">
               <span class="section-icon">⌑</span>
               <div>
-                <h2>Bố trí bàn tự động</h2>
+                <h2>{{ text.autoLayout }}</h2>
                 <p v-if="form.guestCount < largePartyThreshold">
-                  Hệ thống sẽ chọn bàn đang hoạt động có sức chứa gần nhất tại khu vực Quý khách đã chọn.
+                  {{ text.autoSingle }}
                 </p>
                 <p v-else>
-                  Nhà hàng sẽ chủ động sắp xếp hoặc ghép bàn phù hợp cho đoàn của Quý khách.
+                  {{ text.autoGroup }}
                 </p>
               </div>
             </div>
             <div class="staff-info">
               <UiIcon name="info" />
-              <p>Quý khách không cần chọn bàn cụ thể. Bàn và ảnh thực tế sẽ hiển thị ngay trong xác nhận nếu hệ thống có thể tự bố trí.</p>
+              <p>{{ text.autoInfo }}</p>
             </div>
             <div v-if="loadingTables" class="skeleton-grid" aria-live="polite">
               <div v-for="n in 2" :key="n" class="skeleton-card"></div>
@@ -276,28 +276,28 @@
             <div v-else-if="availableTables.length || tableCombo?.available" class="staff-info availability-result" role="status">
               <span>✓</span>
               <p v-if="requiresTableCombination">
-                Nhà hàng có thể ghép {{ tableCombo.tables?.length || 2 }} bàn để phục vụ nhóm của Quý khách và sẽ xác nhận bố trí cuối cùng.
+                {{ t('reservation.combinedAvailable', { count: tableCombo.tables?.length || 2 }) }}
               </p>
               <p v-else>
-                Hiện có {{ availableTables.length }} bàn phù hợp. Hệ thống sẽ tự động ưu tiên bàn có sức chứa sát nhất.
+                {{ t('reservation.matchingAvailable', { count: availableTables.length }) }}
               </p>
             </div>
             <div v-else class="waitlist-offer" role="status">
               <div>
-                <strong>Khung giờ này chưa còn bàn phù hợp</strong>
-                <p>Quý khách có thể vào danh sách chờ. Nhà hàng sẽ liên hệ khi có bàn trống hoặc phương án bố trí phù hợp.</p>
+                <strong>{{ text.noSuitableTitle }}</strong>
+                <p>{{ text.noSuitableHint }}</p>
               </div>
               <div class="waitlist-actions">
                 <button class="primary-btn" type="button" :disabled="submitting" @click="submitWaitlist">
-                  {{ submitting ? 'Đang gửi...' : 'Tham gia danh sách chờ' }}
+                  {{ submitting ? text.sending : text.joinWaitlist }}
                 </button>
-                <button class="ghost-btn" type="button" :disabled="submitting" @click="loadAvailableTables">Kiểm tra lại</button>
+                <button class="ghost-btn" type="button" :disabled="submitting" @click="loadAvailableTables">{{ text.checkAgain }}</button>
               </div>
             </div>
           </section>
 
           <section v-show="step === 6" class="panel">
-            <div class="section-heading"><span class="section-icon">⌒</span><div><h2>{{ text.preorderTitle }}</h2><p>Chọn món và số lượng để bếp chuẩn bị chu đáo trước khi bạn đến.</p></div></div>
+            <div class="section-heading"><span class="section-icon">⌒</span><div><h2>{{ text.preorderTitle }}</h2><p>{{ text.preorderHint }}</p></div></div>
             <div class="choice-grid">
               <button type="button" :class="{ selected: form.preorderEnabled }" @click="form.preorderEnabled = true">
                 <strong>{{ text.preorderYes }}</strong>
@@ -320,8 +320,8 @@
               </div>
               <div v-if="menuError" class="error-banner">{{ menuError }}</div>
               <div v-if="cartItems.length" class="preorder-summary" aria-live="polite">
-                <strong>Đã thêm {{ cartItems.length }} món</strong>
-                <span>{{ cartQuantity }} phần đã chọn</span>
+                <strong>{{ t('reservation.addedDishes', { count: cartItems.length }) }}</strong>
+                <span>{{ t('reservation.selectedPortions', { count: cartQuantity }) }}</span>
               </div>
               <div class="dish-grid">
                 <article v-for="dish in filteredMenu" :key="dish.id" class="dish-card">
@@ -331,7 +331,7 @@
                     <span>{{ dishCategory(dish) }}</span>
                     <p>{{ dishDescription(dish) }}</p>
                     <b>{{ money(dish.price) }}</b>
-                    <small v-if="cartQuantityForDish(dish.id)" class="dish-added">Đã thêm {{ cartQuantityForDish(dish.id) }} phần</small>
+                    <small v-if="cartQuantityForDish(dish.id)" class="dish-added">{{ t('reservation.addedPortions', { count: cartQuantityForDish(dish.id) }) }}</small>
                     <button class="primary-btn" type="button" @click="addDish(dish)">{{ text.addDish }}</button>
                   </div>
                 </article>
@@ -349,8 +349,8 @@
                   <button type="button" class="danger-btn" @click="removeDish(item.productId)">{{ text.remove }}</button>
                 </div>
                 <label class="preorder-note">
-                  Ghi chú cho nhà bếp
-                  <textarea v-model.trim="form.orderNote" maxlength="500" rows="3" placeholder="Ví dụ: Ít cay, chuẩn bị trước 15 phút, có trẻ em"></textarea>
+                  {{ text.kitchenNote }}
+                  <textarea v-model.trim="form.orderNote" maxlength="500" rows="3" :placeholder="text.kitchenNotePlaceholder"></textarea>
                   <small>{{ form.orderNote.length }}/500</small>
                 </label>
                 <button class="primary-btn cart-continue-btn" type="button" @click="nextStep">
@@ -361,7 +361,7 @@
           </section>
 
           <section v-show="step === 7" class="panel">
-          <div class="section-heading"><span class="section-icon"><UiIcon name="note" /></span><div><h2>{{ text.requestInfo }}</h2><p>Cho chúng tôi biết để phục vụ bạn tốt hơn.</p></div></div>
+          <div class="section-heading"><span class="section-icon"><UiIcon name="note" /></span><div><h2>{{ text.requestInfo }}</h2><p>{{ text.requestHint }}</p></div></div>
             <div class="preference-grid">
               <label v-for="item in visiblePreferences" :key="item">
                 <input v-model="selectedPreferences" type="checkbox" :value="item" />
@@ -376,7 +376,7 @@
           </section>
 
           <section v-show="step === 8" class="panel">
-            <div class="section-heading"><span class="section-icon">▣</span><div><h2>{{ text.paymentTitle }}</h2><p>Lựa chọn hình thức thanh toán phù hợp.</p></div></div>
+            <div class="section-heading"><span class="section-icon">▣</span><div><h2>{{ text.paymentTitle }}</h2><p>{{ text.paymentHint }}</p></div></div>
             <div class="choice-grid">
               <button v-for="option in paymentOptions" :key="option.key" type="button" :class="{ selected: form.paymentOption === option.key }" @click="selectPayment(option.key)">
                 <strong>{{ option.label }}</strong>
@@ -404,17 +404,17 @@
           </section>
 
           <section v-show="step === 9" class="panel">
-            <div class="section-heading"><span class="section-icon">✓</span><div><h2>{{ text.review }}</h2><p>Vui lòng kiểm tra lại thông tin đặt bàn trước khi gửi yêu cầu.</p></div></div>
+            <div class="section-heading"><span class="section-icon">✓</span><div><h2>{{ text.review }}</h2><p>{{ text.reviewHint }}</p></div></div>
             <div class="review-box">
               <div><span>{{ text.fullName }}</span><strong>{{ form.customerName }}</strong></div>
               <div><span>{{ text.phone }}</span><strong>{{ form.customerPhone }}</strong></div>
               <div><span>{{ text.date }}</span><strong>{{ form.reservationDate }} {{ form.arrivalTime }}</strong></div>
               <div><span>{{ text.guests }}</span><strong>{{ form.guestCount }}</strong></div>
               <div><span>{{ text.areaInfo }}</span><strong>{{ selectedAreaName }}</strong></div>
-              <div><span>{{ text.tableInfo }}</span><strong>{{ quote?.proposedTableName || selectedTable?.name || 'Nhà hàng sẽ bố trí' }}</strong></div>
+              <div><span>{{ text.tableInfo }}</span><strong>{{ quote?.proposedTableName || selectedTable?.name || text.restaurantArranges }}</strong></div>
               <div><span>{{ text.selectedDishes }}</span><strong>{{ cartItems.length }}</strong></div>
-              <div><span>{{ text.requestInfo }}</span><strong>{{ selectedPreferences.join(', ') || 'Không có' }}</strong></div>
-              <div><span>{{ text.paymentTitle }}</span><strong>{{ skipPaymentStep ? 'Không cần thanh toán trước' : paymentOptionLabel(form.paymentOption) }}</strong></div>
+              <div><span>{{ text.requestInfo }}</span><strong>{{ selectedPreferences.join(', ') || text.none }}</strong></div>
+              <div><span>{{ text.paymentTitle }}</span><strong>{{ skipPaymentStep ? text.noAdvancePayment : paymentOptionLabel(form.paymentOption) }}</strong></div>
               <div><span>{{ text.total }}</span><strong>{{ money(quote?.totalAmount || selectedTable?.reservationPrice || 0) }}</strong></div>
             </div>
           </section>
@@ -423,7 +423,7 @@
           <div class="actions">
             <button class="ghost-btn" type="button" @click="previousStep" :disabled="step === 1 || submitting">{{ text.back }}</button>
             <button v-if="step < 9" class="primary-btn" type="button" :disabled="submitting || navigating" @click="nextStep">
-              {{ navigating ? 'Đang xử lý...' : text.next }}
+              {{ navigating ? text.processing : text.next }}
             </button>
             <button v-else class="primary-btn" type="submit" :disabled="submitting">
               {{ submitting ? text.submitting : text.submit }}
@@ -460,7 +460,7 @@ import {
   waitlistOverflowReason
 } from '@/utils/reservationOverflow'
 
-const { locale, tm } = useI18n()
+const { locale, tm, t } = useI18n()
 const { formatCurrency, formatDateTime } = useFormatters()
 const toast = useToast()
 const lang = computed(() => locale.value)
@@ -538,7 +538,7 @@ const requiresTableCombination = computed(() => {
   const hasSingleFit = hasAvailableSingleTable(tables.value, form.value.guestCount)
   return !hasSingleFit && (tableCombo.value?.combinationRequired || Boolean(tableCombo.value?.available))
 })
-const earlyGroupWarning = computed(() => groupWarningFor(form.value.guestCount))
+const earlyGroupWarning = computed(() => groupWarningFor(form.value.guestCount, undefined, text.value.groupWarning))
 const selectedAreaName = computed(() => {
   const area = areas.value.find(item => item.id === form.value.areaId)
   return area ? areaName(area) : ''
@@ -572,7 +572,7 @@ const lateDiningEndTime = computed(() => {
   const endHour = Math.floor((endMinutes % (24 * 60)) / 60)
   const endMinute = endMinutes % 60
   const endTime = `${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}`
-  return endMinutes >= 24 * 60 ? `${endTime} ngày hôm sau` : endTime
+  return endMinutes >= 24 * 60 ? `${endTime} ${text.value.nextDay}` : endTime
 })
 
 const money = formatCurrency
@@ -639,16 +639,12 @@ function reservationTimeError() {
 
   if (!isTimeWithinWindow(arrivalTime, businessHours.value.openingTime, businessHours.value.lastOrderTime)) {
     const hoursLabel = `${businessHours.value.openingTime}-${businessHours.value.lastOrderTime}`
-    return lang.value === 'vi'
-      ? `Vui l\u00f2ng ch\u1ecdn gi\u1edd trong khung nh\u1eadn kh\u00e1ch ${hoursLabel}.`
-      : `Please select a time within the booking window ${hoursLabel}.`
+    return t('reservation.validation.bookingWindow', { hours: hoursLabel })
   }
 
   const selectedTime = new Date(`${reservationDate}T${arrivalTime}:00`)
   if (reservationDate === today && !Number.isNaN(selectedTime.getTime()) && selectedTime <= new Date()) {
-    return lang.value === 'vi'
-      ? 'Th\u1eddi gian \u0111\u1eb7t b\u00e0n \u0111\u00e3 qua. Vui l\u00f2ng ch\u1ecdn gi\u1edd kh\u00e1c.'
-      : 'The selected reservation time has already passed. Please choose another time.'
+    return t('reservation.validation.pastTime')
   }
 
   return ''
@@ -663,22 +659,22 @@ function validateCurrentStep() {
   errors.value = {}
   serverError.value = ''
   if (step.value === 1) {
-    if (!form.value.customerName.trim()) errors.value.customerName = lang.value === 'vi' ? 'Vui lòng nhập họ tên' : 'Full name is required'
-    if (!/^(0|\+84)(3|5|7|8|9)[0-9]{8}$/.test(form.value.customerPhone.replace(/\s/g, ''))) errors.value.customerPhone = lang.value === 'vi' ? 'Số điện thoại Việt Nam không hợp lệ' : 'Invalid Vietnamese phone'
-    if (form.value.customerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.value.customerEmail)) errors.value.customerEmail = 'Invalid email'
+    if (!form.value.customerName.trim()) errors.value.customerName = t('reservation.validation.name')
+    if (!/^(0|\+84)(3|5|7|8|9)[0-9]{8}$/.test(form.value.customerPhone.replace(/\s/g, ''))) errors.value.customerPhone = t('reservation.validation.phone')
+    if (form.value.customerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.value.customerEmail)) errors.value.customerEmail = t('reservation.validation.email')
   }
   if (step.value === 2) {
-    if (!form.value.reservationDate) errors.value.reservationDate = lang.value === 'vi' ? 'Vui lòng chọn ngày' : 'Date is required'
-    if (!form.value.arrivalTime) errors.value.arrivalTime = lang.value === 'vi' ? 'Vui lòng chọn giờ' : 'Time is required'
+    if (!form.value.reservationDate) errors.value.reservationDate = t('reservation.validation.date')
+    if (!form.value.arrivalTime) errors.value.arrivalTime = t('reservation.validation.time')
   }
-  if (step.value === 3 && (!form.value.guestCount || form.value.guestCount < 1)) errors.value.guestCount = lang.value === 'vi' ? 'Số khách không hợp lệ' : 'Invalid party size'
-  if (step.value === 4 && !form.value.areaId) serverError.value = lang.value === 'vi' ? 'Vui lòng chọn khu vực' : 'Please select an area'
-  if (step.value === 8 && !form.value.paymentOption) serverError.value = lang.value === 'vi' ? 'Vui lòng chọn hình thức thanh toán' : 'Please select a payment option'
+  if (step.value === 3 && (!form.value.guestCount || form.value.guestCount < 1)) errors.value.guestCount = t('reservation.validation.guests')
+  if (step.value === 4 && !form.value.areaId) serverError.value = t('reservation.validation.area')
+  if (step.value === 8 && !form.value.paymentOption) serverError.value = t('reservation.validation.payment')
   if (step.value === 2 && form.value.arrivalTime) {
     const timeError = reservationTimeError()
     if (timeError) errors.value.arrivalTime = timeError
     if (lateDiningEndTime.value && !lateDiningConfirmed.value) {
-      errors.value.lateDiningConfirmed = 'Vui lòng xác nhận thời gian dùng bữa sau giờ phục vụ.'
+      errors.value.lateDiningConfirmed = t('reservation.validation.lateConfirm')
     }
   }
   return Object.keys(errors.value).length === 0 && !serverError.value
@@ -694,12 +690,8 @@ async function nextStep() {
     if (step.value === 7 || step.value === 8) await loadQuote()
     step.value = nextReservationStep(step.value, quote.value)
   } catch (error) {
-    serverError.value = getApiErrorMessage(
-      error,
-      step.value === 7
-        ? 'Không thể lưu yêu cầu đặc biệt. Vui lòng thử lại.'
-        : 'Không thể tính lại thông tin đặt bàn. Vui lòng thử lại.'
-    )
+    const fallback = step.value === 7 ? t('reservation.errors.specialRequest') : t('reservation.errors.quote')
+    serverError.value = lang.value === 'vi' ? getApiErrorMessage(error, fallback) : fallback
     toast.error(serverError.value)
   } finally {
     navigating.value = false
@@ -736,7 +728,7 @@ async function loadAreas() {
     if (areas.value.length && !form.value.areaId) form.value.areaId = areas.value[0].id
     await refreshAreaCounts()
   } catch (err) {
-    areaError.value = err.response?.data?.message || (lang.value === 'vi' ? 'Không tải được danh sách khu vực' : 'Could not load areas')
+    areaError.value = lang.value === 'vi' && err.response?.data?.message ? err.response.data.message : t('reservation.errors.areas')
   } finally {
     loadingAreas.value = false
   }
@@ -785,9 +777,7 @@ async function loadAvailableTables() {
       selectedTable.value = null
       form.value.tableId = null
       form.value.tableIds = []
-      serverError.value = lang.value === 'vi'
-        ? 'Bàn đã chọn không còn phù hợp. Vui lòng chọn lại.'
-        : 'The selected table is no longer suitable. Please choose another table.'
+      serverError.value = t('reservation.errors.tableChanged')
     }
   } catch (err) {
     if (isTimeValidationError(err)) {
@@ -800,7 +790,7 @@ async function loadAvailableTables() {
       return
     }
     if (requestSequence !== tableRequestSequence) return
-    tableError.value = err.response?.data?.message || (lang.value === 'vi' ? 'Không tải được bàn phù hợp' : 'Could not load matching tables')
+    tableError.value = lang.value === 'vi' && err.response?.data?.message ? err.response.data.message : t('reservation.errors.tables')
   } finally {
     if (requestSequence === tableRequestSequence) loadingTables.value = false
   }
@@ -882,7 +872,7 @@ async function loadPreorderMenu() {
     const res = await api.get('/api/menu-items/preorder')
     menuItems.value = Array.isArray(res.data) ? res.data : []
   } catch (err) {
-    menuError.value = err.response?.data?.message || (lang.value === 'vi' ? 'Không tải được danh sách món' : 'Could not load menu')
+    menuError.value = lang.value === 'vi' && err.response?.data?.message ? err.response.data.message : t('reservation.errors.menu')
   }
 }
 
@@ -985,7 +975,8 @@ async function submitReservation() {
       serverError.value = ''
       return
     }
-    serverError.value = err.response?.data?.message || err.response?.data || (lang.value === 'vi' ? 'Không gửi được yêu cầu đặt bàn' : 'Could not submit reservation')
+    serverError.value = lang.value === 'vi' && (err.response?.data?.message || typeof err.response?.data === 'string')
+      ? (err.response?.data?.message || err.response.data) : t('reservation.errors.submit')
   } finally {
     submitting.value = false
   }
@@ -1045,8 +1036,8 @@ async function createPaymentQr() {
     })
     paymentQr.value = qrRes.data
   } catch (err) {
-    qrError.value = err.response?.data?.message
-      || (lang.value === 'vi' ? 'Không tạo được QR thanh toán.' : 'Could not create payment QR.')
+    qrError.value = lang.value === 'vi' && err.response?.data?.message
+      ? err.response.data.message : t('reservation.errors.createQr')
   } finally {
     qrLoading.value = false
   }
@@ -1069,8 +1060,8 @@ async function regeneratePaymentQr() {
     paymentQr.value = qrRes.data
     regenerateIdempotencyKey.value = ''
   } catch (err) {
-    qrError.value = err.response?.data?.message
-      || (lang.value === 'vi' ? 'Không thể tạo lại QR.' : 'Could not regenerate QR.')
+    qrError.value = lang.value === 'vi' && err.response?.data?.message
+      ? err.response.data.message : t('reservation.errors.regenerateQr')
   } finally {
     qrLoading.value = false
   }
@@ -1086,7 +1077,7 @@ async function refreshPaymentStatus() {
     })
     paymentQr.value = response.data
   } catch (err) {
-    qrError.value = err.response?.data?.message || 'Không kiểm tra được trạng thái thanh toán.'
+    qrError.value = lang.value === 'vi' && err.response?.data?.message ? err.response.data.message : t('reservation.errors.paymentStatus')
   } finally {
     qrLoading.value = false
   }
@@ -1124,7 +1115,8 @@ async function submitWaitlist() {
     })
     waitlistResult.value = res.data
   } catch (err) {
-    serverError.value = err.response?.data?.message || err.response?.data || (lang.value === 'vi' ? 'Không tạo được danh sách chờ' : 'Could not join waitlist')
+    serverError.value = lang.value === 'vi' && (err.response?.data?.message || typeof err.response?.data === 'string')
+      ? (err.response?.data?.message || err.response.data) : t('reservation.errors.waitlist')
   } finally {
     submitting.value = false
   }

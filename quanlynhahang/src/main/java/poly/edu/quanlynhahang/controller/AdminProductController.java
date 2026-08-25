@@ -63,7 +63,8 @@ public class AdminProductController {
         return products.stream().map(product -> {
             MenuEconomicsService.Assessment assessment = menuEconomicsService.assess(product);
             return AdminProductResponse.from(product, assessment.costPrice(),
-                    assessment.availableServings(), assessment.hasRecipe());
+                    assessment.availableServings(), assessment.hasRecipe(), assessment.recommendedPrice(),
+                    assessment.targetMarginPercent(), assessment.marginStatus());
         }).toList();
     }
 
@@ -93,16 +94,21 @@ public class AdminProductController {
                                                               @Valid @RequestBody ProductUpsertRequest request) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "PRODUCT_NOT_FOUND"));
-        String oldInfo = product.getName() + " | Gia: " + product.getPrice();
+        BigDecimal oldPrice = product.getPrice();
+        MenuEconomicsService.Assessment oldAssessment = menuEconomicsService.assess(product);
+        String oldInfo = pricingAuditValue(product, oldPrice, oldAssessment);
         applyRequest(product, request, false);
         if (Boolean.TRUE.equals(request.status()) || Boolean.TRUE.equals(request.available())) {
             menuEconomicsService.requireSellable(product);
         }
         Product saved = productRepository.save(product);
+        MenuEconomicsService.Assessment newAssessment = menuEconomicsService.assess(saved);
         activityLogService.log("UPDATE", "Product", String.valueOf(id),
                 "Cap nhat mon an: " + saved.getName(), oldInfo,
-                saved.getName() + " | Gia: " + saved.getPrice());
-        return ResponseEntity.ok(AdminProductResponse.from(saved));
+                pricingAuditValue(saved, saved.getPrice(), newAssessment));
+        return ResponseEntity.ok(AdminProductResponse.from(saved, newAssessment.costPrice(),
+                newAssessment.availableServings(), newAssessment.hasRecipe(), newAssessment.recommendedPrice(),
+                newAssessment.targetMarginPercent(), newAssessment.marginStatus()));
     }
 
     @PutMapping("/{id}/toggle-available")
@@ -152,5 +158,15 @@ public class AdminProductController {
         product.setCookingMethod(request.cookingMethod() == null ? poly.edu.quanlynhahang.entity.CookingMethod.KHAC : request.cookingMethod());
         product.setSpicyLevel(request.spicyLevel() == null ? 0 : request.spicyLevel());
         product.setIsSignatureDish(Boolean.TRUE.equals(request.isSignatureDish()));
+    }
+
+    private String pricingAuditValue(Product product, BigDecimal price,
+                                     MenuEconomicsService.Assessment assessment) {
+        BigDecimal profit = price == null ? null : price.subtract(assessment.costPrice());
+        BigDecimal margin = price == null || price.signum() <= 0 ? null
+                : profit.multiply(BigDecimal.valueOf(100)).divide(price, 2, java.math.RoundingMode.HALF_UP);
+        return "dishId=" + product.getId() + " | dishName=" + product.getName()
+                + " | price=" + price + " | costPrice=" + assessment.costPrice()
+                + " | marginPercent=" + margin;
     }
 }

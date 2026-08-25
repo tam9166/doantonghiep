@@ -4,9 +4,9 @@ export function exceedsLargestSingleTableCapacity(guestCount, capacity = LARGEST
   return Number(guestCount || 0) > Number(capacity || LARGEST_SINGLE_TABLE_CAPACITY)
 }
 
-export function earlyGroupWarning(guestCount, capacity = LARGEST_SINGLE_TABLE_CAPACITY) {
+export function earlyGroupWarning(guestCount, capacity = LARGEST_SINGLE_TABLE_CAPACITY, warning = 'Nhóm đông: hệ thống sẽ thử ghép bàn; nếu không đủ sẽ chuyển sang đặt sảnh sự kiện.') {
   return exceedsLargestSingleTableCapacity(guestCount, capacity)
-    ? 'Nhóm đông: hệ thống sẽ thử ghép bàn; nếu không đủ sẽ chuyển sang đặt sảnh sự kiện.'
+    ? warning
     : ''
 }
 

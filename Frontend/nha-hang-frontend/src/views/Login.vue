@@ -1,31 +1,31 @@
 <template>
   <div class="login-page">
     <router-link to="/" class="g-back-btn-floating">
-      <span>←</span> Về Trang Chủ
+      <span>←</span> {{ t('customer.backHome') }}
     </router-link>
     
     <!-- Left Panel - Visual -->
     <div class="login-visual">
       <div class="visual-overlay"></div>
       <div class="visual-content">
-        <div class="visual-badge">✦ NHÀ HÀNG MỘC VỊ — ĐÀ NẴNG</div>
-        <h1 class="text-gradient">Chào mừng<br>trở lại<span>.</span></h1>
-        <p>Đăng nhập để trải nghiệm ẩm thực tuyệt vời và quản lý đơn hàng của bạn.</p>
+        <div class="visual-badge">✦ {{ t('customer.login.badge') }}</div>
+        <h1 class="text-gradient">{{ t('customer.login.welcome') }}</h1>
+        <p>{{ t('customer.login.intro') }}</p>
         
         <!-- Floating cards -->
         <div class="floating-cards">
           <div class="float-card fc-1">
             <span></span>
             <div>
-              <strong>100+ Món Ăn</strong>
-              <p>Đa dạng ẩm thực 3 miền</p>
+              <strong>{{ t('customer.login.dishes') }}</strong>
+              <p>{{ t('customer.login.dishesHint') }}</p>
             </div>
           </div>
           <div class="float-card fc-2">
             <span></span>
             <div>
-              <strong>4.9/5 Đánh Giá</strong>
-              <p>Từ 2000+ khách hàng</p>
+              <strong>{{ t('customer.login.rating') }}</strong>
+              <p>{{ t('customer.login.ratingHint') }}</p>
             </div>
           </div>
         </div>
@@ -48,20 +48,20 @@
 
         <!-- Form Header -->
         <div class="form-header">
-          <h2>Đăng Nhập</h2>
-          <p>Vui lòng đăng nhập để tiếp tục sử dụng dịch vụ</p>
+          <h2>{{ t('customer.login.title') }}</h2>
+          <p>{{ t('customer.login.subtitle') }}</p>
         </div>
 
         <!-- Login Form -->
         <div class="form-body">
           <div class="input-group">
-            <label>Tên đăng nhập</label>
+            <label>{{ t('customer.login.username') }}</label>
             <div class="input-field">
               <span class="field-icon"><UiIcon name="user" /></span>
               <input
                 v-model="form.username"
                 type="text"
-                placeholder="Nhập username..."
+                :placeholder="t('customer.login.usernamePlaceholder')"
                 @keyup.enter="handleLogin"
                 autocomplete="username"
               />
@@ -69,13 +69,13 @@
           </div>
 
           <div class="input-group">
-            <label>Mật khẩu</label>
+            <label>{{ t('customer.login.password') }}</label>
             <div class="input-field">
               <span class="field-icon"><UiIcon name="settings" /></span>
               <input
                 v-model="form.password"
                 :type="showPassword ? 'text' : 'password'"
-                placeholder="Nhập mật khẩu..."
+                :placeholder="t('customer.login.passwordPlaceholder')"
                 @keyup.enter="handleLogin"
                 autocomplete="current-password"
               />
@@ -89,16 +89,16 @@
             <label class="remember-me">
               <input type="checkbox" v-model="rememberMe" />
               <span class="checkmark"></span>
-              Ghi nhớ đăng nhập
+              {{ t('customer.login.remember') }}
             </label>
           </div>
 
           <!-- Login Button -->
           <button @click="handleLogin" class="btn-login" :disabled="isLoading">
-            <span v-if="!isLoading">Đăng Nhập →</span>
+            <span v-if="!isLoading">{{ t('customer.login.submit') }}</span>
             <span v-else class="btn-loading">
               <span class="spinner"></span>
-              Đang xử lý...
+              {{ t('customer.processing') }}
             </span>
           </button>
 
@@ -114,10 +114,10 @@
         <!-- Form Footer -->
         <div class="form-footer">
           <p>
-            Chưa có tài khoản?
-            <router-link to="/register">Đăng ký ngay →</router-link>
+            {{ t('customer.login.noAccount') }}
+            <router-link to="/register">{{ t('customer.login.registerNow') }}</router-link>
           </p>
-          <router-link to="/" class="back-home">← Về trang chủ</router-link>
+          <router-link to="/" class="back-home">← {{ t('customer.backHome') }}</router-link>
         </div>
       </div>
     </div>
@@ -130,8 +130,10 @@ import api from '@/services/api'
 import { setCustomerSession } from '@/services/session'
 import { getApiErrorMessage } from '@/services/errorMessage'
 import { useToast } from '@/composables/useToast'
+import { useI18n } from 'vue-i18n'
 
 const toast = useToast()
+const { t } = useI18n()
 const form = ref({ username: '', password: '' })
 const isLoading = ref(false)
 const errorMsg = ref('')
@@ -142,7 +144,7 @@ const handleLogin = async () => {
   if (isLoading.value) return
   errorMsg.value = ''
   if (!form.value.username || !form.value.password) {
-    errorMsg.value = 'Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu!'
+    errorMsg.value = t('customer.login.required')
     return
   }
 
@@ -156,7 +158,7 @@ const handleLogin = async () => {
       mustChangePassword: res.data.mustChangePassword
     })
 
-    toast.success(`Chào mừng ${res.data.username}!`, 'Đăng nhập thành công')
+    toast.success(t('customer.login.success', { username: res.data.username }), t('customer.login.successTitle'))
 
     // Khách hàng luôn redirect về trang chủ
     setTimeout(() => {
@@ -166,15 +168,15 @@ const handleLogin = async () => {
   } catch (error) {
     if (error.response && error.response.status === 403) {
       // Nhân viên nhầm trang đăng nhập
-      errorMsg.value = getApiErrorMessage(error, 'Vui lòng sử dụng trang đăng nhập dành cho nhân viên.')
+      errorMsg.value = getApiErrorMessage(error, t('customer.login.staffPage'))
     } else if (error.response && error.response.status === 401) {
-      errorMsg.value = 'Sai tài khoản hoặc mật khẩu!'
+      errorMsg.value = t('customer.login.invalid')
     } else if (error.response) {
-      errorMsg.value = getApiErrorMessage(error, 'Đăng nhập không thành công.')
+      errorMsg.value = getApiErrorMessage(error, t('customer.login.failed'))
     } else if (error.request) {
-      errorMsg.value = 'Không thể kết nối Server. Vui lòng kiểm tra Backend.'
+      errorMsg.value = t('customer.login.server')
     } else {
-      errorMsg.value = 'Lỗi: ' + error.message
+      errorMsg.value = t('customer.login.error', { message: error.message })
     }
   } finally {
     isLoading.value = false

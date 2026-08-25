@@ -13,7 +13,8 @@ vi.mock('@/services/api', () => ({
 }))
 vi.mock('@/services/session', () => ({
   clearStaffSession: vi.fn(),
-  getStaffToken: () => 'kitchen-token'
+  getStaffToken: () => 'kitchen-token',
+  getStaffUser: () => ({ username: 'kitchen', roles: ['ROLE_KITCHEN'] })
 }))
 vi.mock('@/composables/useDialog', () => ({
   useDialog: () => ({ confirmDialog: vi.fn(), promptDialog: vi.fn() })

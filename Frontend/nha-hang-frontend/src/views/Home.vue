@@ -6,14 +6,14 @@
       <div class="hero-overlay"></div>
       <div class="hero-content">
         <div class="hero-tag">✦ {{ $t('home.title') }}</div>
-        <h1>Nhà Hàng<br><span>Mộc Vị</span></h1>
+        <h1>{{ $t('home.restaurantName') }}</h1>
         <p>{{ $t('home.subtitle') }}</p>
         <div class="hero-actions">
           <button @click="$router.push('/dine-in')" class="g-btn-primary home-hero-btn">
-             Gọi Món Tại Quán
+             {{ $t('home.dineIn') }}
           </button>
           <button @click="$router.push('/reservation')" class="g-btn-outline home-hero-btn home-hero-outline">
-             Đặt Bàn Trước
+             {{ $t('home.reserve') }}
           </button>
         </div>
 
@@ -21,17 +21,17 @@
         <div class="hero-stats">
           <div class="stat-item">
             <span class="stat-num">100+</span>
-            <span class="stat-lbl">Món ăn</span>
+            <span class="stat-lbl">{{ $t('home.dishes') }}</span>
           </div>
           <div class="stat-divider"></div>
           <div class="stat-item">
             <span class="stat-num">5</span>
-            <span class="stat-lbl">Đánh giá</span>
+            <span class="stat-lbl">{{ $t('home.reviews') }}</span>
           </div>
           <div class="stat-divider"></div>
           <div class="stat-item">
             <span class="stat-num">10+</span>
-            <span class="stat-lbl">Năm kinh nghiệm</span>
+            <span class="stat-lbl">{{ $t('home.yearsExperience') }}</span>
           </div>
         </div>
       </div>
@@ -43,21 +43,17 @@
         <!-- Left col - Article -->
         <article class="left-col">
           <div class="meta-info">
-            <span class="meta-tag">Tin nổi bật</span>
+            <span class="meta-tag">{{ $t('home.featured') }}</span>
             <span class="meta-date"> {{ currentDate }}</span>
           </div>
-          <h2 class="article-title">Trải nghiệm ẩm thực Việt tại NHÀ HÀNG MỘC VỊ Đà Nẵng</h2>
-          <p class="article-excerpt">
-            Với không gian thoáng đãng, đậm chất kiến trúc truyền thống và thực đơn phong phú
-            quy tụ tinh hoa ẩm thực ba miền, nhà hàng chúng tôi mang đến cho thực khách những
-            trải nghiệm trọn vẹn nhất...
-          </p>
+          <h2 class="article-title">{{ $t('home.storyTitle') }}</h2>
+          <p class="article-excerpt">{{ $t('home.story') }}</p>
           <div class="article-actions">
             <button @click="$router.push('/menu')" class="g-btn-primary home-action-btn">
-               Xem Thực Đơn
+               {{ $t('home.view_menu') }}
             </button>
             <button @click="$router.push('/reservation')" class="g-btn-outline home-action-btn">
-               Đặt Bàn Ngay
+               {{ $t('home.book_now') }}
             </button>
           </div>
 
@@ -65,18 +61,18 @@
           <div class="feature-grid">
             <div class="feature-card">
               <div class="feature-icon"><UiIcon name="location" /></div>
-              <h4>Giao Hàng Tận Nơi</h4>
-              <p>Đặt món và nhận hàng ngay tại nhà của bạn</p>
+              <h4>{{ $t('home.delivery') }}</h4>
+              <p>{{ $t('home.deliveryDesc') }}</p>
             </div>
             <div class="feature-card">
               <div class="feature-icon"><UiIcon name="calendar" /></div>
-              <h4>Đặt Tiệc & Họp Mặt</h4>
-              <p>Phòng VIP riêng cho sự kiện của bạn</p>
+              <h4>{{ $t('home.events') }}</h4>
+              <p>{{ $t('home.eventsDesc') }}</p>
             </div>
             <div class="feature-card">
               <div class="feature-icon"><UiIcon name="private" /></div>
-              <h4>Không Gian VIP</h4>
-              <p>Trải nghiệm không gian đẳng cấp 5 sao</p>
+              <h4>{{ $t('home.vipSpace') }}</h4>
+              <p>{{ $t('home.vipSpaceDesc') }}</p>
             </div>
           </div>
         </article>
@@ -84,52 +80,52 @@
         <!-- Right col - Sidebar -->
         <aside class="right-col">
           <div class="sidebar-card">
-            <h3>- Dịch vụ của chúng tôi</h3>
+            <h3>{{ $t('home.services') }}</h3>
             <ul class="service-list">
               <li>
                 <router-link to="/menu">
                   <span class="svc-icon"><UiIcon name="location" /></span>
-                  <span>Giao hàng tận nơi</span>
-                  <span class="svc-badge new">Mới</span>
+                  <span>{{ $t('home.delivery') }}</span>
+                  <span class="svc-badge new">{{ $t('home.new') }}</span>
                 </router-link>
               </li>
               <li>
                 <router-link to="/reservation">
                   <span class="svc-icon"><UiIcon name="calendar" /></span>
-                  <span>Đặt tiệc, họp mặt</span>
+                  <span>{{ $t('home.events') }}</span>
                   <span class="svc-badge hot">Hot</span>
                 </router-link>
               </li>
               <li>
                 <a href="#">
                   <span class="svc-icon"><UiIcon name="private" /></span>
-                  <span>Trải nghiệm không gian VIP</span>
+                  <span>{{ $t('home.vipSpace') }}</span>
                 </a>
               </li>
               <li>
                 <a href="#">
                   <span class="svc-icon"><UiIcon name="garden" /></span>
-                  <span>Thực đơn chay</span>
+                  <span>{{ $t('home.vegetarianMenu') }}</span>
                 </a>
               </li>
             </ul>
           </div>
 
           <div class="sidebar-card hours-card">
-            <h3> Giờ Mở Cửa</h3>
+            <h3>{{ $t('home.openingHours') }}</h3>
             <div class="hours-list">
               <div class="hours-item">
-                <span>Thứ 2 - Thứ 6</span>
+                <span>{{ $t('home.weekdays') }}</span>
                 <span class="hours-time">10:00 - 22:00</span>
               </div>
               <div class="hours-item">
-                <span>Thứ 7 - CN</span>
+                <span>{{ $t('home.weekend') }}</span>
                 <span class="hours-time">09:00 - 23:00</span>
               </div>
             </div>
             <div class="open-status">
               <span class="open-dot"></span>
-              Đang mở cửa
+              {{ $t('home.openNow') }}
             </div>
           </div>
         </aside>
@@ -140,20 +136,20 @@
     <section v-if="newsPosts.length > 0" class="posts-section">
       <div class="section-container">
         <div class="section-header-block">
-          <span class="section-tag"> Tin Tức</span>
-          <h2>Tin Tức Nhà Hàng</h2>
-          <p>Cập nhật những thông tin mới nhất về nhà hàng, món ăn và ưu đãi đặc biệt</p>
+          <span class="section-tag">{{ $t('home.news') }}</span>
+          <h2>{{ $t('home.newsTitle') }}</h2>
+          <p>{{ $t('home.newsHint') }}</p>
         </div>
         <div class="news-grid">
           <div v-for="post in newsPosts" :key="post.id" class="news-card">
             <div class="news-img-wrap">
-              <img v-if="post.image" :src="post.image" :alt="post.title" loading="lazy" />
+              <img v-if="post.image" :src="post.image" :alt="localizedPostTitle(post)" loading="lazy" />
               <div v-else class="news-img-placeholder"><UiIcon name="note" /></div>
               <span class="news-date-badge">{{ formatPostDate(post.createDate) }}</span>
             </div>
             <div class="news-body">
-              <h3>{{ post.title }}</h3>
-              <p>{{ truncateText(post.content, 150) }}</p>
+              <h3>{{ localizedPostTitle(post) }}</h3>
+              <p>{{ truncateText(localizedPostContent(post), 150) }}</p>
               <div class="news-footer">
                 <button 
                   class="btn-like" 
@@ -173,18 +169,18 @@
     <section v-if="recruitPosts.length > 0" class="posts-section recruit-section">
       <div class="section-container">
         <div class="section-header-block">
-          <span class="section-tag recruit-tag"> Tuyển Dụng</span>
-          <h2>Cơ Hội Nghề Nghiệp</h2>
-          <p>Gia nhập đội ngũ MỘC VỊ RESTAURANT — nơi kiến tạo sự nghiệp ẩm thực</p>
+          <span class="section-tag recruit-tag">{{ $t('home.recruitment') }}</span>
+          <h2>{{ $t('home.careers') }}</h2>
+          <p>{{ $t('home.careersHint') }}</p>
         </div>
         <div class="recruit-list">
           <div v-for="post in recruitPosts" :key="post.id" class="recruit-card">
             <div class="recruit-icon"><UiIcon name="users" /></div>
             <div class="recruit-info">
-              <h4>{{ post.title }}</h4>
-              <p>{{ truncateText(post.content, 200) }}</p>
+              <h4>{{ localizedPostTitle(post) }}</h4>
+              <p>{{ truncateText(localizedPostContent(post), 200) }}</p>
               <div class="recruit-meta">
-                <span class="recruit-date"> Đăng ngày {{ formatPostDate(post.createDate) }}</span>
+                <span class="recruit-date">{{ $t('home.postedOn', { date: formatPostDate(post.createDate) }) }}</span>
                 <button 
                   class="btn-like btn-like-small" 
                   :class="{'liked': isLiked(post.id)}" 
@@ -194,7 +190,7 @@
                 </button>
               </div>
             </div>
-            <button class="btn-apply" @click="showRecruitDetail(post)">Xem Chi Tiết →</button>
+            <button class="btn-apply" @click="showRecruitDetail(post)">{{ $t('home.details') }}</button>
           </div>
         </div>
       </div>
@@ -204,17 +200,17 @@
     <div v-if="selectedRecruit" class="modal-overlay" @click.self="selectedRecruit = null">
       <div class="recruit-modal">
         <div class="modal-top">
-          <h2>{{ selectedRecruit.title }}</h2>
-          <button @click="selectedRecruit = null" class="btn-close-modal" aria-label="Đóng chi tiết tuyển dụng"><UiIcon name="x" /></button>
+          <h2>{{ localizedPostTitle(selectedRecruit) }}</h2>
+          <button @click="selectedRecruit = null" class="btn-close-modal" :aria-label="$t('home.closeRecruitment')"><UiIcon name="x" /></button>
         </div>
-        <img v-if="selectedRecruit.image" :src="selectedRecruit.image" :alt="selectedRecruit.title" class="modal-img" loading="lazy" />
+        <img v-if="selectedRecruit.image" :src="selectedRecruit.image" :alt="localizedPostTitle(selectedRecruit)" class="modal-img" loading="lazy" />
         <div class="modal-content">
-          <pre class="modal-text">{{ selectedRecruit.content }}</pre>
+          <pre class="modal-text">{{ localizedPostContent(selectedRecruit) }}</pre>
           <div class="modal-footer">
-            <p class="modal-date"> Đăng ngày {{ formatPostDate(selectedRecruit.createDate) }}</p>
+            <p class="modal-date">{{ $t('home.postedOn', { date: formatPostDate(selectedRecruit.createDate) }) }}</p>
             <div class="modal-actions">
-              <button class="btn-interview" @click="startInterview"> Thử Phỏng Vấn</button>
-              <button class="btn-submit-app" @click="openApplicationForm"> Ứng Tuyển Ngay</button>
+              <button class="btn-interview" @click="startInterview">{{ $t('home.tryInterview') }}</button>
+              <button class="btn-submit-app" @click="openApplicationForm">{{ $t('home.applyNow') }}</button>
             </div>
           </div>
         </div>
@@ -224,15 +220,15 @@
     <!-- Application Form Modal -->
     <div v-if="showAppForm" class="modal-overlay" @click.self="showAppForm = false">
       <div class="app-modal">
-        <h3> Đơn Ứng Tuyển</h3>
-        <p class="app-subtitle">Vị trí: <strong>{{ selectedRecruit?.title }}</strong></p>
+        <h3>{{ $t('home.application') }}</h3>
+        <p class="app-subtitle">{{ $t('home.position', { position: localizedPostTitle(selectedRecruit) }) }}</p>
 
         <div class="form-group">
-          <label>Họ và Tên *</label>
-          <input v-model="appForm.fullname" type="text" class="g-input" placeholder="VD: Nguyễn Văn A" />
+          <label>{{ $t('home.fullName') }}</label>
+          <input v-model="appForm.fullname" type="text" class="g-input" :placeholder="$t('home.fullNamePlaceholder')" />
         </div>
         <div class="form-group">
-          <label>Số Điện Thoại *</label>
+          <label>{{ $t('home.phone') }}</label>
           <input v-model="appForm.phone" type="text" class="g-input" placeholder="VD: 0987654321" />
         </div>
         <div class="form-group">
@@ -240,16 +236,16 @@
           <input v-model="appForm.email" type="email" class="g-input" placeholder="nguyenvana@gmail.com" />
         </div>
         <div class="form-group">
-          <label>Lời Nhắn</label>
-          <textarea v-model="appForm.message" class="g-input" rows="3" placeholder="Kinh nghiệm của bạn..."></textarea>
+          <label>{{ $t('home.message') }}</label>
+          <textarea v-model="appForm.message" class="g-input" rows="3" :placeholder="$t('home.experiencePlaceholder')"></textarea>
         </div>
         <div class="form-group">
-          <label>CV Đính Kèm (PDF, DOCX, Ảnh)</label>
+          <label>{{ $t('home.cv') }}</label>
           <input type="file" @change="handleCvUpload" class="g-input" style="padding: 10px;" />
         </div>
         <div class="app-actions">
-          <button class="btn-submit-app w-100" @click="submitApplication">Gửi Đơn Ứng Tuyển</button>
-          <button class="btn-close" @click="showAppForm = false">Hủy</button>
+          <button class="btn-submit-app w-100" @click="submitApplication">{{ $t('home.submitApplication') }}</button>
+          <button class="btn-close" @click="showAppForm = false">{{ $t('home.cancel') }}</button>
         </div>
       </div>
     </div>
@@ -259,8 +255,8 @@
       <!-- Chat Widget: Interview -->
       <div v-if="showInterviewChat" class="chat-widget interview-chat">
         <div class="chat-header interview-header">
-          <span> Bot Phỏng Vấn</span>
-          <button @click="showInterviewChat = false" aria-label="Đóng bot phỏng vấn"><UiIcon name="x" /></button>
+          <span>{{ $t('home.interviewBot') }}</span>
+          <button @click="showInterviewChat = false" :aria-label="$t('home.closeInterview')"><UiIcon name="x" /></button>
         </div>
         <div class="chat-body" ref="interviewChatBody">
           <div v-for="(msg, i) in interviewMessages" :key="i" :class="['chat-msg', msg.type]">
@@ -268,48 +264,48 @@
           </div>
         </div>
         <div class="chat-input-area" v-if="interviewStep < interviewQuestions.length">
-          <input v-model="interviewInput" @keyup.enter="sendInterviewMessage" placeholder="Trả lời câu hỏi..." />
-          <button @click="sendInterviewMessage">Gửi</button>
+          <input v-model="interviewInput" @keyup.enter="sendInterviewMessage" :placeholder="$t('home.answerPlaceholder')" />
+          <button @click="sendInterviewMessage">{{ $t('home.send') }}</button>
         </div>
         <div class="chat-input-area chat-done-area" v-else>
-          <button class="btn-submit-app w-100" @click="openApplicationFormFromInterview"> Ứng Tuyển Ngay</button>
+          <button class="btn-submit-app w-100" @click="openApplicationFormFromInterview">{{ $t('home.applyNow') }}</button>
         </div>
       </div>
 
       <!-- Chat Widget: Customer Support -->
       <div v-if="showSupportChat" class="chat-widget support-chat">
         <div class="chat-header support-header">
-          <span> Bot Hỗ Trợ Khách Hàng</span>
-          <button @click="showSupportChat = false" aria-label="Đóng bot hỗ trợ"><UiIcon name="x" /></button>
+          <span>{{ $t('home.supportBot') }}</span>
+          <button @click="showSupportChat = false" :aria-label="$t('home.closeSupport')"><UiIcon name="x" /></button>
         </div>
         <div class="chat-body" ref="supportChatBody">
           <div v-for="(msg, i) in supportMessages" :key="i" :class="['chat-msg', msg.type, { 'msg-booking': msg.isTableBooking, 'msg-menu': msg.isMenuLink }]">
             <template v-if="!msg.isTableBooking && !msg.isMenuLink">
               {{ msg.text }}
               <div v-if="msg.type === 'bot' && msg.interactionId && !msg.feedback" class="ai-feedback"><button @click="sendAiFeedback(msg, true)"><UiIcon name="thumbs-up" /></button><button @click="sendAiFeedback(msg, false)"><UiIcon name="thumbs-down" /></button></div>
-              <small v-else-if="msg.feedback">Cảm ơn Quý khách đã đánh giá.</small>
+              <small v-else-if="msg.feedback">{{ $t('home.feedbackThanks') }}</small>
             </template>
             <template v-else-if="msg.isMenuLink">
               <div class="menu-link-widget">
-                <p> Bạn có thể xem toàn bộ thực đơn và đặt món tại đây:</p>
-                <button @click="$router.push('/menu')" class="b-btn"> Xem Thực Đơn</button>
+                <p>{{ $t('home.menuLinkHint') }}</p>
+                <button @click="$router.push('/menu')" class="b-btn">{{ $t('home.view_menu') }}</button>
               </div>
             </template>
             <template v-else>
               <div class="booking-widget">
-                <p> <strong>{{ msg.bookingState.time }}</strong> •  {{ msg.bookingState.pax }} khách •  {{ msg.bookingState.view }}</p>
-                <p>Nhà hàng sẽ tự động sắp xếp bàn phù hợp. Với đoàn đông, nhân viên sẽ xác nhận phương án ghép bàn.</p>
-                <button @click="continueSecureReservation" class="b-btn">Tiếp tục đặt bàn</button>
+                <p>{{ $t('home.bookingSummary', msg.bookingState) }}</p>
+                <p>{{ $t('home.bookingAuto') }}</p>
+                <button @click="continueSecureReservation" class="b-btn">{{ $t('home.continueBooking') }}</button>
               </div>
             </template>
           </div>
           <div v-if="isSupportTyping" class="chat-msg bot typing-indicator">
-            Đang suy nghĩ...
+            {{ $t('home.thinking') }}
           </div>
         </div>
         <div class="chat-input-area">
-          <input v-model="supportInput" @keyup.enter="sendSupportMessage" placeholder="Bạn cần hỏi gì? VD: Giờ mở cửa" />
-          <button @click="sendSupportMessage">Gửi</button>
+          <input v-model="supportInput" @keyup.enter="sendSupportMessage" :placeholder="$t('home.supportPlaceholder')" />
+          <button @click="sendSupportMessage">{{ $t('home.send') }}</button>
         </div>
       </div>
       
@@ -318,13 +314,13 @@
         class="fab-mobile-toggle"
         type="button"
         :aria-expanded="showMobileFabActions"
-        aria-label="Mở các tiện ích nhanh"
+        :aria-label="$t('home.quickTools')"
         @click="showMobileFabActions = !showMobileFabActions"
       ><UiIcon name="sparkles" /></button>
       <div class="fab-group" :class="{ 'is-open': showMobileFabActions }">
-        <button class="fab-chat fab-wheel" type="button" aria-label="Mở vòng quay may mắn" @click="openLuckyWheel"><UiIcon name="sparkles" /></button>
-        <button class="fab-chat" type="button" aria-label="Mở hỗ trợ trực tuyến" @click="toggleSupportChat"><UiIcon name="note" /></button>
-        <a href="tel:+84347944028" class="fab-phone" aria-label="Gọi nhà hàng" style="text-decoration: none;"><UiIcon name="phone" /></a>
+        <button class="fab-chat fab-wheel" type="button" :aria-label="$t('home.openWheel')" @click="openLuckyWheel"><UiIcon name="sparkles" /></button>
+        <button class="fab-chat" type="button" :aria-label="$t('home.openSupport')" @click="toggleSupportChat"><UiIcon name="note" /></button>
+        <a href="tel:+84347944028" class="fab-phone" :aria-label="$t('home.callRestaurant')" style="text-decoration: none;"><UiIcon name="phone" /></a>
       </div>
     </div>
 
@@ -332,10 +328,10 @@
     <div v-if="showLuckyWheel" class="modal-overlay" @click.self="showLuckyWheel = false">
       <div class="wheel-modal">
         <div class="wheel-header">
-          <h2> Vòng Quay May Mắn</h2>
-          <button class="btn-close-modal" aria-label="Đóng vòng quay may mắn" @click="showLuckyWheel = false"><UiIcon name="x" /></button>
+          <h2>{{ $t('home.luckyWheel') }}</h2>
+          <button class="btn-close-modal" :aria-label="$t('home.closeWheel')" @click="showLuckyWheel = false"><UiIcon name="x" /></button>
         </div>
-        <p class="wheel-desc">Quay mỗi ngày để nhận điểm thưởng VIP nhé!</p>
+        <p class="wheel-desc">{{ $t('home.wheelHint') }}</p>
         <div class="wheel-container">
           <div class="wheel-pointer">▼</div>
           <div class="wheel-board" :style="{ transform: `rotate(${wheelRotation}deg)`, background: 'conic-gradient(var(--color-tertiary) 0 60deg, var(--secondary) 60deg 120deg, var(--color-tertiary) 120deg 180deg, var(--text-muted) 180deg 240deg, var(--secondary) 240deg 300deg, var(--color-on-secondary-container) 300deg 360deg)' }">
@@ -345,11 +341,11 @@
           </div>
         </div>
         <button class="btn-spin" @click="spinWheel" :disabled="isSpinning">
-          {{ isSpinning ? 'Đang quay...' : 'QUAY NGAY' }}
+          {{ isSpinning ? $t('home.spinning') : $t('home.spinNow') }}
         </button>
         <div v-if="spinResult" class="spin-result" :class="{ 'win': spinResult.type !== 'miss' }">
-          <p v-if="spinResult.type !== 'miss'"> Chúc mừng! Bạn trúng <strong>{{ spinResult.label }}</strong></p>
-          <p v-else> Rất tiếc! Chúc bạn may mắn lần sau.</p>
+          <p v-if="spinResult.type !== 'miss'">{{ $t('home.congratulations', { prize: spinResult.label }) }}</p>
+          <p v-else>{{ $t('home.tryAgain') }}</p>
         </div>
       </div>
     </div>
@@ -360,13 +356,14 @@
 
 <script setup>
 import { useI18n } from 'vue-i18n'
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '@/services/api';
 import CustomerLayout from '@/components/CustomerLayout.vue';
 import UiIcon from '@/components/UiIcon.vue';
 
 const router = useRouter();
+const { locale, t } = useI18n()
 
 const isLoggedIn = ref(false);
 const user = ref(null);
@@ -377,8 +374,10 @@ const selectedRecruit = ref(null);
 const today = new Date();
 const currentDate = ref(`${today.getDate()}-${today.getMonth() + 1}-${today.getFullYear()}`);
 
-const formatPostDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '---';
+const formatPostDate = (d) => d ? new Date(d).toLocaleDateString(locale.value === 'vi' ? 'vi-VN' : 'en-US') : '---';
 const truncateText = (str, len) => str && str.length > len ? str.substring(0, len) + '...' : str;
+const localizedPostTitle = post => locale.value === 'vi' ? post?.title : (post?.titleEn || t('home.contentUnavailable'));
+const localizedPostContent = post => locale.value === 'vi' ? post?.content : (post?.contentEn || t('home.contentUnavailable'));
 const showRecruitDetail = (post) => { selectedRecruit.value = post; };
 
 // === LUCKY WHEEL ===
@@ -388,18 +387,18 @@ const isSpinning = ref(false);
 const wheelRotation = ref(0);
 const spinResult = ref(null);
 
-const prizes = [
-  { label: '5 ĐIỂM', value: 5, type: 'points', deg: 0, color: 'var(--color-tertiary)' },
-  { label: '10 ĐIỂM', value: 10, type: 'points', deg: 60, color: 'var(--secondary)' },
-  { label: 'GIẢM 5%', value: 5, type: 'discount', deg: 120, color: 'var(--color-tertiary)' },
-  { label: 'TRƯỢT', value: 0, type: 'miss', deg: 180, color: 'var(--text-muted)' },
-  { label: 'TẶNG MÓN', value: 0, type: 'gift', deg: 240, color: 'var(--secondary)' },
-  { label: '50 ĐIỂM', value: 50, type: 'points', deg: 300, color: 'var(--color-on-secondary-container)' }
-];
+const prizes = computed(() => [
+  { label: t('home.prizes.fivePoints'), value: 5, type: 'points', deg: 0, color: 'var(--color-tertiary)' },
+  { label: t('home.prizes.tenPoints'), value: 10, type: 'points', deg: 60, color: 'var(--secondary)' },
+  { label: t('home.prizes.discount'), value: 5, type: 'discount', deg: 120, color: 'var(--color-tertiary)' },
+  { label: t('home.prizes.miss'), value: 0, type: 'miss', deg: 180, color: 'var(--text-muted)' },
+  { label: t('home.prizes.gift'), value: 0, type: 'gift', deg: 240, color: 'var(--secondary)' },
+  { label: t('home.prizes.fiftyPoints'), value: 50, type: 'points', deg: 300, color: 'var(--color-on-secondary-container)' }
+]);
 
 const openLuckyWheel = async () => {
   if (!isLoggedIn.value) {
-    alert("Vui lòng đăng nhập để quay thưởng!");
+    alert(t('home.loginToSpin'));
     router.push('/login');
     return;
   }
@@ -423,41 +422,41 @@ const spinWheel = async () => {
   } catch (error) {
     isSpinning.value = false;
     if (error.response?.status === 409) {
-      alert('Hôm nay bạn đã quay rồi. Hãy quay lại vào ngày mai nhé!');
+      alert(t('home.alreadySpun'));
     } else if (error.response?.status === 403) {
-      alert('Hôm nay bạn cần có hóa đơn đã thanh toán và hoàn tất từ 3.000.000 VNĐ để được quay thưởng.');
+      alert(t('home.spinEligibility'));
     } else {
-      alert('Không thể thực hiện vòng quay lúc này. Vui lòng thử lại sau.');
+      alert(t('home.spinFailed'));
       console.error('Lỗi vòng quay may mắn', error);
     }
     return;
   }
 
-  const prizeIndex = prizes.findIndex((prize) =>
+  const prizeIndex = prizes.value.findIndex((prize) =>
     prize.type === reward.type && prize.value === reward.value
   );
   if (prizeIndex < 0) {
     isSpinning.value = false;
     console.error('Phần thưởng từ máy chủ không khớp cấu hình giao diện', reward);
-    alert('Kết quả vòng quay không hợp lệ. Vui lòng liên hệ nhà hàng.');
+    alert(t('home.invalidReward'));
     return;
   }
 
-  const targetDeg = (360 - prizes[prizeIndex].deg) + 360 * 5; 
+  const targetDeg = (360 - prizes.value[prizeIndex].deg) + 360 * 5;
 
   wheelRotation.value += targetDeg;
 
   setTimeout(() => {
     isSpinning.value = false;
-    const won = { ...prizes[prizeIndex], ...reward };
+    const won = { ...reward, ...prizes.value[prizeIndex] };
     spinResult.value = won;
 
     if (won.type === 'points') {
-      alert(` Chúc mừng bạn đã trúng ${won.label}! Điểm hiện tại: ${won.currentPoints} PT (Hạng: ${won.membershipTier})`);
+      alert(t('home.pointsWon', { prize: won.label, points: won.currentPoints, tier: won.membershipTier }));
     } else if (won.type === 'discount') {
-      alert(` Chúc mừng bạn đã trúng Giảm ${won.value}%!\nMã Voucher của bạn: ${won.voucherCode}\nHãy lưu lại để dùng cho lần ăn tiếp theo nhé!`);
+      alert(t('home.discountWon', { value: won.value, code: won.voucherCode }));
     } else if (won.type === 'gift') {
-      alert(` Chúc mừng bạn đã trúng ${won.label}! Vui lòng đưa thông báo này cho nhân viên để nhận quà nhé!`);
+      alert(t('home.giftWon', { prize: won.label }));
     }
   }, 7000); // 7 seconds
 };
@@ -497,7 +496,7 @@ const handleCvUpload = (event) => {
 };
 
 const submitApplication = async () => {
-  if (!appForm.value.fullname || !appForm.value.phone) return alert('Vui lòng nhập họ tên và SĐT!');
+  if (!appForm.value.fullname || !appForm.value.phone) return alert(t('home.applicationRequired'));
   try {
     const formData = new FormData();
     formData.append('fullname', appForm.value.fullname);
@@ -510,17 +509,16 @@ const submitApplication = async () => {
     await api.post('/api/applications/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
-    alert('Đã gửi đơn ứng tuyển thành công! Nhà hàng sẽ liên hệ sớm nhất.');
+    alert(t('home.applicationSent'));
     showAppForm.value = false;
-  } catch (err) { alert('Lỗi: ' + (err.response?.data || err.message)); }
+  } catch (err) { alert(t('home.applicationFailed')); }
 };
 
 // === SUPPORT CHATBOT ===
-const { locale } = useI18n()
 const showSupportChat = ref(false);
 const supportInput = ref('');
 const supportMessages = ref([
-  { type: 'bot', text: 'Chào bạn! Mình là trợ lý ảo của MỘC VỊ RESTAURANT. Mình có thể giúp gì cho bạn? (VD: giờ mở cửa, đặt bàn, địa chỉ)' }
+  { type: 'bot', text: t('home.supportGreeting') }
 ]);
 const supportChatBody = ref(null);
 
@@ -600,7 +598,7 @@ const sendSupportMessage = async () => {
       supportMessages.value.push({ type: 'bot', text: reply, interactionId: res.data.interactionId });
     }
   } catch (err) {
-    supportMessages.value.push({ type: 'bot', text: 'Xin lỗi, AI hiện đang mất kết nối. Vui lòng gọi Hotline để được hỗ trợ!' });
+    supportMessages.value.push({ type: 'bot', text: t('home.supportOffline') });
   } finally {
     isSupportTyping.value = false;
     scrollToBottomSupport();
@@ -622,20 +620,14 @@ const interviewStep = ref(0);
 const interviewMessages = ref([]);
 const interviewChatBody = ref(null);
 
-const interviewQuestions = [
-  "Chào bạn, rất vui vì bạn quan tâm đến MỘC VỊ RESTAURANT. Bạn hãy giới thiệu ngắn gọn về bản thân nhé?",
-  "Cảm ơn bạn! Bạn đã có kinh nghiệm làm việc trong lĩnh vực F&B (Nhà hàng/Cafe) chưa?",
-  "Rất tốt! Vậy tại sao bạn lại muốn ứng tuyển vào vị trí này tại MỘC VỊ RESTAURANT?",
-  "Nếu gặp một khách hàng khó tính phàn nàn về món ăn, bạn sẽ xử lý như thế nào?",
-  "Câu hỏi cuối cùng: Bạn có thể làm việc xoay ca (sáng/tối) không?"
-];
+const interviewQuestions = [true];
 
 const startInterview = () => {
   selectedRecruit.value = null;
   showInterviewChat.value = true;
   interviewMessages.value = [];
   setTimeout(() => {
-    interviewMessages.value.push({ type: 'bot', text: "Chào bạn, mình là Giám đốc Nhân sự của MỘC VỊ RESTAURANT. Rất vui được trao đổi với bạn hôm nay! Bạn có thể giới thiệu sơ qua về bản thân và vị trí mà bạn mong muốn ứng tuyển được không?" });
+    interviewMessages.value.push({ type: 'bot', text: t('home.interviewGreeting') });
   }, 500);
 };
 
@@ -652,7 +644,7 @@ const sendInterviewMessage = async () => {
   interviewInput.value = '';
   scrollInterview();
 
-  interviewMessages.value.push({ type: 'bot', text: 'Đang suy nghĩ...', isTyping: true });
+  interviewMessages.value.push({ type: 'bot', text: t('home.thinking'), isTyping: true });
   scrollInterview();
 
   try {
@@ -673,7 +665,7 @@ const sendInterviewMessage = async () => {
     scrollInterview();
   } catch (err) {
     interviewMessages.value.pop();
-    interviewMessages.value.push({ type: 'bot', text: 'Xin lỗi, hệ thống AI tuyển dụng đang quá tải. Hãy để lại thông tin của bạn!' });
+    interviewMessages.value.push({ type: 'bot', text: t('home.interviewOffline') });
     scrollInterview();
   }
 };

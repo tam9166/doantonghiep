@@ -6,12 +6,14 @@ import poly.edu.quanlynhahang.entity.RestaurantSetting;
 import poly.edu.quanlynhahang.repository.RestaurantSettingRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.math.BigDecimal;
 
 @Service
 public class RestaurantSettingsService {
     private static final Logger log = LoggerFactory.getLogger(RestaurantSettingsService.class);
     public static final String LARGE_PARTY_THRESHOLD = "large_party_threshold";
     public static final String MAX_CAPACITY = "restaurant_max_capacity";
+    public static final String MIN_PROFIT_MARGIN_PERCENT = "min_profit_margin_percent";
 
     private final RestaurantSettingRepository repository;
 
@@ -25,6 +27,11 @@ public class RestaurantSettingsService {
 
     public int maxCapacity() {
         return positiveInt(MAX_CAPACITY, 200);
+    }
+
+    public BigDecimal minimumProfitMarginPercent() {
+        return decimalBetween(MIN_PROFIT_MARGIN_PERCENT, new BigDecimal("30.00"),
+                BigDecimal.ZERO, new BigDecimal("95.00"));
     }
 
     @Transactional
@@ -63,6 +70,21 @@ public class RestaurantSettingsService {
                 return parsed > 0 ? parsed : fallback;
             } catch (NumberFormatException exception) {
                 log.warn("Restaurant setting {} has invalid integer value '{}'; using fallback {}",
+                        key, value, fallback);
+                return fallback;
+            }
+        }).orElse(fallback);
+    }
+
+    private BigDecimal decimalBetween(String key, BigDecimal fallback,
+                                      BigDecimal minimum, BigDecimal maximum) {
+        return repository.findById(key).map(RestaurantSetting::getValue).map(value -> {
+            try {
+                BigDecimal parsed = new BigDecimal(value.trim());
+                return parsed.compareTo(minimum) >= 0 && parsed.compareTo(maximum) <= 0
+                        ? parsed : fallback;
+            } catch (NumberFormatException exception) {
+                log.warn("Restaurant setting {} has invalid decimal value '{}'; using fallback {}",
                         key, value, fallback);
                 return fallback;
             }

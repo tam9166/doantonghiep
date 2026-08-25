@@ -33,8 +33,8 @@ describe('public view API contracts', () => {
     for (const file of ['ProductMenu.vue', 'DineInOrder.vue']) {
       const source = readFileSync(`${views}/${file}`, 'utf8')
       expect(source).toContain('availableQuantity')
-      expect(source).toContain('Tạm hết hàng')
-      expect(source).toContain('hiện chỉ còn tối đa')
+      expect(source).toMatch(/text\.soldOut|t\('dineIn\.quantityLimit'/)
+      expect(source).toMatch(/menu\.quantityLimit|dineIn\.quantityLimit/)
     }
   })
 

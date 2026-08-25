@@ -25,7 +25,7 @@ describe('kitchen, dispatch and reservation flow contracts', () => {
   it('catches Step 7 quote failures and routes from the returned payable amount', () => {
     const reservation = source('./Reservation.vue')
     expect(reservation).toContain('if (step.value === 7 || step.value === 8) await loadQuote()')
-    expect(reservation).toContain("step.value === 7\n        ? 'Không thể lưu yêu cầu đặc biệt. Vui lòng thử lại.'")
+    expect(reservation).toContain("step.value === 7 ? t('reservation.errors.specialRequest') : t('reservation.errors.quote')")
     expect(reservation).toContain('step.value = nextReservationStep(step.value, quote.value)')
     expect(reservation).toContain("paymentOption: form.value.paymentOption || 'DEPOSIT_50'")
     expect(reservation).toContain('serializeRequirementFlags(requirements)')

@@ -198,12 +198,12 @@
                   :class="['table-box', getTableClass(table.isOccupied), { 'vip-table': table.areaName?.toLowerCase().includes('vip') }]"
                   @click="openTableDetail(table)">
               <div class="tc-top">
-                <span class="tc-capacity"> {{ table.capacity || 4 }}</span>
+                <span class="tc-capacity">{{ table.capacity || 4 }} người</span>
               <span class="tc-icon"><UiIcon name="table" /></span>
               </div>
               <div class="tc-center">
                 <div class="tc-dot"></div>
-                <h4 class="table-code">{{ table.name }}</h4>
+                <h4 class="table-code" :title="tableIdentifier(table)">{{ tableIdentifier(table) }}</h4>
                 <p class="table-location">{{ table.floor }} · {{ table.areaName || 'Khu vực chung' }}</p>
                 <p class="tc-subtitle">
                   {{ tableLifecycleText(table) }}
@@ -226,7 +226,7 @@
     <div v-if="detailTable" class="modal-overlay" @click.self="detailTable = null">
       <div class="detail-modal">
         <div class="modal-header">
-          <h2> Chi Tiết — {{ detailTable.name }}</h2>
+          <h2> Chi Tiết — {{ tableIdentifier(detailTable) }}</h2>
           <button @click="detailTable = null" class="btn-close"><UiIcon name="x" /></button>
         </div>
         <div class="modal-body">
@@ -609,7 +609,7 @@ import TimekeepingWidget from '../components/TimekeepingWidget.vue';
 import { foodImage, replaceFoodImage } from '@/utils/imageFallback';
 import { clearStaffSession, getStaffToken, getStaffUser } from '@/services/session';
 import { useDialog } from '@/composables/useDialog';
-import { findAwaitingPaymentOrder, groupTablesByFloorAndArea, orderLifecycleLabel, tableArea, tableFloor } from '@/utils/tableOperations';
+import { findAwaitingPaymentOrder, groupTablesByFloorAndArea, orderLifecycleLabel, tableArea, tableFloor, tableIdentifier } from '@/utils/tableOperations';
 
 const { confirmDialog } = useDialog();
 
@@ -1785,7 +1785,18 @@ onUnmounted(() => {
 .table-filters select { min-width: 180px; padding: 9px 12px; border: 1px solid var(--border); border-radius: 9px; background: var(--bg-card); color: var(--text-primary); }
 .area-section { margin: 12px 0 22px; }
 .area-title { margin: 0 0 8px; color: var(--primary); font-size: 1rem; }
-.table-code { font-size: 1.25rem !important; font-weight: 900 !important; }
+.table-code {
+  display: block;
+  width: 100%;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 1.4rem !important;
+  line-height: 1.2;
+  font-weight: 900 !important;
+  color: var(--text-heading);
+}
 .table-location { margin: 2px 0 5px; color: var(--text-muted); font-size: 0.72rem; }
 .no-img-icon { font-size: 1.2rem; }
 .total-row { display: flex; justify-content: space-between; font-weight: bold; font-size: 1.1rem; border-top: 1px dashed var(--text-primary); padding-top: 10px; }

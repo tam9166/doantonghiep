@@ -194,7 +194,7 @@
           <h2>Chưa có món trong thực đơn</h2>
         </div>
         <div v-else class="menu-grid">
-          <div v-for="product in products" :key="product.id" :class="['menu-card', { 'menu-disabled': !product.available }]">
+          <div v-for="product in products" :key="product.id" :class="['menu-card', { 'menu-disabled': !product.available, 'negative-margin-card': product.marginStatus === 'NEGATIVE_MARGIN' }]">
             <img :src="foodImage(product.image)" class="menu-img" @error="replaceFoodImage" />
             <div class="menu-info">
               <h4>{{ product.name }}</h4>
@@ -202,14 +202,21 @@
               <span class="menu-cost" v-if="product.costPrice > 0">Vốn: {{ product.costPrice?.toLocaleString() }}đ</span>
               <span class="menu-cost" v-else>Vốn: Chưa tính</span>
               <span :class="['menu-profit', { loss: Number(product.expectedProfit) <= 0 }]">
-                Lợi nhuận: {{ Number(product.expectedProfit || 0).toLocaleString('vi-VN') }}đ
+                {{ Number(product.expectedProfit) < 0 ? 'Lỗ' : 'Lợi nhuận' }}:
+                {{ Number(product.expectedProfit || 0).toLocaleString('vi-VN') }}đ
                 <template v-if="product.profitMarginPercent != null"> ({{ Number(product.profitMarginPercent).toFixed(1) }}%)</template>
               </span>
               <span class="menu-servings">Có thể làm: <strong>{{ product.availableServings || 0 }} suất</strong></span>
               <span v-if="!product.hasRecipe" class="menu-warning" role="alert">Chưa có công thức</span>
-              <span v-else-if="Number(product.price) <= Number(product.costPrice)" class="menu-warning" role="alert">
-                Cảnh báo: Giá bán không cao hơn giá vốn
-              </span>
+              <template v-else-if="product.marginStatus === 'NEGATIVE_MARGIN'">
+                <span class="menu-warning negative-margin-warning" role="alert">
+                  Giá bán thấp hơn hoặc bằng giá vốn — món đã tạm dừng bán
+                </span>
+                <span class="recommended-price">
+                  Giá bán đề xuất (margin {{ Number(product.targetMarginPercent).toFixed(0) }}%):
+                  <strong>{{ Number(product.recommendedPrice || 0).toLocaleString('vi-VN') }}đ</strong>
+                </span>
+              </template>
             </div>
             <div class="menu-action">
               <span :class="['menu-status', product.available ? 'status-on' : 'status-off']">
@@ -217,6 +224,8 @@
               </span>
               <button v-if="product.hasRecipe" @click="viewRecipeDetails(product)" class="btn-toggle-menu" style="border-color: var(--secondary); color: var(--secondary); background: color-mix(in srgb, var(--secondary) 10%, transparent)">Công thức</button>
               <button v-else @click="$router.push('/admin/ingredients')" class="btn-toggle-menu btn-recipe-setup">Thiết lập công thức</button>
+              <button v-if="product.marginStatus === 'NEGATIVE_MARGIN' && canManagePrices"
+                @click="$router.push('/admin')" class="btn-toggle-menu btn-adjust-price">Điều chỉnh giá</button>
               <button @click="toggleAvailable(product)" :class="['btn-toggle-menu', product.available ? 'btn-off' : 'btn-on']">
                 {{ product.available ? ' Báo Hết' : ' Mở Bán' }}
               </button>
@@ -339,13 +348,17 @@ import SockJS from 'sockjs-client';
 import { Stomp } from '@stomp/stompjs';
 import TimekeepingWidget from '../components/TimekeepingWidget.vue';
 import { foodImage, replaceFoodImage } from '@/utils/imageFallback';
-import { clearStaffSession, getStaffToken } from '@/services/session';
+import { clearStaffSession, getStaffToken, getStaffUser } from '@/services/session';
 import { useDialog } from '@/composables/useDialog';
 import { kitchenQuantity, normalizeKitchenCollection } from '@/utils/kitchenData';
 
 const { confirmDialog, promptDialog } = useDialog();
 
 const router = useRouter();
+const staffUser = getStaffUser();
+const staffRoles = [staffUser?.role, ...(staffUser?.roles || [])]
+  .map(role => String(role?.name || role || '').toUpperCase());
+const canManagePrices = staffRoles.some(role => ['ADMIN', 'MANAGER', 'ROLE_ADMIN', 'ROLE_MANAGER'].includes(role));
 const orders = ref([]);
 const pendingOrders = ref([]);
 const allOrders = ref([]);
@@ -923,6 +936,11 @@ onUnmounted(() => {
 }
 .menu-card:hover { border-color: var(--primary); box-shadow: var(--shadow-md); }
 .menu-card.menu-disabled { opacity: 0.55; border-color: color-mix(in srgb, var(--primary) 20%, transparent); }
+.menu-card.negative-margin-card {
+  opacity: 1;
+  border: 2px solid var(--danger);
+  background: color-mix(in srgb, var(--danger) 6%, var(--bg-card));
+}
 .menu-img { width: 56px; height: 56px; border-radius: 10px; object-fit: cover; border: 1px solid var(--border); flex-shrink: 0; }
 .menu-info { flex: 1; display: flex; flex-direction: column; }
 .menu-info h4 { margin: 0 0 4px 0; color: var(--text-heading); font-size: 0.95rem; }
@@ -931,6 +949,14 @@ onUnmounted(() => {
 .menu-profit, .menu-servings { color: var(--text-muted); font-weight: 650; font-size: 0.8rem; margin-top: 3px; }
 .menu-profit.loss, .menu-warning { color: var(--danger); font-weight: 800; }
 .menu-warning { margin-top: 5px; font-size: 0.78rem; }
+.negative-margin-warning {
+  padding: 7px 9px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  text-transform: uppercase;
+}
+.recommended-price { margin-top: 5px; color: var(--text-heading); font-size: 0.8rem; }
+.recommended-price strong { color: var(--primary); font-size: 0.92rem; }
 .menu-cat { margin-left: 8px; color: var(--text-muted); font-size: 0.78rem; }
 .menu-action { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; flex-shrink: 0; }
 .menu-status { font-size: 0.78rem; font-weight: 700; }
@@ -942,6 +968,7 @@ onUnmounted(() => {
 .btn-on { background: color-mix(in srgb, var(--secondary) 10%, transparent); color: var(--primary); border-color: color-mix(in srgb, var(--secondary) 30%, transparent); }
 .btn-on:hover { background: var(--primary); color: var(--bg-dark); }
 .btn-recipe-setup { color: var(--primary); border-color: var(--primary); background: #fff; }
+.btn-adjust-price { color: #fff; border-color: var(--primary); background: var(--primary); }
 
 /* Toast */
 .toast-notification { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--bg-card); color: var(--primary); padding: 14px 28px; border-radius: 30px; border: 1px solid var(--primary); box-shadow: 0 0 30px color-mix(in srgb, var(--secondary) 30%, transparent); font-weight: 700; z-index: 1000; animation: slideUp 0.3s ease; }
