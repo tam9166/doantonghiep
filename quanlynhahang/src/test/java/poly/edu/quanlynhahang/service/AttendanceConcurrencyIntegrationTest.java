@@ -56,6 +56,10 @@ class AttendanceConcurrencyIntegrationTest {
         account.setPassword("not-used-by-test");
         account.setFullname(username);
         account.setEmail(username + "@example.test");
+        // Account uses an assigned String id and an optimistic-lock version.
+        // Leave the version null so Spring Data treats this fixture as a new
+        // entity and issues INSERT instead of merging a non-existent row.
+        account.setVersion(null);
         accountRepository.saveAndFlush(account);
 
         CountDownLatch start = new CountDownLatch(1);
