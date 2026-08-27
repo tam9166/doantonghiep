@@ -16,4 +16,6 @@ public class MenuPreorderItemResponse {
     private BigDecimal price;
     private String image;
     private Boolean available;
+    private Integer availableQuantity;
+    private Boolean inventoryManaged;
 }

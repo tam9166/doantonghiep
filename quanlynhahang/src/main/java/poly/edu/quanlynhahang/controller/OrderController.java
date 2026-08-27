@@ -128,7 +128,9 @@ public class OrderController {
                 ? null
                 : SecurityContextHolder.getContext().getAuthentication().getName();
         var result = orderCheckoutService.checkout(orderRequest, username, idempotencyKey);
-        if (OrderType.DINE_IN.equals(orderRequest.getOrderType())) {
+        if (OrderType.DINE_IN.equals(orderRequest.getOrderType())
+                && (result.status() == OrderStatus.IN_PREPARATION.code()
+                    || result.status() == OrderStatus.PARTIALLY_READY.code())) {
             publishSafely("/topic/kitchen", "NEW_ORDER");
         }
         return ResponseEntity.ok(result);

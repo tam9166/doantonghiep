@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
@@ -209,7 +210,7 @@ class OrderWorkflowGuardTest {
     }
 
     @Test
-    void publicDineInCheckoutNoLongerRequiresQrAndNotifiesKitchen() {
+    void publicDineInCheckoutNoLongerRequiresQrOrNotifiesBeforeDispatch() {
         OrderController controller = new OrderController();
         OrderCheckoutService checkoutService = mock(OrderCheckoutService.class);
         TableSessionService tableSessionService = mock(TableSessionService.class);
@@ -233,7 +234,7 @@ class OrderWorkflowGuardTest {
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         verify(tableSessionService, never()).requireForTable(any(), any());
-        verify(messagingTemplate).convertAndSend("/topic/kitchen", "NEW_ORDER");
+        verifyNoInteractions(messagingTemplate);
     }
 
     @Test

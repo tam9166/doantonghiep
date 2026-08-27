@@ -32,7 +32,10 @@ public record PublicProductResponse(
     }
 
     public static PublicProductResponse from(Product product, Double averageRating, Integer availableQuantity) {
-        int safeAvailableQuantity = availableQuantity == null ? 0 : Math.max(0, availableQuantity);
+        int safeAvailableQuantity = availableQuantity == null ? 0 : availableQuantity;
+        boolean inventoryManaged = safeAvailableQuantity >= 0;
+        boolean canServe = Boolean.TRUE.equals(product.getStatus())
+                && (!inventoryManaged || safeAvailableQuantity > 0);
         return new PublicProductResponse(
                 product.getId(),
                 product.getName(),
@@ -43,7 +46,7 @@ public record PublicProductResponse(
                 product.getVolumeMl(),
                 product.getAlcoholPercentage(),
                 product.getStatus(),
-                safeAvailableQuantity > 0,
+                canServe,
                 safeAvailableQuantity,
                 averageRating,
                 product.getDietType(),

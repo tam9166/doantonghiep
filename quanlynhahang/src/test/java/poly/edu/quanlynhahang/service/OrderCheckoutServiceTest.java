@@ -2,6 +2,7 @@ package poly.edu.quanlynhahang.service;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 import poly.edu.quanlynhahang.dto.OrderDetailRequest;
@@ -332,17 +333,14 @@ class OrderCheckoutServiceTest {
     }
 
     @Test
-    void rejectsProductWithoutRecipeBeforeCreatingOrder() {
+    void sellsActiveProductWithoutRecipeAsInventoryUnmanaged() {
         Product product = product(1, 0.10);
         product.setTaxRate(new BigDecimal("8.00"));
         when(productRepository.findById(1)).thenReturn(Optional.of(product));
         when(recipeRepository.findByProduct(product)).thenReturn(List.of());
 
-        ResponseStatusException error = assertThrows(ResponseStatusException.class,
-                () -> service.checkout(request(1, 3), "anonymousUser"));
-
-        assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
-        verify(orderRepository, never()).save(any());
+        assertDoesNotThrow(() -> service.checkout(request(1, 3), "anonymousUser"));
+        verify(orderRepository, times(2)).save(any());
     }
 
     @Test

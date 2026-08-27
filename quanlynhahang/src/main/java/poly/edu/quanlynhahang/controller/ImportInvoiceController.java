@@ -1,126 +1,49 @@
 package poly.edu.quanlynhahang.controller;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import java.util.List;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import poly.edu.quanlynhahang.dto.ImportInvoiceItemRequest;
+import jakarta.validation.Valid;
 import poly.edu.quanlynhahang.dto.ImportInvoiceRequest;
 import poly.edu.quanlynhahang.entity.ImportInvoice;
-import poly.edu.quanlynhahang.entity.Ingredient;
 import poly.edu.quanlynhahang.entity.IngredientBatch;
 import poly.edu.quanlynhahang.repository.ImportInvoiceRepository;
 import poly.edu.quanlynhahang.repository.IngredientBatchRepository;
-import poly.edu.quanlynhahang.repository.IngredientRepository;
-
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
-import org.springframework.security.access.prepost.PreAuthorize;
-
-import poly.edu.quanlynhahang.service.ActivityLogService;
+import poly.edu.quanlynhahang.service.InventoryImportService;
 
 @RestController
 @RequestMapping("/api/admin/import-invoices")
 @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_KITCHEN')")
 public class ImportInvoiceController {
+    private final ImportInvoiceRepository invoiceRepository;
+    private final IngredientBatchRepository batchRepository;
+    private final InventoryImportService inventoryImportService;
 
-    @Autowired
-    private ImportInvoiceRepository importInvoiceRepository;
-
-    @Autowired
-    private IngredientBatchRepository ingredientBatchRepository;
-
-    @Autowired
-    private IngredientRepository ingredientRepository;
-
-    @Autowired
-    private ActivityLogService activityLogService;
+    public ImportInvoiceController(ImportInvoiceRepository invoiceRepository,
+                                   IngredientBatchRepository batchRepository,
+                                   InventoryImportService inventoryImportService) {
+        this.invoiceRepository = invoiceRepository;
+        this.batchRepository = batchRepository;
+        this.inventoryImportService = inventoryImportService;
+    }
 
     @GetMapping
     public ResponseEntity<List<ImportInvoice>> getAllInvoices() {
-        return ResponseEntity.ok(importInvoiceRepository.findAll(org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "importDate")));
+        return ResponseEntity.ok(invoiceRepository.findAll(Sort.by(Sort.Direction.DESC, "importDate")));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<?> getInvoiceDetails(@PathVariable Long id) {
-        Optional<ImportInvoice> invoiceOpt = importInvoiceRepository.findById(id);
-        if (invoiceOpt.isPresent()) {
-            List<IngredientBatch> batches = ingredientBatchRepository.findAll().stream()
-                    .filter(b -> b.getImportInvoice() != null && b.getImportInvoice().getId().equals(id))
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(batches);
-        }
-        return ResponseEntity.notFound().build();
+        if (!invoiceRepository.existsById(id)) return ResponseEntity.notFound().build();
+        List<IngredientBatch> batches = batchRepository.findAll().stream()
+                .filter(b -> b.getImportInvoice() != null && id.equals(b.getImportInvoice().getId())).toList();
+        return ResponseEntity.ok(batches);
     }
 
     @PostMapping
-    public ResponseEntity<?> createImportInvoice(@RequestBody ImportInvoiceRequest request) {
-        if (request.getItems() == null || request.getItems().isEmpty()) {
-            return ResponseEntity.badRequest().body("Hóa đơn phải có ít nhất 1 nguyên liệu");
-        }
-
-        ImportInvoice invoice = new ImportInvoice();
-        invoice.setImportDate(new Date());
-        invoice.setSupplier(request.getSupplier());
-        invoice.setNote(request.getNote());
-        
-        BigDecimal totalAmount = BigDecimal.ZERO;
-        
-        ImportInvoice savedInvoice = importInvoiceRepository.save(invoice);
-
-        for (ImportInvoiceItemRequest itemReq : request.getItems()) {
-            Optional<Ingredient> ingOpt = ingredientRepository.findById(itemReq.getIngredientId());
-            if (ingOpt.isPresent()) {
-                Ingredient ing = ingOpt.get();
-                
-                IngredientBatch batch = new IngredientBatch();
-                batch.setIngredient(ing);
-                batch.setImportInvoice(savedInvoice);
-                batch.setImportDate(savedInvoice.getImportDate());
-                batch.setQuantity(itemReq.getQuantity());
-                batch.setUnitPrice(itemReq.getUnitPrice() != null ? itemReq.getUnitPrice() : ing.getUnitPrice());
-                
-                // Hạn sử dụng
-                if (itemReq.getExpirationDate() != null) {
-                    batch.setExpirationDate(itemReq.getExpirationDate());
-                } else {
-                    Calendar cal = Calendar.getInstance();
-                    cal.setTime(batch.getImportDate());
-                    cal.add(Calendar.DAY_OF_YEAR, ing.getShelfLifeDays() != null ? ing.getShelfLifeDays() : 30);
-                    batch.setExpirationDate(cal.getTime());
-                }
-                
-                ingredientBatchRepository.save(batch);
-                
-                totalAmount = totalAmount.add(batch.getUnitPrice().multiply(batch.getQuantity()));
-                
-                // Cập nhật giá nhập mới nhất cho nguyên liệu
-                ing.setUnitPrice(batch.getUnitPrice());
-                // Cập nhật tồn kho
-                List<IngredientBatch> allBatches = ingredientBatchRepository.findByIngredientIdOrderByExpirationDateAsc(ing.getId());
-                BigDecimal totalQty = allBatches.stream()
-                        .filter(b -> b.getExpirationDate() == null || b.getExpirationDate().after(new Date()))
-                        .map(IngredientBatch::getQuantity)
-                        .filter(java.util.Objects::nonNull)
-                        .reduce(BigDecimal.ZERO, BigDecimal::add)
-                        .add(batch.getQuantity());
-                
-                ing.setQuantity(totalQty);
-                ingredientRepository.save(ing);
-            }
-        }
-        
-        savedInvoice.setTotalAmount(totalAmount.setScale(2, RoundingMode.HALF_UP));
-        importInvoiceRepository.save(savedInvoice);
-
-        activityLogService.log("CREATE", "ImportInvoice", String.valueOf(savedInvoice.getId()),
-                "Nhập kho mới #" + savedInvoice.getId() + " - NCC: " + request.getSupplier() +
-                " - Tổng: " + totalAmount + "đ");
-
-        return ResponseEntity.ok(savedInvoice);
+    public ResponseEntity<ImportInvoice> createImportInvoice(@Valid @RequestBody ImportInvoiceRequest request) {
+        return ResponseEntity.ok(inventoryImportService.create(request));
     }
 }

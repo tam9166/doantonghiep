@@ -53,7 +53,7 @@
           <input
             v-model="searchCode"
             type="text"
-            maxlength="5"
+            maxlength="50"
             placeholder="Nhập mã hóa đơn (VD: 0011)..."
             class="g-form-control"
           />
@@ -189,15 +189,15 @@
               <table class="total-table">
                 <tr>
                   <td>Tạm tính:</td>
-                  <td>{{ calculateTotal(selectedOrder).toLocaleString() }} đ</td>
+                  <td>{{ money(selectedOrder.subTotal ?? calculateTotal(selectedOrder)) }} đ</td>
                 </tr>
                 <tr>
-                  <td>Thuế VAT (0%):</td>
-                  <td>0 đ</td>
+                  <td>Thuế VAT:</td>
+                  <td>{{ money(selectedOrder.taxAmount || 0) }} đ</td>
                 </tr>
                 <tr class="total-row">
                   <td>TỔNG CỘNG:</td>
-                  <td>{{ calculateTotal(selectedOrder).toLocaleString() }} đ</td>
+                  <td>{{ money(selectedOrder.totalAmount ?? calculateTotal(selectedOrder)) }} đ</td>
                 </tr>
               </table>
             </div>
@@ -222,6 +222,8 @@
 import AdminLayout from '@/components/AdminLayout.vue';
 
 import { ref, computed, onMounted, onUnmounted } from 'vue';
+import SockJS from 'sockjs-client';
+import { Stomp } from '@stomp/stompjs';
 import api from '@/services/api';
 import { foodImage, replaceFoodImage } from '@/utils/imageFallback';
 import { useDialog } from '@/composables/useDialog';
@@ -236,6 +238,7 @@ const searchCode = ref('');
 const timeFilter = ref('all');
 const selectedOrder = ref(null);
 let scheduledActivationInterval = null;
+let stompClient = null;
 
 const configHeader = () => {
   const token = sessionStorage.getItem('staff_token');
@@ -295,8 +298,9 @@ const dynamicStats = computed(() => {
     if (order.status === 4) {
       completed++;
       if (order.orderDetails?.length > 0) {
-        order.orderDetails.forEach(d => { revenue += d.price; items += d.quantity; });
+        items += order.orderDetails.reduce((sum, d) => sum + (d.quantity || 0), 0);
       }
+      revenue += Number(order.totalAmount ?? order.subTotal ?? calculateTotal(order) ?? 0);
     }
     if (order.status === 0) pending++;
   });
@@ -318,8 +322,8 @@ const cleanAddress = (address) => {
 };
 
 const getStatusText = (status) => {
-  const map = { 0: 'Chờ xử lý', 1: 'Đang nấu', 2: 'Đã lên món', 4: 'Hoàn thành', 5: ' Chờ hẹn giờ' };
-  return map[status] || 'Đang phục vụ';
+  const map = { 0: 'Chờ xử lý', 1: 'Đang nấu', 2: 'Đã lên món', 3: 'Đang phục vụ', 4: 'Hoàn thành', 5: 'Chờ hẹn giờ', 6: 'Đã hủy', 7: 'Từ chối' };
+  return map[status] || 'Không xác định';
 };
 
 const getStatusClass = (status) => {
@@ -328,6 +332,7 @@ const getStatusClass = (status) => {
   if (status === 2) return 'g-badge-info';
   if (status === 4) return 'g-badge-success';
   if (status === 5) return 'g-badge-scheduled';
+  if (status === 6 || status === 7) return 'g-badge-danger';
   return 'g-badge-info';
 };
 
@@ -340,8 +345,9 @@ const viewInvoice = (order) => { selectedOrder.value = order; };
 const closeModal = () => { selectedOrder.value = null; };
 const calculateTotal = (order) => {
   if (!order?.orderDetails) return 0;
-  return order.orderDetails.reduce((sum, item) => sum + item.price, 0);
+  return order.totalAmount ?? order.subTotal ?? order.orderDetails.reduce((sum, item) => sum + Number(item.price || 0), 0);
 };
+const money = value => Number(value || 0).toLocaleString('vi-VN');
 const exportToPDF = () => { window.print(); };
 
 const getCountdown = (scheduledAt) => {
@@ -368,6 +374,14 @@ const activateScheduled = async () => {
 
 onMounted(() => {
   loadData();
+  const token = sessionStorage.getItem('staff_token');
+  try {
+    stompClient = Stomp.over(new SockJS('/ws'));
+    stompClient.debug = () => {};
+    stompClient.connect(token ? { Authorization: `Bearer ${token}` } : {}, () => {
+      ['/topic/kitchen', '/topic/orders', '/topic/waiter'].forEach(topic => stompClient.subscribe(topic, loadData));
+    }, () => { stompClient = null; });
+  } catch (_) { stompClient = null; }
   scheduledActivationInterval = window.setInterval(activateScheduled, 30000);
 });
 
@@ -376,6 +390,7 @@ onUnmounted(() => {
     window.clearInterval(scheduledActivationInterval);
     scheduledActivationInterval = null;
   }
+  if (stompClient) { try { stompClient.disconnect(); } catch (_) {} stompClient = null; }
 });
 </script>
 

@@ -61,7 +61,9 @@ public interface IngredientBatchRepository extends JpaRepository<IngredientBatch
     List<IngredientBatch> findExpiringBatches(Date targetDate);
 
     @Query("SELECT b FROM IngredientBatch b WHERE b.expirationDate >= :fromDate "
-            + "AND b.expirationDate <= :targetDate AND b.quantity > 0 ORDER BY b.expirationDate ASC")
+            + "AND b.expirationDate <= :targetDate AND b.quantity > 0 "
+            + "AND b.status = poly.edu.quanlynhahang.entity.IngredientBatchStatus.AVAILABLE "
+            + "ORDER BY b.expirationDate ASC")
     List<IngredientBatch> findExpiringBatchesBetween(@Param("fromDate") Date fromDate,
                                                       @Param("targetDate") Date targetDate);
 

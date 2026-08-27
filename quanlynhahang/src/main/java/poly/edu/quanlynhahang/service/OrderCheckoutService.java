@@ -537,7 +537,9 @@ public class OrderCheckoutService {
             Product product = productRepository.findById(item.productId())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
                             "Sản phẩm không tồn tại: " + item.productId()));
-            if (!Boolean.TRUE.equals(product.getStatus()) || !Boolean.TRUE.equals(product.getAvailable())) {
+            boolean inventoryManaged = !recipeRepository.findByProduct(product).isEmpty();
+            if (!Boolean.TRUE.equals(product.getStatus())
+                    || (inventoryManaged && !Boolean.TRUE.equals(product.getAvailable()))) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Món hiện không phục vụ: " + product.getName());
             }
             if (product.getPrice() == null || product.getPrice().signum() < 0) {
@@ -556,7 +558,7 @@ public class OrderCheckoutService {
         Map<String, String> shortages = new LinkedHashMap<>();
         requestedByProduct.forEach((product, requested) -> {
             int available = menuAvailabilityService.availableQuantity(product);
-            if (requested > available) {
+            if (available >= 0 && requested > available) {
                 shortages.put(product.getName(), "requested=" + requested + ", availableQuantity=" + available);
             }
         });
@@ -639,10 +641,7 @@ public class OrderCheckoutService {
         Map<Long, IngredientRequirement> requirements = new LinkedHashMap<>();
         for (CheckoutLine line : lines) {
             List<Recipe> recipes = recipeRepository.findByProduct(line.product());
-            if (recipes.isEmpty()) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT,
-                        "Món chưa được thiết lập nguyên liệu: " + line.product().getName());
-            }
+            if (recipes.isEmpty()) continue; // no recipe means the dish is not inventory-managed
             for (Recipe recipe : recipes) {
                 Ingredient ingredient = recipe.getIngredient();
                 if (ingredient == null || ingredient.getId() == null

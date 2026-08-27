@@ -44,7 +44,19 @@ public class IngredientBatchLifecycleService {
     @Scheduled(cron = "${restaurant.inventory.expiry-cron:0 5 0 * * *}", zone = "Asia/Ho_Chi_Minh")
     @Transactional
     public int synchronizeExpiredStatuses() {
-        return batchRepository.markExpired(new Date());
+        int changed = batchRepository.markExpired(new Date());
+        // Keep the denormalized ingredient aggregate and menu availability in lockstep
+        // with batch status changes made by the scheduler.
+        for (Ingredient ingredient : ingredientRepository.findAll()) {
+            BigDecimal usable = batchRepository.sumAvailableByIngredientId(ingredient.getId());
+            BigDecimal normalized = usable == null ? BigDecimal.ZERO : usable;
+            if (ingredient.getQuantity() == null || ingredient.getQuantity().compareTo(normalized) != 0) {
+                ingredient.setQuantity(normalized);
+                ingredientRepository.save(ingredient);
+            }
+            menuAvailabilityService.refreshForIngredient(ingredient);
+        }
+        return changed;
     }
 
     @Transactional

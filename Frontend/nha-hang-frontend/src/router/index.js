@@ -38,6 +38,7 @@ const router = createRouter({
     { path: '/staff', redirect: '/staff/profile' },
     { path: '/staff/profile', name: 'StaffProfile', component: () => import('../views/Staff.vue') },
     { path: '/admin/ingredients', name: 'AdminIngredient', component: () => import('../views/AdminIngredient.vue') },
+    { path: '/admin/expired-food', name: 'AdminExpiredFood', component: () => import('../views/AdminExpiredFood.vue') },
     { path: '/admin/activity-log', name: 'AdminActivityLog', component: () => import('../views/AdminActivityLog.vue') },
     { path: '/admin/popular-items', name: 'AdminPopularItems', component: () => import('../views/AdminPopularItems.vue') },
     { path: '/admin/purchase-suggestions', name: 'AdminPurchaseSuggestion', component: () => import('../views/AdminPurchaseSuggestion.vue') },

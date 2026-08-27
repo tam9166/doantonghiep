@@ -55,9 +55,9 @@
             <span class="nav-icon"><AdminNavIcon name="cancellation" /></span>
             <span class="nav-label" v-if="!sidebarCollapsed">Yêu cầu hủy</span>
           </router-link>
-          <router-link to="/admin/reservation-reviews" class="nav-item" active-class="active">
-            <span class="nav-icon"><AdminNavIcon name="reviews" /></span>
-            <span class="nav-label" v-if="!sidebarCollapsed">Đánh giá đặt bàn</span>
+          <router-link to="/admin/expired-food" class="nav-item" active-class="active">
+            <span class="nav-icon"><AdminNavIcon name="ingredients" /></span>
+            <span class="nav-label" v-if="!sidebarCollapsed">Xử lý thực phẩm hết hạn</span>
           </router-link>
           <router-link to="/admin/customer-history" class="nav-item" active-class="active">
             <span class="nav-icon"><AdminNavIcon name="customers" /></span>

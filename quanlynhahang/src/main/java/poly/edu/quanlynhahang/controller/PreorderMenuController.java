@@ -6,21 +6,25 @@ import org.springframework.web.bind.annotation.RestController;
 import poly.edu.quanlynhahang.dto.MenuPreorderItemResponse;
 import poly.edu.quanlynhahang.entity.Product;
 import poly.edu.quanlynhahang.repository.ProductRepository;
+import poly.edu.quanlynhahang.service.MenuAvailabilityService;
 
 import java.util.List;
 @RestController
 public class PreorderMenuController {
     private final ProductRepository productRepository;
+    private final MenuAvailabilityService menuAvailabilityService;
 
-    public PreorderMenuController(ProductRepository productRepository) {
+    public PreorderMenuController(ProductRepository productRepository, MenuAvailabilityService menuAvailabilityService) {
         this.productRepository = productRepository;
+        this.menuAvailabilityService = menuAvailabilityService;
     }
 
     @GetMapping("/api/menu-items/preorder")
     public List<MenuPreorderItemResponse> preorderItems() {
         return productRepository.findAll().stream()
                 .filter(product -> !Boolean.FALSE.equals(product.getStatus()))
-                .filter(product -> !Boolean.FALSE.equals(product.getAvailable()))
+                .filter(product -> menuAvailabilityService.availableQuantity(product) != 0
+                        || Boolean.TRUE.equals(product.getAvailable()))
                 .map(this::toResponse)
                 .toList();
     }
@@ -37,6 +41,10 @@ public class PreorderMenuController {
         response.setPrice(product.getPrice());
         response.setImage(product.getImage());
         response.setAvailable(product.getAvailable());
+        int quantity = menuAvailabilityService.availableQuantity(product);
+        response.setAvailableQuantity(quantity);
+        response.setInventoryManaged(quantity >= 0);
+        response.setAvailable(Boolean.TRUE.equals(product.getStatus()) && (quantity < 0 || quantity > 0));
         return response;
     }
 

@@ -15,6 +15,9 @@ public class ImportInvoice {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "invoice_code", nullable = false, unique = true, length = 50)
+    private String invoiceCode;
+
     @Column(name = "import_date")
     @Temporal(TemporalType.TIMESTAMP)
     private Date importDate;

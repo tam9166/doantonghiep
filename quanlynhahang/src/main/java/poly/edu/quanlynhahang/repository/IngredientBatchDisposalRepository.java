@@ -8,4 +8,5 @@ import poly.edu.quanlynhahang.entity.IngredientBatchDisposal;
 
 public interface IngredientBatchDisposalRepository extends JpaRepository<IngredientBatchDisposal, Long> {
     List<IngredientBatchDisposal> findByBatchIdOrderByDisposalDateDesc(Long batchId);
+    List<IngredientBatchDisposal> findAllByOrderByDisposalDateDesc();
 }

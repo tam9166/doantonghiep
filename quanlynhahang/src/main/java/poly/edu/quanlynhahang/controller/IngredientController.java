@@ -37,10 +37,12 @@ import poly.edu.quanlynhahang.dto.IngredientResponse;
 import poly.edu.quanlynhahang.dto.IngredientUpsertRequest;
 import poly.edu.quanlynhahang.repository.IngredientRepository;
 import poly.edu.quanlynhahang.repository.IngredientBatchRepository;
+import poly.edu.quanlynhahang.repository.IngredientBatchDisposalRepository;
 import poly.edu.quanlynhahang.service.ActivityLogService;
 import poly.edu.quanlynhahang.service.InventoryAlertService;
 import poly.edu.quanlynhahang.service.IngredientBatchLifecycleService;
 import poly.edu.quanlynhahang.service.MenuAvailabilityService;
+import poly.edu.quanlynhahang.service.InventoryImportService;
 @RestController
 @RequestMapping("/api/admin/ingredients")
 @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_KITCHEN')")
@@ -53,6 +55,9 @@ public class IngredientController {
     private IngredientBatchRepository ingredientBatchRepository;
 
     @Autowired
+    private IngredientBatchDisposalRepository ingredientBatchDisposalRepository;
+
+    @Autowired
     private ActivityLogService activityLogService;
 
     @Autowired
@@ -62,6 +67,9 @@ public class IngredientController {
     private InventoryAlertService inventoryAlertService;
     @Autowired
     private IngredientBatchLifecycleService ingredientBatchLifecycleService;
+
+    @Autowired
+    private InventoryImportService inventoryImportService;
 
     // 1. Lấy tất cả nguyên liệu
     @GetMapping
@@ -120,42 +128,12 @@ public class IngredientController {
     @PostMapping("/{id}/batches")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
     public ResponseEntity<?> addBatch(@PathVariable Long id, @Valid @RequestBody IngredientBatchCreateRequest request) {
-        var ingOpt = ingredientRepository.findById(id);
-        if (ingOpt.isPresent()) {
-            Ingredient ing = ingOpt.get();
-            IngredientBatch batch = new IngredientBatch();
-            batch.setIngredient(ing);
-            batch.setImportDate(new Date());
-            batch.setQuantity(request.quantity());
-            batch.setUnitPrice(request.unitPrice());
-            batch.setExpirationDate(request.expirationDate());
-            
-            // Tự động tính ngày hết hạn nếu chưa có
-            if (batch.getExpirationDate() == null) {
-                Calendar cal = Calendar.getInstance();
-                cal.setTime(batch.getImportDate());
-                cal.add(Calendar.DAY_OF_YEAR, ing.getShelfLifeDays() != null ? ing.getShelfLifeDays() : 30);
-                batch.setExpirationDate(cal.getTime());
-            }
-            batch.setStatus(batch.getExpirationDate().before(new Date())
-                    ? IngredientBatchStatus.EXPIRED : IngredientBatchStatus.AVAILABLE);
-            
-            IngredientBatch savedBatch = ingredientBatchRepository.save(batch);
-            
-            // Cập nhật lại tổng tồn kho
-            BigDecimal totalQuantity = sumBatchQuantity(ing);
-            ing.setQuantity(totalQuantity);
-            
-            // Cập nhật giá nhập mới nhất vào bảng nguyên liệu chính để tham khảo
-            if (batch.getUnitPrice() != null) {
-                ing.setUnitPrice(batch.getUnitPrice());
-            }
-            ingredientRepository.save(ing);
-            menuAvailabilityService.refreshForIngredient(ing);
-            
-            return ResponseEntity.ok(IngredientBatchResponse.from(savedBatch));
+        if (!ingredientRepository.existsById(id)) {
+            return ResponseEntity.badRequest().body("Không tìm thấy nguyên liệu!");
         }
-        return ResponseEntity.badRequest().body("Không tìm thấy nguyên liệu!");
+        IngredientBatch savedBatch = inventoryImportService.createSingleBatch(
+                id, request.quantity(), request.unitPrice(), request.expirationDate(), "Nhập kho trực tiếp");
+        return ResponseEntity.ok(IngredientBatchResponse.from(savedBatch));
     }
 
     // 4.1. Lấy danh sách lô hàng của 1 nguyên liệu
@@ -172,12 +150,30 @@ public class IngredientController {
     // 4.2. Lấy danh sách lô hàng sắp hết hạn (trong vòng 3 ngày)
     @GetMapping("/expiring-batches")
     public ResponseEntity<?> getExpiringBatches(@RequestParam(defaultValue = "3") int daysThreshold) {
+        Date now = new Date();
         Calendar cal = Calendar.getInstance();
         cal.add(Calendar.DAY_OF_YEAR, daysThreshold);
         Date targetDate = cal.getTime();
         
-        List<IngredientBatch> expiring = ingredientBatchRepository.findExpiringBatches(targetDate);
+        List<IngredientBatch> expiring = ingredientBatchRepository.findExpiringBatchesBetween(now, targetDate);
         return ResponseEntity.ok(expiring.stream().map(IngredientBatchResponse::from).toList());
+    }
+
+    @GetMapping("/expired-batches")
+    public ResponseEntity<List<IngredientBatchResponse>> getExpiredBatches() {
+        Date now = new Date();
+        List<IngredientBatch> expired = ingredientBatchRepository.findPositiveBatchesWithIngredient().stream()
+                .filter(b -> b.getExpirationDate() != null && b.getExpirationDate().before(now)
+                        && b.getStatus() != IngredientBatchStatus.DISPOSED)
+                .toList();
+        return ResponseEntity.ok(expired.stream().map(IngredientBatchResponse::from).toList());
+    }
+
+    @GetMapping("/disposed-batches")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
+    public ResponseEntity<List<IngredientBatchDisposalResponse>> getDisposedBatches() {
+        return ResponseEntity.ok(ingredientBatchDisposalRepository.findAllByOrderByDisposalDateDesc().stream()
+                .map(IngredientBatchDisposalResponse::from).toList());
     }
 
     // 4.3. Xóa lô hàng

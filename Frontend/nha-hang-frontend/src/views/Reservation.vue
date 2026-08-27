@@ -332,7 +332,8 @@
                     <p>{{ dishDescription(dish) }}</p>
                     <b>{{ money(dish.price) }}</b>
                     <small v-if="cartQuantityForDish(dish.id)" class="dish-added">{{ t('reservation.addedPortions', { count: cartQuantityForDish(dish.id) }) }}</small>
-                    <button class="primary-btn" type="button" @click="addDish(dish)">{{ text.addDish }}</button>
+                    <small v-if="dish.inventoryManaged" class="dish-stock-limit">{{ dish.availableQuantity }} {{ t('reservation.portionsRemaining') }}</small>
+                    <button class="primary-btn" type="button" :disabled="dish.inventoryManaged && !dish.availableQuantity" @click="addDish(dish)">{{ text.addDish }}</button>
                   </div>
                 </article>
               </div>
@@ -878,6 +879,11 @@ async function loadPreorderMenu() {
 
 function addDish(dish) {
   const existing = cartItems.value.find(item => item.productId === dish.id)
+  const limit = dish.inventoryManaged ? Number(dish.availableQuantity || 0) : Infinity
+  if (limit <= 0 || (existing && existing.quantity >= limit)) {
+    menuError.value = t('reservation.errors.stockLimit', { count: Math.max(0, limit) })
+    return
+  }
   if (existing) {
     existing.quantity += 1
     return
@@ -889,6 +895,12 @@ function addDish(dish) {
 function changeQty(productId, delta) {
   const item = cartItems.value.find(row => row.productId === productId)
   if (!item) return
+  const dish = menuItems.value.find(row => row.id === productId)
+  const limit = dish?.inventoryManaged ? Number(dish.availableQuantity || 0) : Infinity
+  if (delta > 0 && item.quantity >= limit) {
+    menuError.value = t('reservation.errors.stockLimit', { count: Math.max(0, limit) })
+    return
+  }
   item.quantity += delta
   if (item.quantity <= 0) removeDish(productId)
   quote.value = null
