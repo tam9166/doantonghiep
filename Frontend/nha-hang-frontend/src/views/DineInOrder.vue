@@ -340,7 +340,7 @@ const fetchComboForParty = async () => {
     ];
     const allergies = allergyInput.value.split(',').map(value => value.trim()).filter(Boolean);
     const response = await api.post('/api/customer/ai/menu-suggestion', {
-      productIds: [], guestCount: Number(partySize.value), preferences, maxBudget: null, allergies
+      productIds: cart.value.map(item => item.productId), guestCount: Number(partySize.value), preferences, maxBudget: null, allergies
     });
     aiCombo.value = (response.data?.suggestions || []).map((suggestion, index) => {
       const product = activeProducts.value.find(item => item.id === suggestion.productId && item.availableQuantity > 0);

@@ -252,6 +252,13 @@ public class IngredientController {
         return ResponseEntity.ok(ingredientBatchLifecycleService.dispose(batchId, request.reason()));
     }
 
+    @PostMapping("/expired-batches/dispose-all")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
+    public ResponseEntity<IngredientBatchLifecycleService.BulkDisposalResult> disposeAllExpired(
+            @Valid @RequestBody IngredientBatchDisposalRequest request) {
+        return ResponseEntity.ok(ingredientBatchLifecycleService.disposeAllExpired(request.reason()));
+    }
+
     @GetMapping("/batches/{batchId}/disposals")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
     public ResponseEntity<List<IngredientBatchDisposalResponse>> getDisposalHistory(@PathVariable Long batchId) {

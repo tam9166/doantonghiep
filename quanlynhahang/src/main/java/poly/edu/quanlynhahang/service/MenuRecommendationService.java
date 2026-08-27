@@ -156,10 +156,12 @@ public class MenuRecommendationService {
 
         // TASK-16 pairing is deliberately a small, explainable rule set. It can
         // be tuned from real sales data later without allowing AI to invent drinks.
+        boolean beerInCart = selectedProducts.stream().anyMatch(this::isBeerOrRedWine);
         if (vegetarianCart) {
             addMatches(recommended, candidates, this::isTeaOrJuice, "PAIRING_VEGETARIAN");
         } else if (hasHeavyDish) {
-            addMatches(recommended, candidates, this::isBeerOrRedWine, "PAIRING_GRILLED_OR_FRIED");
+            addMatches(recommended, candidates, this::isNonAlcoholicDrink, "PAIRING_NON_ALCOHOLIC");
+            if (beerInCart) addMatches(recommended, candidates, this::isBeerOrRedWine, "PAIRING_GRILLED_OR_FRIED");
         } else if (selectedProducts.stream().anyMatch(this::isSteamedOrSeafood)) {
             addMatches(recommended, candidates, this::isWhiteWine, "PAIRING_SEAFOOD_OR_STEAMED");
         }
@@ -192,6 +194,8 @@ public class MenuRecommendationService {
                     product -> product.getDietType() == DietType.CHAY || isVegetableOrSoup(product),
                     "BALANCE_HEAVY_MEAL");
         }
+
+        if (recommended.isEmpty()) addMatches(recommended, candidates, product -> true, "POPULAR_FALLBACK");
 
         return recommended.entrySet().stream()
                 .map(entry -> findById(availableProducts, entry.getKey(), entry.getValue()))
@@ -253,6 +257,13 @@ public class MenuRecommendationService {
         String name = categoryAndName(product);
         return isBeverage(product) && (hasWord(name, "tra") || hasWord(name, "tea")
                 || name.contains("nuoc ep") || name.contains("juice"));
+    }
+
+    private boolean isNonAlcoholicDrink(Product product) {
+        if (!isBeverage(product) || (product.getAlcoholPercentage() != null && product.getAlcoholPercentage().compareTo(BigDecimal.ZERO) > 0)) return false;
+        String name = categoryAndName(product);
+        return name.contains("nuoc") || name.contains("nước") || name.contains("tra") || name.contains("tea")
+                || name.contains("juice") || name.contains("ep") || name.contains("coca") || name.contains("cola");
     }
 
     private boolean isBeverage(Product product) {

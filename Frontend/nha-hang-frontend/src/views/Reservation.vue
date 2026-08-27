@@ -343,7 +343,7 @@
                   <strong>{{ item.name }}</strong>
                   <div class="qty">
                     <button type="button" @click="changeQty(item.productId, -1)">-</button>
-                    <span>{{ item.quantity }}</span>
+                    <input class="qty-input" type="number" min="1" :max="item.availableQuantity || undefined" :value="item.quantity" @change="setQty(item, $event.target.value)" @keydown="blockInvalidQuantity" aria-label="Số lượng món" />
                     <button type="button" @click="changeQty(item.productId, 1)">+</button>
                   </div>
                   <span>{{ money(item.price * item.quantity) }}</span>
@@ -888,7 +888,7 @@ function addDish(dish) {
     existing.quantity += 1
     return
   }
-  cartItems.value.push({ productId: dish.id, name: dishName(dish), price: Number(dish.price || 0), quantity: 1 })
+  cartItems.value.push({ productId: dish.id, name: dishName(dish), price: Number(dish.price || 0), quantity: 1, availableQuantity: dish.inventoryManaged ? Number(dish.availableQuantity || 0) : -1 })
   quote.value = null
 }
 
@@ -916,6 +916,18 @@ function disablePreorder() {
   cartItems.value = []
   form.value.orderNote = ''
   quote.value = null
+}
+
+function setQty(item, rawValue) {
+  const parsed = Number.parseInt(rawValue, 10)
+  const limit = item.availableQuantity == null || item.availableQuantity < 0 ? Infinity : Number(item.availableQuantity)
+  if (!Number.isInteger(parsed) || parsed < 1) { item.quantity = 1; return }
+  if (parsed > limit) { item.quantity = limit; menuError.value = t('reservation.errors.stockLimit', { count: limit }); return }
+  item.quantity = parsed; quote.value = null
+}
+
+function blockInvalidQuantity(event) {
+  if (['e', 'E', '+', '-', '.', ','].includes(event.key)) event.preventDefault()
 }
 
 function selectPayment(option) {

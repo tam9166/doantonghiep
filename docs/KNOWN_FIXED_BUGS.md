@@ -183,6 +183,9 @@ These labels are prefixed with `V2-` because the supplied prompt reused IDs alre
 | BUG-152 | P1 | Expired/expiring inventory and menu availability could become inconsistent after scheduler updates. | Add lower-bound expiring query, recalculate ingredient aggregates and refresh menu after expiry; treat active no-recipe products as inventory-unmanaged. | `IngredientBatchLifecycleServiceTest`, `MenuAvailabilityServiceTest`. |
 | BUG-153 | P1 | Admin order UI hardcoded VAT/totals, truncated order-code search and omitted statuses/realtime refresh. | Use backend financial fields, full-code search, map statuses 0–7 and subscribe to kitchen/orders/waiter topics. | Frontend test/lint/build. |
 | BUG-154 | P1 | Admin had no dedicated expired-food processing screen and no aggregate disposal listing. | Add expired/disposed APIs, `/admin/expired-food` screen and reason-required disposal UX while preserving customer review route. | Frontend build and backend compile. |
+| BUG-155 | P0 | Expired-food screen used prompt and could issue one request per batch; a refresh error could show failure after successful disposal. | Add transactional bulk disposal endpoint, themed modal, resilient `Promise.allSettled` refresh, green processed history/KPI updates. | Frontend 105 tests/lint/build; backend compile. |
+| BUG-156 | P1 | Dine-in recommendation ignored current cart and heavy dishes defaulted to beer-first pairing. | Send real cart product IDs and rank non-alcoholic drinks first unless beer preference/cart signal exists; retain DB availability filter and fallback. | `MenuRecommendationService` compile and frontend suite. |
+| BUG-157 | P1 | Reservation preorder quantity was not manually editable. | Add integer input with min/max validation, clamping and immediate quote invalidation. | Frontend suite/build. |
 
 ## Master Prompt V2 flow audit (2026-08-20)
 

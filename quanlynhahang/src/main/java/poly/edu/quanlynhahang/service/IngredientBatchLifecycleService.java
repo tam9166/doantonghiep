@@ -23,6 +23,7 @@ import poly.edu.quanlynhahang.repository.IngredientRepository;
 
 @Service
 public class IngredientBatchLifecycleService {
+    public record BulkDisposalResult(int processed, int failed, BigDecimal totalQuantity, String message) {}
     private final IngredientBatchRepository batchRepository;
     private final IngredientBatchDisposalRepository disposalRepository;
     private final IngredientRepository ingredientRepository;
@@ -102,6 +103,31 @@ public class IngredientBatchLifecycleService {
         activityLogService.log("DISPOSE", "IngredientBatch", String.valueOf(batchId),
                 "Tiêu hủy " + quantity + " " + ingredient.getUnit() + " - " + reason);
         return IngredientBatchDisposalResponse.from(saved);
+    }
+
+    @Transactional
+    public BulkDisposalResult disposeAllExpired(String rawReason) {
+        String reason = rawReason == null ? "" : rawReason.trim();
+        if (reason.isBlank() || reason.length() > 500) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Lý do tiêu hủy phải từ 1 đến 500 ký tự");
+        }
+        Date now = new Date();
+        batchRepository.markExpired(now);
+        List<Long> ids = batchRepository.findPositiveBatchesWithIngredient().stream()
+                .filter(b -> b.getExpirationDate() != null && b.getExpirationDate().before(now)
+                        && !IngredientBatchStatus.DISPOSED.equals(b.getStatus()))
+                .map(IngredientBatch::getId).toList();
+        int processed = 0, failed = 0;
+        BigDecimal total = BigDecimal.ZERO;
+        for (Long id : ids) {
+            try {
+                IngredientBatchDisposalResponse result = dispose(id, reason);
+                processed++;
+                total = total.add(result.quantityDisposed() == null ? BigDecimal.ZERO : result.quantityDisposed());
+            } catch (ResponseStatusException ex) { failed++; }
+        }
+        return new BulkDisposalResult(processed, failed, total,
+                "Đã xử lý " + processed + " lô hết hạn" + (failed > 0 ? "; " + failed + " lô đã được xử lý đồng thời hoặc không còn hợp lệ" : ""));
     }
 
     @Transactional(readOnly = true)

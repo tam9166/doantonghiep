@@ -34,3 +34,11 @@
 - Frontend: Vitest 32 files / 105 tests PASS; ESLint PASS; Vite build PASS.
 - Backend focused: migration blank DB v080 PASS; lifecycle 2/2, menu availability 4/4; OrderCheckout suite đang chạy lại sau khi cập nhật regression cho sản phẩm không công thức.
 - Còn lại: cần chạy full Maven suite và smoke trên DB `RestaurantDB` trước khi release production.
+
+## Addendum – prompt 40 mục (27/08/2026)
+
+- Đã bổ sung bulk disposal `POST /api/admin/ingredients/expired-batches/dispose-all` với transaction, kiểm tra lý do, chống xử lý lại batch DISPOSED và tổng hợp kết quả.
+- `AdminExpiredFood.vue` dùng modal đồng bộ theme cho single/bulk, `Promise.allSettled` để một API phụ lỗi không làm mất các section khác, KPI tự refresh và lịch sử có badge xanh.
+- Dine-in gửi `productIds` thực tế từ cart; recommendation fallback luôn lấy món thật còn phục vụ và ưu tiên đồ uống không cồn trước bia khi chưa có tín hiệu bia.
+- Reservation preorder cho phép nhập tay quantity integer, clamp theo tồn và cập nhật quote state ngay.
+- Các mục AI dùng chung Takeaway/Delivery/Reservation, contextText/ngữ nghĩa nóng-lạnh, audit ảnh và QR/Unicode cần kiểm tra tiếp theo vì source hiện tại chưa có đủ component/API chung để xác nhận hoàn tất.
