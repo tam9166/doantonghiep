@@ -82,17 +82,35 @@ class MenuRecommendationServiceTest {
     }
 
     @Test
-    void pairsGrilledDishWithAvailableBeerOrRedWine() {
+    void pairsGrilledDishWithNonAlcoholicDrinkBeforeBeerWithoutBeerSignal() {
         Product grilledMeat = product(1, DietType.MAN, CookingMethod.NUONG, false, true);
         Product beer = product(2, DietType.MAN, CookingMethod.KHAC, false, true);
         beer.setName("Bia tươi");
-        Product whiteWine = product(3, DietType.MAN, CookingMethod.KHAC, false, true);
-        whiteWine.setName("Rượu vang trắng");
-        when(productRepository.findByAvailableTrueAndStatusTrue()).thenReturn(List.of(grilledMeat, beer, whiteWine));
+        Product juice = product(3, DietType.MAN, CookingMethod.KHAC, false, true);
+        juice.setName("Nước ép dưa hấu");
+        when(productRepository.findByAvailableTrueAndStatusTrue()).thenReturn(List.of(grilledMeat, beer, juice));
 
         var result = service.recommend(List.of(1));
 
-        assertTrue(result.stream().anyMatch(item -> item.productId().equals(2)
+        assertTrue(result.stream().anyMatch(item -> item.productId().equals(3)
+                && "PAIRING_NON_ALCOHOLIC".equals(item.reasonCode())));
+        assertFalse(result.stream().anyMatch(item -> item.productId().equals(2)
+                && "PAIRING_GRILLED_OR_FRIED".equals(item.reasonCode())));
+    }
+
+    @Test
+    void pairsGrilledDishWithBeerOnlyWhenBeerSignalIsInCart() {
+        Product grilledMeat = product(1, DietType.MAN, CookingMethod.NUONG, false, true);
+        Product beerInCart = product(2, DietType.MAN, CookingMethod.KHAC, false, true);
+        beerInCart.setName("Bia tươi");
+        Product redWine = product(3, DietType.MAN, CookingMethod.KHAC, false, true);
+        redWine.setName("Red wine");
+        when(productRepository.findByAvailableTrueAndStatusTrue())
+                .thenReturn(List.of(grilledMeat, beerInCart, redWine));
+
+        var result = service.recommend(List.of(1, 2));
+
+        assertTrue(result.stream().anyMatch(item -> item.productId().equals(3)
                 && "PAIRING_GRILLED_OR_FRIED".equals(item.reasonCode())));
     }
 

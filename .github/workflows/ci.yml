@@ -12,6 +12,24 @@ jobs:
     name: Verify Java and Vue applications
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      DB_URL: jdbc:sqlserver://127.0.0.1:1433;databaseName=RestaurantDB;encrypt=true;trustServerCertificate=true;sendStringParametersAsUnicode=true
+      DB_USERNAME: sa
+      DB_PASSWORD: MocVi_CI_2026_StrongPass!
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: Y
+          SA_PASSWORD: MocVi_CI_2026_StrongPass!
+          MSSQL_SA_PASSWORD: MocVi_CI_2026_StrongPass!
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "bash -c '</dev/tcp/127.0.0.1/1433'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 30
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -49,6 +67,27 @@ jobs:
       - name: Build frontend static assets
         working-directory: Frontend/nha-hang-frontend
         run: npm run build
+
+      - name: Wait for SQL Server and create test database
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in {1..30}; do
+            if docker run --rm --network host mcr.microsoft.com/mssql-tools18:latest \
+              /opt/mssql-tools18/bin/sqlcmd -S 127.0.0.1,1433 -U sa \
+              -P 'MocVi_CI_2026_StrongPass!' -C -Q 'SELECT 1' >/dev/null 2>&1; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              echo 'SQL Server did not become ready in time.' >&2
+              exit 1
+            fi
+            sleep 5
+          done
+          docker run --rm --network host mcr.microsoft.com/mssql-tools18:latest \
+            /opt/mssql-tools18/bin/sqlcmd -S 127.0.0.1,1433 -U sa \
+            -P 'MocVi_CI_2026_StrongPass!' -C \
+            -Q "IF DB_ID(N'RestaurantDB') IS NULL CREATE DATABASE [RestaurantDB]"
 
       - name: Test backend
         working-directory: quanlynhahang

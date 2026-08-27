@@ -186,6 +186,7 @@ These labels are prefixed with `V2-` because the supplied prompt reused IDs alre
 | BUG-155 | P0 | Expired-food screen used prompt and could issue one request per batch; a refresh error could show failure after successful disposal. | Add transactional bulk disposal endpoint, themed modal, resilient `Promise.allSettled` refresh, green processed history/KPI updates. | Frontend 105 tests/lint/build; backend compile. |
 | BUG-156 | P1 | Dine-in recommendation ignored current cart and heavy dishes defaulted to beer-first pairing. | Send real cart product IDs and rank non-alcoholic drinks first unless beer preference/cart signal exists; retain DB availability filter and fallback. | `MenuRecommendationService` compile and frontend suite. |
 | BUG-157 | P1 | Reservation preorder quantity was not manually editable. | Add integer input with min/max validation, clamping and immediate quote invalidation. | Frontend suite/build. |
+| BUG-158 | P0 | GitHub Actions ran SQL Server-backed Spring integration tests without a SQL Server instance, causing shared ApplicationContext failures. | Provision SQL Server 2022 in the CI job, wait for readiness, create `RestaurantDB`, and pass explicit database connection variables to Maven. | Full backend Maven suite in CI. |
 
 ## Master Prompt V2 flow audit (2026-08-20)
 
