@@ -156,11 +156,16 @@ import AdminLayout from '@/components/AdminLayout.vue';
 import { ref, onMounted } from 'vue';
 import api from '@/services/api';
 import { foodImage, replaceFoodImage } from '@/utils/imageFallback';
+import { useToast } from '@/composables/useToast';
+import { useDialog } from '@/composables/useDialog';
+import { getApiErrorMessage } from '@/services/errorMessage';
 
 const products = ref([]);
 const categories = ref([]);
 const isEditing = ref(false);
 const editingId = ref(null);
+const toast = useToast();
+const { confirmDialog } = useDialog();
 
 const formData = ref({
   name: '', price: '', description: '', image: '', categoryId: '', status: true, taxRate: 8,
@@ -213,7 +218,7 @@ const cancelEdit = () => {
 
 const saveProduct = async () => {
   if (!formData.value.name || !formData.value.price || !formData.value.categoryId) {
-    alert('Vui lòng nhập đủ Tên, Giá và Chọn Danh Mục!'); return;
+    toast.warning('Vui lòng nhập đủ tên, giá và danh mục.'); return;
   }
 
   const payload = {
@@ -233,15 +238,15 @@ const saveProduct = async () => {
   try {
     if (isEditing.value) {
       await api.put(`/api/admin/products/${editingId.value}`, payload, getAuthConfig());
-      alert('Cập nhật thành công!');
+      toast.success('Cập nhật món thành công.');
     } else {
       await api.post('/api/admin/products', payload, getAuthConfig());
-      alert('Thêm món thành công!');
+      toast.success('Thêm món thành công.');
     }
     cancelEdit();
     fetchProducts();
   } catch (error) {
-    alert('Lỗi: ' + (error.response?.data?.message || 'Kiểm tra lại quyền Admin!'));
+    toast.error(getApiErrorMessage(error, 'Không thể lưu món. Vui lòng kiểm tra quyền quản trị.'));
   }
 };
 
@@ -251,17 +256,17 @@ const toggleStatus = async (product) => {
   try {
     await api.put(`/api/admin/products/${product.id}`, payload, getAuthConfig());
     fetchProducts();
-  } catch (error) { alert('Lỗi cập nhật trạng thái!'); }
+  } catch (error) { toast.error(getApiErrorMessage(error, 'Không thể cập nhật trạng thái món.')); }
 };
 
 const handleDelete = async (id) => {
-  if (!confirm('Chắc chắn muốn xóa?')) return;
+  if (!await confirmDialog({ title: 'Xóa món', message: 'Bạn có chắc muốn xóa món này?', confirmLabel: 'Xóa', danger: true })) return;
   try {
     await api.delete(`/api/admin/products/${id}`, getAuthConfig());
-    alert('Đã xóa!');
+    toast.success('Đã xóa món.');
     fetchProducts();
   } catch (error) {
-    alert('Món này đã có trong hóa đơn, không thể xóa! Hãy dùng "Báo Hết" thay vì xóa.');
+    toast.error(getApiErrorMessage(error, 'Món này đã có trong hóa đơn, không thể xóa. Hãy dùng "Báo Hết" thay vì xóa.'));
   }
 };
 

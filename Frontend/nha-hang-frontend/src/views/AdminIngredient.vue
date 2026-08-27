@@ -586,6 +586,7 @@ import UiIcon from '@/components/UiIcon.vue';
 import { ref, computed, onMounted } from 'vue';
 import api from '@/services/api';
 import { getApiErrorMessage } from '@/services/errorMessage';
+import { useDialog } from '@/composables/useDialog';
 import { foodImage, ingredientImage, replaceFoodImage, replaceIngredientImage } from '@/utils/imageFallback';
 
 // Kiểm tra quyền để hiển thị Navbar phù hợp
@@ -610,6 +611,7 @@ const products = ref([]);
 const categories = ref([]);
 const stats = ref({ total: 0, lowStock: 0, outOfStock: 0, expiringBatchesCount: 0, expiredBatchesCount: 0 });
 const toastMsg = ref('');
+const { confirmDialog } = useDialog();
 
 // Tab 1 State
 const isEditingIng = ref(false);
@@ -745,7 +747,7 @@ const cancelEditIng = () => {
 };
 
 const saveIngredient = async () => {
-  if (!ingForm.value.name || !ingForm.value.unit) return alert('Nhập đủ Tên và Đơn vị!');
+  if (!ingForm.value.name || !ingForm.value.unit) return showToast('Nhập đủ Tên và Đơn vị!');
   try {
     if (isEditingIng.value) {
       await api.put(`/api/admin/ingredients/${editingIngId.value}`, ingForm.value, configHeader());
@@ -756,27 +758,27 @@ const saveIngredient = async () => {
     }
     cancelEditIng();
     loadData();
-  } catch (err) { alert('Lỗi lưu nguyên liệu'); }
+  } catch (err) { showToast(getApiErrorMessage(err, 'Không thể lưu nguyên liệu.')); }
 };
 
 const deleteIngredient = async (id) => {
-  if (!confirm('Xóa nguyên liệu này?')) return;
+  if (!await confirmDialog({ title: 'Xóa nguyên liệu', message: 'Bạn có chắc muốn xóa nguyên liệu này?', confirmLabel: 'Xóa', danger: true })) return;
   try {
     await api.delete(`/api/admin/ingredients/${id}`, configHeader());
     showToast(' Đã xóa!');
     loadData();
-  } catch (err) { alert('Không thể xóa vì nguyên liệu này đang có trong công thức!'); }
+  } catch (err) { showToast(getApiErrorMessage(err, 'Không thể xóa vì nguyên liệu này đang có trong công thức.')); }
 };
 
 const submitBatch = async () => {
-  if (!batchForm.value.quantity || batchForm.value.quantity <= 0) return alert('Số lượng phải > 0');
+  if (!batchForm.value.quantity || batchForm.value.quantity <= 0) return showToast('Số lượng phải lớn hơn 0.');
   
   try {
     await api.post(`/api/admin/ingredients/${selectedIngForRestock.value.id}/batches`, batchForm.value, configHeader());
     showToast(` Đã nhập lô mới thành công!`);
     showRestockModal.value = false;
     loadData();
-  } catch (err) { alert('Lỗi nhập kho'); }
+  } catch (err) { showToast(getApiErrorMessage(err, 'Không thể nhập lô vào kho.')); }
 };
 
 const viewBatches = async (id) => {
@@ -787,7 +789,7 @@ const viewBatches = async (id) => {
     disposalBatch.value = null;
     disposalHistory.value = [];
     showBatchesModal.value = true;
-  } catch (err) { alert('Lỗi tải danh sách lô hàng'); }
+  } catch (err) { showToast(getApiErrorMessage(err, 'Không thể tải danh sách lô hàng.')); }
 };
 
 const prepareDisposal = batch => {
@@ -823,14 +825,14 @@ const loadDisposalHistory = async batchId => {
 };
 
 const deleteBatch = async (batchId) => {
-  if (!confirm('Bạn có chắc muốn xóa lô hàng này? (Dùng để loại bỏ các lô đã hết hạn hoặc sai lệch)')) return;
+  if (!await confirmDialog({ title: 'Xóa lô hàng', message: 'Bạn có chắc muốn xóa lô hàng này? Chỉ dùng cho lô hết hạn hoặc sai lệch.', confirmLabel: 'Xóa', danger: true })) return;
   try {
     await api.delete(`/api/admin/ingredients/batches/${batchId}`, configHeader());
     showToast(' Đã xóa lô hàng!');
     showBatchesModal.value = false;
     loadData();
   } catch (err) {
-    alert('Không thể xóa lô hàng này!');
+    showToast(getApiErrorMessage(err, 'Không thể xóa lô hàng này.'));
   }
 };
 
@@ -849,7 +851,7 @@ const selectProduct = async (prod) => {
 };
 
 const addRecipe = async () => {
-  if (!newRecipe.value.ingredientId || !newRecipe.value.amount) return alert('Nhập đủ nguyên liệu và số lượng!');
+  if (!newRecipe.value.ingredientId || !newRecipe.value.amount) return showToast('Nhập đủ nguyên liệu và số lượng.');
   const payload = {
     productId: selectedProduct.value.id,
     ingredientId: newRecipe.value.ingredientId,
@@ -860,16 +862,16 @@ const addRecipe = async () => {
     showToast(' Đã thêm nguyên liệu vào món!');
     newRecipe.value = { ingredientId: '', amount: '' };
     selectProduct(selectedProduct.value); // reload recipes for this product
-  } catch (err) { alert('Lỗi thêm công thức'); }
+  } catch (err) { showToast(getApiErrorMessage(err, 'Không thể thêm công thức.')); }
 };
 
 const deleteRecipe = async (recipeId) => {
-  if (!confirm('Xóa nguyên liệu này khỏi món?')) return;
+  if (!await confirmDialog({ title: 'Xóa nguyên liệu khỏi công thức', message: 'Bạn có chắc muốn xóa nguyên liệu này khỏi món?', confirmLabel: 'Xóa', danger: true })) return;
   try {
     await api.delete(`/api/admin/recipes/${recipeId}`, configHeader());
     showToast(' Đã xóa!');
     selectProduct(selectedProduct.value);
-  } catch (err) { alert('Lỗi xóa'); }
+  } catch (err) { showToast(getApiErrorMessage(err, 'Không thể xóa nguyên liệu khỏi công thức.')); }
 };
 
 // === AI FORECAST ===
@@ -923,7 +925,7 @@ const analyzeInventory = async () => {
 
 const applyForecast = async (ingName, amount) => {
   const ing = ingredients.value.find(i => i.name.toLowerCase() === ingName.toLowerCase());
-  if (!ing) return alert(`Không tìm thấy nguyên liệu "${ingName}" trong hệ thống!`);
+  if (!ing) return showToast(`Không tìm thấy nguyên liệu "${ingName}" trong hệ thống.`);
   
   // Open restock modal and pre-fill amount
   selectedIngForRestock.value = ing;
@@ -951,7 +953,7 @@ const calculateInvoiceTotal = () => {
 
 const submitInvoice = async () => {
   const validItems = invoiceForm.value.items.filter(i => i.ingredientId && i.quantity > 0);
-  if (validItems.length === 0) return alert('Vui lòng thêm ít nhất 1 nguyên liệu hợp lệ!');
+  if (validItems.length === 0) return showToast('Vui lòng thêm ít nhất 1 nguyên liệu hợp lệ.');
   
   try {
     const payload = {
@@ -973,7 +975,7 @@ const submitInvoice = async () => {
     const res = await api.get('/api/admin/ingredients', configHeader());
     ingredients.value = res.data;
   } catch (err) {
-    alert('Lỗi tạo phiếu nhập kho!');
+    showToast(getApiErrorMessage(err, 'Không thể tạo phiếu nhập kho.'));
     console.error(err);
   }
 };

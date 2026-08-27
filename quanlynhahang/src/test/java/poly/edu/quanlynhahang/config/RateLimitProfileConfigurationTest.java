@@ -25,6 +25,12 @@ class RateLimitProfileConfigurationTest {
         assertEquals("${RATE_LIMIT_ENABLED:false}", property("application-local.example.properties", "app.rate-limit.enabled"));
     }
 
+    @Test
+    void developmentPaymentHolderUsesUnicodeEscapesForJavaPropertiesLoader() throws IOException {
+        String value = property("application-dev.properties", "restaurant.payment.account-holder");
+        assertEquals("${RESTAURANT_PAYMENT_ACCOUNT_HOLDER:Hoàng Nguyễn Minh Tâm}", value);
+    }
+
     private String property(String resourceName, String key) throws IOException {
         Properties properties = new Properties();
         try (InputStream input = getClass().getClassLoader().getResourceAsStream(resourceName)) {

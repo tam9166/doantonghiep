@@ -65,6 +65,8 @@ class OrderPaymentServiceTest {
         assertEquals(new BigDecimal("216000"), response.getAmount());
         assertEquals("MB", response.getBankCode());
         assertEquals("1234567890", response.getAccountNumber());
+        assertEquals("Hoàng Nguyễn Minh Tâm", response.getAccountHolder());
+        assertEquals("Hoàng Nguyễn Minh Tâm", response.getAccountHolder());
         assertTrue(response.getTransferContent().startsWith("TT DH12 "));
         assertTrue(response.getQrUrl().contains("amount=216000"));
         verify(intentRepository).save(any(PaymentIntent.class));
@@ -237,7 +239,7 @@ class OrderPaymentServiceTest {
         properties.setBankCode("MB");
         properties.setBankBin("970422");
         properties.setAccountNumber("1234567890");
-        properties.setAccountHolder("TEST ACCOUNT HOLDER");
+        properties.setAccountHolder("Hoàng Nguyễn Minh Tâm");
         properties.setQrProvider("VIETQR");
         properties.setQrExpirationMinutes(15);
         return properties;

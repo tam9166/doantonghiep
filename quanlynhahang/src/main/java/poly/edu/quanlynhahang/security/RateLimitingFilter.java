@@ -94,6 +94,9 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         if ("POST".equals(method) && path.equals("/api/reservation-cancellations")) {
             return new RatePolicy("reservation-cancellation-create", 5, 900);
         }
+        if ("POST".equals(method) && path.equals("/api/reservation-cancellations/preview")) {
+            return new RatePolicy("reservation-cancellation-preview", 20, 900);
+        }
         if ("POST".equals(method) && path.equals("/api/orders/checkout")) {
             return new RatePolicy("public-order-checkout", 10, 60);
         }

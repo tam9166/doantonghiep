@@ -101,6 +101,7 @@ import { computed, ref, onMounted, onUnmounted } from 'vue'
 import UiIcon from '@/components/UiIcon.vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { useDialog } from '@/composables/useDialog'
 import {
   clearCustomerSession,
   getCustomerUser,
@@ -113,6 +114,7 @@ defineProps({
 
 const router = useRouter()
 const { locale, t } = useI18n()
+const { confirmDialog } = useDialog()
 const currentLang = computed({
   get: () => locale.value,
   set: value => { locale.value = value }
@@ -130,8 +132,8 @@ function changeLanguage() {
   locale.value = currentLang.value
 }
 
-function handleLogout() {
-  if (confirm(t('auth.logoutConfirm'))) {
+async function handleLogout() {
+  if (await confirmDialog({ title: t('nav.logout'), message: t('auth.logoutConfirm'), confirmLabel: t('nav.logout'), danger: true })) {
     clearCustomerSession()
     isLoggedIn.value = false
     user.value = null

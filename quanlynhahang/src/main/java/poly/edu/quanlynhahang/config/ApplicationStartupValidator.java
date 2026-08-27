@@ -61,8 +61,15 @@ public class ApplicationStartupValidator implements ApplicationRunner {
         if (!captchaEnabled) {
             throw new IllegalStateException("CAPTCHA_ENABLED must be true in production.");
         }
-        if ("mock".equalsIgnoreCase(captchaProvider == null ? "" : captchaProvider.trim())) {
+        if (!hasText(captchaProvider)) {
+            throw new IllegalStateException("CAPTCHA_PROVIDER is required in production (turnstile or recaptcha)." );
+        }
+        String normalizedCaptchaProvider = captchaProvider.trim().toLowerCase(java.util.Locale.ROOT);
+        if ("mock".equals(normalizedCaptchaProvider)) {
             throw new IllegalStateException("The mock CAPTCHA provider is forbidden in production.");
+        }
+        if (!"turnstile".equals(normalizedCaptchaProvider) && !"recaptcha".equals(normalizedCaptchaProvider)) {
+            throw new IllegalStateException("Unsupported CAPTCHA_PROVIDER in production: " + normalizedCaptchaProvider);
         }
         requireSecret(captchaSecret, "CAPTCHA_SECRET");
         paymentProperties.assertProductionReady();

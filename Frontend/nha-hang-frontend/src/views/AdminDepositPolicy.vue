@@ -155,12 +155,16 @@
 import { onMounted, ref } from 'vue'
 import AdminLayout from '@/components/AdminLayout.vue'
 import api from '@/services/api'
+import { useToast } from '@/composables/useToast'
+import { useDialog } from '@/composables/useDialog'
 
 const policies = ref([])
 const areas = ref([])
 const saving = ref(false)
 const error = ref('')
 const editingId = ref(null)
+const toast = useToast()
+const { confirmDialog } = useDialog()
 
 const days = [
   { value: 1, label: 'Thứ 2' },
@@ -268,9 +272,14 @@ function editPolicy(policy) {
 }
 
 async function deactivatePolicy(policy) {
-  if (!window.confirm(`Tắt chính sách ${policy.nameVi}?`)) return
-  await api.delete(`/api/admin/deposit-policies/${policy.id}`)
-  await fetchData()
+  if (!await confirmDialog({ title: 'Tắt chính sách cọc', message: `Tắt chính sách ${policy.nameVi}?`, confirmLabel: 'Tắt chính sách', danger: true })) return
+  try {
+    await api.delete(`/api/admin/deposit-policies/${policy.id}`)
+    toast.success('Đã tắt chính sách cọc.')
+    await fetchData()
+  } catch (err) {
+    toast.error(err.response?.data?.message || 'Không thể tắt chính sách cọc.')
+  }
 }
 
 function resetForm() {

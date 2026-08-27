@@ -76,10 +76,12 @@ import { ref, onMounted } from 'vue';
 import api from '@/services/api';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
+import { useToast } from '@/composables/useToast';
 
 const router = useRouter();
 const { t } = useI18n();
 const currentTab = ref('info');
+const toast = useToast();
 
 const userProfile = ref({
   username: '',
@@ -103,7 +105,7 @@ const passwordForm = ref({
 const loadProfile = async () => {
   const token = sessionStorage.getItem('token');
   if (!token) {
-    alert(t('customer.profile.loginRequired'));
+    toast.warning(t('customer.profile.loginRequired'));
     router.push('/login');
     return;
   }
@@ -122,7 +124,7 @@ const loadProfile = async () => {
 const saveProfile = async () => {
   const token = sessionStorage.getItem('token');
   if (!editProfile.value.fullname) {
-    alert(t('customer.profile.nameRequired'));
+    toast.warning(t('customer.profile.nameRequired'));
     return;
   }
   try {
@@ -132,21 +134,21 @@ const saveProfile = async () => {
     }, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    alert(t('customer.profile.updated'));
+    toast.success(t('customer.profile.updated'));
     loadProfile();
   } catch (error) {
-    alert(t('customer.profile.updateFailed', { message: error.response?.data || t('customer.profile.retry') }));
+    toast.error(t('customer.profile.updateFailed', { message: error.response?.data || t('customer.profile.retry') }));
   }
 };
 
 const changePassword = async () => {
   const token = sessionStorage.getItem('token');
   if (!passwordForm.value.oldPassword || !passwordForm.value.newPassword) {
-    alert(t('customer.profile.passwordRequired'));
+    toast.warning(t('customer.profile.passwordRequired'));
     return;
   }
   if (passwordForm.value.newPassword !== passwordForm.value.confirmPassword) {
-    alert(t('customer.profile.passwordMismatch'));
+    toast.warning(t('customer.profile.passwordMismatch'));
     return;
   }
   try {
@@ -156,10 +158,10 @@ const changePassword = async () => {
     }, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    alert(t('customer.profile.passwordChanged'));
+    toast.success(t('customer.profile.passwordChanged'));
     handleLogout();
   } catch (error) {
-    alert(t('customer.profile.passwordFailed', { message: error.response?.data || t('customer.profile.retry') }));
+    toast.error(t('customer.profile.passwordFailed', { message: error.response?.data || t('customer.profile.retry') }));
   }
 };
 

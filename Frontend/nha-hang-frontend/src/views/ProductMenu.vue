@@ -96,10 +96,10 @@
     </main>
 
     <div v-if="showCheckoutModal" class="g-modal-overlay" @click.self="showCheckoutModal = false">
-      <div class="g-modal-box" style="max-width: 600px;">
-        <h3>{{ text.checkoutTitle }}</h3>
+      <div class="g-modal-box checkout-modal">
+        <h3 class="checkout-header">{{ text.checkoutTitle }}</h3>
 
-        <div v-if="!paymentQr" class="checkout-scroll-area" style="max-height: 400px; overflow-y: auto; padding-right: 10px;">
+        <div v-if="!paymentQr" class="checkout-scroll-area">
           <section v-if="cart.length > 0" class="cart-recommendations" aria-live="polite">
             <div class="recommendation-heading">
               <h4> {{ text.cartRecommendations }}</h4>
@@ -179,7 +179,7 @@
           </div>
         </div>
 
-        <div v-else class="payment-banking-box payment-result">
+        <div v-else class="payment-banking-box payment-result checkout-scroll-area">
           <h4>{{ text.scanQr }}</h4>
           <img :src="paymentQr.qrUrl" :alt="text.paymentQrAlt" />
           <p>{{ text.amount }}: <strong>{{ formatCurrency(Number(paymentQr.amount)) }}</strong></p>
@@ -190,7 +190,7 @@
           <small>{{ text.paymentConfirmedHint }}</small>
         </div>
 
-        <div class="modal-actions mt-4" style="display: flex; gap: 10px;">
+        <div class="modal-actions checkout-actions mt-4">
           <button @click="closeCheckout" class="g-btn-outline" style="flex: 1;">{{ paymentQr ? text.understood : text.close }}</button>
           <button v-if="cart.length > 0 && !paymentQr" @click="submitShipOrder" :disabled="checkoutSubmitting" class="g-btn-primary" style="flex: 1;">
             {{ checkoutSubmitting ? text.creatingOrder : text.createOrder }}
@@ -213,6 +213,8 @@ import SkeletonLoader from '@/components/SkeletonLoader.vue';
 import { foodImage, replaceFoodImage } from '@/utils/imageFallback';
 import { useFormatters } from '@/composables/useFormatters';
 import { MENU_PAGE_SIZE, paginateMenu } from '@/utils/menuPagination';
+import { useToast } from '@/composables/useToast';
+import { getApiErrorMessage } from '@/services/errorMessage';
 
 const products = ref([]);
 const suggestedProducts = ref([]);
@@ -226,6 +228,7 @@ const isLoggedIn = ref(false);
 const userRoles = ref([]);
 const isLoading = ref(true);
 const loadError = ref('');
+const toast = useToast();
 
 const isAdminOrManager = computed(() => {
   return userRoles.value.includes('ROLE_ADMIN') || userRoles.value.includes('ROLE_MANAGER');
@@ -285,23 +288,32 @@ const categoryName = (category) => locale.value === 'en'
 
 const fetchProducts = async () => {
   const response = await api.get('/api/products');
+  if (!Array.isArray(response.data)) {
+    throw new Error('Menu payload is not a list');
+  }
   products.value = response.data;
 };
 
 const fetchCategories = async () => {
   const response = await api.get('/api/categories');
+  if (!Array.isArray(response.data)) {
+    throw new Error('Category payload is not a list');
+  }
   categories.value = response.data;
 };
 
 const fetchSuggested = async () => {
   try {
     const response = await api.get('/api/menu/hot?limit=4');
-    if (response.data && response.data.length > 0) {
+    if (Array.isArray(response.data) && response.data.length > 0) {
        suggestedProducts.value = response.data
          .map(item => products.value.find(p => p.id === item.productId))
          .filter(p => p != null).slice(0, 4);
     }
-  } catch (error) { console.error('Lỗi lấy gợi ý:', error); }
+  } catch (error) {
+    suggestedProducts.value = [];
+    console.error('Lỗi lấy gợi ý:', error);
+  }
 };
 
 const filteredProducts = computed(() => {
@@ -340,7 +352,7 @@ const addToCart = (product) => {
   const availableQuantity = Math.max(0, Number(product.availableQuantity || 0));
   const requestedQuantity = (existing?.quantity || 0) + 1;
   if (requestedQuantity > availableQuantity) {
-    alert(t('menu.quantityLimit', { count: availableQuantity }));
+    toast.warning(t('menu.quantityLimit', { count: availableQuantity }));
     return;
   }
   if (existing) {
@@ -350,7 +362,7 @@ const addToCart = (product) => {
       taxRate: product.taxRate || 8, availableQuantity });
   }
   checkoutIdempotencyKey.value = crypto.randomUUID();
-  alert(t('menu.addedToCart', { name: productName(product) }));
+  toast.success(t('menu.addedToCart', { name: productName(product) }));
 };
 
 const addRecommendedItem = (item) => {
@@ -410,7 +422,7 @@ const submitShipOrder = async () => {
   const token = sessionStorage.getItem('token');
 
   if(!orderInfo.value.fullname || !orderInfo.value.phone || !orderInfo.value.address) {
-    alert(t('menu.requiredDeliveryInfo'));
+    toast.warning(t('menu.requiredDeliveryInfo'));
     return;
   }
 
@@ -441,7 +453,7 @@ const submitShipOrder = async () => {
     const affectedItems = payload?.fieldErrors && Object.keys(payload.fieldErrors).length
       ? `\n${t('menu.affectedItems', { items: Object.entries(payload.fieldErrors).map(([name, reason]) => `${name}: ${reason}`).join('; ') })}`
       : '';
-    alert(`${message}${affectedItems}`);
+    toast.error(getApiErrorMessage(error, `${message}${affectedItems}`));
     if (error.response?.status === 409) await loadMenu();
   } finally {
     checkoutSubmitting.value = false;
@@ -721,6 +733,10 @@ onMounted(async () => {
 .menu-pagination button { min-width: 38px; min-height: 38px; border: 1px solid var(--color-outline-variant); border-radius: 9px; background: var(--bg-card); color: var(--text-primary); font: inherit; font-weight: 750; cursor: pointer; }
 .menu-pagination button.active { background: var(--primary); border-color: var(--primary); color: var(--color-on-primary); }
 .menu-pagination button:disabled { opacity: .45; cursor: not-allowed; }
+.checkout-modal { display: flex; flex-direction: column; width: min(600px, calc(100vw - 32px)); max-height: min(760px, calc(100dvh - 32px)); padding: 0; overflow: hidden; }
+.checkout-header { flex: 0 0 auto; margin: 0; padding: 22px 24px 16px; border-bottom: 1px solid var(--border); }
+.checkout-scroll-area { min-height: 0; max-height: none; overflow-y: auto; overscroll-behavior: contain; padding: 18px 24px; }
+.checkout-actions { flex: 0 0 auto; display: flex; gap: 10px; margin: 0; padding: 16px 24px; border-top: 1px solid var(--border); background: var(--bg-card); }
 
 @media (max-width: 1024px) {
   .menu-content { margin: 44px auto; }
@@ -755,7 +771,8 @@ onMounted(async () => {
   .category-filter button { flex: 1 1 calc(50% - 8px); padding: 10px 12px; }
   .product-grid,
   .menu-loading-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-  .menu-state { min-height: 180px; padding: 22px 16px; }
+  .menu-state { box-sizing: border-box; width: 100%; min-height: 180px; padding: 22px 16px; }
+  .menu-state span { max-width: 100%; overflow-wrap: anywhere; text-align: center; }
   .menu-error .g-btn-outline { min-height: 44px; width: 100%; }
   .product-card { padding: 0 0 14px; }
   .product-card img { width: 100%; aspect-ratio: 4 / 3; height: auto; object-fit: cover; }
@@ -780,6 +797,11 @@ onMounted(async () => {
   .recommendation-controls { grid-template-columns: 1fr; }
   .preference-field { grid-column: auto; }
   .recommendation-item button { grid-column: 1 / -1; width: 100%; }
-  .g-modal-box { width: calc(100vw - 24px); max-height: calc(100vh - 24px); overflow-y: auto; }
+  .g-modal-overlay:has(.checkout-modal) { align-items: stretch; padding: 0; }
+  .checkout-modal { width: 100vw; max-width: none; max-height: 100dvh; min-height: 100dvh; border-radius: 0; }
+  .checkout-header { position: sticky; top: 0; z-index: 2; padding: 16px; background: var(--bg-card); }
+  .checkout-scroll-area { flex: 1 1 auto; padding: 16px; }
+  .checkout-actions { position: sticky; bottom: 0; z-index: 2; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); }
+  .checkout-actions button { width: 100%; }
 }
 </style>

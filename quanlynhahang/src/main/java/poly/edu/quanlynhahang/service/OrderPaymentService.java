@@ -197,7 +197,7 @@ public class OrderPaymentService {
         intent.setBankCode(properties.getBankCode().trim().toUpperCase(Locale.ROOT));
         intent.setBankBin(properties.getBankBin());
         intent.setAccountNumber(properties.getAccountNumber().trim());
-        intent.setAccountHolder(properties.getAccountHolder().trim().toUpperCase(Locale.ROOT));
+        intent.setAccountHolder(properties.getAccountHolder().trim());
         intent.setQrProvider(properties.getQrProvider().trim().toUpperCase(Locale.ROOT));
         intent.setTransferContent(transferContent(order.getId(), intent.getPaymentCode()));
         intent.setExpiresAt(nextExpiry());

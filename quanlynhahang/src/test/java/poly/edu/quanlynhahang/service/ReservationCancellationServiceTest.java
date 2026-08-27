@@ -132,6 +132,20 @@ class ReservationCancellationServiceTest {
     }
 
     @Test
+    void previewsRefundUsingBackendPolicyWithoutCreatingRequest() {
+        reservation.setDepositStatus(DepositStatus.PAID);
+        reservation.setPaidAmount(new BigDecimal("500000"));
+
+        var preview = service.preview(new CancellationRequestCreateRequest(
+                "RES-A", null, "0912345678", null, null));
+
+        assertEquals(new BigDecimal("500000"), preview.paidDepositAmount());
+        assertEquals(new BigDecimal("0.50"), preview.refundRate());
+        assertEquals(new BigDecimal("250000"), preview.expectedRefundAmount());
+        assertEquals(true, preview.eligible());
+    }
+
+    @Test
     void approvingCancellationCancelsLinkedPreorderWithoutPrematureTableRelease() {
         reservation.setKitchenOrderId(91);
         ReservationCancellationRequest request = new ReservationCancellationRequest();

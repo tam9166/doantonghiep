@@ -107,6 +107,7 @@ public class SecurityConfig {
             // P0-02: Lookup requires POST (not GET) to avoid PII in URLs
             .requestMatchers(HttpMethod.POST, "/api/reservations/lookup").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/reservation-cancellations").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/reservation-cancellations/preview").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/reservation-waitlist").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/reservation-waitlist/lookup").permitAll()
             // P0-02: Review lookup no longer exposes PII in URL path - use POST body instead
@@ -165,6 +166,7 @@ public class SecurityConfig {
             .requestMatchers("/api/admin/ingredients", "/api/admin/ingredients/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_KITCHEN")
             .requestMatchers("/api/admin/recipes", "/api/admin/recipes/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_KITCHEN")
             .requestMatchers("/api/admin/import-invoices", "/api/admin/import-invoices/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_KITCHEN")
+            .requestMatchers(HttpMethod.GET, "/api/admin/system/encoding-health").hasAnyRole("ADMIN", "MANAGER")
             .requestMatchers(HttpMethod.GET, "/api/admin/products").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_KITCHEN")
             .requestMatchers(HttpMethod.PUT, "/api/admin/products/*/toggle-available").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_KITCHEN")
 

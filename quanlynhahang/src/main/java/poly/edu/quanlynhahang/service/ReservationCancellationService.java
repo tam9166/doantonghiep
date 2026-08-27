@@ -20,6 +20,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import poly.edu.quanlynhahang.dto.CancellationDecisionRequest;
 import poly.edu.quanlynhahang.dto.CancellationRequestCreateRequest;
+import poly.edu.quanlynhahang.dto.CancellationPreviewResponse;
 import poly.edu.quanlynhahang.dto.CancellationRequestReceipt;
 import poly.edu.quanlynhahang.dto.CancellationRequestResponse;
 import poly.edu.quanlynhahang.dto.RefundCompletionRequest;
@@ -127,6 +128,42 @@ public class ReservationCancellationService {
         } catch (DataIntegrityViolationException ex) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Yêu cầu hủy đặt bàn đang được xử lý.");
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public CancellationPreviewResponse preview(CancellationRequestCreateRequest input) {
+        Reservation reservation = verifiedReservation(input);
+        ensureOpenAndFuture(reservation);
+        ReservationCancellationPolicy.Calculation calculation = policy.calculate(
+                reservation, new Date(), actuallyPaidDeposit(reservation));
+        String message = calculation.eligible()
+                ? "Yêu cầu đủ điều kiện áp dụng chính sách hoàn cọc hiện tại."
+                : "Yêu cầu không còn trong thời hạn được hoàn cọc.";
+        return new CancellationPreviewResponse(
+                reservation.getReservationCode(), calculation.paidDepositAmount(), calculation.refundRate(),
+                calculation.refundAmount(), calculation.hoursBeforeReservation(), calculation.eligible(), message);
+    }
+
+    private Reservation verifiedReservation(CancellationRequestCreateRequest input) {
+        String code = normalizeCode(input.reservationCode());
+        String name = normalizeName(input.customerName());
+        String phone = normalizePhone(input.customerPhone());
+        String email = normalizeEmail(input.customerEmail());
+        if (countPresent(code, name, phone, email) < 2) throw verificationFailed();
+        List<Reservation> matched = reservationRepository.findCancellationVerificationCandidates(
+                        code, name, phone, email).stream()
+                .filter(reservation -> matchCount(reservation, code, name, phone, email) >= 2)
+                .toList();
+        if (matched.size() != 1) throw verificationFailed();
+        return matched.getFirst();
+    }
+
+    private void ensureOpenAndFuture(Reservation reservation) {
+        if (CLOSED_RESERVATIONS.contains(reservation.getReservationStatus())
+                || !LocalDateTime.of(reservation.getReservationDate(), reservation.getArrivalTime())
+                .isAfter(LocalDateTime.now(ReservationCancellationPolicy.BUSINESS_ZONE))) {
+            throw verificationFailed();
         }
     }
 

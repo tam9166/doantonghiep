@@ -75,9 +75,13 @@
 import { onMounted, reactive, ref } from 'vue'
 import AdminLayout from '@/components/AdminLayout.vue'
 import api from '@/services/api'
+import { useToast } from '@/composables/useToast'
+import { useDialog } from '@/composables/useDialog'
 
 const sources = ref([]), faqs = ref([]), logs = ref([]), editingId = ref(null), message = ref('')
 const viewingSource = ref(null)
+const toast = useToast()
+const { confirmDialog } = useDialog()
 const selectedFile = ref(null), fileInput = ref(null), uploading = ref(false), uploadTitle = ref('')
 const testQuestion = ref(''), testAnswer = ref(''), testing = ref(false)
 const settings = reactive({ largePartyThreshold: 10, restaurantMaxCapacity: 200 })
@@ -107,7 +111,11 @@ async function saveBrand() { await api.put('/api/admin/ai/knowledge/brand', bran
 async function saveFaq() { if(!faqForm.question || !faqForm.idealAnswer) return notify('Nhập đủ câu hỏi và câu trả lời'); await api.post('/api/admin/ai/knowledge/faqs', faqForm); Object.assign(faqForm,{question:'',idealAnswer:'',enabled:true}); await load(); notify('Đã thêm FAQ') }
 async function removeFaq(id) { await api.delete(`/api/admin/ai/knowledge/faqs/${id}`); await load(); notify('Đã xóa FAQ') }
 async function testAi() { if(!testQuestion.value.trim()) return; testing.value=true; try { const {data}=await api.post('/api/chatbot/chat',{type:'SUPPORT',message:testQuestion.value,locale:'vi',history:''}); testAnswer.value=data.reply } finally { testing.value=false } }
-async function remove(id) { if (!confirm('Xóa nguồn tri thức này?')) return; await api.delete(`/api/admin/ai/knowledge/${id}`); await load(); notify('Đã xóa') }
+async function remove(id) {
+  if (!await confirmDialog({ title: 'Xóa nguồn tri thức', message: 'Bạn có chắc muốn xóa nguồn tri thức này?', confirmLabel: 'Xóa', danger: true })) return
+  try { await api.delete(`/api/admin/ai/knowledge/${id}`); await load(); notify('Đã xóa') }
+  catch (error) { toast.error(error.response?.data?.message || 'Không thể xóa nguồn tri thức.') }
+}
 onMounted(() => load().catch(() => notify('Không thể tải dữ liệu')))
 </script>
 

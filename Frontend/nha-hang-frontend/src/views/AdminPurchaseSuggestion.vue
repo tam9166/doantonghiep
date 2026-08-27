@@ -149,12 +149,17 @@ import AdminLayout from '@/components/AdminLayout.vue';
 import UiIcon from '@/components/UiIcon.vue';
 import { ref, onMounted } from 'vue';
 import api from '@/services/api';
+import { useToast } from '@/composables/useToast';
+import { useDialog } from '@/composables/useDialog';
+import { getApiErrorMessage } from '@/services/errorMessage';
 
 const suggestions = ref([]);
 const summary = ref({ totalItems: 0, handlingCount: 0, criticalCount: 0, warningCount: 0, expiredBatchesCount: 0, expiringBatchesCount: 0, totalEstimatedCost: 0 });
 const showAiModal = ref(false);
 const aiLoading = ref(false);
 const aiResponse = ref('');
+const toast = useToast();
+const { confirmDialog } = useDialog();
 
 const getToken = () => sessionStorage.getItem('staff_token');
 const configHeader = () => ({ headers: { 'Authorization': `Bearer ${getToken()}` } });
@@ -183,13 +188,13 @@ const approveSuggestion = async (item) => {
       {}, configHeader()
     );
     item.approved = true;
-    alert(` Đã duyệt nhập kho: ${item.suggestedAmount} ${item.unit} ${item.name}`);
-  } catch (err) { alert('Lỗi duyệt đề xuất: ' + (err.response?.data || err.message)); }
+    toast.success(`Đã duyệt nhập kho: ${item.suggestedAmount} ${item.unit} ${item.name}.`);
+  } catch (err) { toast.error(getApiErrorMessage(err, 'Không thể duyệt đề xuất nhập kho.')); }
 };
 
 const approveAll = async () => {
   const purchasable = suggestions.value.filter(item => Number(item.suggestedAmount) > 0);
-  if (!confirm(`Xác nhận duyệt tất cả ${purchasable.length} đề xuất?`)) return;
+  if (!await confirmDialog({ title: 'Duyệt đề xuất nhập kho', message: `Xác nhận duyệt tất cả ${purchasable.length} đề xuất?`, confirmLabel: 'Duyệt tất cả', danger: false })) return;
   for (const item of purchasable) {
     if (!item.approved) {
       await approveSuggestion(item);

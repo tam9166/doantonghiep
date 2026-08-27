@@ -96,12 +96,16 @@ import AdminLayout from '@/components/AdminLayout.vue';
 import { ref, onMounted } from 'vue';
 import api from '@/services/api';
 import { getApiErrorMessage } from '@/services/errorMessage';
+import { useToast } from '@/composables/useToast';
+import { useDialog } from '@/composables/useDialog';
 
 const vouchers = ref([]);
 const showAddModal = ref(false);
 const editingId = ref(null);
 const loading = ref(false);
 const errorMessage = ref('');
+const toast = useToast();
+const { confirmDialog } = useDialog();
 const emptyForm = () => ({ code: '', discountPercent: 10, accountUsername: '', active: true,
   hasUsageLimit: false, usageLimit: 10, hasTimeLimit: false, startAt: '', endAt: '' });
 const newVoucher = ref(emptyForm());
@@ -122,9 +126,9 @@ const fetchVouchers = async () => {
 };
 
 const saveVoucher = async () => {
-  if (!newVoucher.value.discountPercent) return alert("Vui lòng nhập phần trăm giảm giá!");
-  if (newVoucher.value.hasUsageLimit && Number(newVoucher.value.usageLimit) < 1) return alert('Giới hạn lượt phải lớn hơn 0.');
-  if (newVoucher.value.hasTimeLimit && (!newVoucher.value.startAt || !newVoucher.value.endAt)) return alert('Vui lòng nhập đủ thời gian bắt đầu và kết thúc.');
+  if (!newVoucher.value.discountPercent) return toast.warning('Vui lòng nhập phần trăm giảm giá.');
+  if (newVoucher.value.hasUsageLimit && Number(newVoucher.value.usageLimit) < 1) return toast.warning('Giới hạn lượt phải lớn hơn 0.');
+  if (newVoucher.value.hasTimeLimit && (!newVoucher.value.startAt || !newVoucher.value.endAt)) return toast.warning('Vui lòng nhập đủ thời gian bắt đầu và kết thúc.');
   try {
     const payload = {
       code: newVoucher.value.code,
@@ -140,7 +144,7 @@ const saveVoucher = async () => {
     closeModal();
     fetchVouchers();
   } catch (error) {
-    alert(getApiErrorMessage(error, 'Không thể lưu voucher.'));
+    toast.error(getApiErrorMessage(error, 'Không thể lưu voucher.'));
   }
 };
 
@@ -160,12 +164,12 @@ const openEdit = voucher => {
 };
 const toggleVoucher = async voucher => {
   try { await api.put(`/api/vouchers/admin/${voucher.id}/active?active=${!voucher.active}`, null, authConfig()); await fetchVouchers(); }
-  catch (error) { alert(getApiErrorMessage(error, 'Không thể đổi trạng thái voucher.')); }
+  catch (error) { toast.error(getApiErrorMessage(error, 'Không thể đổi trạng thái voucher.')); }
 };
 const resetUsage = async voucher => {
-  if (!confirm(`Đặt bộ đếm lượt dùng của ${voucher.code} về 0? Lịch sử giao dịch vẫn được giữ.`)) return;
+  if (!await confirmDialog({ title: 'Đặt lại lượt dùng', message: `Đặt bộ đếm lượt dùng của ${voucher.code} về 0? Lịch sử giao dịch vẫn được giữ.`, confirmLabel: 'Đặt lại', danger: true })) return;
   try { await api.post(`/api/vouchers/admin/${voucher.id}/reset-usage`, null, authConfig()); await fetchVouchers(); }
-  catch (error) { alert(getApiErrorMessage(error, 'Không thể đặt lại lượt dùng.')); }
+  catch (error) { toast.error(getApiErrorMessage(error, 'Không thể đặt lại lượt dùng.')); }
 };
 const statusLabel = status => ({ ACTIVE: 'Đang hoạt động', PAUSED: 'Tạm dừng', NOT_STARTED: 'Chưa có hiệu lực', EXHAUSTED: 'Hết lượt', EXPIRED: 'Hết hạn' }[status] || status);
 const formatWindow = voucher => {

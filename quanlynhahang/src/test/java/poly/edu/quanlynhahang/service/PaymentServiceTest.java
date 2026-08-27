@@ -151,7 +151,7 @@ class PaymentServiceTest {
         assertEquals("MB", response.getBankCode());
         assertEquals("MB Bank", response.getBankName());
         assertEquals("1234567890", response.getAccountNumber());
-        assertEquals("TEST ACCOUNT HOLDER", response.getAccountHolder());
+        assertEquals("Hoàng Nguyễn Minh Tâm", response.getAccountHolder());
         assertEquals("DATBAN MV-001", response.getTransferContent());
         assertTrue(response.getQrUrl().contains("/MB-1234567890-compact2.png"));
     }
@@ -300,7 +300,7 @@ class PaymentServiceTest {
         intent.setAmount(new BigDecimal("100000"));
         intent.setBankCode("MB");
         intent.setAccountNumber("1234567890");
-        intent.setAccountHolder("TEST ACCOUNT HOLDER");
+        intent.setAccountHolder("Hoàng Nguyễn Minh Tâm");
         intent.setTransferContent("MV MV-001 PAY-MV-001");
         intent.setQrUrl("https://example.test/qr.png");
         intent.setExpiresAt(Date.from(Instant.now().plusSeconds(300)));
@@ -325,7 +325,7 @@ class PaymentServiceTest {
         properties.setBankName("MB Bank");
         properties.setBankBin("970422");
         properties.setAccountNumber("1234567890");
-        properties.setAccountHolder("TEST ACCOUNT HOLDER");
+        properties.setAccountHolder("Hoàng Nguyễn Minh Tâm");
         properties.setQrProvider("VIETQR");
         properties.setQrExpirationMinutes(15);
         properties.setDemoMode(false);

@@ -30,4 +30,30 @@ describe('kitchen, dispatch and reservation flow contracts', () => {
     expect(reservation).toContain("paymentOption: form.value.paymentOption || 'DEPOSIT_50'")
     expect(reservation).toContain('serializeRequirementFlags(requirements)')
   })
+
+  it('keeps preorder quantity controls compact without changing quantity semantics', () => {
+    const reservation = source('./Reservation.vue')
+    expect(reservation).toContain('grid-template-columns: 32px 52px 32px')
+    expect(reservation).toContain('.qty-input {')
+    expect(reservation).toContain('width: 52px;')
+    expect(reservation).toContain('setQty(item, $event.target.value)')
+    expect(reservation).toContain(':max="item.availableQuantity || undefined"')
+  })
+
+  it('keeps reservation progress and summary quote-backed', () => {
+    const reservation = source('./Reservation.vue')
+    expect(reservation).toContain('reservation-progress')
+    expect(reservation).toContain('reservationPhases')
+    expect(reservation).toContain('class="booking-summary"')
+    expect(reservation).toContain('quote ? money(quote.totalAmount) : \'-\'')
+  })
+
+  it('maps canonical order statuses and exposes cancellation request state', () => {
+    const history = source('./OrderHistory.vue')
+    const lookup = source('./ReservationLookup.vue')
+    expect(history).toContain('orderStatusMeta')
+    expect(history).toContain("3: { label: t('customer.history.cancelled')")
+    expect(lookup).toContain('cancellationStatusText')
+    expect(lookup).toContain('cancellationReceipt')
+  })
 })

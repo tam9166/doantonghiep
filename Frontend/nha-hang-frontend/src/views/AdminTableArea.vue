@@ -119,6 +119,9 @@
 import { computed, onMounted, ref } from 'vue';
 import api from '@/services/api';
 import AdminLayout from '@/components/AdminLayout.vue';
+import { useToast } from '@/composables/useToast';
+import { useDialog } from '@/composables/useDialog';
+import { getApiErrorMessage } from '@/services/errorMessage';
 
 const defaultForm = () => ({
   id: null,
@@ -140,6 +143,8 @@ const areas = ref([]);
 const form = ref(defaultForm());
 const loading = ref(false);
 const saving = ref(false);
+const toast = useToast();
+const { confirmDialog } = useDialog();
 
 const authHeader = () => ({
   headers: { Authorization: `Bearer ${sessionStorage.getItem('staff_token')}` }
@@ -165,8 +170,8 @@ const fetchAreas = async () => {
   try {
     const res = await api.get('/api/areas/admin', authHeader());
     areas.value = Array.isArray(res.data) ? res.data : [];
-  } catch {
-    alert('Không thể tải danh sách khu vực.');
+  } catch (error) {
+    toast.error(getApiErrorMessage(error, 'Không thể tải danh sách khu vực.'));
   } finally {
     loading.value = false;
   }
@@ -202,7 +207,7 @@ const normalizePayload = () => {
 
 const submitArea = async () => {
   if (!form.value.nameVi) {
-    alert('Vui lòng nhập tên khu vực.');
+    toast.warning('Vui lòng nhập tên khu vực.');
     return;
   }
   saving.value = true;
@@ -215,19 +220,19 @@ const submitArea = async () => {
     resetForm();
     await fetchAreas();
   } catch (error) {
-    alert(error.response?.data?.message || 'Không thể lưu khu vực.');
+    toast.error(getApiErrorMessage(error, 'Không thể lưu khu vực.'));
   } finally {
     saving.value = false;
   }
 };
 
 const deactivateArea = async (area) => {
-  if (!confirm(`Tạm ẩn khu vực "${area.nameVi}"? Bàn đã gán khu vực này vẫn giữ dữ liệu cũ.`)) return;
+  if (!await confirmDialog({ title: 'Tạm ẩn khu vực', message: `Tạm ẩn khu vực "${area.nameVi}"? Bàn đã gán khu vực này vẫn giữ dữ liệu cũ.`, confirmLabel: 'Tạm ẩn', danger: true })) return;
   try {
     await api.put(`/api/areas/${area.id}/deactivate`, {}, authHeader());
     await fetchAreas();
-  } catch {
-    alert('Không thể tạm ẩn khu vực.');
+  } catch (error) {
+    toast.error(getApiErrorMessage(error, 'Không thể tạm ẩn khu vực.'));
   }
 };
 

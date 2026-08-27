@@ -64,6 +64,7 @@ import AdminLayout from '@/components/AdminLayout.vue';
 import { ref, computed, onMounted, watch } from 'vue';
 import api from '@/services/api';
 import { useToast } from '@/composables/useToast';
+import { useDialog } from '@/composables/useDialog';
 
 const categories = ref([]);
 const newCategory = ref({ name: '' });
@@ -72,6 +73,7 @@ const editingId = ref(null);
 const currentPage = ref(1);
 const pageSize = 20;
 const toast = useToast();
+const { confirmDialog } = useDialog();
 const totalPages = computed(() => Math.max(1, Math.ceil(categories.value.length / pageSize)));
 const pagedCategories = computed(() => categories.value.slice((currentPage.value - 1) * pageSize, currentPage.value * pageSize));
 const categoryColumns = computed(() => [pagedCategories.value.slice(0, 10), pagedCategories.value.slice(10, 20)].filter(column => column.length));
@@ -130,7 +132,7 @@ const handleUpdate = async () => {
 };
 
 const handleDelete = async (id) => {
-  if (!confirm('Xóa danh mục này? Lưu ý: Cần đảm bảo không có món ăn nào đang dùng danh mục này!')) return;
+  if (!await confirmDialog({ title: 'Xóa danh mục', message: 'Cần đảm bảo không có món ăn nào đang dùng danh mục này.', confirmLabel: 'Xóa', danger: true })) return;
   const token = sessionStorage.getItem('staff_token');
   try {
     await api.delete(`/api/categories/${id}`, {

@@ -226,8 +226,10 @@ import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/services/api'
 import { clearStaffSession, getStaffToken, getStaffUser } from '@/services/session'
+import { useDialog } from '@/composables/useDialog'
 
 const router = useRouter()
+const { confirmDialog } = useDialog()
 const sidebarCollapsed = ref(false)
 const mobileSidebarOpen = ref(false)
 const user = ref(null)
@@ -360,8 +362,8 @@ function goToSearchResult() {
   moduleSearch.value = ''
 }
 
-function handleLogout() {
-  if (confirm('Bạn có chắc muốn đăng xuất?')) {
+async function handleLogout() {
+  if (await confirmDialog({ title: 'Đăng xuất', message: 'Bạn có chắc muốn đăng xuất?', confirmLabel: 'Đăng xuất', danger: true })) {
     clearStaffSession()
     router.push('/staff-login')
   }
