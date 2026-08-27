@@ -15,21 +15,16 @@ jobs:
     env:
       DB_URL: jdbc:sqlserver://127.0.0.1:1433;databaseName=RestaurantDB;encrypt=true;trustServerCertificate=true;sendStringParametersAsUnicode=true
       DB_USERNAME: sa
-      DB_PASSWORD: MocVi_CI_2026_StrongPass!
+      DB_PASSWORD: &ci_db_password MocVi_CI_2026_StrongPass!
     services:
       sqlserver:
         image: mcr.microsoft.com/mssql/server:2022-latest
         env:
           ACCEPT_EULA: Y
-          SA_PASSWORD: MocVi_CI_2026_StrongPass!
-          MSSQL_SA_PASSWORD: MocVi_CI_2026_StrongPass!
+          SA_PASSWORD: *ci_db_password
+          MSSQL_SA_PASSWORD: *ci_db_password
         ports:
           - 1433:1433
-        options: >-
-          --health-cmd "bash -c '</dev/tcp/127.0.0.1/1433'"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 30
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -72,22 +67,61 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          sqlserver_container='${{ job.services.sqlserver.id }}'
+          sqlcmd_path='/opt/mssql-tools18/bin/sqlcmd'
+
+          diagnose_sqlserver() {
+            echo '--- docker ps -a ---'
+            docker ps -a || true
+            echo '--- SQL Server container logs ---'
+            docker logs "$sqlserver_container" || true
+            echo '--- SQL Server port mapping ---'
+            docker port "$sqlserver_container" 1433/tcp || true
+            echo '--- SQL Server TCP probe ---'
+            if timeout 2 bash -c '</dev/tcp/127.0.0.1/1433' 2>/dev/null; then
+              echo 'TCP port 1433 is reachable.'
+            else
+              echo 'TCP port 1433 is not reachable.'
+            fi
+            echo '--- sqlcmd path ---'
+            docker exec "$sqlserver_container" bash -c \
+              "if [ -x '$sqlcmd_path' ]; then ls -l '$sqlcmd_path'; else echo 'Missing executable: $sqlcmd_path'; fi" || true
+          }
+
+          if [ -z "$sqlserver_container" ]; then
+            echo 'GitHub Actions did not provide a SQL Server service container ID.' >&2
+            docker ps -a || true
+            exit 1
+          fi
+
           for attempt in {1..30}; do
-            if docker run --rm --network host mcr.microsoft.com/mssql-tools18:latest \
-              /opt/mssql-tools18/bin/sqlcmd -S 127.0.0.1,1433 -U sa \
-              -P 'MocVi_CI_2026_StrongPass!' -C -Q 'SELECT 1' >/dev/null 2>&1; then
+            if docker exec "$sqlserver_container" "$sqlcmd_path" \
+              -S localhost,1433 -U sa -P "$DB_PASSWORD" -C -Q 'SELECT 1'; then
+              echo "SQL Server is ready after attempt $attempt."
               break
             fi
             if [ "$attempt" -eq 30 ]; then
               echo 'SQL Server did not become ready in time.' >&2
+              diagnose_sqlserver
               exit 1
             fi
             sleep 5
           done
-          docker run --rm --network host mcr.microsoft.com/mssql-tools18:latest \
-            /opt/mssql-tools18/bin/sqlcmd -S 127.0.0.1,1433 -U sa \
-            -P 'MocVi_CI_2026_StrongPass!' -C \
+
+          docker exec "$sqlserver_container" "$sqlcmd_path" \
+            -S localhost,1433 -U sa -P "$DB_PASSWORD" -C \
             -Q "IF DB_ID(N'RestaurantDB') IS NULL CREATE DATABASE [RestaurantDB]"
+
+          database_name="$(docker exec "$sqlserver_container" "$sqlcmd_path" \
+            -S localhost,1433 -U sa -P "$DB_PASSWORD" -C -h -1 -W \
+            -Q "SET NOCOUNT ON; SELECT name FROM sys.databases WHERE name = N'RestaurantDB'" \
+            | tr -d '\r' | xargs)"
+          if [ "$database_name" != 'RestaurantDB' ]; then
+            echo "RestaurantDB verification failed; sqlcmd returned: '$database_name'" >&2
+            diagnose_sqlserver
+            exit 1
+          fi
+          echo 'RestaurantDB is ready.'
 
       - name: Test backend
         working-directory: quanlynhahang
