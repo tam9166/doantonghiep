@@ -31,16 +31,34 @@
             <p>Nhập ít nhất hai thông tin chính xác của cùng một đặt bàn. Nhà hàng sẽ xem xét trước khi hủy.</p>
           </div>
           <form class="cancel-form" @submit.prevent="submitCancellationRequest">
-            <label>Mã đặt bàn (không bắt buộc)<input v-model="cancelForm.reservationCode" maxlength="30" /></label>
-            <label>Họ tên<input v-model="cancelForm.customerName" maxlength="150" autocomplete="name" /></label>
-            <label>Số điện thoại<input v-model="cancelForm.customerPhone" maxlength="30" autocomplete="tel" /></label>
-            <label>Email<input v-model="cancelForm.customerEmail" maxlength="150" type="email" autocomplete="email" /></label>
+            <div v-if="reservation" class="verified-booking">
+              <strong>Đã xác minh {{ reservation.reservationCode }}</strong>
+              <span>{{ reservation.customerName }} · {{ form.phone }}</span>
+            </div>
+            <template v-else>
+              <label>Mã đặt bàn (không bắt buộc)<input v-model="cancelForm.reservationCode" maxlength="30" @input="refundPreview = null" /></label>
+              <label>Họ tên<input v-model="cancelForm.customerName" maxlength="150" autocomplete="name" @input="refundPreview = null" /></label>
+              <label>Số điện thoại<input v-model="cancelForm.customerPhone" maxlength="30" autocomplete="tel" @input="refundPreview = null" /></label>
+              <label>Email<input v-model="cancelForm.customerEmail" maxlength="150" type="email" autocomplete="email" @input="refundPreview = null" /></label>
+            </template>
             <label class="cancel-reason">Lý do hủy<textarea v-model="cancelForm.reason" maxlength="1000" rows="3" /></label>
-            <button class="danger-btn" type="submit" :disabled="cancelLoading">
+            <button class="ghost-btn" type="button" :disabled="previewLoading" @click="loadRefundPreview">
+              {{ previewLoading ? 'Đang tính...' : 'Xem tiền hoàn dự kiến' }}
+            </button>
+            <section v-if="refundPreview" class="refund-preview">
+              <strong>Hoàn dự kiến: {{ money(refundPreview.expectedRefundAmount) }}</strong>
+              <span>Đã cọc: {{ money(refundPreview.paidDepositAmount) }} · Tỷ lệ: {{ Number(refundPreview.refundRate || 0) * 100 }}%</span>
+              <p>{{ refundPreview.message }}</p>
+            </section>
+            <button v-if="refundPreview" class="danger-btn" type="submit" :disabled="cancelLoading">
               {{ cancelLoading ? 'Đang gửi...' : 'Gửi yêu cầu hủy' }}
             </button>
           </form>
           <div v-if="cancelMessage" class="success-box">{{ cancelMessage }}</div>
+          <div v-if="cancellationReceipt" class="cancellation-status" role="status">
+            <strong>Trạng thái yêu cầu: {{ cancellationStatusText(cancellationReceipt.status) }}</strong>
+            <span>Mã yêu cầu: {{ cancellationReceipt.requestCode }}</span>
+          </div>
           <div v-if="cancelError" class="error-box">{{ cancelError }}</div>
         </section>
 
@@ -157,6 +175,7 @@ import SockJS from 'sockjs-client'
 import { useRoute, useRouter } from 'vue-router'
 import CustomerLayout from '@/components/CustomerLayout.vue'
 import api from '@/services/api'
+import { getApiErrorMessage } from '@/services/errorMessage'
 
 const route = useRoute()
 const router = useRouter()
@@ -166,6 +185,9 @@ const error = ref('')
 const cancelError = ref('')
 const cancelMessage = ref('')
 const cancelLoading = ref(false)
+const cancellationReceipt = ref(null)
+const refundPreview = ref(null)
+const previewLoading = ref(false)
 const reservation = ref(null)
 const form = ref({ code: '', phone: '' })
 const cancelForm = ref({ reservationCode: '', customerName: '', customerPhone: '', customerEmail: '', reason: '' })
@@ -198,6 +220,7 @@ const canCreateQr = computed(() => reservation.value
   && activeStatuses.includes(reservation.value.reservationStatus))
 const canRegenerateQr = computed(() => latestPayment.value && ['PENDING', 'EXPIRED'].includes(latestPayment.value.status))
 const canReview = computed(() => reservation.value?.reservationStatus === 'COMPLETED')
+const cancellationStatusText = status => ({ PENDING: 'Đang chờ nhà hàng xem xét', APPROVED: 'Đã duyệt', REJECTED: 'Đã từ chối', REFUND_PENDING: 'Đang chờ hoàn tiền', REFUNDED: 'Đã hoàn tiền', REFUND_FAILED: 'Hoàn tiền chưa thành công' }[status] || 'Đang xử lý')
 
 const money = value => new Intl.NumberFormat('vi-VN', {
   style: 'currency',
@@ -266,7 +289,7 @@ async function lookupReservation() {
     connectRealtime(reservation.value.reservationCode)
     await loadMyReview()
   } catch (err) {
-    error.value = err.response?.data?.message || err.response?.data || 'Không tìm thấy đặt bàn phù hợp.'
+    error.value = getApiErrorMessage(err, 'Không tìm thấy đặt bàn phù hợp.')
   } finally {
     loading.value = false
   }
@@ -288,12 +311,32 @@ async function submitCancellationRequest() {
   cancelLoading.value = true
   try {
     const response = await api.post('/api/reservation-cancellations', cancelForm.value)
-    cancelMessage.value = `Đã ghi nhận yêu cầu ${response.data.requestCode}. Nhà hàng sẽ liên hệ sau khi xem xét.`
+    cancellationReceipt.value = response.data
+    cancelMessage.value = response.data.message || `Đã ghi nhận yêu cầu ${response.data.requestCode}. Nhà hàng sẽ liên hệ sau khi xem xét.`
   } catch (err) {
-    cancelError.value = err.response?.data?.message
-      || 'Không thể xác minh thông tin đặt bàn. Vui lòng kiểm tra lại thông tin đã nhập.'
+    cancelError.value = getApiErrorMessage(err, 'Không thể xác minh thông tin đặt bàn. Vui lòng kiểm tra lại thông tin đã nhập.')
   } finally {
     cancelLoading.value = false
+  }
+}
+
+async function loadRefundPreview() {
+  cancelError.value = ''
+  refundPreview.value = null
+  const verificationValues = [cancelForm.value.reservationCode, cancelForm.value.customerName,
+    cancelForm.value.customerPhone, cancelForm.value.customerEmail].filter(value => String(value || '').trim())
+  if (verificationValues.length < 2) {
+    cancelError.value = 'Vui lòng nhập ít nhất 2 trong 4 thông tin xác minh.'
+    return
+  }
+  previewLoading.value = true
+  try {
+    const response = await api.post('/api/reservation-cancellations/preview', cancelForm.value)
+    refundPreview.value = response.data
+  } catch (err) {
+    cancelError.value = getApiErrorMessage(err, 'Không thể tính khoản hoàn dự kiến.')
+  } finally {
+    previewLoading.value = false
   }
 }
 
@@ -338,7 +381,7 @@ async function submitReview() {
     })
     myReview.value = res.data
   } catch (err) {
-    error.value = err.response?.data?.message || err.response?.data || 'Không gửi được đánh giá.'
+    error.value = getApiErrorMessage(err, 'Không gửi được đánh giá.')
   } finally {
     reviewLoading.value = false
   }
@@ -835,4 +878,9 @@ textarea {
   .cancel-form { grid-template-columns: 1fr; }
   .cancel-reason { grid-column: auto; }
 }
+.cancellation-status { display:grid; gap:4px; margin-top:12px; padding:12px; border:1px solid var(--color-outline-variant); border-radius:10px; background:var(--color-surface-container-low); }
+.cancellation-status span { color:var(--text-muted); font-size:.85rem; }
+.verified-booking, .refund-preview { display:grid; grid-column:1 / -1; gap:5px; padding:12px; border:1px solid var(--color-outline-variant); border-radius:10px; background:var(--color-surface-container-low); }
+.verified-booking span, .refund-preview span, .refund-preview p { color:var(--text-muted); font-size:.86rem; }
+.refund-preview p { margin:0; }
 </style>

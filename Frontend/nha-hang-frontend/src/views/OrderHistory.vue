@@ -34,23 +34,30 @@
           <tr>
             <th>{{ t('customer.history.orderCode') }}</th>
             <th>{{ t('customer.history.orderDate') }}</th>
+            <th>{{ t('customer.history.orderType') }}</th>
             <th>{{ t('customer.history.address') }}</th>
             <th>{{ t('customer.history.status') }}</th>
+            <th>{{ t('customer.history.total') }}</th>
             <th>{{ t('customer.history.actions') }}</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="order in orders" :key="order.id">
-            <td>#{{ order.id }}</td>
-            <td>{{ formatDateTime(order.createDate) }}</td>
-            <td>{{ order.address }}</td>
-            <td>
-              <span :class="order.status === 0 ? 'status-pending' : (order.status === 4 ? 'status-done' : 'status-pending')">
-                {{ order.status === 0 ? t('customer.history.processing') : (order.status === 4 ? t('customer.history.completed') : t('customer.history.inProgress')) }}
+            <td :data-label="t('customer.history.orderCode')">#{{ order.id }}</td>
+            <td :data-label="t('customer.history.orderDate')">{{ formatDateTime(order.createDate) }}</td>
+            <td :data-label="t('customer.history.orderType')">{{ orderTypeLabel(order.orderType) }}</td>
+            <td :data-label="t('customer.history.address')">{{ order.address || '-' }}</td>
+            <td :data-label="t('customer.history.status')">
+              <span :class="`status-${orderStatusMeta(order.status).tone}`">
+                {{ orderStatusMeta(order.status).label }}
               </span>
               <small class="payment-summary">{{ paymentSummary(order) }}</small>
+              <ol class="order-timeline" :aria-label="t('customer.history.status')">
+                <li v-for="item in orderTimeline(order)" :key="item.code" :class="{ current: item.current }">{{ item.label }}</li>
+              </ol>
             </td>
-            <td>
+            <td :data-label="t('customer.history.total')">{{ formatMoney(order.totalAmount) }}</td>
+            <td :data-label="t('customer.history.actions')" class="history-actions">
               <button v-if="order.isPaid" @click="selectedInvoice = order" class="btn-review">{{ t('customer.history.viewInvoice') }}</button>
               <button v-if="order.isPaid" @click="requestInvoice(order)" class="btn-review" :disabled="invoiceRequesting === order.id">
                 {{ order.invoiceRequested ? t('customer.history.invoiceRequested') : invoiceRequesting === order.id ? t('customer.history.requestingInvoice') : t('customer.history.requestInvoice') }}
@@ -77,11 +84,11 @@
         </thead>
         <tbody>
           <tr v-for="reservation in reservations" :key="reservation.id">
-            <td>{{ reservation.reservationCode }}</td>
-            <td>{{ reservation.reservationDate }} {{ reservation.arrivalTime }}</td>
-            <td>{{ reservation.tableName || '-' }}</td>
-            <td>{{ t('customer.history.items', { count: reservation.preorderItems?.length || 0 }) }}</td>
-            <td>{{ reservationStatusText(reservation.reservationStatus) }}</td>
+            <td :data-label="t('customer.history.reservationCode')">{{ reservation.reservationCode }}</td>
+            <td :data-label="t('customer.history.time')">{{ reservation.reservationDate }} {{ reservation.arrivalTime }}</td>
+            <td :data-label="t('customer.history.table')">{{ reservation.tableName || '-' }}</td>
+            <td :data-label="t('customer.history.preorder')">{{ t('customer.history.items', { count: reservation.preorderItems?.length || 0 }) }}</td>
+            <td :data-label="t('customer.history.status')">{{ reservationStatusText(reservation.reservationStatus) }}</td>
           </tr>
         </tbody>
       </table>
@@ -137,8 +144,11 @@ import { ref, onMounted } from 'vue';
 import api from '@/services/api';
 import CustomerLayout from '@/components/CustomerLayout.vue';
 import { useI18n } from 'vue-i18n';
+import { useToast } from '@/composables/useToast';
+import { getApiErrorMessage } from '@/services/errorMessage';
 
 const { t, locale } = useI18n();
+const toast = useToast();
 
 const orders = ref([]);
 const reservations = ref([]);
@@ -149,6 +159,32 @@ const reviewedOrders = ref(JSON.parse(localStorage.getItem('reviewedOrders')) ||
 const userProfile = ref(null);
 const selectedInvoice = ref(null);
 const invoiceRequesting = ref(null);
+const orderStatusMeta = (status) => {
+  const map = {
+    0: { label: t('customer.history.processing'), tone: 'pending' },
+    1: { label: t('customer.history.inProgress'), tone: 'pending' },
+    2: { label: t('customer.history.ready'), tone: 'done' },
+    3: { label: t('customer.history.cancelled'), tone: 'cancelled' },
+    4: { label: t('customer.history.completed'), tone: 'done' },
+    5: { label: t('customer.history.scheduled'), tone: 'pending' },
+    6: { label: t('customer.history.inProgress'), tone: 'pending' },
+    7: { label: t('customer.history.served'), tone: 'done' }
+  };
+  return map[Number(status)] || { label: t('customer.history.inProgress'), tone: 'pending' };
+};
+const orderTimeline = (order) => {
+  const status = Number(order.status);
+  if (status === 3) return [{ code: 3, label: t('customer.history.cancelled'), current: true }];
+  const sequence = order.orderType === 'DINE_IN' ? [0, 1, 2, 7, 4] : [0, 1, 2, 4];
+  const currentIndex = sequence.indexOf(status);
+  return sequence.slice(0, currentIndex < 0 ? 1 : currentIndex + 1)
+    .map(code => ({ code, label: orderStatusMeta(code).label, current: code === status }));
+};
+const orderTypeLabel = (type) => ({
+  DINE_IN: t('customer.history.dineIn'),
+  TAKEAWAY: t('customer.history.takeaway'),
+  DELIVERY: t('customer.history.delivery')
+}[String(type || '').toUpperCase()] || t('customer.history.delivery'));
 
 const paymentSummary = (order) => {
   if (order.isPaid || order.paymentStatus === 'PAID' || order.paymentStatus === 'OVERPAID') {
@@ -173,9 +209,9 @@ const requestInvoice = async (order) => {
       headers: { Authorization: `Bearer ${token}` },
     });
     order.invoiceRequested = true;
-    alert(locale.value === 'vi' && response.data?.message ? response.data.message : t('customer.history.invoiceRequestRecorded'));
+    toast.success(locale.value === 'vi' && response.data?.message ? response.data.message : t('customer.history.invoiceRequestRecorded'));
   } catch (error) {
-    alert(t('customer.history.invoiceRequestFailed'));
+    toast.error(getApiErrorMessage(error, t('customer.history.invoiceRequestFailed')));
   } finally {
     invoiceRequesting.value = null;
   }
@@ -194,7 +230,7 @@ const fetchHistory = async () => {
     });
     orders.value = res.data.sort((a, b) => b.id - a.id);
   } catch (error) {
-    console.error("Lỗi lấy lịch sử", error);
+    toast.error(getApiErrorMessage(error, t('customer.history.loadFailed')));
   }
 };
 
@@ -207,7 +243,7 @@ const fetchReservationHistory = async () => {
     });
     reservations.value = res.data || [];
   } catch (error) {
-    console.error('Không thể tải lịch sử đặt bàn', error);
+    toast.error(getApiErrorMessage(error, t('customer.history.loadFailed')));
   }
 };
 
@@ -273,10 +309,10 @@ const submitReview = async (productId) => {
     }, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    alert(locale.value === 'vi' && res.data?.message ? res.data.message : t('customer.history.reviewThanks'));
+    toast.success(locale.value === 'vi' && res.data?.message ? res.data.message : t('customer.history.reviewThanks'));
     fetchProfile(); // Cập nhật lại thẻ VIP
   } catch (err) {
-    alert(t('customer.history.reviewFailed'));
+    toast.error(t('customer.history.reviewFailed'));
   }
 };
 
@@ -343,6 +379,10 @@ h1 { color: var(--primary); border-bottom: 1px solid var(--border); padding-bott
 .history-table tr:hover { background-color: rgba(255,255,255,0.02); }
 .status-pending { color: var(--color-tertiary); font-weight: bold; background: color-mix(in srgb, var(--color-tertiary) 10%, transparent); padding: 5px 10px; border-radius: 12px; font-size: 0.85rem; }
 .status-done { color: var(--success); font-weight: bold; background: color-mix(in srgb, var(--success) 10%, transparent); padding: 5px 10px; border-radius: 12px; font-size: 0.85rem; }
+.status-cancelled { color: var(--danger); font-weight: bold; background: color-mix(in srgb, var(--danger) 10%, transparent); padding: 5px 10px; border-radius: 12px; font-size: 0.85rem; }
+.order-timeline { display:flex; flex-wrap:wrap; gap:4px; margin:7px 0 0; padding:0; list-style:none; font-size:.72rem; color:var(--text-muted); }
+.order-timeline li:not(:last-child)::after { content:'›'; margin-left:4px; }
+.order-timeline li.current { color:var(--primary); font-weight:800; }
 .payment-summary { display: block; margin-top: 6px; color: var(--text-secondary); font-weight: 600; }
 .no-order { text-align: center; color: var(--text-muted); margin-top: 50px; font-style: italic; background: var(--bg-card); padding: 30px; border-radius: 8px; border: 1px dashed var(--border); }
 .btn-review { background: var(--primary); color: var(--color-on-primary); border: none; padding: 5px 10px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.3s; }
@@ -362,6 +402,26 @@ h1 { color: var(--primary); border-bottom: 1px solid var(--border); padding-bott
 .invoice-modal { color: var(--text-primary); }
 .invoice-row { display: flex; justify-content: space-between; gap: 16px; padding: 9px 0; border-bottom: 1px dashed var(--border); }
 .invoice-total-row { margin-top: 10px; border-top: 2px solid var(--border); font-size: 1.05rem; }
+.history-actions { display: flex; flex-direction: column; align-items: stretch; gap: 7px; }
+
+@media (max-width: 700px) {
+  .history-container { padding: 24px 12px 48px; }
+  .history-table, .history-table tbody, .history-table tr, .history-table td { display: block; width: 100%; }
+  .history-table { background: transparent; border: 0; box-shadow: none; overflow: visible; }
+  .history-table thead { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+  .history-table tbody { display: grid; gap: 14px; }
+  .history-table tr { box-sizing: border-box; padding: 14px; border: 1px solid var(--border-light); border-radius: 14px; background: var(--bg-card); box-shadow: var(--shadow-sm); }
+  .history-table td { box-sizing: border-box; display: grid; grid-template-columns: minmax(92px, 38%) minmax(0, 1fr); gap: 10px; padding: 8px 0; border-bottom: 1px dashed var(--border); text-align: right; overflow-wrap: anywhere; }
+  .history-table td::before { content: attr(data-label); color: var(--text-muted); font-weight: 700; text-align: left; }
+  .history-table td:last-child { border-bottom: 0; }
+  .history-table td > * { min-width: 0; }
+  .history-actions { display: grid; grid-template-columns: minmax(92px, 38%) minmax(0, 1fr); align-items: stretch; }
+  .history-actions .btn-review { min-height: 42px; width: 100%; }
+  .order-timeline { justify-content: flex-end; }
+  .vip-card { width: min(350px, 100%); box-sizing: border-box; }
+  .modal-overlay { align-items: flex-end; padding: 0; }
+  .review-modal { box-sizing: border-box; width: 100%; max-width: none; max-height: 92dvh; overflow-y: auto; border-radius: 18px 18px 0 0; padding: 18px 14px calc(18px + env(safe-area-inset-bottom)); }
+}
 
 /* VIP CARD CSS */
 .vip-card-wrapper { display: flex; justify-content: center; margin-bottom: 30px; }

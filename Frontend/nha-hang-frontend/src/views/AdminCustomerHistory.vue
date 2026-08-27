@@ -75,6 +75,8 @@
 import { computed, onMounted, ref } from 'vue';
 import api from '@/services/api';
 import AdminLayout from '@/components/AdminLayout.vue';
+import { useToast } from '@/composables/useToast';
+import { getApiErrorMessage } from '@/services/errorMessage';
 
 const history = ref([]);
 const selectedReservations = ref([]);
@@ -83,6 +85,7 @@ const selectedCustomer = ref(null);
 const keyword = ref('');
 const loading = ref(false);
 const detailLoading = ref(false);
+const toast = useToast();
 
 const authHeader = () => ({
   headers: { Authorization: `Bearer ${sessionStorage.getItem('staff_token')}` }
@@ -122,8 +125,8 @@ const fetchHistory = async () => {
   try {
     const res = await api.get('/api/admin/customer-reservation-history', authHeader());
     history.value = Array.isArray(res.data) ? res.data : [];
-  } catch {
-    alert('Không thể tải lịch sử khách đặt bàn.');
+  } catch (error) {
+    toast.error(getApiErrorMessage(error, 'Không thể tải lịch sử khách đặt bàn.'));
   } finally {
     loading.value = false;
   }
@@ -137,8 +140,8 @@ const selectCustomer = async (item) => {
   try {
     const res = await api.get(`/api/admin/customer-reservation-history/${encodeURIComponent(item.customerPhone)}/reservations`, authHeader());
     selectedReservations.value = Array.isArray(res.data) ? res.data : [];
-  } catch {
-    alert('Không thể tải chi tiết đặt bàn của khách.');
+  } catch (error) {
+    toast.error(getApiErrorMessage(error, 'Không thể tải chi tiết đặt bàn của khách.'));
   } finally {
     detailLoading.value = false;
   }

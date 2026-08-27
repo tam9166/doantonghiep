@@ -132,11 +132,16 @@ import AdminLayout from '@/components/AdminLayout.vue';
 
 import { ref, computed, onMounted } from 'vue';
 import api from '@/services/api';
+import { useToast } from '@/composables/useToast';
+import { useDialog } from '@/composables/useDialog';
+import { getApiErrorMessage } from '@/services/errorMessage';
 
 const posts = ref([]);
 const applications = ref([]);
 const filterType = ref('ALL');
 const editingPost = ref(null);
+const toast = useToast();
+const { confirmDialog } = useDialog();
 
 const form = ref({
   title: '', content: '', image: '', type: 'NEWS', active: true
@@ -172,7 +177,7 @@ const downloadCv = async (app) => {
     setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
   } catch (err) {
     console.error('Không thể tải CV', err);
-    alert('Không thể tải CV. Vui lòng kiểm tra quyền truy cập.');
+    toast.error(getApiErrorMessage(err, 'Không thể tải CV. Vui lòng kiểm tra quyền truy cập.'));
   }
 };
 
@@ -183,20 +188,20 @@ const filteredPosts = computed(() => {
 
 const submitPost = async () => {
   if (!form.value.title || !form.value.content) {
-    return alert('Vui lòng nhập tiêu đề và nội dung!');
+    return toast.warning('Vui lòng nhập tiêu đề và nội dung.');
   }
   try {
     if (editingPost.value) {
       await api.put(`/api/admin/posts/${editingPost.value.id}`, form.value, configHeader());
-      alert('Cập nhật bài đăng thành công!');
+      toast.success('Cập nhật bài đăng thành công.');
     } else {
       await api.post('/api/admin/posts', form.value, configHeader());
-      alert('Đăng bài thành công!');
+      toast.success('Đăng bài thành công.');
     }
     resetForm();
     loadPosts();
   } catch (err) {
-    alert('Lỗi: ' + (err.response?.data || err.message));
+    toast.error(getApiErrorMessage(err, 'Không thể lưu bài đăng.'));
   }
 };
 
@@ -213,13 +218,13 @@ const resetForm = () => {
 };
 
 const deletePost = async (id) => {
-  if (!confirm('Bạn có chắc muốn xóa bài đăng này?')) return;
+  if (!await confirmDialog({ title: 'Xóa bài đăng', message: 'Bạn có chắc muốn xóa bài đăng này?', confirmLabel: 'Xóa', danger: true })) return;
   try {
     await api.delete(`/api/admin/posts/${id}`, configHeader());
     loadPosts();
   } catch (err) {
     console.error('Lỗi xóa bài đăng', err);
-    alert('Lỗi xóa bài đăng!');
+    toast.error(getApiErrorMessage(err, 'Không thể xóa bài đăng.'));
   }
 };
 

@@ -49,6 +49,8 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import api from '@/services/api';
+import { useToast } from '@/composables/useToast';
+import { getApiErrorMessage } from '@/services/errorMessage';
 import UiIcon from './UiIcon.vue';
 
 const isExpanded = ref(false);
@@ -56,6 +58,7 @@ const loading = ref(true);
 const currentStatus = ref('');
 const checkInTime = ref(null);
 const checkOutTime = ref(null);
+const toast = useToast();
 
 const configHeader = () => {
   const token = sessionStorage.getItem('staff_token');
@@ -104,13 +107,13 @@ const performCheck = async (type) => {
   try {
     const res = await api.post('/api/timekeeping/check', { type }, configHeader());
     
-    alert(type === 'IN' ? 'Đã check-in bắt đầu ca!' : 'Đã check-out kết thúc ca!');
+    toast.success(type === 'IN' ? 'Đã check-in bắt đầu ca!' : 'Đã check-out kết thúc ca!');
     
     currentStatus.value = res.data.status;
     checkInTime.value = res.data.checkInTime;
     checkOutTime.value = res.data.checkOutTime;
   } catch (err) {
-    alert(err.response?.data || 'Lỗi hệ thống');
+    toast.error(getApiErrorMessage(err, 'Không thể cập nhật chấm công.'));
   }
 };
 

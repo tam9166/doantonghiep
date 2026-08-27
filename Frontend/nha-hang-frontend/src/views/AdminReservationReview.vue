@@ -59,10 +59,15 @@
 import { computed, onMounted, ref } from 'vue';
 import api from '@/services/api';
 import AdminLayout from '@/components/AdminLayout.vue';
+import { useToast } from '@/composables/useToast';
+import { useDialog } from '@/composables/useDialog';
+import { getApiErrorMessage } from '@/services/errorMessage';
 
 const reviews = ref([]);
 const replyDrafts = ref({});
 const loading = ref(false);
+const toast = useToast();
+const { promptDialog } = useDialog();
 
 const authHeader = () => ({
   headers: { Authorization: `Bearer ${sessionStorage.getItem('staff_token')}` }
@@ -87,8 +92,8 @@ const fetchReviews = async () => {
     reviews.value.forEach(review => {
       replyDrafts.value[review.id] = review.adminReply || '';
     });
-  } catch {
-    alert('Không thể tải danh sách đánh giá.');
+  } catch (error) {
+    toast.error(getApiErrorMessage(error, 'Không thể tải danh sách đánh giá.'));
   } finally {
     loading.value = false;
   }
@@ -100,14 +105,23 @@ const replyReview = async (review) => {
       adminReply: replyDrafts.value[review.id] || ''
     }, authHeader());
     await fetchReviews();
-  } catch {
-    alert('Không thể lưu phản hồi.');
+  } catch (error) {
+    toast.error(getApiErrorMessage(error, 'Không thể lưu phản hồi.'));
   }
 };
 
 const toggleVisibility = async (review) => {
   const hidden = !review.hidden;
-  const hiddenReason = hidden ? prompt('Lý do ẩn đánh giá:', review.hiddenReason || '') : '';
+  const hiddenReason = hidden ? await promptDialog({
+    title: 'Ẩn đánh giá',
+    message: 'Vui lòng nhập lý do để lưu cùng lịch sử kiểm duyệt.',
+    inputLabel: 'Lý do',
+    inputPlaceholder: 'Nhập lý do ẩn đánh giá',
+    defaultValue: review.hiddenReason || '',
+    required: true,
+    confirmLabel: 'Ẩn đánh giá',
+    danger: true
+  }) : '';
   if (hidden && hiddenReason === null) return;
   try {
     await api.put(`/api/reservation-reviews/admin/${review.id}/visibility`, {
@@ -115,8 +129,8 @@ const toggleVisibility = async (review) => {
       hiddenReason
     }, authHeader());
     await fetchReviews();
-  } catch {
-    alert('Không thể cập nhật hiển thị đánh giá.');
+  } catch (error) {
+    toast.error(getApiErrorMessage(error, 'Không thể cập nhật hiển thị đánh giá.'));
   }
 };
 

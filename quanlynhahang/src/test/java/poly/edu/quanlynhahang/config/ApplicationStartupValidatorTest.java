@@ -46,6 +46,22 @@ class ApplicationStartupValidatorTest {
         assertThrows(IllegalStateException.class, () -> validator.run(null));
     }
 
+    @Test
+    void productionRejectsMissingCaptchaProvider() {
+        ApplicationStartupValidator validator = productionValidator();
+        ReflectionTestUtils.setField(validator, "captchaProvider", " ");
+
+        assertThrows(IllegalStateException.class, () -> validator.run(null));
+    }
+
+    @Test
+    void productionRejectsUnknownCaptchaProvider() {
+        ApplicationStartupValidator validator = productionValidator();
+        ReflectionTestUtils.setField(validator, "captchaProvider", "mock-like-provider");
+
+        assertThrows(IllegalStateException.class, () -> validator.run(null));
+    }
+
     private ApplicationStartupValidator validatorFor(String profile, String jwtSecret) {
         MockEnvironment environment = new MockEnvironment().withProperty("spring.profiles.active", profile);
         environment.setActiveProfiles(profile);

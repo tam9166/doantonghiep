@@ -31,6 +31,11 @@ public class ReservationCancellationController {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.create(request));
     }
 
+    @PostMapping("/reservation-cancellations/preview")
+    public ResponseEntity<?> preview(@Valid @RequestBody CancellationRequestCreateRequest request) {
+        return ResponseEntity.ok(service.preview(request));
+    }
+
     @GetMapping("/admin/reservation-cancellations")
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     public ResponseEntity<?> list() {

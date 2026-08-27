@@ -21,6 +21,10 @@
             <span>{{ index + 1 }}</span>{{ label }}
           </button>
         </nav>
+        <div class="reservation-progress" role="status" aria-live="polite">
+          <span>{{ reservationPhase.label }}</span>
+          <strong>{{ reservationPhase.index }}/{{ reservationPhases.length }}</strong>
+        </div>
 
         <section v-if="submitResult" class="success-panel">
           <div>
@@ -43,6 +47,11 @@
             <span>{{ text.total }}</span><strong>{{ money(submitResult.totalAmount) }}</strong>
             <span>{{ text.payableNow }}</span><strong>{{ money(submitResult.amountDueNow) }}</strong>
             <span>{{ text.status }}</span><strong>{{ statusLabel(submitResult.reservationStatus) }}</strong>
+            <span>{{ text.date }}</span><strong>{{ submitResult.reservationDate || form.reservationDate }}</strong>
+            <span>{{ text.time }}</span><strong>{{ submitResult.arrivalTime || form.arrivalTime }}</strong>
+            <span>{{ text.guests }}</span><strong>{{ submitResult.guestCount || form.guestCount }}</strong>
+            <span>{{ text.areaInfo }}</span><strong>{{ submitResult.areaName || selectedAreaName || text.restaurantArranges }}</strong>
+            <span>{{ text.remaining }}</span><strong>{{ money(submitResult.remainingAmount) }}</strong>
           </div>
           <article v-if="submitResult.tables?.length" class="qr-card">
             <div>
@@ -119,6 +128,18 @@
         </section>
 
         <form v-else class="reservation-card" @submit.prevent="submitReservation">
+          <aside class="booking-summary" aria-label="Tóm tắt đặt bàn">
+            <h2>{{ text.quickSummary }}</h2>
+            <dl>
+              <div><dt>{{ text.dateTime }}</dt><dd>{{ form.reservationDate }} · {{ form.arrivalTime || '-' }}</dd></div>
+              <div><dt>{{ text.guests }}</dt><dd>{{ form.guestCount }}</dd></div>
+              <div><dt>{{ text.areaInfo }}</dt><dd>{{ selectedAreaName || '-' }}</dd></div>
+              <div><dt>{{ text.selectedDishes }}</dt><dd>{{ cartQuantity }}</dd></div>
+              <div><dt>{{ text.total }}</dt><dd>{{ quote ? money(quote.totalAmount) : '-' }}</dd></div>
+              <div><dt>{{ text.payableNow }}</dt><dd>{{ quote ? money(quote.payableNow) : '-' }}</dd></div>
+              <div><dt>{{ text.remaining }}</dt><dd>{{ quote ? money(quote.remainingAmount) : '-' }}</dd></div>
+            </dl>
+          </aside>
           <section v-show="step === 1" class="panel">
           <div class="section-heading"><span class="section-icon"><UiIcon name="user" /></span><div><h2>{{ text.customerInfo }}</h2><p>{{ text.customerHint }}</p></div></div>
             <div class="form-grid">
@@ -530,6 +551,17 @@ const form = ref({
 })
 
 const text = computed(() => tm('reservation'))
+const reservationPhases = [
+  { from: 1, to: 2, label: 'Thông tin & thời gian' },
+  { from: 3, to: 5, label: 'Số khách & chỗ ngồi' },
+  { from: 6, to: 7, label: 'Món đặt trước & yêu cầu' },
+  { from: 8, to: 9, label: 'Thanh toán & xác nhận' }
+]
+const reservationPhase = computed(() => {
+  const index = reservationPhases.findIndex(phase => step.value >= phase.from && step.value <= phase.to)
+  const phase = reservationPhases[index < 0 ? reservationPhases.length - 1 : index]
+  return { ...phase, index: (index < 0 ? reservationPhases.length : index + 1) }
+})
 const activeAreas = computed(() => areas.value.filter(area => (area.status || 'ACTIVE') === 'ACTIVE'))
 const suggestionById = computed(() => Object.fromEntries(suggestedTables.value.map(item => [item.tableId, item])))
 const availableTables = computed(() => tables.value
@@ -2360,4 +2392,39 @@ input:focus, select:focus, textarea:focus { outline: 3px solid rgba(190,11,47,.0
 @media (max-width: 430px) {
   .dish-grid { grid-template-columns: 1fr; }
 }
+
+/* Keep preorder quantity controls compact despite the shared mobile input rule. */
+.cart-row .qty {
+  display: inline-grid;
+  grid-template-columns: 32px 52px 32px;
+  width: max-content;
+  min-width: 116px;
+  height: 36px;
+}
+.cart-row .qty button {
+  width: 32px;
+  min-width: 32px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+}
+.cart-row .qty-input {
+  grid-column: auto;
+  width: 52px;
+  min-width: 0;
+  height: 36px;
+  min-height: 36px;
+  padding: 4px;
+  text-align: center;
+}
+.reservation-progress { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:-12px 0 16px; padding:8px 12px; border:1px solid var(--color-outline-variant); border-radius:10px; background:var(--color-surface-container-low); color:var(--text-secondary); font-size:.85rem; }
+.reservation-progress strong { color:var(--primary); white-space:nowrap; }
+.booking-summary { position:sticky; top:16px; z-index:2; float:right; width:280px; margin:0 0 20px 24px; padding:16px; border:1px solid var(--color-outline-variant); border-radius:14px; background:var(--bg-card); box-shadow:var(--shadow-sm); }
+.booking-summary h2 { margin:0 0 12px; font-size:1rem; }
+.booking-summary dl { display:grid; gap:8px; margin:0; }
+.booking-summary dl div { display:flex; justify-content:space-between; gap:10px; border-bottom:1px dashed var(--color-outline-variant); padding-bottom:6px; }
+.booking-summary dt { color:var(--text-muted); font-size:.78rem; }
+.booking-summary dd { margin:0; text-align:right; font-weight:700; font-size:.82rem; overflow-wrap:anywhere; }
+@media (max-width: 900px) { .booking-summary { float:none; position:static; width:auto; margin:0 0 16px; } }
+@media (max-width: 520px) { .reservation-progress { font-size:.78rem; } .booking-summary { padding:12px; } }
 </style>

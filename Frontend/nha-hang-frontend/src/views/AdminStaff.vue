@@ -585,6 +585,7 @@ import { ref, computed, onMounted } from 'vue';
 import api from '@/services/api';
 import { toBusinessDate } from '@/utils/businessDate';
 import { useToast } from '@/composables/useToast';
+import { useDialog } from '@/composables/useDialog';
 import { getApiErrorMessage } from '@/services/errorMessage';
 
 const currentTab = ref('staff');
@@ -625,6 +626,7 @@ const currentCustomerView = ref(null);
 const aiCustomerAnalysis = ref('');
 const isAnalyzing = ref(false);
 const toast = useToast();
+const { confirmDialog } = useDialog();
 
 const filteredCustomerOrders = computed(() => {
   const q = searchCustomerOrderQuery.value.trim();
@@ -801,12 +803,12 @@ const createStaff = async () => {
     const roleId = payload.role;
     delete payload.role; // Remove role from body since it expects Account only
     await api.post(`/api/admin/staff?roleId=${roleId}`, payload, configHeader());
-    alert('Thêm nhân viên thành công!');
+    toast.success('Thêm nhân viên thành công.');
     showAddModal.value = false;
     newStaff.value = { username: '', password: '', fullname: '', email: '', role: 'ROLE_WAITER', shift: '', assignedArea: '', shiftRate: null };
     fetchStaff();
   } catch (err) {
-    alert('Lỗi tạo nhân viên: ' + (err.response?.data || err.message));
+    toast.error(getApiErrorMessage(err, 'Không thể tạo nhân viên.'));
   }
 };
 
@@ -838,22 +840,22 @@ const updateStaff = async () => {
     }
     
     await api.put(`/api/admin/staff/${editStaff.value.username}?roleId=${editStaff.value.role}`, payload, configHeader());
-    alert('Cập nhật nhân viên thành công!');
+    toast.success('Cập nhật nhân viên thành công.');
     showEditModal.value = false;
     fetchStaff();
   } catch (err) {
-    alert('Lỗi cập nhật nhân viên: ' + (err.response?.data || err.message));
+    toast.error(getApiErrorMessage(err, 'Không thể cập nhật nhân viên.'));
   }
 };
 
 const deleteStaff = async (username) => {
-  if (!confirm('Bạn có chắc muốn xóa nhân viên ' + username + '?')) return;
+  if (!await confirmDialog({ title: 'Xóa nhân viên', message: `Bạn có chắc muốn xóa nhân viên ${username}?`, confirmLabel: 'Xóa', danger: true })) return;
   try {
     await api.delete(`/api/admin/staff/${username}`, configHeader());
-    alert('Xóa thành công!');
+    toast.success('Xóa nhân viên thành công.');
     fetchStaff();
   } catch (err) {
-    alert('Lỗi xóa nhân viên');
+    toast.error(getApiErrorMessage(err, 'Không thể xóa nhân viên.'));
   }
 };
 
@@ -872,7 +874,7 @@ const fetchSchedules = async () => {
 };
 
 const addSchedule = async () => {
-  if (!newSchedule.value.username) return alert('Vui lòng chọn nhân viên!');
+  if (!newSchedule.value.username) return toast.warning('Vui lòng chọn nhân viên.');
   try {
     const daysToAdd = editingScheduleId.value ? 1 : (repeatForWeek.value ? 7 : 1);
     const wasWeekly = daysToAdd === 7;
@@ -894,10 +896,10 @@ const addSchedule = async () => {
     cancelScheduleEdit();
     fetchSchedules();
     if (wasWeekly) {
-      alert('Đã xếp lịch cho 7 ngày liên tiếp thành công!');
+      toast.success('Đã xếp lịch cho 7 ngày liên tiếp thành công.');
     }
   } catch (err) {
-    alert(err.response?.data || 'Lỗi xếp lịch, có thể nhân viên đã bị trùng ca trong một số ngày.');
+    toast.error(getApiErrorMessage(err, 'Không thể xếp lịch; có thể nhân viên đã bị trùng ca.'));
     fetchSchedules(); // Vẫn fetch lại vì có thể lưu thành công vài ngày
   }
 };
@@ -919,12 +921,12 @@ const cancelScheduleEdit = () => {
 };
 
 const deleteSchedule = async (id) => {
-  if (!confirm('Hủy ca làm này?')) return;
+  if (!await confirmDialog({ title: 'Hủy ca làm', message: 'Bạn có chắc muốn hủy ca làm này?', confirmLabel: 'Hủy ca', danger: true })) return;
   try {
     await api.delete(`/api/schedules/${id}`, configHeader());
     fetchSchedules();
   } catch (err) {
-    alert('Lỗi hủy lịch');
+    toast.error(getApiErrorMessage(err, 'Không thể hủy lịch.'));
   }
 };
 
@@ -1001,7 +1003,7 @@ const fetchZoneMap = async () => {
 
 const addZoneAssignment = async () => {
   if (!newZone.value.username || !newZone.value.floor) {
-    return alert('Vui lòng chọn nhân viên và tầng!');
+    return toast.warning('Vui lòng chọn nhân viên và tầng.');
   }
   try {
     const daysToAdd = zoneRepeatWeek.value ? 7 : 1;
@@ -1022,24 +1024,24 @@ const addZoneAssignment = async () => {
     }
     await Promise.all(requests);
     if (zoneRepeatWeek.value) {
-      alert('Đã phân công khu vực cho 7 ngày liên tiếp!');
+      toast.success('Đã phân công khu vực cho 7 ngày liên tiếp.');
     } else {
-      alert('Phân công khu vực thành công!');
+      toast.success('Phân công khu vực thành công.');
     }
     fetchZones();
   } catch (err) {
-    alert(err.response?.data || 'Lỗi phân công, có thể đã bị trùng lặp.');
+    toast.error(getApiErrorMessage(err, 'Không thể phân công khu vực; có thể đã bị trùng lặp.'));
     fetchZones();
   }
 };
 
 const deleteZoneAssignment = async (id) => {
-  if (!confirm('Xóa phân công khu vực này?')) return;
+  if (!await confirmDialog({ title: 'Xóa phân công khu vực', message: 'Bạn có chắc muốn xóa phân công khu vực này?', confirmLabel: 'Xóa', danger: true })) return;
   try {
     await api.delete(`/api/service-zones/${id}`, configHeader());
     fetchZones();
   } catch (err) {
-    alert('Lỗi xóa phân công');
+    toast.error(getApiErrorMessage(err, 'Không thể xóa phân công khu vực.'));
   }
 };
 

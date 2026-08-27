@@ -361,9 +361,11 @@ import { useRouter } from 'vue-router';
 import api from '@/services/api';
 import CustomerLayout from '@/components/CustomerLayout.vue';
 import UiIcon from '@/components/UiIcon.vue';
+import { useToast } from '@/composables/useToast';
 
 const router = useRouter();
 const { locale, t } = useI18n()
+const toast = useToast();
 
 const isLoggedIn = ref(false);
 const user = ref(null);
@@ -398,7 +400,7 @@ const prizes = computed(() => [
 
 const openLuckyWheel = async () => {
   if (!isLoggedIn.value) {
-    alert(t('home.loginToSpin'));
+    toast.warning(t('home.loginToSpin'));
     router.push('/login');
     return;
   }
@@ -422,11 +424,11 @@ const spinWheel = async () => {
   } catch (error) {
     isSpinning.value = false;
     if (error.response?.status === 409) {
-      alert(t('home.alreadySpun'));
+      toast.info(t('home.alreadySpun'));
     } else if (error.response?.status === 403) {
-      alert(t('home.spinEligibility'));
+      toast.warning(t('home.spinEligibility'));
     } else {
-      alert(t('home.spinFailed'));
+      toast.error(t('home.spinFailed'));
       console.error('Lỗi vòng quay may mắn', error);
     }
     return;
@@ -438,7 +440,7 @@ const spinWheel = async () => {
   if (prizeIndex < 0) {
     isSpinning.value = false;
     console.error('Phần thưởng từ máy chủ không khớp cấu hình giao diện', reward);
-    alert(t('home.invalidReward'));
+    toast.error(t('home.invalidReward'));
     return;
   }
 
@@ -452,11 +454,11 @@ const spinWheel = async () => {
     spinResult.value = won;
 
     if (won.type === 'points') {
-      alert(t('home.pointsWon', { prize: won.label, points: won.currentPoints, tier: won.membershipTier }));
+      toast.success(t('home.pointsWon', { prize: won.label, points: won.currentPoints, tier: won.membershipTier }));
     } else if (won.type === 'discount') {
-      alert(t('home.discountWon', { value: won.value, code: won.voucherCode }));
+      toast.success(t('home.discountWon', { value: won.value, code: won.voucherCode }));
     } else if (won.type === 'gift') {
-      alert(t('home.giftWon', { prize: won.label }));
+      toast.success(t('home.giftWon', { prize: won.label }));
     }
   }, 7000); // 7 seconds
 };
@@ -496,7 +498,7 @@ const handleCvUpload = (event) => {
 };
 
 const submitApplication = async () => {
-  if (!appForm.value.fullname || !appForm.value.phone) return alert(t('home.applicationRequired'));
+  if (!appForm.value.fullname || !appForm.value.phone) return toast.warning(t('home.applicationRequired'));
   try {
     const formData = new FormData();
     formData.append('fullname', appForm.value.fullname);
@@ -509,9 +511,9 @@ const submitApplication = async () => {
     await api.post('/api/applications/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
-    alert(t('home.applicationSent'));
+    toast.success(t('home.applicationSent'));
     showAppForm.value = false;
-  } catch (err) { alert(t('home.applicationFailed')); }
+  } catch (err) { toast.error(t('home.applicationFailed')); }
 };
 
 // === SUPPORT CHATBOT ===

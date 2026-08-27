@@ -3,6 +3,9 @@ import { routeLoading } from './loadingState'
 import i18n from '@/i18n'
 import { canAccessAdminRoute, canAccessOperationalWorkspace, customerRouteRedirect, isStaffWorkspacePath } from './roleAccess'
 import { AUTH_CONTEXT, getActiveAuthContext, getCustomerToken, getCustomerUser, getStaffToken, getStaffUser } from '@/services/session'
+import { useToast } from '@/composables/useToast'
+
+const toast = useToast()
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -80,13 +83,13 @@ router.beforeEach((to, from) => {
   const customerRedirect = customerRouteRedirect(to.path, userRoles)
   if (customerRedirect) {
     if (customerRedirect === '/kitchen') {
-      alert(i18n.global.t('access.kitchenRedirect'))
+      toast.info(i18n.global.t('access.kitchenRedirect'))
     }
     if (customerRedirect === '/waiter') {
-      alert(i18n.global.t('access.waiterRedirect'))
+      toast.info(i18n.global.t('access.waiterRedirect'))
     }
     if (customerRedirect === '/cashier') {
-      alert(i18n.global.t('access.cashierOnly'))
+      toast.warning(i18n.global.t('access.cashierOnly'))
     }
     return customerRedirect
   }
@@ -98,7 +101,7 @@ router.beforeEach((to, from) => {
         // Chưa đăng nhập → chuyển về trang đăng nhập nhân sự
         return '/staff-login'
       }
-      alert(i18n.global.t('access.adminDenied'))
+      toast.warning(i18n.global.t('access.adminDenied'))
       return '/'
     }
   }
@@ -109,7 +112,7 @@ router.beforeEach((to, from) => {
       if (!token) {
         return '/staff-login'
       }
-      alert(i18n.global.t('access.kitchenOnly'))
+      toast.warning(i18n.global.t('access.kitchenOnly'))
       return '/'
     }
   }
@@ -120,7 +123,7 @@ router.beforeEach((to, from) => {
       if (!token) {
         return '/staff-login'
       }
-      alert(i18n.global.t('access.waiterOnly'))
+      toast.warning(i18n.global.t('access.waiterOnly'))
       return '/'
     }
   }
@@ -131,7 +134,7 @@ router.beforeEach((to, from) => {
       if (!token) {
         return '/staff-login'
       }
-      alert(i18n.global.t('access.cashierOnly'))
+      toast.warning(i18n.global.t('access.cashierOnly'))
       return '/'
     }
   }
@@ -142,7 +145,7 @@ router.beforeEach((to, from) => {
       if (!token) {
         return '/staff-login'
       }
-      alert(i18n.global.t('access.staffOnly'))
+      toast.warning(i18n.global.t('access.staffOnly'))
       return '/'
     }
   }
