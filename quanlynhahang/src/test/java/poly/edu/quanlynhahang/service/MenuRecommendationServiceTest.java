@@ -82,19 +82,17 @@ class MenuRecommendationServiceTest {
     }
 
     @Test
-    void pairsGrilledDishWithNonAlcoholicDrinkBeforeBeerWithoutBeerSignal() {
+    void pairsGrilledDishWithAvailableBeerOrRedWine() {
         Product grilledMeat = product(1, DietType.MAN, CookingMethod.NUONG, false, true);
         Product beer = product(2, DietType.MAN, CookingMethod.KHAC, false, true);
         beer.setName("Bia tươi");
-        Product cola = product(3, DietType.MAN, CookingMethod.KHAC, false, true);
-        cola.setName("Nước ép dưa hấu");
-        when(productRepository.findByAvailableTrueAndStatusTrue()).thenReturn(List.of(grilledMeat, beer, cola));
+        Product whiteWine = product(3, DietType.MAN, CookingMethod.KHAC, false, true);
+        whiteWine.setName("Rượu vang trắng");
+        when(productRepository.findByAvailableTrueAndStatusTrue()).thenReturn(List.of(grilledMeat, beer, whiteWine));
 
         var result = service.recommend(List.of(1));
 
-        assertTrue(result.stream().anyMatch(item -> item.productId().equals(3)
-                && "PAIRING_NON_ALCOHOLIC".equals(item.reasonCode())));
-        assertTrue(result.stream().noneMatch(item -> item.productId().equals(2)
+        assertTrue(result.stream().anyMatch(item -> item.productId().equals(2)
                 && "PAIRING_GRILLED_OR_FRIED".equals(item.reasonCode())));
     }
 
