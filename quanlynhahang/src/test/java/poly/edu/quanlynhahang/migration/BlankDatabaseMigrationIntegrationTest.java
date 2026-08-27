@@ -37,11 +37,13 @@ class BlankDatabaseMigrationIntegrationTest {
                     .baselineOnMigrate(true)
                     .baselineVersion("2")
                     .load();
-            assertEquals(80, flyway.migrate().migrationsExecuted);
+            assertEquals(81, flyway.migrate().migrationsExecuted);
 
             try (Connection target = DriverManager.getConnection(targetUrl, username, password);
                  Statement statement = target.createStatement()) {
                 assertTrue(tableExists(statement, "Accounts"));
+                assertEquals(1, count(statement,
+                        "SELECT CASE WHEN (@@OPTIONS & 512) = 0 THEN 1 ELSE 0 END"));
                 assertTrue(tableExists(statement, "reservations"));
                 assertTrue(tableExists(statement, "api_rate_limits"));
                 assertTrue(tableExists(statement, "table_sessions"));
