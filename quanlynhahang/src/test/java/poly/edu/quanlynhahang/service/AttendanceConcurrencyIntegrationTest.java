@@ -60,6 +60,8 @@ class AttendanceConcurrencyIntegrationTest {
         // Leave the version null so Spring Data treats this fixture as a new
         // entity and issues INSERT instead of merging a non-existent row.
         account.setVersion(null);
+        assertEquals(1, jdbc.queryForObject(
+                "SELECT CASE WHEN (@@OPTIONS & 512) = 0 THEN 1 ELSE 0 END", Integer.class));
         accountRepository.saveAndFlush(account);
 
         CountDownLatch start = new CountDownLatch(1);
