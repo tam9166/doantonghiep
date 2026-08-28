@@ -374,3 +374,77 @@ Flyway version and no new Flyway history entry is expected.
 `SEMANTIC_MEDIUM_REVIEW = 0` · `LICENSE_VERIFIED = 0` ·
 `LICENSE_UNVERIFIED = 15` · `NEED_USER_REVIEW = [392,393,394,395,396,397,398,399,400,401,402,403,404,405,406]` ·
 `REPLACE_REQUIRED = [395]`.
+
+## Batch 5 — verification and targeted remediation
+
+Batch 5 was selected from the live `RestaurantDB` source of truth with
+`status = 1 AND available = 1`, after excluding every Batch 1–4 ID and demo
+rows. The exact scope is `[407,408,409,410,411,412,413,414,415,416,417,418,419,420,421]`.
+The customer menu was checked on pages 5 and 6; source failures were recorded
+from the rendered result rather than inferred from filenames.
+
+| ID | Product / category | Old image | Browser / visual result | Semantic | Source / license | SHA-256 (review bytes) | dHash | Final image | Final status |
+|---:|---|---|---|---|---|---|---|---|---|
+| 407 | Absolut / Vodka | `https://www.absolut.com/wp-content/uploads/absolut-vodka-original-2021-against-white-background.jpg?imwidth=350` | Source failed; UI rendered generic food fallback | FAIL → HIGH after replacement | [Commons candidate](https://commons.wikimedia.org/wiki/File:Absolut_vodka.jpg), Henrik Abelsson, CC BY 2.5 | `B525E14633794C6F2699E3BA32890FA349461FB20C83FDEE0B2AFA2D1EEF71D9` | `1110111011100110110001101111000011010001011010010110000111101001` | `/images/products/absolut-vodka-cc-by.jpg` | FINAL |
+| 408 | Smirnoff Red / Vodka | `https://cdn.metcash.media/image/upload/w_1500,h_1500,c_pad,b_auto/alm-online/images/591815.jpg` | Bottle and SMIRNOFF/VODKA label loaded | HIGH | Retailer CDN; license not stated | `24CF3B359310997B927E64535058B773FED07474106DEB08CB8BD527F167CE3E` | `0011000000110000011100000111000001110000011100000111000001110000` | unchanged remote URL | LICENSE_UNVERIFIED / NEED_USER_REVIEW |
+| 409 | Finlandia / Vodka | `https://ie.coca-colahellenic.com/content/dam/cch/ie/images/our-24-7-portfolio_new/FINLANDIA%20ORIGINAL%20Bottle.jpg` | Source failed; UI rendered generic food fallback | FAIL → HIGH after replacement | [Commons candidate](https://commons.wikimedia.org/wiki/File:Finlandia_Classic_vodka.jpg), Undicca, CC BY-SA 4.0 | `61DAB858134155862A141CE9DEF9DE415A1A7BEC26708A5E8EC351F099C77053` | `1100100111001001100010111001001010010100001101000111010101110001` | `/images/products/finlandia-vodka-cc-by-sa.jpg` | FINAL |
+| 410 | Grey Goose / Vodka | `https://www.greygoose.com/binaries/content/gallery/greygoose/products/grey-goose-vodka/ggo-bottle-intl.png` | Grey Goose bottle and label loaded | HIGH | Official brand CDN; license not stated | `CAE6A8AE7BCFE4D5ADE4FFE372A4BBADC5EFCCA1D089B0ECA307E140E0D85054` | `0000111000001010000011110000111100010011000101110000101100001111` | unchanged remote URL | LICENSE_UNVERIFIED / NEED_USER_REVIEW |
+| 411 | Belvedere / Vodka | `https://liquorshop.hk/wp-content/uploads/2020/08/Belvedere-Vodka.jpg` | Belvedere label and bottle loaded | HIGH | Retailer source; license not stated | `32C665CF6A022D01D2FD0F7A861FC49A6EF59C04D51A6E11B734D66C3047E128` | `0001000000010000001100000011000000110000001100000010100000111000` | unchanged remote URL | LICENSE_UNVERIFIED / NEED_USER_REVIEW |
+| 412 | Hennessy VS / Cognac / Brandy | `https://www.hennessy.com/sites/hennessy/files/2020-01/VS_0.png` | Source failed; UI rendered generic food fallback | FAIL → HIGH after replacement | [Commons candidate](https://commons.wikimedia.org/wiki/File:2023_Hennessy_V.S._Cognac.jpg), Jacek Halicki, CC BY-SA 4.0 | `CE5EE7082A30EB20351A94A0AD227547A626F4A5AB784A8B93DEBE9B30628A2D` | `0100000001100010011000110110000011100000111001101110011011100100` | `/images/products/hennessy-vs-cognac-cc-by-sa.jpg` | FINAL |
+| 413 | Rémy Martin VSOP / Cognac / Brandy | `https://static-prod.remymartin.com/app/uploads/2023/11/vsop-collection-1600-front-02.png` | Rémy Martin and VSOP labels visible | HIGH | Official brand CDN; license not stated | `4CCEFEBEFBF09C3AB16F56CFAB5D9F574C3F6A0885FCE7EA4A98A04C61027299` | `0000100000001000000010000001110000001100000111000001110000011100` | unchanged remote URL | LICENSE_UNVERIFIED / NEED_USER_REVIEW |
+| 414 | Martell VSOP / Cognac / Brandy | `https://devinecellars.com.au/wp-content/uploads/Martell-VSOP-Cognac.jpg` | Martell bottle and VSOP box visible | HIGH | Retailer source; license not stated | `98105BFA46B6DCB47553D0CDF9D109CCB2E48FC0839AA12404F9CC80B5AC2974` | `0101110001010100110100001101010011010100110101001101010011101100` | unchanged remote URL | LICENSE_UNVERIFIED / NEED_USER_REVIEW |
+| 415 | Courvoisier VSOP / Cognac / Brandy | `https://worldsbestwines.eu/wp-content/uploads/Courvoisier-VSOP-70cl-Bottle.jpg` | Courvoisier VSOP label visible | HIGH | Retailer source; license not stated | `C5B986C13155D69DE057D8FF55B66A5F2C78BBBD03EE3F2532986C6D8025F7F9` | `0011000000110000001100000111000011110000111010000111000001110000` | unchanged remote URL | LICENSE_UNVERIFIED / NEED_USER_REVIEW |
+| 416 | Camus VSOP / Cognac / Brandy | `https://cdn.shopify.com/s/files/1/0050/2395/7103/products/cognac-intensely-aromatic-camus-vsop-confezione_33540_zoom_700x.jpg?v=1670500723` | Camus VSOP bottle and box visible | HIGH | Retailer CDN; license not stated | `9AD2BD805A917238F759DC83B771C863FF32D06F4EB96341A07E7A19100F9830` | `1110000011100000101100001111000011010100111110001110010011100000` | unchanged remote URL | LICENSE_UNVERIFIED / NEED_USER_REVIEW |
+| 417 | Dassai 45 / Sake | `https://cdn.shopify.com/s/files/1/0212/1922/products/dassai_45_1020x.progressive.jpg?v=1615324785` | Dassai 45 label visible | HIGH | Retailer CDN; license not stated | `4A8A4A5D7BC4078D8E22A9FF1C5D4A7DBB26C944CF3B47E5ACDCB43A3C133A4B` | `0011000000110000001100000011000000110000001100000011000000110000` | unchanged remote URL | LICENSE_UNVERIFIED / NEED_USER_REVIEW |
+| 418 | Gekkeikan Traditional / Sake | `https://us.gekkeikan.com/wp-content/uploads/2020/03/TRADITIONAL-1.5-FRONT-1152x1536.png` | Browser showed a 200×200 “This image” placeholder | FAIL / MEDIUM | Official brand URL; license not stated; [Commons reference](https://commons.wikimedia.org/wiki/File:Gekkeikanbottle.JPG) is CC BY-SA/GFDL but a different packaging/context | `E525391811505BC1233AA3D59D40B74101784E7B83426E408828928C1FDEAFB4` | `0001000000010000001100000011000001100000011010000110000001111000` | unchanged remote URL | REPLACE_REQUIRED / NEED_USER_REVIEW |
+| 419 | Hakutsuru Junmai / Sake | `https://aem.lcbo.com/content/dam/lcbo/products/0/1/2/8/012849.jpg.thumb.1280.1280.jpg` | Hakutsuru label and Junmai sake bottle visible | HIGH | Retailer source; license not stated | `AD5262007C2535964AC35E6330E287660094524C04E7BB61A45E1298B14346EF` | `0001000000110000001100000011000000110000001100000011000001110000` | unchanged remote URL | LICENSE_UNVERIFIED / NEED_USER_REVIEW |
+| 420 | Ozeki Junmai / Sake | `https://drinxmarket.com/wp-content/uploads/2023/05/104776.png` | Ozeki Sake / Premium Junmai label visible | HIGH | Retailer source; license not stated | `3BD502FFC1A6D2EB4D7EC5E51FE176BB46DC7F4D2244F772A16AF127CB02384F` | `0001010000010110010101010011001101110001001100110111000111100001` | unchanged remote URL | LICENSE_UNVERIFIED / NEED_USER_REVIEW |
+| 421 | Kubota Senju / Sake | `https://images.squarespace-cdn.com/content/v1/5c334aca372b96b6bfd22e33/1600792366965-DERDSNOLLSP1ZZMNV7GV/Kubota+Senju+Tokubetsu+Honjozo+720ml+2000x2000+%281%29.jpg` | Kubota Senju label visible | HIGH | Retailer/source site; license not stated | `88B93D5753CFBFC96AE917D923693EF5BAC154401ED1F893CF322328CCDCA077` | `0001000000010000001100000011000000110000001100000011000000110000` | unchanged remote URL | LICENSE_UNVERIFIED / NEED_USER_REVIEW |
+
+The three accepted Commons replacements were visually inspected before
+localization. Gekkeikan's Commons image is a visual reference only: its bottle
+and setting do not prove the exact “Traditional” retail variant, so it was not
+bundled automatically. The four original failures are retained in the
+manifest as evidence; after V092, IDs 407, 409 and 412 use the verified local
+assets above.
+
+### Batch 5 replacement candidates
+
+| Product | Candidate review | Decision |
+|---|---|---|
+| Absolut | [Absolut vodka](https://commons.wikimedia.org/wiki/File:Absolut_vodka.jpg), Henrik Abelsson, CC BY 2.5; exact Absolut bottle, HIGH | ACCEPT; localized |
+| Finlandia | [Finlandia Classic vodka](https://commons.wikimedia.org/wiki/File:Finlandia_Classic_vodka.jpg), Undicca, CC BY-SA 4.0; exact Finlandia Classic bottle, HIGH | ACCEPT; localized |
+| Hennessy VS | [2023 Hennessy V.S. Cognac](https://commons.wikimedia.org/wiki/File:2023_Hennessy_V.S._Cognac.jpg), Jacek Halicki, CC BY-SA 4.0; exact V.S. label, HIGH | ACCEPT; localized |
+| Gekkeikan Traditional | [Gekkeikanbottle.JPG](https://commons.wikimedia.org/wiki/File:Gekkeikanbottle.JPG), Fotonovela, CC BY-SA/GFDL; Gekkeikan sake bottle but not proven exact Traditional packaging, MEDIUM | VISUAL_REFERENCE_ONLY; keep review |
+
+`NEW_MIGRATION = V092__localize_batch_five_verified_product_images.sql`.
+It uses exact Unicode product-name matches with an active/public row-count guard;
+it does not assume identity values, reseed, delete or insert products. Frontend
+and backend copies of all three accepted assets have matching SHA-256 values.
+
+### Batch 5 duplicate analysis
+
+There are no same URLs, local paths or SHA-256 values among the final Batch 5
+assets or against recorded Batch 1–4 assets. Pairwise dHash screening produced
+22 Batch-5 internal near pairs and 94 cross-batch near pairs at distance ≤16.
+All flagged pairs were visually reviewed; they are different branded bottles,
+labels or packshot compositions. No same scene/crop/resize reuse was found.
+
+`BATCH_5_AUDIT_COMPLETE = YES` · `BATCH_5_ALL_IMAGES_FIXED = NO` ·
+`INITIAL_SEMANTIC_PASS = 11` · `INITIAL_SEMANTIC_FAIL = 4` ·
+`FINAL_SEMANTIC_HIGH = 14` · `FINAL_SEMANTIC_MEDIUM = 1` ·
+`LICENSE_VERIFIED = 3` · `LICENSE_UNVERIFIED = 12` ·
+`NEED_USER_REVIEW = [408,410,411,413,414,415,416,417,418,419,420,421]` ·
+`REPLACE_REQUIRED = [418]` · `EXACT_DUPLICATE = 0` ·
+`DHASH_NEAR_DUPLICATE = 116` · `DHASH_REAL_DUPLICATE = 0`.
+
+### Batch 5 browser QA
+
+[Batch 5 menu page 5](qa/product-images/batch5-menu-1.png) and
+[Batch 5 menu page 6](qa/product-images/batch5-menu-2.png) cover IDs 407–421.
+Before V092, the browser recorded generic fallback renders for 407, 409 and
+412 and a placeholder render for 418; all other cards loaded their branded
+remote image. After applying V092 and restarting the packaged application, the
+browser loaded the local assets for 407, 409 and 412 with non-zero natural
+dimensions and the expected product labels. ID 418 still renders the original
+200×200 “This image” placeholder and remains `REPLACE_REQUIRED / NEED_USER_REVIEW`.

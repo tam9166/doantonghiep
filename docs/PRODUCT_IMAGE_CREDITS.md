@@ -57,3 +57,16 @@ audit manifest, not represented as project-owned assets.
 | Product | Local filename | Image title | Author | Original source | License | License URL | Attribution | Changes made |
 |---|---|---|---|---|---|---|---|---|
 | Saigon Special (ID 382) | `saigon-special-cc-by-sa.jpg` | Saigon Special Beer | Wiki.cullin | [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Saigon_Special_Beer.jpg) | CC BY-SA 4.0 | https://creativecommons.org/licenses/by-sa/4.0/ | “Saigon Special Beer” by Wiki.cullin, via Wikimedia Commons, licensed under CC BY-SA 4.0 | No crop, mirror, resize or recolor; the original image bytes are stored under a semantic filename in both frontend public and backend static assets. |
+
+## Batch 5 — localized asset attribution
+
+These three Batch 5 assets replace remote URLs that failed or rendered a
+generic fallback in the customer menu. Each source is an original Wikimedia
+Commons photograph with an explicit reuse license; no generic fallback image
+was bundled.
+
+| Product | Local filename | Image title | Author | Original source | License | License URL | Attribution | Changes made |
+|---|---|---|---|---|---|---|---|---|
+| Absolut (ID 407) | `absolut-vodka-cc-by.jpg` | Absolut vodka | Henrik Abelsson | [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Absolut_vodka.jpg) | CC BY 2.5 (also CC BY-SA 3.0) | https://creativecommons.org/licenses/by/2.5/ | “Absolut vodka” by Henrik Abelsson, via Wikimedia Commons, licensed under CC BY 2.5 | Original bytes copied without crop, mirror or recolor into both frontend public and backend static paths. |
+| Finlandia (ID 409) | `finlandia-vodka-cc-by-sa.jpg` | Finlandia Classic vodka | Undicca | [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Finlandia_Classic_vodka.jpg) | CC BY-SA 4.0 | https://creativecommons.org/licenses/by-sa/4.0/ | “Finlandia Classic vodka” by Undicca, via Wikimedia Commons, licensed under CC BY-SA 4.0 | Original bytes copied without crop, mirror or recolor into both frontend public and backend static paths. |
+| Hennessy VS (ID 412) | `hennessy-vs-cognac-cc-by-sa.jpg` | 2023 Hennessy V.S. Cognac | Jacek Halicki | [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:2023_Hennessy_V.S._Cognac.jpg) | CC BY-SA 4.0 | https://creativecommons.org/licenses/by-sa/4.0/ | “2023 Hennessy V.S. Cognac” by Jacek Halicki, via Wikimedia Commons, licensed under CC BY-SA 4.0 | Original bytes copied without crop, mirror or recolor into both frontend public and backend static paths. |

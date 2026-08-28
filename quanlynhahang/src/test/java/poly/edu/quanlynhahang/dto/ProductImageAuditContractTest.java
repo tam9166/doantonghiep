@@ -122,5 +122,22 @@ class ProductImageAuditContractTest {
         assertTrue(batchThreeIdentitySql.contains("COUNT(*) FROM products WHERE name = N'Saigon Special'"));
         assertTrue(batchThreeIdentitySql.contains("WHERE id = @saigon_special_id"));
         assertTrue(batchThreeIdentitySql.contains("/images/products/saigon-special-cc-by-sa.jpg"));
+
+        String batchFiveSql;
+        try (var input = new ClassPathResource(
+                "db/migration/V092__localize_batch_five_verified_product_images.sql").getInputStream()) {
+            batchFiveSql = new String(input.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        assertTrue(batchFiveSql.contains("name = N'Absolut'"));
+        assertTrue(batchFiveSql.contains("/images/products/absolut-vodka-cc-by.jpg"));
+        assertTrue(batchFiveSql.contains("name = N'Finlandia'"));
+        assertTrue(batchFiveSql.contains("/images/products/finlandia-vodka-cc-by-sa.jpg"));
+        assertTrue(batchFiveSql.contains("name = N'Hennessy VS'"));
+        assertTrue(batchFiveSql.contains("/images/products/hennessy-vs-cognac-cc-by-sa.jpg"));
+        assertFalse(batchFiveSql.contains("DBCC CHECKIDENT"));
+        assertFalse(batchFiveSql.contains("IDENTITY_INSERT"));
+        assertTrue(new ClassPathResource("static/images/products/absolut-vodka-cc-by.jpg").exists());
+        assertTrue(new ClassPathResource("static/images/products/finlandia-vodka-cc-by-sa.jpg").exists());
+        assertTrue(new ClassPathResource("static/images/products/hennessy-vs-cognac-cc-by-sa.jpg").exists());
     }
 }
