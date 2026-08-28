@@ -448,3 +448,125 @@ remote image. After applying V092 and restarting the packaged application, the
 browser loaded the local assets for 407, 409 and 412 with non-zero natural
 dimensions and the expected product labels. ID 418 still renders the original
 200×200 “This image” placeholder and remains `REPLACE_REQUIRED / NEED_USER_REVIEW`.
+
+## FINAL CLEARANCE (2026-08-29)
+
+The source-of-truth catalog contains 71 public, active and available products;
+all 71 were already assigned to Batches 1–5. This clearance re-evaluated every
+remaining `NEED_USER_REVIEW` or `REPLACE_REQUIRED` row. Search was timeboxed to
+three plausible candidates per product and a replacement was accepted only
+when the exact dish or branded variant was visually HIGH and the source page
+stated a reusable license. V093 bundles 16 accepted Commons assets; no generic,
+wrong-variant or rights-unclear candidate is used.
+
+`FINAL_CLEARANCE_TOTAL = 46`
+`FINAL_CLEARANCE_IDS = [8,22,76,78,83,84,85,86,88,89,90,92,94,383,384,385,386,390,391,392,393,394,395,396,397,398,399,400,401,402,403,404,405,406,408,410,411,413,414,415,416,417,418,419,420,421]`
+
+| ID | Product | Previous status | Action | Final image | Source | License | Semantic | Browser | Final status |
+|---:|---|---|---|---|---|---|---|---|---|
+| 8 | Cá hồi sốt chanh dây | NEED_USER_REVIEW | KEEP; author/license could not be traced from the Unsplash CDN key | unchanged remote image | Unsplash photo `1467003909585-2f8a72700288` | UNVERIFIED | MEDIUM | PASS | NEED_USER_REVIEW |
+| 22 | Gỏi củ hủ dừa tôm thịt | REPLACE_REQUIRED | KEEP; three exact references had no reusable license | unchanged remote image | visual references in Batch 1 | UNVERIFIED | LOW | FAIL (semantic) | REPLACE_REQUIRED |
+| 76 | Nộm rau rừng Đà Nẵng | NEED_USER_REVIEW | KEEP; licensed image does not prove forest greens | unchanged local image | Commons Vietnamese mango salad | CC BY 2.0 | MEDIUM | PASS | NEED_USER_REVIEW |
+| 78 | Đậu hũ non sốt mắm mộc | REPLACE_REQUIRED | KEEP; no exact licensed soft-tofu candidate | unchanged local image | Commons Bún đậu mắm tôm | Public domain | LOW | FAIL (semantic) | REPLACE_REQUIRED |
+| 83 | Bò một nắng chấm muối kiến vàng | NEED_USER_REVIEW | KEEP; dipping salt is not identifiable | unchanged local image | Commons beef jerky | CC BY-SA 4.0 | MEDIUM | PASS | NEED_USER_REVIEW |
+| 84 | Sườn nướng mật mía | NEED_USER_REVIEW | KEEP; licensed photo is honey ribs, not proven sugarcane molasses | unchanged local image | Commons party food in Vietnam | Public domain | MEDIUM | PASS | NEED_USER_REVIEW |
+| 85 | Tôm rang me vườn nhà | NEED_USER_REVIEW | KEEP; licensed image is a wetter tamarind stew | unchanged local image | Commons shrimp/prawn stew | CC0 1.0 | MEDIUM | PASS | NEED_USER_REVIEW |
+| 86 | Thịt kho tàu lá mơ | NEED_USER_REVIEW | KEEP; lá mơ is not visible | unchanged local image | Commons Thịt kho Tàu | CC BY-SA 4.0 | MEDIUM | PASS | NEED_USER_REVIEW |
+| 88 | Canh rau tập tàng nấu tôm | REPLACE_REQUIRED | KEEP; no exact licensed soup without noodles | unchanged local image | Commons shrimp/vegetable noodle soup | CC BY-SA 4.0 | LOW | FAIL (semantic) | REPLACE_REQUIRED |
+| 89 | Rau lang luộc chấm mắm nêm | REPLACE_REQUIRED | KEEP; no exact licensed boiled-greens presentation | unchanged local image | Commons raw sweet-potato shoots | CC BY-SA 3.0 | LOW | FAIL (semantic) | REPLACE_REQUIRED |
+| 90 | Đậu bắp bí đỏ hấp nước cốt dừa | REPLACE_REQUIRED | KEEP; no candidate showed all three components | unchanged local image | Commons boiled okra | CC BY-SA 4.0 | LOW | FAIL (semantic) | REPLACE_REQUIRED |
+| 92 | Cơm niêu cá kho + canh rau mộc | NEED_USER_REVIEW | KEEP; distinct vegetable soup is not visible | unchanged local image | Commons claypot rice | CC BY-SA 4.0 | MEDIUM | PASS | NEED_USER_REVIEW |
+| 94 | Chè mộc | NEED_USER_REVIEW | KEEP; “mộc” is not a verifiable dish variant | unchanged local image | Commons Chè Thưng | CC BY-SA 3.0 | MEDIUM | PASS | NEED_USER_REVIEW |
+| 383 | Saigon Lager | NEED_USER_REVIEW | KEEP; licensed candidate was Saigon Export, a different line | unchanged remote image | SABIBECO product source | UNVERIFIED | HIGH | PASS | NEED_USER_REVIEW |
+| 384 | Bia 333 | NEED_USER_REVIEW | REPLACE (V093) | `/images/products/bia-333-cc-by-sa.jpg` | [Chai333.jpg](https://commons.wikimedia.org/wiki/File:Chai333.jpg) | CC BY-SA 3.0 | HIGH | PASS | FINAL |
+| 385 | Bia Hà Nội | NEED_USER_REVIEW | KEEP; no exact licensed replacement found in the timebox | unchanged remote image | Bia Hà Nội retailer | UNVERIFIED | HIGH | PASS | NEED_USER_REVIEW |
+| 386 | Larue | NEED_USER_REVIEW | REPLACE (V093) | `/images/products/larue-beer-public-domain.jpg` | [LARUE BEER.JPG](https://commons.wikimedia.org/wiki/File:LARUE_BEER.JPG) | Public domain | HIGH | PASS | FINAL |
+| 390 | Corona Extra | NEED_USER_REVIEW | REPLACE (V093) | `/images/products/corona-extra-cc-by-sa.png` | [Corona Extra beer bottle](https://commons.wikimedia.org/wiki/File:Corona_Extra_beer_bottle_(2019).png) | CC BY-SA 4.0 | HIGH | PASS | FINAL |
+| 391 | Hoegaarden | NEED_USER_REVIEW | REPLACE (V093) | `/images/products/hoegaarden-original-cc0.jpg` | [Hoegaarden original](https://commons.wikimedia.org/wiki/File:Hoegaarden_original_belgian_white_ale.JPG) | CC0 1.0 | HIGH | PASS | FINAL |
+| 392 | Jacob's Creek Cabernet Sauvignon | NEED_USER_REVIEW | KEEP; licensed search result showed a vineyard sign, not the bottle | unchanged remote image | Solid Wine Online product source | UNVERIFIED | HIGH | PASS | NEED_USER_REVIEW |
+| 393 | Casillero del Diablo Cabernet Sauvignon | NEED_USER_REVIEW | REPLACE (V093) | `/images/products/casillero-del-diablo-cabernet-sauvignon-cc-by-sa.jpg` | [Casillero del Diablo in Ankara](https://commons.wikimedia.org/wiki/File:Casillero_del_Diablo_in_Ankara.jpg) | CC BY-SA 4.0 | HIGH | PASS | FINAL |
+| 394 | Yellow Tail Shiraz | NEED_USER_REVIEW | KEEP; no exact licensed bottle found in the timebox | unchanged remote image | CE Booze product source | UNVERIFIED | HIGH | PASS | NEED_USER_REVIEW |
+| 395 | Penfolds Koonunga Hill Shiraz Cabernet | REPLACE_REQUIRED | KEEP; exact official photo had no reuse license and the CC image was non-commercial | unchanged remote image | Metcash product source | UNVERIFIED | LOW | FAIL (variant) | REPLACE_REQUIRED |
+| 396 | Château Los Boldos Cabernet Sauvignon | NEED_USER_REVIEW | KEEP; no exact licensed replacement found in the timebox | unchanged remote image | Tcdn retailer image | UNVERIFIED | HIGH | PASS | NEED_USER_REVIEW |
+| 397 | Jacob's Creek Chardonnay | NEED_USER_REVIEW | KEEP; no exact licensed bottle found in the timebox | unchanged remote image | Mickey Kelly's Bar image | UNVERIFIED | HIGH | PASS | NEED_USER_REVIEW |
+| 398 | Casillero del Diablo Sauvignon Blanc | NEED_USER_REVIEW | KEEP; licensed Cabernet image is the wrong variant | unchanged remote image | Walmart product source | UNVERIFIED | HIGH | PASS | NEED_USER_REVIEW |
+| 399 | Yellow Tail Chardonnay | NEED_USER_REVIEW | KEEP; no exact licensed bottle found in the timebox | unchanged remote image | Walmart product source | UNVERIFIED | HIGH | PASS | NEED_USER_REVIEW |
+| 400 | Oyster Bay Sauvignon Blanc | NEED_USER_REVIEW | KEEP; official winery image has no stated reuse license | unchanged remote image | Oyster Bay winery | UNVERIFIED | HIGH | PASS | NEED_USER_REVIEW |
+| 401 | Villa Maria Sauvignon Blanc | NEED_USER_REVIEW | KEEP; no exact licensed bottle found in the timebox | unchanged remote image | SAQ product source | UNVERIFIED | HIGH | PASS | NEED_USER_REVIEW |
+| 402 | Johnnie Walker Black Label | NEED_USER_REVIEW | REPLACE (V093) | `/images/products/johnnie-walker-black-label-cc-by-sa.jpg` | [Johnnie Walker Black Label](https://commons.wikimedia.org/wiki/File:Johnnie_Walker_Black_Label.jpg) | CC BY-SA 3.0 | HIGH | PASS | FINAL |
+| 403 | Chivas Regal 12 | NEED_USER_REVIEW | REPLACE (V093) | `/images/products/chivas-regal-12-cc-by-sa.jpg` | [Chivas regal 12yo](https://commons.wikimedia.org/wiki/File:Chivas_regal_12yo.jpg) | CC BY-SA 4.0 | HIGH | PASS | FINAL |
+| 404 | Ballantine's Finest | NEED_USER_REVIEW | REPLACE (V093) | `/images/products/ballantines-finest-cc-by-sa.jpg` | [2017 Ballantine's Finest](https://commons.wikimedia.org/wiki/File:2017_Ballantine%27s_Finest.jpg) | CC BY-SA 4.0 | HIGH | PASS | FINAL |
+| 405 | Jack Daniel's Old No.7 | NEED_USER_REVIEW | REPLACE (V093) | `/images/products/jack-daniels-old-no-7-cc0.jpg` | [Jack daniels bottle](https://commons.wikimedia.org/wiki/File:Jack_daniels_bottle.jpg) | CC0 1.0 | HIGH | PASS | FINAL |
+| 406 | Jameson | NEED_USER_REVIEW | REPLACE (V093) | `/images/products/jameson-original-cc-by-sa.jpg` | [Jameson Original](https://commons.wikimedia.org/wiki/File:Jameson_Original.jpg) | CC BY-SA 4.0 | HIGH | PASS | FINAL |
+| 408 | Smirnoff Red | NEED_USER_REVIEW | REPLACE (V093) | `/images/products/smirnoff-red-cc-by.jpg` | [Smirnoff Red Label](https://commons.wikimedia.org/wiki/File:Smirnoff_Red_Label_8213.jpg) | CC BY 4.0 | HIGH | PASS | FINAL |
+| 410 | Grey Goose | NEED_USER_REVIEW | REPLACE (V093) | `/images/products/grey-goose-cc-by.jpg` | [Grey Goose Bottle](https://commons.wikimedia.org/wiki/File:Grey_Goose_Bottle.jpg) | CC BY 2.0 | HIGH | PASS | FINAL |
+| 411 | Belvedere | NEED_USER_REVIEW | REPLACE (V093) | `/images/products/belvedere-vodka-cc-by-sa.jpg` | [Belvedere Vodka 01](https://commons.wikimedia.org/wiki/File:Belvedere_Vodka_01.jpg) | CC BY-SA 4.0 | HIGH | PASS | FINAL |
+| 413 | Rémy Martin VSOP | NEED_USER_REVIEW | REPLACE (V093) | `/images/products/remy-martin-vsop-cc-by.jpg` | [Rémy Martin VSOP](https://commons.wikimedia.org/wiki/File:R%C3%A9my_Martin_VSOP.jpg) | CC BY 4.0 | HIGH | PASS | FINAL |
+| 414 | Martell VSOP | NEED_USER_REVIEW | REPLACE (V093) | `/images/products/martell-vsop-cc0.jpg` | [Martell Vsop](https://commons.wikimedia.org/wiki/File:Martell_Vsop.jpg) | CC0 1.0 | HIGH | PASS | FINAL |
+| 415 | Courvoisier VSOP | NEED_USER_REVIEW | REPLACE (V093) | `/images/products/courvoisier-vsop-cc-by-sa.jpg` | [Courvoisier bottles VSOP](https://commons.wikimedia.org/wiki/File:Courvoisier_bottles_VSOP.jpg) | CC BY-SA 4.0 | HIGH | PASS | FINAL |
+| 416 | Camus VSOP | NEED_USER_REVIEW | KEEP; source license verified but the final visual could not be cleared before the timebox | unchanged remote image | Shopify retailer source | UNVERIFIED | HIGH | PASS | NEED_USER_REVIEW |
+| 417 | Dassai 45 | NEED_USER_REVIEW | KEEP; no exact licensed replacement found | unchanged remote image | Shopify retailer source | UNVERIFIED | HIGH | PASS | NEED_USER_REVIEW |
+| 418 | Gekkeikan Traditional | REPLACE_REQUIRED | KEEP; licensed Commons bottle is a different package/variant | unchanged remote image | Gekkeikan official source | UNVERIFIED | LOW | FAIL (placeholder/variant) | REPLACE_REQUIRED |
+| 419 | Hakutsuru Junmai | NEED_USER_REVIEW | KEEP; no exact licensed replacement found | unchanged remote image | LCBO product source | UNVERIFIED | HIGH | PASS | NEED_USER_REVIEW |
+| 420 | Ozeki Junmai | NEED_USER_REVIEW | KEEP; no exact licensed replacement found | unchanged remote image | Drinx Market product source | UNVERIFIED | HIGH | PASS | NEED_USER_REVIEW |
+| 421 | Kubota Senju | NEED_USER_REVIEW | KEEP; no exact licensed replacement found | unchanged remote image | product source site | UNVERIFIED | HIGH | PASS | NEED_USER_REVIEW |
+
+### Final-clearance decision totals
+
+`FINAL = 16` · `NEED_USER_REVIEW = 23` · `REPLACE_REQUIRED = 7`
+`SEMANTIC_HIGH = 31` · `SEMANTIC_MEDIUM = 8` · `SEMANTIC_LOW = 7`
+`LICENSE_VERIFIED = 27` · `LICENSE_UNVERIFIED = 19`
+`REPLACED_THIS_CLEARANCE = 17` · `NEW_MIGRATIONS = V093__finalize_verified_product_image_clearance.sql, V094__remove_duplicate_mi_quang_product_image.sql`
+
+V093 uses exact Unicode product names, requires exactly one active/public row
+for each update, and contains no identity assumptions, broad `LIKE`, reseed,
+insert or delete. Frontend/backend copies of every new asset have identical
+SHA-256 values. Full-catalog duplicate and browser evidence is recorded after
+the executable verification below; unresolved rows remain visible rather than
+being promoted with an unsupported claim.
+
+### Full-catalog duplicate correction
+
+The 71-product dHash pass found one genuine cross-batch duplicate: ID 10 and
+ID 91 displayed the same Commons `Mì Quảng.jpg` photograph through different
+paths. V094 keeps ID 10 unchanged and assigns ID 91 (`Mì Quảng Đà Nẵng chuẩn
+vị`) the visually distinct [Mi Quang 1A Danang](https://commons.wikimedia.org/wiki/File:Mi_Quang_1A_Danang.jpg)
+photograph by Jpatokal, CC BY-SA 4.0. It is an exact Da Nang bowl with broad
+noodles, pork, shrimp, peanuts and rice cracker. The replacement is outside the
+46-item open backlog but is inside the required final duplicate audit.
+
+### Final executable verification
+
+- Upgrade database: existing `RestaurantDB` migrated from V093 to V094 and
+  Flyway validation passed. The 17 intended final-clearance paths are present,
+  product identities were not changed, and no product row was inserted,
+  deleted or duplicated.
+- Clean database: `BlankDatabaseMigrationIntegrationTest` created a fresh SQL
+  Server database and applied V001 through V094. The expected 94 versioned
+  migrations ran successfully and all 17 exact product/path assertions passed.
+- Full-catalog duplicate audit: all 71 public, active and available products
+  have distinct URL/path values and complete SHA-256/dHash coverage. Exact URL,
+  path and byte duplicate groups are zero. The dHash threshold (distance <=16)
+  produced 86 review flags, primarily white-background bottle packshots; all
+  were visually reviewed as different brands/variants/scenes. Six distance-zero
+  flags are also different bottle/packshot images, not equal bytes. Therefore
+  `EXACT_DUPLICATE = 0` and `DHASH_REAL_DUPLICATE = 0`.
+- Browser QA: the packaged customer menu displayed all 71 source-of-truth
+  products across its six pagination pages. All 71 matched by product name,
+  loaded with non-zero natural dimensions, and none used the frontend fallback.
+  Evidence: [page 1](qa/product-images/final-menu-1.png),
+  [page 2](qa/product-images/final-menu-2.png),
+  [page 3](qa/product-images/final-menu-3.png),
+  [page 4](qa/product-images/final-menu-4.png),
+  [page 5](qa/product-images/final-menu-5.png), and
+  [page 6](qa/product-images/final-menu-6.png).
+- Security smoke: anonymous GET and HEAD returned 200 for all 17 newly localized
+  assets; anonymous `GET /api/admin/products` returned 401.
+- Regression: focused image/migration/security tests passed (5 tests); full
+  backend passed 464 tests with zero failures/errors; `mvn package`, frontend
+  lint, all 121 frontend tests in 32 files, and the Vite production build passed.
+
+The final ID 91 asset has SHA-256
+`364EF3B4CF5B08F17251659C7382EB6A90484984B7A525F4BBC80920544FF814`
+in both frontend and backend trees and dHash
+`0011011100110011001110010110100001111000101111001111010001110011`.

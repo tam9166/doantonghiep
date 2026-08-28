@@ -139,5 +139,52 @@ class ProductImageAuditContractTest {
         assertTrue(new ClassPathResource("static/images/products/absolut-vodka-cc-by.jpg").exists());
         assertTrue(new ClassPathResource("static/images/products/finlandia-vodka-cc-by-sa.jpg").exists());
         assertTrue(new ClassPathResource("static/images/products/hennessy-vs-cognac-cc-by-sa.jpg").exists());
+
+        String finalClearanceSql;
+        try (var input = new ClassPathResource(
+                "db/migration/V093__finalize_verified_product_image_clearance.sql").getInputStream()) {
+            finalClearanceSql = new String(input.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        String[][] finalClearanceProducts = {
+                { "Bia 333", "bia-333-cc-by-sa.jpg" },
+                { "Larue", "larue-beer-public-domain.jpg" },
+                { "Corona Extra", "corona-extra-cc-by-sa.png" },
+                { "Hoegaarden", "hoegaarden-original-cc0.jpg" },
+                { "Casillero del Diablo Cabernet Sauvignon",
+                        "casillero-del-diablo-cabernet-sauvignon-cc-by-sa.jpg" },
+                { "Johnnie Walker Black Label", "johnnie-walker-black-label-cc-by-sa.jpg" },
+                { "Chivas Regal 12", "chivas-regal-12-cc-by-sa.jpg" },
+                { "Ballantine''s Finest", "ballantines-finest-cc-by-sa.jpg" },
+                { "Jack Daniel''s Old No.7", "jack-daniels-old-no-7-cc0.jpg" },
+                { "Jameson", "jameson-original-cc-by-sa.jpg" },
+                { "Smirnoff Red", "smirnoff-red-cc-by.jpg" },
+                { "Grey Goose", "grey-goose-cc-by.jpg" },
+                { "Belvedere", "belvedere-vodka-cc-by-sa.jpg" },
+                { "Rémy Martin VSOP", "remy-martin-vsop-cc-by.jpg" },
+                { "Martell VSOP", "martell-vsop-cc0.jpg" },
+                { "Courvoisier VSOP", "courvoisier-vsop-cc-by-sa.jpg" }
+        };
+        for (String[] product : finalClearanceProducts) {
+            assertTrue(finalClearanceSql.contains("name = N'" + product[0] + "'"));
+            assertTrue(finalClearanceSql.contains("/images/products/" + product[1]));
+            assertTrue(new ClassPathResource("static/images/products/" + product[1]).exists());
+        }
+        assertFalse(finalClearanceSql.contains("DBCC CHECKIDENT"));
+        assertFalse(finalClearanceSql.contains("IDENTITY_INSERT"));
+        assertFalse(finalClearanceSql.contains("WHERE id ="));
+        assertFalse(finalClearanceSql.contains("LIKE"));
+
+        String duplicateClearanceSql;
+        try (var input = new ClassPathResource(
+                "db/migration/V094__remove_duplicate_mi_quang_product_image.sql").getInputStream()) {
+            duplicateClearanceSql = new String(input.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        assertTrue(duplicateClearanceSql.contains("name = N'Mì Quảng Đà Nẵng chuẩn vị'"));
+        assertTrue(duplicateClearanceSql.contains("/images/products/mi-quang-da-nang-cc-by-sa.jpg"));
+        assertFalse(duplicateClearanceSql.contains("WHERE id ="));
+        assertFalse(duplicateClearanceSql.contains("DBCC CHECKIDENT"));
+        assertFalse(duplicateClearanceSql.contains("IDENTITY_INSERT"));
+        assertTrue(new ClassPathResource(
+                "static/images/products/mi-quang-da-nang-cc-by-sa.jpg").exists());
     }
 }
