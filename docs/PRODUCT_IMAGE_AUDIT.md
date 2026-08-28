@@ -124,3 +124,66 @@ The dHash implementation used a 9×8 grayscale reduction and compared each 64-bi
 - `ProductImageAuditContractTest` prevents regression to the generic URL and verifies ID-scoped migration updates through V088.
 - `npm run lint`, `npm run test`, `npm run build`, focused Maven product/migration/security tests and full Maven tests pass after V088 is applied (464 backend tests, 0 failures, 0 errors).
 - Browser screenshots can verify layout and image loading, but semantic food correctness still needs human visual approval for the unresolved groups above.
+
+## 7. Batch 2 verification (2026-08-28)
+
+### Scope and selection
+
+The next public, active products after the Batch 1 exclusion set
+`[3,4,5,6,7,8,9,10,11,12,13,22]` were selected by ascending database ID:
+
+`75–89` — Gỏi cuốn mộc; Nộm rau rừng Đà Nẵng; Bánh tráng cuốn thịt heo; Đậu hũ non sốt mắm mộc; Chả cá Đà Nẵng nướng lá chuối; Cá kho tộ mộc mạc; Cá lóc nướng trui; Gà nướng muối ớt bản mộc; Bò một nắng chấm muối kiến vàng; Sườn nướng mật mía; Tôm rang me vườn nhà; Thịt kho tàu lá mơ; Canh chua cá lóc; Canh rau tập tàng nấu tôm; Rau lang luộc chấm mắm nêm.
+
+The query excluded inactive rows and all `Demo ...`/test products. The backend Product API remains the source of truth; no frontend name-to-image map was introduced. Batch 1 conclusions, including unresolved IDs 8 and 22, are unchanged.
+
+### Visual/provenance manifest
+
+All 15 current URLs were downloaded to a temporary review cache and loaded successfully. SHA-256 and dHash values below describe those review bytes; remote catalog URLs remain `REMOTE_NOT_FINALIZED` because they are not committed assets. dHash uses the repository's documented 9×8 grayscale comparison and no Batch 1 local image was an exact or ≤16-distance duplicate.
+
+| ID | Product | Current visual finding | Semantic | Source / author / license | SHA-256 (review cache) | dHash | Action |
+|---:|---|---|---|---|---|---|---|
+| 75 | Gỏi cuốn mộc | Four fresh rice-paper rolls with greens and dipping sauce | HIGH | [Wikimedia file](https://commons.wikimedia.org/wiki/File:Gỏi_cuốn_at_a_Vietnamese-style_restaurant_in_Beijing_(20180103175625).jpg); N509FZ; CC BY-SA 4.0 | `860DBD2122F514CC9BA68DEF1F7D2C5FC798E092061DAF0BBB9EB827317B634C` | `0101000100010000101001000111100001010010100101100111000100110011` | KEEP |
+| 76 | Nộm rau rừng Đà Nẵng | Green-mango/shrimp salad; forest greens are not identifiable | MEDIUM | [Wikimedia file](https://commons.wikimedia.org/wiki/File:Vietnamese_mango_salad_with_shrimp.jpg); HungryHuy; CC BY 2.0 | `E84DC2989E727F5A5676F42BFE0DB96D246B5D08453675784C7AAEC46513EB5C` | `0011001000110110010101111100111010011111110011011110011000110101` | NEED_USER_REVIEW |
+| 77 | Bánh tráng cuốn thịt heo | Pork slices, rice paper, noodles, herbs and vegetables | HIGH | [Wikimedia file](https://commons.wikimedia.org/wiki/File:Bánh_tráng_cuốn_thịt_heo_(18521).jpg); Lê Huỳnh Bộ; CC BY-SA 4.0 | `24B70A93A8FA7F621992AE3C105DC7E5E3FF657224DC69531CC626B5009C948D` | `0110101010101001000010010101010100110101011101000011001001101001` | KEEP |
+| 78 | Đậu hũ non sốt mắm mộc | Bún đậu platter; fried tofu and shrimp paste, not tofu in fish sauce | LOW | [Wikimedia file](https://commons.wikimedia.org/wiki/File:Bún_đậu_mắm_tôm_(phần_bánh_đậu_hũ_chiên)_quán_3_chị_em_tại_Nguyễn_Sơn_năm_2016_(1).jpg); Phương Huy; Public domain | `7CE98CCB1E5F0A0BEA4F28BB7CF7375B8F1D668E1F43A2EEC07F7DA6297A248F` | `0000111110000110010011110011110000111001100010011000100100111011` | REPLACE_REQUIRED / NEED_USER_REVIEW |
+| 79 | Chả cá Đà Nẵng nướng lá chuối | Existing chả cá Lã Vọng pan was the wrong presentation; fish wrapped in banana leaves is now localized | HIGH | [Wikimedia file](https://commons.wikimedia.org/wiki/File:Grilled_fish_banana_leaves.jpg); John Walker; CC BY 2.0 | `5E4FB4AE7820186EB547E3AB8BE8E6F032BEE4EEDE61F259260B92E5B11E049C` (localized) | `0011000110101010010101011011000111010001000110100100111011110010` | REPLACE (V089 local) |
+| 80 | Cá kho tộ mộc mạc | Braised fish visibly served in a clay pot | HIGH | [Wikimedia file](https://commons.wikimedia.org/wiki/File:Cá_kho_tộ.JPG); Binh Giang; Public domain | `D456BD6E12BC7C41C3EBBB899D87D49ED87B79A49E0C29DCF3CE84168A299FAD` | `0000100100000100001011000001110100101001011011110011101100001011` | KEEP |
+| 81 | Cá lóc nướng trui | Whole fish roasting over an open fire | HIGH | [Wikimedia file](https://commons.wikimedia.org/wiki/File:Cá_lóc_đồng_nướng_trui_3.jpg); Thang Nguyen; CC BY-SA 2.0 | `E7D6AA1066CF977810DFA29DA83C366D885B33A60444BB762D185073AAC9D3CB` | `0100011110001101010101011011001110101001010100010111001001101010` | KEEP |
+| 82 | Gà nướng muối ớt bản mộc | Whole roasted chicken with red chili coating | HIGH | [Wikimedia file](https://commons.wikimedia.org/wiki/File:Gà_nướng_muối_ớt.jpg); Baoothersks; CC BY-SA 4.0 | `72A5FB83BAA43BE2AA554FD2B2389F2BA7D6EA8C32244B67DE6F4753C7BF175F` | `1011010100110100011010011110100111100101011000101010110010010110` | KEEP |
+| 83 | Bò một nắng chấm muối kiến vàng | Beef jerky/strips shown; dipping salt is not visible | MEDIUM | [Wikimedia file](https://commons.wikimedia.org/wiki/File:Kantsun_Stydi_beef_jerky.jpg); JIP; CC BY-SA 4.0 | `79A2A702F34209A385BAA2B73E28FBBC034DC4C53921D9FE6173E1660166390B` | `0110101100011011001000110101000101101011110010110010001110010101` | NEED_USER_REVIEW |
+| 84 | Sườn nướng mật mía | Glazed grilled ribs; source identifies Korean-style honey ribs | MEDIUM | [Wikimedia category](https://commons.wikimedia.org/wiki/Category:Party_food_in_Vietnam); Phương Huy; Public domain | `9366A9DA2350CBEFF3E8CEB88EA66532F30CE8188CD66964432AA9C5BD2F6692` | `1001101110100111001100010010101001101011101100011001001000001101` | NEED_USER_REVIEW |
+| 85 | Tôm rang me vườn nhà | Shrimp/tamarind stew with vegetables; wetter than a dry rang me | MEDIUM | [Wikimedia file](https://commons.wikimedia.org/wiki/File:980Shrimp_and_prawn_stew_with_Baguio_beans,_napa_cabbage,_tomatoes_and_tamarind_soup_in_lemon_grass.jpg); Judgefloro; CC0 1.0 | `E2BE0A7E9E5D929BE2DB9560C82D4C9B6A77DE1B1EBAA25D330302287A692089` | `0001111000001111011001110110001101010011001011100011110000111010` | NEED_USER_REVIEW |
+| 86 | Thịt kho tàu lá mơ | Thịt kho tàu with egg; lá mơ is not visible | MEDIUM | [Wikimedia file](https://commons.wikimedia.org/wiki/File:Thịt_kho_Tàu.jpg); Viethavvh; CC BY-SA 4.0 | `6013B78DB9ED2D94D945D77C0B6025E8C9CDC8C2C9D4FD3A264568229A40F3AA` | `0001011101000011111000001110100111101001011010001111101000111010` | NEED_USER_REVIEW |
+| 87 | Canh chua cá lóc | Sour soup with snakehead fish, pineapple, tomato and herbs | HIGH | [Wikimedia file](https://commons.wikimedia.org/wiki/File:Canh_chua_cá_lóc_ở_Thủy_Trúc_Quán,_đường_Nguyễn_Nhữ_Lãm_(3).jpg); Phương Huy; Public domain | `A98F89D9AAE2CE3D473CEA170165DE2C8751A424DCDB29C690FBFDA7B6DB4C12` | `0000010000101011111111001010100010101010011010100101000101001100` | KEEP |
+| 88 | Canh rau tập tàng nấu tôm | Shrimp-and-vegetable noodle soup; noodles make the dish mismatch | LOW | [Wikimedia file](https://commons.wikimedia.org/wiki/File:Vietnamese_Shrimp_and_Vegetable_noodle_soup.jpg); Peachyeung316; CC BY-SA 4.0 | `F4C1163659113693D7574E42819C2207924532EA1A70B0170F5253CFAF0D3444` | `0011010010001011011101100101100100010111010001011000010011101000` | REPLACE_REQUIRED / NEED_USER_REVIEW |
+| 89 | Rau lang luộc chấm mắm nêm | Raw sweet-potato shoots; not boiled greens or dipping sauce | LOW | [Wikimedia file](https://commons.wikimedia.org/wiki/File:Đọt_rau_lang.jpg); Bùi Thụy Đào Nguyên; CC BY-SA 3.0 | `0C81E7EB3B795CE76FB5CE407DD02D6CC10C8B3618DEB3BB8CEAF40754990901` | `1011101000111011011011100010111000101101011110110110111100101111` | REPLACE_REQUIRED / NEED_USER_REVIEW |
+
+### Replacement candidate review
+
+Only ID 79 met both the semantic and rights gates. The selected Commons image shows fish wrapped in banana leaves over a grill and is licensed CC BY 2.0; it is localized under a semantic filename in both public frontend assets and the bundled Spring Boot static tree. V089 updates only product ID 79 after V088.
+
+The other mismatches remain review-only because no candidate met both gates. The following are visual references, not downloaded or used assets:
+
+| Product | Candidate pages reviewed (minimum three) | Finding / decision |
+|---|---|---|
+| 76 Nộm rau rừng Đà Nẵng | [Dĩa rau sống](https://commons.wikimedia.org/wiki/File:Dĩa_rau_sống_ở_đường_NS_ng29th12n2022_(2).jpg) (CC0); [mango salad](https://commons.wikimedia.org/wiki/File:Vietnamese_mango_salad_with_shrimp.jpg) (CC BY 2.0); [prawn salad](https://commons.wikimedia.org/wiki/File:Prawn_salad.jpg) (CC BY-SA 4.0) | None proves Đà Nẵng forest greens; retain current image for user review. |
+| 78 Đậu hũ non sốt mắm mộc | [Bún đậu 2019](https://commons.wikimedia.org/wiki/File:Bún_đậu_mắm_tôm_(2019).jpg) (CC BY-SA 4.0); [đậu hũ sốt cà](https://commons.wikimedia.org/wiki/File:Bữa_cơm_gia_đình_ng6th4n2021_(tô_đậu_hũ_sốt_cà)_(1).jpg) (license on page); [Chuối ốc đậu](https://commons.wikimedia.org/wiki/File:Chuối_ốc_đậu.jpg) (CC BY-SA 2.0) | All show different tofu dishes; none is tofu in fish sauce. |
+| 79 Chả cá Đà Nẵng nướng lá chuối | [Grilled fish banana leaves](https://commons.wikimedia.org/wiki/File:Grilled_fish_banana_leaves.jpg) (CC BY 2.0); [Cá hồi nướng SG](https://commons.wikimedia.org/wiki/File:Cá_hồi_nướng_SG,ng13th2n2022_(2).jpg) (CC0); current [Chả cá Lã Vọng](https://commons.wikimedia.org/wiki/File:Chả_cá_Lã_Vọng_Hà_Nội_tháng_2_năm_2018_(2).jpg) (CC BY-SA 4.0) | First candidate is semantically HIGH and rights VERIFIED; localized in V089. |
+| 88 Canh rau tập tàng nấu tôm | [VnExpress recipe](https://vnexpress.net/canh-rau-tap-tang-nau-tom-2769654.html) (copyright not stated); [Canh cua khoai sọ rau rút](https://commons.wikimedia.org/wiki/File:Canh_cua_khoai_sọ_rau_rút.jpg) (different soup); current [Vietnamese shrimp noodle soup](https://commons.wikimedia.org/wiki/File:Vietnamese_Shrimp_and_Vegetable_noodle_soup.jpg) (CC BY-SA 4.0) | No candidate clearly shows mixed garden greens with shrimp without a conflicting dish; review required. |
+| 89 Rau lang luộc chấm mắm nêm | [Đọt rau lang](https://commons.wikimedia.org/wiki/File:Đọt_rau_lang.jpg) (CC BY-SA 3.0, raw); [Sweet potato leaves](https://commons.wikimedia.org/wiki/File:Sweet_potato_leaves.jpg) (CC0, raw); [Patriotic soup](https://commons.wikimedia.org/wiki/File:Song_dynasty's_'Patriotic_soup'_-Protect_the_Country_Dish_(護國菜)_.jpg) (cooked leaf soup) | No candidate shows the required Vietnamese boiled greens plus mắm nêm pairing; review required. |
+
+### Batch 2 release state
+
+`BATCH_2_AUDIT_COMPLETE = YES` · `BATCH_2_ALL_IMAGES_FIXED = NO` · `BATCH_2_REPLACEMENTS = 1` (ID 79) · `NEED_USER_REVIEW = [76,78,83,84,85,86,88,89]` · `REPLACE_REQUIRED = [78,88,89]`.
+
+The localized ID 79 image is served from the same bundled Spring Boot SPA strategy as Batch 1. No remote image was silently copied into the repository, no Batch 1 asset was reused, and no crop/mirror/recolor transformation was applied. Browser/API regression is limited to the changed product and the Batch 1 smoke contract; full visual approval of the review-only items remains a product-owner decision.
+
+Packaged-application QA confirmed that `/api/products` returns ID 79 with
+`/images/products/cha-ca-da-nang-nuong-la-chuoi.jpg`; anonymous `GET` and
+`HEAD` requests to that asset return `200`, while anonymous
+`GET /api/admin/products` remains `401`. The public menu evidence is captured
+in [Batch 2 menu page 3](qa/product-images/batch2-menu-1.png) and
+[Batch 2 menu page 4](qa/product-images/batch2-menu-2.png). The clean-database
+contract migrated V001 through V089 successfully; focused backend tests, all
+464 backend tests, Maven package, frontend lint, 121 frontend tests, and the
+frontend production build passed.

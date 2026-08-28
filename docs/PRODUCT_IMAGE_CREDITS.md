@@ -37,3 +37,13 @@ This file lists only images currently used by the 12 Batch 1 product rows. Rejec
 - ID 12: Baoothersks, [Peach iced tea with orange slices](https://commons.wikimedia.org/wiki/File:Peach_iced_tea_with_orange_slices.jpg), CC BY-SA 4.0.
 
 IDs 3, 8 and 22 remain remote. ID 8 keeps its semantically correct salmon/passion-fruit visual pending independent rights evidence; ID 22 remains a semantic FAIL and no unlicensed candidate was downloaded.
+
+## Batch 2 — localized asset attribution
+
+Only the image actually added to the repository in Batch 2 is credited here.
+Remote images that were kept or left for review remain documented in the audit
+manifest and are not presented as newly bundled assets.
+
+| Product | Local filename | Image title | Author | Original source | License | License URL | Attribution | Changes made |
+|---|---|---|---|---|---|---|---|---|
+| Chả cá Đà Nẵng nướng lá chuối (ID 79) | `cha-ca-da-nang-nuong-la-chuoi.jpg` | Grilled fish banana leaves | John Walker | [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Grilled_fish_banana_leaves.jpg) | CC BY 2.0 | https://creativecommons.org/licenses/by/2.0/ | “Grilled fish banana leaves” by John Walker, via Wikimedia Commons, licensed under CC BY 2.0 | No crop, mirror or recolor; the original image bytes are stored under a semantic filename in both frontend public and backend static assets. |

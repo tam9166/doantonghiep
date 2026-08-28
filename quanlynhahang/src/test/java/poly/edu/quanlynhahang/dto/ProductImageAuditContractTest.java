@@ -92,5 +92,15 @@ class ProductImageAuditContractTest {
         assertTrue(new ClassPathResource("static/images/products/mi-quang-dac-biet-cc-by.jpg").exists());
         assertTrue(new ClassPathResource("static/images/products/nuoc-ep-dua-hau-cc0.jpg").exists());
         assertTrue(new ClassPathResource("static/images/products/che-khuc-bach-cc-by-sa.jpg").exists());
+
+        String batchTwoSql;
+        try (var input = new ClassPathResource(
+                "db/migration/V089__localize_batch_two_verified_product_image.sql").getInputStream()) {
+            batchTwoSql = new String(input.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        assertTrue(batchTwoSql.contains("WHERE id = 79"));
+        assertTrue(batchTwoSql.contains("/images/products/cha-ca-da-nang-nuong-la-chuoi.jpg"));
+        assertTrue(new ClassPathResource(
+                "static/images/products/cha-ca-da-nang-nuong-la-chuoi.jpg").exists());
     }
 }
