@@ -288,3 +288,89 @@ frontend lint passed; all 32 frontend test files / 121 tests passed; and the
 Vite production build passed. Packaged-application smoke returned `200
 image/jpeg` for anonymous GET and HEAD of the V090 asset and `401` for the
 anonymous admin products endpoint.
+
+## 9. Batch 4 verification (2026-08-28)
+
+### Scope and selection
+
+The source-of-truth query selected the next 15 `status = 1 AND available = 1`
+products after excluding every Batch 1--3 ID and all demo/test rows. The exact
+scope is `[392,393,394,395,396,397,398,399,400,401,402,403,404,405,406]`.
+No Batch 1--3 migration, image, decision or backlog item was changed.
+
+### Current-image manifest
+
+Each URL was opened from the original source and then loaded in the packaged
+customer menu. Browser natural dimensions were non-zero for all 15 cards. The
+commercial catalog sources below do not publish redistribution terms, therefore
+they remain `LICENSE_UNVERIFIED` even when the product label is visually exact.
+The dHash values use the audit's 9x8 grayscale comparison; ID 402's value is
+computed from the browser-rendered WebP because the Windows image decoder cannot
+read WebP directly. No image was cropped, mirrored, resized or recolored.
+
+| ID | Product / category | Current image URL | Visual/semantic checklist | Source / license | SHA-256 (review bytes) | dHash | Duplicate | Initial status |
+|---:|---|---|---|---|---|---|---|---|
+| 392 | Jacob's Creek Cabernet Sauvignon / Vang đỏ | [solidwineonline](https://solidwineonline.com/cdn/shop/files/JacobsCreekCabernetSauvignon.png?v=1706082353) | Bottle label clearly says Jacob's Creek Cabernet Sauvignon; HIGH | Commercial product CDN; license not stated | `3C0B68BE4C07490D67337452624ACC907EBC10F0C50B516633EB34C75648AC8D` | `0001000000010000001100000011000000110000001100000011000000110000` | UNIQUE | LICENSE_UNVERIFIED |
+| 393 | Casillero del Diablo Cabernet Sauvignon / Vang đỏ | [Walmart image](https://i5.walmartimages.com/seo/Casillero-del-Diablo-Cabernet-Sauvignon-Chile-750-ml-Bottle-14-ABV_c48e2eef-d05c-4303-9efa-683cf4a46e7c.d5863bf24160e39109531e262b043c76.png) | Casillero del Diablo label and Cabernet Sauvignon are visible; HIGH | Retailer CDN; license not stated | `C2CFA4EBE9B3C74CCCB6C7E3A33463EFD552E2F9B5E6455E638678664C225A46` | `1110011011100010111001101110011111100111111001101110001111100011` | UNIQUE | LICENSE_UNVERIFIED |
+| 394 | Yellow Tail Shiraz / Vang đỏ | [cebooze](https://www.cebooze.com/app/uploads/2020/09/yellow-tail-shiraz-800x800.jpg) | Yellow Tail branding and Shiraz varietal are visible; HIGH | Retailer source; license not stated | `02C71580EB284005862FA6170C147F124E15D274DAEF2F4E7B32A71D2B8AB2B8` | `0001000000010000001100000011000000110000001100000011000000110000` | UNIQUE | LICENSE_UNVERIFIED |
+| 395 | Penfolds Koonunga Hill Shiraz Cabernet / Vang đỏ | [Metcash image](https://cdn.metcash.media/image/upload/w_1500,h_1500,c_pad,b_auto/alm-online/images/855798.jpg) | Label reads Cabernet Sauvignon only; the named Shiraz Cabernet blend is not established; LOW/FAIL | Retailer source; license not stated | `1D2525BB2A3F015567928BC339721267163962DBB459D84CC661B646D051D352` | `0001000000010000001100000011000000110000001110000011000000110000` | UNIQUE | REPLACE_REQUIRED / NEED_USER_REVIEW |
+| 396 | Château Los Boldos Cabernet Sauvignon / Vang đỏ | [Tcdn product image](https://images.tcdn.com.br/img/img_prod/1199398/vinho_chanteau_los_boldos_gran_reserva_cabernet_sauvignon_750ml_2937_2_952b139c9e03c5de27dd43c88de28c65.jpg) | Château Los Boldos label and Cabernet Sauvignon are visible; HIGH | Retailer source; license not stated | `006A106AF071F982274CB92E1DEDB9C6856D629FE41407A97082D92D1B4A014D` | `1111000011110000111100001111000011110000110101001111000011010000` | UNIQUE | LICENSE_UNVERIFIED |
+| 397 | Jacob's Creek Chardonnay / Vang trắng | [Mickey Kelly's Bar image](https://mickeykellysbar.com/wp-content/uploads/2020/06/jacobs-creek-chardonnay.jpg) | Jacob's Creek Classic Chardonnay label is clear; HIGH | Commercial bar source; license not stated; browser loads successfully | `8E4AC04A009A52165A40F8F85EFFDC7F4F7085D9D539F31F707CF782BE2A46F0` | `0001000000010000001100000011000000110000001100000011000000110000` | UNIQUE | LICENSE_UNVERIFIED |
+| 398 | Casillero del Diablo Sauvignon Blanc / Vang trắng | [Walmart image](https://i5.walmartimages.com/seo/Casillero-del-Diablo-Sauvignon-Blanc-Chile-750-ml-Glass-Bottle-13-ABV_12d7e3c4-1c95-438b-b9ad-9aad6bcc8a9e.3351ca5d0cc6d490d3e8a8cc0f80fb57.png) | Casillero del Diablo and Sauvignon Blanc are visible; HIGH | Retailer CDN; license not stated | `B675899FC2663F87D40D6548AF8B5D73418E975877EF5CA691FCB4DFF395B895` | `1110011011100010111000101110001111100010111000101110001111100011` | UNIQUE | LICENSE_UNVERIFIED |
+| 399 | Yellow Tail Chardonnay / Vang trắng | [Walmart image](https://i5.walmartimages.com/seo/Yellow-Tail-Chardonnay-Australia-750-ml-Bottle-13-ABV_1513083c-804b-40ca-948c-599e8554322b.7bfa9d8650c8ad1510703e782b5974f9.jpeg) | Yellow Tail and Chardonnay label are visible; HIGH | Retailer CDN; license not stated | `AB1049A70767437F5F851B4D25DD81E1244FCE742A8F65A382A66284D0720FD7` | `0001000000010000000100000011100000111000001110000011000000110000` | UNIQUE | LICENSE_UNVERIFIED |
+| 400 | Oyster Bay Sauvignon Blanc / Vang trắng | [Oyster Bay source](https://www.oysterbaywines.com/uploads/SB-24-wGlass-Blue-gradient-1980x1988px.jpg) | Oyster Bay bottle, Sauvignon Blanc and New Zealand label are clear; HIGH | Winery product source; license not stated | `D4A0F6F02D277627583F4409DD56279F768A5E6A8F118EF81A0055E57CB561FF` | `0110010001010100010101000110000001100000011100000110000001100000` | UNIQUE | LICENSE_UNVERIFIED |
+| 401 | Villa Maria Sauvignon Blanc / Vang trắng | [SAQ image](https://www.saq.com/media/catalog/product/1/1/11974951-1_1659641150.png) | Villa Maria, Sauvignon Blanc and Marlborough labels are clear; HIGH | Retailer source; license not stated | `6985A7CABA781DB91EF05C06680E64CA3B6E080F22524C0D86B25CD4992FFCC8` | `0000110000001100000011000000101000001110000101100000111000010110` | UNIQUE | LICENSE_UNVERIFIED |
+| 402 | Johnnie Walker Black Label / Whisky | [Contentful product hero](https://images.ctfassets.net/waruwpig3jxu/rYk8WxpJ1ellZvibRckWT/0e8df23f16b39c6d986faf6f68af8fee/black-750ml_producthero_lifestyle-01_desktop.webp) | Johnnie Walker Black Label bottle and label are unmistakable; HIGH | Brand CDN; license not stated | `5577BF3A1A4F9920307EF6919AFAA27BE6248760D02562C3F283DEB994E330DD` | `0001011111001011110011000011100100110011001110010111000101110011` (browser render) | UNIQUE | LICENSE_UNVERIFIED |
+| 403 | Chivas Regal 12 / Whisky | [Metcash image](https://cdn.metcash.media/image/upload/w_1500,h_1500,c_pad,b_auto/alm-online/images/583139.jpg) | Chivas Regal 12 and blended Scotch whisky labels are clear; HIGH | Retailer source; license not stated | `F8A490150E19D7BC9655F9518A20348C93031FE4D8455F59F9680C951696AEC2` | `0011000000110000001100000111000001101000011100000110100001101000` | UNIQUE | LICENSE_UNVERIFIED |
+| 404 | Ballantine's Finest / Whisky | [Value Cellars image](https://ww1.valuecellars.com.au/files/2016/05/5010106113127-1.png) | Ballantine's Finest label and Scotch whisky claim are clear; HIGH | Retailer source; license not stated | `46278DA21193AAC3EBF96CA06F3EABF79CE3357DAF18281B3B8F00D15E23100A` | `0011000000110000011100000111000001110000011100000110100001110000` | UNIQUE | LICENSE_UNVERIFIED |
+| 405 | Jack Daniel's Old No.7 / Whisky | [Selection Prestige image](https://cdn.selection-prestige.de/media/catalog/product/cache/image/1536x/a4e40ebdc3e371adff845072e1c73f37/9/9/99733_jack-daniels-old-no-7-tennessee-whiskey-10l-40-vol.jpg) | Jack Daniel's Old No.7 Tennessee Whiskey label is clear; HIGH | Retailer source; license not stated | `0AA17912D4FF08F142F105B9454C4DDAD958809354EC8E8E40E38F8123C82FD0` | `0001000000110000001100000011000000110000001100000011000000110000` | UNIQUE | LICENSE_UNVERIFIED |
+| 406 | Jameson / Whisky | [Fine Wine Delivery image](https://www.finewinedelivery.co.nz/content/products/original/16561.jpg?width=1136) | Jameson Irish Whiskey label is clear; HIGH | Retailer source; license not stated | `15C2347E3CF35903DD03F68BCC9D23DB0D42B7C3D5D83A9579C042F23BED838B` | `0011000000110000011100000111100001110000011100000111100001111000` | UNIQUE | LICENSE_UNVERIFIED |
+
+### ID 395 replacement review
+
+The current image is a Koonunga Hill Cabernet Sauvignon bottle, while the
+catalog name explicitly claims a Shiraz Cabernet blend, so it is not promoted to
+HIGH semantic confidence. Three original-source candidates were checked:
+
+| Candidate | Source / author | License | Visual result | Decision |
+|---|---|---|---|---|
+| Penfolds Koonunga Hill Shiraz 2024 | [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Penfolds_Koonunga_Hill_Shiraz_2024_wine.jpg), Kgbo | CC BY-SA 4.0 | Correct brand and Shiraz, but Cabernet component is not visible; MEDIUM | VISUAL_REFERENCE_ONLY |
+| Penfolds Koonunga Hill Shiraz Cabernet 2023 | [Flickr](https://www.flickr.com/photos/hhs/54903691831/in/album-72157600982551800), hhschueller | CC BY-NC-SA 2.0 | Exact product wording, but non-commercial license; HIGH visual | REJECT for this bundle |
+| Penfolds Koonunga Hill Shiraz Cabernet 2019 | [Flickr](https://www.flickr.com/photos/spelio/51996841701/), spelio | CC BY-NC-SA 2.0 | Exact product wording, but non-commercial license; HIGH visual | REJECT for this bundle |
+
+`SEARCH_EXHAUSTED_FOR_ELIGIBLE_REPLACEMENT = YES`; no new asset or migration is
+created in Batch 4. ID 395 remains `REPLACE_REQUIRED / NEED_USER_REVIEW` (semantic
+FAIL) for an owner decision on an appropriately licensed exact blend photograph.
+
+### Duplicate analysis
+
+There are no same URLs, local paths or SHA-256 values within Batch 4 or against
+the recorded Batch 1--3 assets. Pairwise dHash screening produced 42 Batch-4
+near pairs and 33 cross-batch near pairs at distance ≤16. Every flagged pair was
+visually reviewed: the within-batch pairs are different wine/whisky brands,
+labels, bottle silhouettes or scenes; the cross-batch pairs are distinct
+products from the beer/food packshot groups. These are false positives caused by
+plain-background bottle geometry, not the same scene or crop. Consequently:
+
+`EXACT_DUPLICATE = 0` · `DHASH_NEAR_DUPLICATE = 75` ·
+`DHASH_REAL_DUPLICATE = 0` · `DHASH_FALSE_POSITIVE = 75`.
+
+### Browser QA and regression
+
+The packaged customer menu was rendered at desktop resolution and navigated to
+pages 4 and 5. Screenshots cover the full Batch-4 card set:
+[Batch 4 menu page 4](qa/product-images/batch4-menu-1.png) and
+[Batch 4 menu page 5](qa/product-images/batch4-menu-2.png). The browser reported
+non-zero natural dimensions for IDs 392--406 and the labels matched the
+manifest. ID 79 still resolves to
+`/images/products/cha-ca-da-nang-nuong-la-chuoi.jpg`; ID 382 still resolves to
+`/images/products/saigon-special-cc-by-sa.jpg`.
+
+No Batch-4 migration or local asset was required, so V091 remains the latest
+Flyway version and no new Flyway history entry is expected.
+
+`BATCH_4_AUDIT_COMPLETE = YES` · `BATCH_4_ALL_IMAGES_FIXED = NO` ·
+`SEMANTIC_PASS = 14` · `SEMANTIC_FAIL = 1` ·
+`SEMANTIC_MEDIUM_REVIEW = 0` · `LICENSE_VERIFIED = 0` ·
+`LICENSE_UNVERIFIED = 15` · `NEED_USER_REVIEW = [392,393,394,395,396,397,398,399,400,401,402,403,404,405,406]` ·
+`REPLACE_REQUIRED = [395]`.
