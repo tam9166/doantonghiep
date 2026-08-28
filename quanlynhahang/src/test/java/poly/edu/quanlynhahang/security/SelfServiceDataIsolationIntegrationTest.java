@@ -26,6 +26,7 @@ import java.util.Date;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.head;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -117,6 +118,16 @@ class SelfServiceDataIsolationIntegrationTest {
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
         assertNoAccountSecrets(orderJson);
+    }
+
+    @Test
+    void anonymousBatchOneImagesAllowGetAndHeadOnly() throws Exception {
+        mockMvc.perform(get("/images/products/com-ga-hoi-an-v2.jpg"))
+                .andExpect(status().isOk());
+        mockMvc.perform(head("/images/products/com-ga-hoi-an-v2.jpg"))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/admin/orders"))
+                .andExpect(status().isUnauthorized());
     }
 
     private Account saveAccount(String username) {
