@@ -102,5 +102,25 @@ class ProductImageAuditContractTest {
         assertTrue(batchTwoSql.contains("/images/products/cha-ca-da-nang-nuong-la-chuoi.jpg"));
         assertTrue(new ClassPathResource(
                 "static/images/products/cha-ca-da-nang-nuong-la-chuoi.jpg").exists());
+
+        String batchThreeSql;
+        try (var input = new ClassPathResource(
+                "db/migration/V090__localize_batch_three_verified_product_image.sql").getInputStream()) {
+            batchThreeSql = new String(input.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        assertTrue(batchThreeSql.contains("WHERE id = 382"));
+        assertTrue(batchThreeSql.contains("/images/products/saigon-special-cc-by-sa.jpg"));
+        assertFalse(batchThreeSql.contains("product.name"));
+        assertTrue(new ClassPathResource(
+                "static/images/products/saigon-special-cc-by-sa.jpg").exists());
+
+        String batchThreeIdentitySql;
+        try (var input = new ClassPathResource(
+                "db/migration/V091__align_batch_three_product_identity.sql").getInputStream()) {
+            batchThreeIdentitySql = new String(input.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        assertTrue(batchThreeIdentitySql.contains("COUNT(*) FROM products WHERE name = N'Saigon Special'"));
+        assertTrue(batchThreeIdentitySql.contains("WHERE id = @saigon_special_id"));
+        assertTrue(batchThreeIdentitySql.contains("/images/products/saigon-special-cc-by-sa.jpg"));
     }
 }

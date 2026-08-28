@@ -187,3 +187,104 @@ in [Batch 2 menu page 3](qa/product-images/batch2-menu-1.png) and
 contract migrated V001 through V089 successfully; focused backend tests, all
 464 backend tests, Maven package, frontend lint, 121 frontend tests, and the
 frontend production build passed.
+
+## 8. Batch 3 verification (2026-08-28)
+
+### Scope and selection
+
+The current SQL Server source of truth was queried for rows where `status = 1`
+and `available = 1`, ordered by product ID. Batch 1 IDs
+`[3,4,5,6,7,8,9,10,11,12,13,22]`, Batch 2 IDs `[75..89]`, and all inactive,
+demo or test rows were excluded. The resulting 15-product Batch 3 is:
+
+`[90,91,92,93,94,382,383,384,385,386,387,388,389,390,391]`.
+
+Batch 1 and Batch 2 assets, migrations and backlog decisions were not changed.
+In particular, V089 still maps ID 79 to
+`/images/products/cha-ca-da-nang-nuong-la-chuoi.jpg`.
+
+### Current-image audit and final manifest
+
+Every current URL was downloaded to a temporary review cache and visually
+opened. SHA-256 and dHash below describe the reviewed bytes, except ID 382's
+final values which describe the localized V090 asset. The semantic checklist
+uses the exact product-name claims: named ingredients must be visible when
+reasonable, combo names must show their defining components, and branded beer
+must visibly identify the stated brand.
+
+| ID | Product / category | Old image | Visual and semantic checklist | Provenance / license | SHA-256 | dHash | Duplicate | Decision / browser / final status |
+|---:|---|---|---|---|---|---|---|---|
+| 90 | Đậu bắp bí đỏ hấp nước cốt dừa / Mộc Vị Đặc Trưng | [boiled okra](https://commons.wikimedia.org/wiki/File:BOILED_OR_STEAMED_OKRA_FROM_GARDEN_TO_TABLE.jpg) | Pot of okra only; pumpkin and coconut sauce are absent. LOW/FAIL. | Elmer Centeno Guevarra; CC BY-SA 4.0 | `A90217C9BF3BF8BE40AA03BB1780B25E2ACAE44659C2550E68739DDA2CF51E9D` | `1111100010110011000001101100110001010000010010110000100111100000` | UNIQUE | KEEP old bytes only because no eligible replacement exists; browser FAIL; `REPLACE_REQUIRED` / `NEED_USER_REVIEW` |
+| 91 | Mì Quảng Đà Nẵng chuẩn vị / Mộc Vị Đặc Trưng | [Mì Quảng](https://commons.wikimedia.org/wiki/File:Mì_Quảng.jpg) | Broad noodles, pork/shrimp, herbs and bánh đa identify Mì Quảng. HIGH/PASS. | SauceSupreme; CC BY 2.0 | `DB6CCD5E1999F7F563040FA5C46FCF29AEDCDEDFC4A5E33F13F2E5A85849C544` | `0110010010100010000101111000100110110011100100111101001001110011` | UNIQUE | KEEP; browser PASS; `FINAL` |
+| 92 | Cơm niêu cá kho + canh rau mộc / Mộc Vị Đặc Trưng | [Claypot rice](https://commons.wikimedia.org/wiki/File:Claypot_rice_1.jpg) | Claypot rice, fish and greens are visible, but a distinct vegetable soup is not. MEDIUM. | Neodymium+Nd; CC BY-SA 4.0 | `28C038FFA4A4457394D43BE70779CD28C6D41C03C3CBBAFFE7CD5E2D5B0188AE` | `0001111101111000000110000011100000111100001110001001101011101100` | UNIQUE | KEEP; browser NEED_USER_REVIEW; `NEED_USER_REVIEW` |
+| 93 | Bún mắm nêm Đà Nẵng / Mộc Vị Đặc Trưng | [Đà Nẵng bún mắm](https://commons.wikimedia.org/wiki/File:Bún_mắm_thịt_heo_luộc_ở_Đà_Nẵng.jpg) | Rice noodles, boiled pork, vegetables and the documented Đà Nẵng fermented-shrimp-paste dish are visible. HIGH/PASS. | Beelerb; CC BY-SA 4.0 | `71ECF50BE70BE3567745AE11D3F9C6EE2067C0F09E49657DBCE62609AF7881AA` | `0011001111011000110110001100010111010011111010001100000000100001` | UNIQUE | KEEP; browser PASS; `FINAL` |
+| 94 | Chè mộc / Mộc Vị Đặc Trưng | [Chè Thưng](https://commons.wikimedia.org/wiki/File:Chè_Thưng.jpg) | Vietnamese coconut dessert with taro/cassava/beans is clear, but “mộc” is not a verifiable dish variant. MEDIUM. | Zxcvasdfqwer888; CC BY-SA 3.0 | `A92137ACBA2381DD355A440443305F52B9978E199A1508255238B366A915BB26` | `0000011100010011001100110101100001011001000101110100111101111111` | UNIQUE | KEEP; browser NEED_USER_REVIEW; `NEED_USER_REVIEW` |
+| 382 | Saigon Special / Bia Việt Nam | `saigonbeer.com.au/.../saigon_special...png` | Old 154×336 packshot identified the brand but produced a very tight crop. HIGH. | TLGI commercial product image; reuse license not stated | final `A11ABB2EF18BBE1663FA768B77130D335A15B5BD7435C93D640DDF22B538D770` | final `1001100010000000110100111101011111011111111101111101111100011111` | UNIQUE | REPLACE with `/images/products/saigon-special-cc-by-sa.jpg`; browser PASS after V090/V091; `FINAL` |
+| 383 | Saigon Lager / Bia Việt Nam | `sabibeco.com/.../bia-lon-saigon-lager.jpg` | Correct white Saigon Lager can and brand. HIGH/PASS. | Commercial product source; reuse license not stated | `65D10350A2A19359C47CF2534C6087BFB6003007E25F92A7E4928DF2429E6E7F` | `0110100001101000011000000111000001110000011110000110100001110000` | UNIQUE; packshot-shape near group | KEEP; browser NEED_USER_REVIEW; `LICENSE_UNVERIFIED` / `NEED_USER_REVIEW` |
+| 384 | Bia 333 / Bia Việt Nam | `ikemitsu.co.jp/.../333_can.png` | Correct 333-branded can. HIGH/PASS. | Commercial distributor source; reuse license not stated | `6711CE24D05CD6288227A1A1BB3AA0F8673D8E86197F94750A9AE6DA44A25BBD` | `0110000001100000011010000110100001100000010000000100000001100000` | UNIQUE; packshot-shape near group | KEEP; browser NEED_USER_REVIEW; `LICENSE_UNVERIFIED` / `NEED_USER_REVIEW` |
+| 385 | Bia Hà Nội / Bia Việt Nam | `biahanoi.muabianhanh.com/.../Web_HNP2lon2...jpg` | Correct Hanoi-branded cans. HIGH/PASS. | Retailer source; reuse license not stated | `DE32A002C901275A22427D90BD385120FE7D2109403F289F06457A4113000AF0` | `0110100000111000011010000110100001101000011010000110100001101000` | UNIQUE; packshot-shape near group | KEEP; browser NEED_USER_REVIEW; `LICENSE_UNVERIFIED` / `NEED_USER_REVIEW` |
+| 386 | Larue / Bia Việt Nam | `heineken-vietnam.com.vn/.../larue-smooth...jpg` | Correct Larue Smooth can and brand. HIGH/PASS. | Heineken Vietnam product source; reuse license not stated | `45EEB56A5117AB80DBCCCA36C16A3CF1F6396A8E515F79A723A7A1FCC2D77A15` | `0011000000110000001100000011000000110000001100000011000000110000` | UNIQUE; packshot-shape near group | KEEP; browser NEED_USER_REVIEW; `LICENSE_UNVERIFIED` / `NEED_USER_REVIEW` |
+| 387 | Heineken / Bia quốc tế | [Heineken bottle](https://commons.wikimedia.org/wiki/File:CreativeTools.se_-_PackshotCreator_-_Heineken_beer_bottle_v01_(4290167332).jpg) | Correct Heineken bottle and label. HIGH/PASS. | Creative Tools; CC BY 2.0 | `84F179B1E0D4AD8807E8DDE3E26F13368128392A3E09CB6935046CE95372EAE1` | `1111000001110000001100000111000001110000011100000111000011110000` | UNIQUE; packshot-shape near group | KEEP; browser PASS; `FINAL` |
+| 388 | Tiger / Bia quốc tế | [Tiger bottles](https://commons.wikimedia.org/wiki/File:Tiger_Beer_Bottles.png) | Multiple correctly branded Tiger bottles. HIGH/PASS. | Asia Pacific Breweries Limited; CC BY-SA 3.0 | `2B3AE44B438DAA62CC30DC0802297BE430D957CF61F0D5FC5F2BF694B3E9C5DD` | `0110001101110011001100111010010110100101101001010011001101100011` | UNIQUE | KEEP; browser PASS; `FINAL` |
+| 389 | Budweiser / Bia quốc tế | [Budweiser beer](https://commons.wikimedia.org/wiki/File:Budweiser_beer.jpg) | Correct Budweiser bottle and branded glass. HIGH/PASS. | Matthew Hurst; CC BY-SA 2.0 | `3928202019987907F0FAD4BD30F4DEE05D7510D9E15350023B38813F19561500` | `1100000100100011000000111010001000110010001111001010111000011110` | UNIQUE | KEEP; browser PASS; `FINAL` |
+| 390 | Corona Extra / Bia quốc tế | `bargainbooze.co.uk/.../corona620.png` | Correct Corona Extra bottle and label. HIGH/PASS. | Retailer source; reuse license not stated | `4A835724D293666A9FDDE90EBA0A07CC444765DC1C504EA53DECBE2EA97893DB` | `0000100000010100000001000001110000010100000101000000110000010100` | UNIQUE | KEEP; browser NEED_USER_REVIEW; `LICENSE_UNVERIFIED` / `NEED_USER_REVIEW` |
+| 391 | Hoegaarden / Bia quốc tế | Shopify CDN `Hoegaarden_Anno_1445...jpeg` | Correct Hoegaarden bottles and six-pack. HIGH/PASS. | Store CDN; original author/reuse license not stated | `31554A802B7CFBA06FF7388802E96E12F358A72B90050660CD0D0D6EED57DC1A` | `1010100010101010101010001111100000010111010101010110010111100110` | UNIQUE | KEEP; browser NEED_USER_REVIEW; `LICENSE_UNVERIFIED` / `NEED_USER_REVIEW` |
+
+### Duplicate analysis
+
+There are no same URLs, local paths or SHA-256 values within Batch 3 or across
+the recorded Batch 1/2 assets. No Batch 3 image is at dHash distance ≤16 from a
+Batch 1/2 image. Seven Batch-3 pairs crossed the dHash screening threshold:
+`383–384 (12)`, `383–385 (10)`, `383–386 (16)`, `383–387 (11)`,
+`384–385 (10)`, `384–387 (15)`, and `386–387 (9)`. Visual review confirmed
+that these are different branded cans/bottles on similarly plain packshot
+backgrounds, not duplicate scenes. No image was cropped, mirrored, resized or
+recolored to evade duplicate detection.
+
+### Replacement candidate review
+
+Only products whose image was wrong or whose provenance was unacceptable were
+searched. No search-result thumbnail was used as an asset.
+
+| Product | Candidate | Author / license | Visual and semantic confidence | Decision |
+|---|---|---|---|---|
+| ID 90 Đậu bắp bí đỏ hấp nước cốt dừa | [Coconut Pumpkin Curry](https://www.myskikitchen.com/recipes/coconut-pumpkin-curry) | Dee Kirk; reuse license not stated | Pumpkin, coconut milk and okra are present, but it is a curry with prawns. MEDIUM. | VISUAL_REFERENCE_ONLY |
+| ID 90 | [Pumpkin & okra ragout](https://www.kikkoman.co.uk/food-service/recipes/detail/pumpkin-okra-ragout-with-rice) | Kikkoman; reuse license not stated | Pumpkin, okra and coconut milk are present, but it is a ragout with rice/chickpeas. MEDIUM. | VISUAL_REFERENCE_ONLY |
+| ID 90 | [Coconut-milk steamed fish](https://www.karifying.com/blog/granny-ds-village-steamed-fish) | Karifying in the Kitchen; reuse license not stated | Pumpkin, okra and coconut milk are visible, but fish changes the named dish. LOW-MEDIUM. | VISUAL_REFERENCE_ONLY; `SEARCH_EXHAUSTED` |
+| ID 382 Saigon Special | [Saigon Special Beer](https://commons.wikimedia.org/wiki/File:Saigon_Special_Beer.jpg) | Wiki.cullin; CC BY-SA 4.0 | Exact branded bottle, higher resolution and less extreme aspect ratio. HIGH; license VERIFIED. | SELECTED; localized by V090 |
+| ID 382 | [Bia Saigon Special beer](https://commons.wikimedia.org/wiki/File:Bia_Saigon_Special_beer.jpg) | Riza Nugraha; CC BY 2.0 | Exact branded bottle, but lower resolution and narrower composition. HIGH; license VERIFIED. | REJECT in favor of candidate 1 |
+| ID 382 | [Saigon Special Can](https://www.saigonbeer.com.au/productdetail/saigon_special_can-20.gss) | TLGI Pty Ltd; license not stated | Exact branded can; the existing low-resolution catalog source derives from this product family. HIGH. | REJECT; license UNVERIFIED |
+
+### V090/V091 asset and browser QA
+
+V090 is ID-scoped (`WHERE id = 382 AND status = 1`) for the upgraded source-of-
+truth database. V073 originally inserted alcohol products through a name-based
+MERGE and let SQL Server allocate identity values, so a clean database can give
+Saigon Special a different numeric ID. V091 therefore requires exactly one
+`Saigon Special` semantic-key match, resolves its ID, and performs the UPDATE by
+that resolved ID. Neither migration can alter a Batch 1/2 row. The original
+Commons bytes are stored at
+`Frontend/nha-hang-frontend/public/images/products/saigon-special-cc-by-sa.jpg`
+and
+`quanlynhahang/src/main/resources/static/images/products/saigon-special-cc-by-sa.jpg`.
+Both files have SHA-256
+`A11ABB2EF18BBE1663FA768B77130D335A15B5BD7435C93D640DDF22B538D770`.
+
+Chrome page-4 QA before V090 is recorded in
+[Batch 3 menu upper view](qa/product-images/batch3-menu-1.png) and
+[Batch 3 menu lower view](qa/product-images/batch3-menu-2.png). After applying
+V090 and restarting the application, the same two screenshots are regenerated
+so the final evidence reflects the localized ID 382 asset.
+
+`BATCH_3_AUDIT_COMPLETE = YES` · `BATCH_3_ALL_IMAGES_FIXED = NO` ·
+`BATCH_3_REPLACEMENTS = 1` (ID 382) ·
+`NEED_USER_REVIEW = [90,92,94,383,384,385,386,390,391]` ·
+`REPLACE_REQUIRED = [90]`.
+
+Final verification passed: the focused product/migration tests ran 2 tests with
+no failures; a blank SQL Server database migrated V001 through V091; the full
+backend suite ran 464 tests with no failures or errors; Maven package passed;
+frontend lint passed; all 32 frontend test files / 121 tests passed; and the
+Vite production build passed. Packaged-application smoke returned `200
+image/jpeg` for anonymous GET and HEAD of the V090 asset and `401` for the
+anonymous admin products endpoint.

@@ -47,3 +47,13 @@ manifest and are not presented as newly bundled assets.
 | Product | Local filename | Image title | Author | Original source | License | License URL | Attribution | Changes made |
 |---|---|---|---|---|---|---|---|---|
 | Chả cá Đà Nẵng nướng lá chuối (ID 79) | `cha-ca-da-nang-nuong-la-chuoi.jpg` | Grilled fish banana leaves | John Walker | [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Grilled_fish_banana_leaves.jpg) | CC BY 2.0 | https://creativecommons.org/licenses/by/2.0/ | “Grilled fish banana leaves” by John Walker, via Wikimedia Commons, licensed under CC BY 2.0 | No crop, mirror or recolor; the original image bytes are stored under a semantic filename in both frontend public and backend static assets. |
+
+## Batch 3 — localized asset attribution
+
+Only the image actually selected and bundled in Batch 3 is listed here. The
+remaining remote Batch 3 images and rejected candidates are documented in the
+audit manifest, not represented as project-owned assets.
+
+| Product | Local filename | Image title | Author | Original source | License | License URL | Attribution | Changes made |
+|---|---|---|---|---|---|---|---|---|
+| Saigon Special (ID 382) | `saigon-special-cc-by-sa.jpg` | Saigon Special Beer | Wiki.cullin | [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Saigon_Special_Beer.jpg) | CC BY-SA 4.0 | https://creativecommons.org/licenses/by-sa/4.0/ | “Saigon Special Beer” by Wiki.cullin, via Wikimedia Commons, licensed under CC BY-SA 4.0 | No crop, mirror, resize or recolor; the original image bytes are stored under a semantic filename in both frontend public and backend static assets. |
