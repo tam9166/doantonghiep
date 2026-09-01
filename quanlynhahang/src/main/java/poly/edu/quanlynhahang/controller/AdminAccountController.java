@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.transaction.annotation.Transactional;
 import jakarta.validation.Valid;
@@ -21,6 +22,7 @@ import poly.edu.quanlynhahang.entity.Account;
 import poly.edu.quanlynhahang.entity.Authority;
 import poly.edu.quanlynhahang.dto.CreateStaffRequest;
 import poly.edu.quanlynhahang.dto.UpdateStaffRequest;
+import poly.edu.quanlynhahang.dto.UpdateCustomerRequest;
 import poly.edu.quanlynhahang.dto.OrderResponse;
 import poly.edu.quanlynhahang.repository.AccountRepository;
 import poly.edu.quanlynhahang.service.StaffAccountService;
@@ -126,6 +128,10 @@ public class AdminAccountController {
                 map.put("username", acc.getUsername());
                 map.put("fullname", acc.getFullname());
                 map.put("email", acc.getEmail());
+                map.put("phone", acc.getPhone());
+                // Expose an intentional status label instead of the internal
+                // account flag, which must remain hidden from normal API DTOs.
+                map.put("status", Boolean.FALSE.equals(acc.getEnabled()) ? "LOCKED" : "ACTIVE");
                 map.put("points", acc.getPoints());
                 map.put("membershipTier", acc.getMembershipTier());
                 return map;
@@ -139,5 +145,32 @@ public class AdminAccountController {
     public ResponseEntity<?> getCustomerOrders(@PathVariable String username) {
         return ResponseEntity.ok(orderRepository.findByAccountUsernameWithDetails(username).stream()
                 .map(OrderResponse::from).toList());
+    }
+
+    @PutMapping("/customers/{username}")
+    public ResponseEntity<?> updateCustomer(@PathVariable String username,
+                                            @Valid @RequestBody UpdateCustomerRequest request) {
+        return ResponseEntity.ok(staffAccountService.updateCustomer(username, request));
+    }
+
+    @PostMapping("/customers/{username}/reset-password")
+    public ResponseEntity<?> resetCustomerPassword(@PathVariable String username,
+                                                   @RequestBody java.util.Map<String, String> request) {
+        String password = request == null ? null : request.get("password");
+        staffAccountService.resetCustomerPassword(username, password);
+        return ResponseEntity.ok(java.util.Map.of("message", "Đã đặt lại mật khẩu; khách cần đổi mật khẩu khi đăng nhập."));
+    }
+
+    @DeleteMapping("/customers/{username}")
+    public ResponseEntity<?> disableCustomer(@PathVariable String username) {
+        staffAccountService.disableCustomer(username);
+        return ResponseEntity.ok("Đã khóa tài khoản khách hàng.");
+    }
+
+    @PutMapping("/customers/{username}/status")
+    public ResponseEntity<?> setCustomerStatus(@PathVariable String username,
+                                                @RequestParam boolean enabled) {
+        staffAccountService.setCustomerEnabled(username, enabled);
+        return ResponseEntity.ok(enabled ? "Đã mở khóa tài khoản khách hàng." : "Đã khóa tài khoản khách hàng.");
     }
 }

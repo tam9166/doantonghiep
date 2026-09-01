@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import poly.edu.quanlynhahang.dto.CreateStaffRequest;
 import poly.edu.quanlynhahang.dto.UpdateStaffRequest;
+import poly.edu.quanlynhahang.dto.UpdateCustomerRequest;
 import poly.edu.quanlynhahang.entity.Account;
 import poly.edu.quanlynhahang.entity.Authority;
 import poly.edu.quanlynhahang.entity.Role;
@@ -122,6 +123,60 @@ public class StaffAccountService {
         revokeTokens(account);
         accountRepository.save(account);
         activityLogService.log("DISABLE_STAFF", "Account", account.getUsername(), "Khóa tài khoản nhân viên");
+    }
+
+    @Transactional
+    public Account updateCustomer(String username, UpdateCustomerRequest request) {
+        currentActor();
+        Account account = lockedAccount(username);
+        if (!isCustomer(account)) {
+            throw new AccessDeniedException("Chỉ được quản lý tài khoản khách hàng");
+        }
+        if (request.fullname() != null) account.setFullname(request.fullname().trim());
+        if (request.email() != null) account.setEmail(request.email().trim().toLowerCase(Locale.ROOT));
+        if (request.phone() != null) account.setPhone(trimToNull(request.phone()));
+        Account saved = accountRepository.save(account);
+        activityLogService.log("UPDATE_CUSTOMER", "Account", account.getUsername(), "Cập nhật hồ sơ khách hàng");
+        return saved;
+    }
+
+    @Transactional
+    public void resetCustomerPassword(String username, String newPassword) {
+        currentActor();
+        Account account = lockedAccount(username);
+        if (!isCustomer(account)) {
+            throw new AccessDeniedException("Chỉ được đặt lại mật khẩu khách hàng");
+        }
+        PasswordPolicy.validate(newPassword);
+        account.setPassword(passwordEncoder.encode(newPassword));
+        account.setMustChangePassword(true);
+        revokeTokens(account);
+        accountRepository.save(account);
+        activityLogService.log("ADMIN_RESET_CUSTOMER_PASSWORD", "Account", account.getUsername(), "Đặt lại mật khẩu khách hàng");
+    }
+
+    @Transactional
+    public void disableCustomer(String username) {
+        setCustomerEnabled(username, false);
+    }
+
+    @Transactional
+    public void setCustomerEnabled(String username, boolean enabled) {
+        currentActor();
+        Account account = lockedAccount(username);
+        if (!isCustomer(account)) {
+            throw new AccessDeniedException("Chỉ được khóa tài khoản khách hàng");
+        }
+        account.setEnabled(enabled);
+        revokeTokens(account);
+        accountRepository.save(account);
+        activityLogService.log(enabled ? "ENABLE_CUSTOMER" : "DISABLE_CUSTOMER", "Account", account.getUsername(),
+                enabled ? "Mở khóa tài khoản khách hàng" : "Khóa tài khoản khách hàng");
+    }
+
+    private boolean isCustomer(Account account) {
+        Set<String> roles = accountRoles(account.getUsername());
+        return roles.isEmpty() || roles.stream().allMatch(role -> "ROLE_USER".equals(role) || "ROLE_CUSTOMER".equals(role));
     }
 
     private Account lockedAccount(String username) {

@@ -86,6 +86,8 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.GET, "/index.html", "/favicon.ico").permitAll()
             .requestMatchers(HttpMethod.GET, "/admin/**").permitAll()
             .requestMatchers(HttpMethod.GET, "/assets/**").permitAll()
+            .requestMatchers(HttpMethod.GET, "/images/**").permitAll()
+            .requestMatchers(HttpMethod.HEAD, "/images/**").permitAll()
             .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/staff/login", "/api/auth/signup").permitAll()
             .requestMatchers("/error").permitAll()

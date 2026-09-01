@@ -40,6 +40,9 @@ public class Account {
     @Column(nullable = false, length = 100)
     private String email;
 
+    @Column(length = 20)
+    private String phone;
+
     @Column(columnDefinition = "int default 0")
     private Integer points = 0;
 

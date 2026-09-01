@@ -37,11 +37,13 @@ class BlankDatabaseMigrationIntegrationTest {
                     .baselineOnMigrate(true)
                     .baselineVersion("2")
                     .load();
-            assertEquals(82, flyway.migrate().migrationsExecuted);
+            assertEquals(96, flyway.migrate().migrationsExecuted);
 
             try (Connection target = DriverManager.getConnection(targetUrl, username, password);
                  Statement statement = target.createStatement()) {
                 assertTrue(tableExists(statement, "Accounts"));
+                assertEquals(1, count(statement,
+                        "SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Accounts') AND name = 'phone'"));
                 assertEquals(1, count(statement,
                         "SELECT CASE WHEN (@@OPTIONS & 512) = 0 THEN 1 ELSE 0 END"));
                 assertTrue(tableExists(statement, "reservations"));
@@ -52,6 +54,7 @@ class BlankDatabaseMigrationIntegrationTest {
                 assertTrue(tableExists(statement, "inventory_reservations"));
                 assertTrue(tableExists(statement, "area_pricing"));
                 assertTrue(tableExists(statement, "ingredient_batch_disposals"));
+                assertTrue(tableExists(statement, "kitchen_proposals"));
                 assertEquals(1, count(statement,
                         "SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Orders') AND name = 'order_code'"));
                 assertEquals(1, count(statement,
@@ -100,6 +103,60 @@ class BlankDatabaseMigrationIntegrationTest {
                         "SELECT COUNT(DISTINCT image) FROM dbo.Products WHERE alcohol_percentage IS NOT NULL"));
                 assertEquals(0, count(statement,
                         "SELECT COUNT(*) FROM dbo.Products WHERE alcohol_percentage IS NOT NULL AND image LIKE '%google.com/imgres%'"));
+                assertEquals(0, count(statement,
+                        "SELECT COUNT(*) FROM dbo.Products WHERE status = 1 AND name LIKE N'Demo %'"));
+                assertEquals(31, count(statement,
+                        "SELECT COUNT(*) FROM dbo.Products WHERE status = 1 AND image LIKE '/images/products/%'"));
+                assertEquals(1, count(statement,
+                        "SELECT COUNT(*) FROM dbo.Products WHERE id = 4 AND image = '/images/products/goi-cuon-tom-thit-cc0.jpg'"));
+                assertEquals(1, count(statement,
+                        "SELECT COUNT(*) FROM dbo.Products WHERE id = 7 AND image = '/images/products/bo-nuong-la-lot-cc-by.jpg'"));
+                assertEquals(1, count(statement,
+                        "SELECT COUNT(*) FROM dbo.Products WHERE id = 10 AND image = '/images/products/mi-quang-dac-biet-cc-by.jpg'"));
+                assertEquals(1, count(statement,
+                        "SELECT COUNT(*) FROM dbo.Products WHERE id = 11 AND image = '/images/products/nuoc-ep-dua-hau-cc0.jpg'"));
+                assertEquals(1, count(statement,
+                        "SELECT COUNT(*) FROM dbo.Products WHERE id = 13 AND image = '/images/products/che-khuc-bach-cc-by-sa.jpg'"));
+                assertEquals(1, count(statement,
+                        "SELECT COUNT(*) FROM dbo.Products WHERE id = 5 AND image = '/images/products/cha-gio-hai-san-v2.jpg'"));
+                assertEquals(1, count(statement,
+                        "SELECT COUNT(*) FROM dbo.Products WHERE id = 6 AND image = '/images/products/lau-thai-hai-san-v2.jpg'"));
+                assertEquals(1, count(statement,
+                        "SELECT COUNT(*) FROM dbo.Products WHERE id = 9 AND image = '/images/products/com-ga-hoi-an-v2.jpg'"));
+                assertEquals(1, count(statement,
+                        "SELECT COUNT(*) FROM dbo.Products WHERE id = 12 AND image = '/images/products/tra-dao-cam-sa-v2.jpg'"));
+                assertEquals(1, count(statement,
+                        "SELECT COUNT(*) FROM dbo.Products WHERE id = 79 AND image = '/images/products/cha-ca-da-nang-nuong-la-chuoi.jpg'"));
+                assertEquals(1, count(statement,
+                        "SELECT COUNT(*) FROM dbo.Products WHERE name = N'Saigon Special' AND image = '/images/products/saigon-special-cc-by-sa.jpg'"));
+                assertEquals(1, count(statement,
+                        "SELECT COUNT(*) FROM dbo.Products WHERE name = N'Absolut' AND image = '/images/products/absolut-vodka-cc-by.jpg'"));
+                assertEquals(1, count(statement,
+                        "SELECT COUNT(*) FROM dbo.Products WHERE name = N'Finlandia' AND image = '/images/products/finlandia-vodka-cc-by-sa.jpg'"));
+                assertEquals(1, count(statement,
+                        "SELECT COUNT(*) FROM dbo.Products WHERE name = N'Hennessy VS' AND image = '/images/products/hennessy-vs-cognac-cc-by-sa.jpg'"));
+                assertEquals(17, count(statement, """
+                        SELECT COUNT(*) FROM dbo.Products
+                        WHERE status = 1 AND available = 1 AND (
+                               (name = N'Mì Quảng Đà Nẵng chuẩn vị' AND image = '/images/products/mi-quang-da-nang-cc-by-sa.jpg')
+                            OR (name = N'Bia 333' AND image = '/images/products/bia-333-cc-by-sa.jpg')
+                            OR (name = N'Larue' AND image = '/images/products/larue-beer-public-domain.jpg')
+                            OR (name = N'Corona Extra' AND image = '/images/products/corona-extra-cc-by-sa.png')
+                            OR (name = N'Hoegaarden' AND image = '/images/products/hoegaarden-original-cc0.jpg')
+                            OR (name = N'Casillero del Diablo Cabernet Sauvignon' AND image = '/images/products/casillero-del-diablo-cabernet-sauvignon-cc-by-sa.jpg')
+                            OR (name = N'Johnnie Walker Black Label' AND image = '/images/products/johnnie-walker-black-label-cc-by-sa.jpg')
+                            OR (name = N'Chivas Regal 12' AND image = '/images/products/chivas-regal-12-cc-by-sa.jpg')
+                            OR (name = N'Ballantine''s Finest' AND image = '/images/products/ballantines-finest-cc-by-sa.jpg')
+                            OR (name = N'Jack Daniel''s Old No.7' AND image = '/images/products/jack-daniels-old-no-7-cc0.jpg')
+                            OR (name = N'Jameson' AND image = '/images/products/jameson-original-cc-by-sa.jpg')
+                            OR (name = N'Smirnoff Red' AND image = '/images/products/smirnoff-red-cc-by.jpg')
+                            OR (name = N'Grey Goose' AND image = '/images/products/grey-goose-cc-by.jpg')
+                            OR (name = N'Belvedere' AND image = '/images/products/belvedere-vodka-cc-by-sa.jpg')
+                            OR (name = N'Rémy Martin VSOP' AND image = '/images/products/remy-martin-vsop-cc-by.jpg')
+                            OR (name = N'Martell VSOP' AND image = '/images/products/martell-vsop-cc0.jpg')
+                            OR (name = N'Courvoisier VSOP' AND image = '/images/products/courvoisier-vsop-cc-by-sa.jpg')
+                        )
+                        """));
                 assertEquals(1, count(statement,
                         "SELECT COUNT(*) FROM sys.default_constraints dc JOIN sys.columns c ON c.object_id = dc.parent_object_id AND c.column_id = dc.parent_column_id WHERE dc.parent_object_id = OBJECT_ID('dbo.order_details') AND c.name = 'unit_price'"));
                 assertEquals(1, count(statement,

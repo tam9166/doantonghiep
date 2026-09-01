@@ -16,6 +16,7 @@
         </button>
         <button @click="activeTab = 'menu'" :class="['tab-btn', { active: activeTab === 'menu' }]"> Thực Đơn</button>
         <button @click="activeTab = 'ai-kitchen'" :class="['tab-btn', { active: activeTab === 'ai-kitchen' }]"> Gom Món (AI)</button>
+        <button v-if="isKitchen" @click="activeTab = 'proposals'" :class="['tab-btn', { active: activeTab === 'proposals' }]"> Đề xuất</button>
         <button @click="$router.push('/staff/profile')" class="btn-profile">
           <UiIcon name="profile" />
           <span>Hồ sơ</span>
@@ -121,7 +122,7 @@
             <h2> Tồn Kho Nguyên Liệu</h2>
             <p class="inv-sub">Danh sách nguyên liệu hiện có trong kho.</p>
           </div>
-          <button @click="$router.push('/admin/ingredients')" class="btn-restock" style="padding: 10px 20px; border-radius: 8px;">
+          <button @click="$router.push('/kitchen/inventory')" class="btn-restock" style="padding: 10px 20px; border-radius: 8px;">
              Quản Lý Kho & Công Thức
           </button>
         </div>
@@ -223,7 +224,7 @@
                 {{ product.available ? ' Đang bán' : ' Hết món' }}
               </span>
               <button v-if="product.hasRecipe" @click="viewRecipeDetails(product)" class="btn-toggle-menu" style="border-color: var(--secondary); color: var(--secondary); background: color-mix(in srgb, var(--secondary) 10%, transparent)">Công thức</button>
-              <button v-else @click="$router.push('/admin/ingredients')" class="btn-toggle-menu btn-recipe-setup">Thiết lập công thức</button>
+              <button v-else-if="canManagePrices" @click="$router.push('/admin/ingredients')" class="btn-toggle-menu btn-recipe-setup">Thiết lập công thức</button>
               <button v-if="product.marginStatus === 'NEGATIVE_MARGIN' && canManagePrices"
                 @click="$router.push('/admin')" class="btn-toggle-menu btn-adjust-price">Điều chỉnh giá</button>
               <button @click="toggleAvailable(product)" :class="['btn-toggle-menu', product.available ? 'btn-off' : 'btn-on']">
@@ -267,6 +268,17 @@
         <div v-if="Object.keys(aggregatedDishes).length === 0" class="empty-state">
           <p>Tất cả các món đã được nấu xong!</p>
         </div>
+      </div>
+
+      <div v-if="activeTab === 'proposals' && isKitchen">
+        <div class="inv-header"><h2>Đề xuất từ Bếp</h2><p class="inv-sub">Đề xuất sẽ ở trạng thái PENDING; chỉ Admin/Manager mới được duyệt.</p></div>
+        <form class="proposal-form" @submit.prevent="submitProposal">
+          <label>Loại đề xuất<select v-model="proposalForm.proposalType"><option value="INGREDIENT">Nguyên liệu</option><option value="DISH">Món</option><option value="RECIPE">Công thức</option></select></label>
+          <label>Nội dung JSON<textarea v-model="proposalForm.payload" rows="8" required placeholder="{&quot;name&quot;:&quot;Gạo&quot;,&quot;unit&quot;:&quot;kg&quot;}"></textarea></label>
+          <label>Lý do đề xuất<textarea v-model="proposalForm.reason" rows="3" required></textarea></label>
+          <button class="btn-ai-analyze" type="submit" :disabled="proposalSubmitting">{{ proposalSubmitting ? 'Đang gửi...' : 'Gửi đề xuất' }}</button>
+        </form>
+        <div v-if="proposalMessage" class="ai-result">{{ proposalMessage }}</div>
       </div>
     </main>
 
@@ -340,10 +352,10 @@
 
 <script setup>
 import StaffOperationsAssistant from '@/components/StaffOperationsAssistant.vue'
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import api from '@/services/api';
 import { getApiErrorMessage } from '@/services/errorMessage';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import SockJS from 'sockjs-client';
 import { Stomp } from '@stomp/stompjs';
 import TimekeepingWidget from '../components/TimekeepingWidget.vue';
@@ -355,10 +367,12 @@ import { kitchenQuantity, normalizeKitchenCollection } from '@/utils/kitchenData
 const { confirmDialog, promptDialog } = useDialog();
 
 const router = useRouter();
+const route = useRoute();
 const staffUser = getStaffUser();
 const staffRoles = [staffUser?.role, ...(staffUser?.roles || [])]
   .map(role => String(role?.name || role || '').toUpperCase());
 const canManagePrices = staffRoles.some(role => ['ADMIN', 'MANAGER', 'ROLE_ADMIN', 'ROLE_MANAGER'].includes(role));
+const isKitchen = staffRoles.some(role => ['KITCHEN', 'ROLE_KITCHEN'].includes(role));
 const orders = ref([]);
 const pendingOrders = ref([]);
 const allOrders = ref([]);
@@ -372,6 +386,12 @@ const menuError = ref('');
 const toastMsg = ref('');
 const now = ref(new Date());
 const activeTab = ref('orders');
+
+const syncTabWithRoute = () => {
+  if (route.path === '/kitchen/inventory') activeTab.value = 'inventory';
+};
+
+watch(() => route.path, syncTabWithRoute, { immediate: true });
 let timerInterval = null;
 let syncInterval = null;
 let previousPendingIds = [];
@@ -380,6 +400,9 @@ let stompClient = null;
 const showAiModal = ref(false);
 const aiLoading = ref(false);
 const aiResponse = ref('');
+const proposalSubmitting = ref(false);
+const proposalMessage = ref('');
+const proposalForm = ref({ proposalType: 'INGREDIENT', payload: '{\n  "name": "",\n  "unit": ""\n}', reason: '' });
 
 // Recipe Modal state
 const showRecipeModal = ref(false);
@@ -388,6 +411,19 @@ const currentProductRecipes = ref([]);
 
 const getToken = () => getStaffToken();
 const configHeader = () => ({ headers: { 'Authorization': `Bearer ${getToken()}` } });
+
+const submitProposal = async () => {
+  let payload;
+  try { payload = JSON.parse(proposalForm.value.payload); } catch (e) { proposalMessage.value = 'Nội dung phải là JSON hợp lệ.'; return; }
+  if (!proposalForm.value.reason.trim()) { proposalMessage.value = 'Vui lòng nhập lý do đề xuất.'; return; }
+  proposalSubmitting.value = true;
+  try {
+    await api.post('/api/kitchen/proposals', { proposalType: proposalForm.value.proposalType, payload: JSON.stringify(payload), reason: proposalForm.value.reason.trim() }, configHeader());
+    proposalMessage.value = 'Đã gửi đề xuất. Trạng thái hiện tại: PENDING.';
+    proposalForm.value.reason = '';
+  } catch (err) { proposalMessage.value = getApiErrorMessage(err, 'Không thể gửi đề xuất.'); }
+  finally { proposalSubmitting.value = false; }
+};
 
 // === AUDIO NOTIFICATION ===
 const playNotificationSound = () => {
@@ -969,6 +1005,9 @@ onUnmounted(() => {
 .btn-on:hover { background: var(--primary); color: var(--bg-dark); }
 .btn-recipe-setup { color: var(--primary); border-color: var(--primary); background: #fff; }
 .btn-adjust-price { color: #fff; border-color: var(--primary); background: var(--primary); }
+.proposal-form { max-width: 760px; display: grid; gap: 14px; padding: 20px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; }
+.proposal-form label { display: grid; gap: 6px; color: var(--text-heading); font-weight: 700; }
+.proposal-form input, .proposal-form select, .proposal-form textarea { width: 100%; box-sizing: border-box; border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; background: var(--bg-card2); color: var(--text-primary); font: inherit; }
 
 /* Toast */
 .toast-notification { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--bg-card); color: var(--primary); padding: 14px 28px; border-radius: 30px; border: 1px solid var(--primary); box-shadow: 0 0 30px color-mix(in srgb, var(--secondary) 30%, transparent); font-weight: 700; z-index: 1000; animation: slideUp 0.3s ease; }

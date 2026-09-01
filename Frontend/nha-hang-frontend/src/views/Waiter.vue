@@ -1795,7 +1795,8 @@ onUnmounted(() => {
   font-size: 1.4rem !important;
   line-height: 1.2;
   font-weight: 900 !important;
-  color: var(--text-heading);
+  color: var(--primary);
+  text-shadow: 0 1px 0 var(--bg-card);
 }
 .table-location { margin: 2px 0 5px; color: var(--text-muted); font-size: 0.72rem; }
 .no-img-icon { font-size: 1.2rem; }

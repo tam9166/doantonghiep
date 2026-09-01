@@ -14,7 +14,9 @@ import poly.edu.quanlynhahang.entity.ReservationStatus;
 @Service
 public class ReservationStateMachine {
 
+    // NOTE: Bảng chuyển trạng thái tập trung ngăn các API tự ý đi tắt quy trình đặt bàn.
     private static final Map<ReservationStatus, Set<ReservationStatus>> ALLOWED = new EnumMap<>(ReservationStatus.class);
+    // NOTE: Trạng thái kết thúc không được chuyển tiếp, giúp lịch sử nghiệp vụ nhất quán.
     private static final Set<ReservationStatus> TERMINAL = EnumSet.of(
             ReservationStatus.REJECTED,
             ReservationStatus.CANCELLED,
@@ -76,6 +78,7 @@ public class ReservationStateMachine {
     }
 
     public void assertCanTransition(ReservationStatus current, ReservationStatus next) {
+        // NOTE: Mọi thay đổi trạng thái phải đi qua cùng một quy tắc và trả lỗi xung đột nếu không hợp lệ.
         if (current == next) {
             return;
         }

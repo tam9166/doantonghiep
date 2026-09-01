@@ -112,7 +112,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="p in products" :key="p.id" :class="{ 'row-disabled': p.status === false }">
+                <tr v-for="p in pagedProducts" :key="p.id" :class="{ 'row-disabled': p.status === false }">
                   <td>
                     <img :src="foodImage(p.image)" class="img-thumb" @error="replaceFoodImage" />
                   </td>
@@ -137,11 +137,19 @@
                     </div>
                   </td>
                 </tr>
-                <tr v-if="products.length === 0">
-                  <td colspan="6" class="empty-row">Chưa có món ăn nào.</td>
+                <tr v-if="pagedProducts.length === 0">
+                  <td colspan="9" class="empty-row">Chưa có món ăn nào.</td>
                 </tr>
               </tbody>
             </table>
+          </div>
+          <div v-if="products.length" class="pagination-bar">
+            <span class="pagination-summary">Hiển thị {{ pageStart + 1 }}–{{ pageEnd }} / {{ products.length }} món</span>
+            <nav class="pagination" aria-label="Phân trang danh sách món">
+              <button class="page-button" :disabled="currentPage === 1" @click="currentPage--">‹</button>
+              <button v-for="page in visiblePages" :key="page" class="page-button" :class="{ active: page === currentPage }" @click="currentPage = page">{{ page }}</button>
+              <button class="page-button" :disabled="currentPage === totalPages" @click="currentPage++">›</button>
+            </nav>
           </div>
         </div>
       </div>
@@ -153,7 +161,7 @@
 <script setup>
 import AdminLayout from '@/components/AdminLayout.vue';
 
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import api from '@/services/api';
 import { foodImage, replaceFoodImage } from '@/utils/imageFallback';
 import { useToast } from '@/composables/useToast';
@@ -161,6 +169,20 @@ import { useDialog } from '@/composables/useDialog';
 import { getApiErrorMessage } from '@/services/errorMessage';
 
 const products = ref([]);
+const currentPage = ref(1);
+const pageSize = 10;
+const totalPages = computed(() => Math.max(1, Math.ceil(products.value.length / pageSize)));
+const pageStart = computed(() => (currentPage.value - 1) * pageSize);
+const pageEnd = computed(() => Math.min(pageStart.value + pageSize, products.value.length));
+const pagedProducts = computed(() => products.value.slice(pageStart.value, pageEnd.value));
+const visiblePages = computed(() => {
+  const total = totalPages.value;
+  if (total <= 5) return Array.from({ length: total }, (_, i) => i + 1);
+  let start = Math.max(1, currentPage.value - 2);
+  let end = Math.min(total, start + 4);
+  start = Math.max(1, end - 4);
+  return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+});
 const categories = ref([]);
 const isEditing = ref(false);
 const editingId = ref(null);
@@ -181,6 +203,7 @@ const fetchProducts = async () => {
   try {
     const res = await api.get('/api/admin/products', getAuthConfig());
     products.value = res.data;
+    currentPage.value = Math.min(currentPage.value, totalPages.value);
   } catch (error) { console.error('Lỗi lấy sản phẩm', error); }
 };
 
@@ -244,7 +267,7 @@ const saveProduct = async () => {
       toast.success('Thêm món thành công.');
     }
     cancelEdit();
-    fetchProducts();
+    await fetchProducts();
   } catch (error) {
     toast.error(getApiErrorMessage(error, 'Không thể lưu món. Vui lòng kiểm tra quyền quản trị.'));
   }
@@ -255,7 +278,7 @@ const toggleStatus = async (product) => {
   const payload = { ...product, status: newStatus, category: product.category ? { id: product.category.id } : null };
   try {
     await api.put(`/api/admin/products/${product.id}`, payload, getAuthConfig());
-    fetchProducts();
+    await fetchProducts();
   } catch (error) { toast.error(getApiErrorMessage(error, 'Không thể cập nhật trạng thái món.')); }
 };
 
@@ -264,7 +287,7 @@ const handleDelete = async (id) => {
   try {
     await api.delete(`/api/admin/products/${id}`, getAuthConfig());
     toast.success('Đã xóa món.');
-    fetchProducts();
+    await fetchProducts();
   } catch (error) {
     toast.error(getApiErrorMessage(error, 'Món này đã có trong hóa đơn, không thể xóa. Hãy dùng "Báo Hết" thay vì xóa.'));
   }
@@ -278,13 +301,13 @@ onMounted(() => {
 
 <style scoped>
 .admin-wrapper { background: var(--bg-root); min-height: 100vh; }
-.admin-content { max-width: 1300px; margin: 0 auto; padding: 36px 24px; }
+.admin-content { width: 100%; max-width: 1600px; margin: 0 auto; padding: 36px 24px; box-sizing: border-box; }
 
 .page-header { margin-bottom: 32px; }
 .page-title { font-size: 2rem; font-weight: 900; color: var(--text-heading); margin: 0 0 6px 0; }
 .page-subtitle { color: var(--text-muted); font-size: 0.95rem; margin: 0; }
 
-.content-grid { display: grid; grid-template-columns: minmax(280px, 30%) minmax(0, 70%); gap: 28px; }
+.content-grid { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 24px; }
 
 /* Form Card */
 .form-card {
@@ -343,7 +366,7 @@ onMounted(() => {
   border-radius: var(--radius-lg);
   padding: 28px;
   box-shadow: var(--shadow-md);
-  overflow: hidden;
+  overflow: visible;
 }
 .table-card h3 {
   margin: 0 0 24px 0;
@@ -364,8 +387,16 @@ onMounted(() => {
   font-size: 0.85rem;
   font-weight: 800;
 }
-.table-responsive { width: 100%; overflow-x: auto; }
-.table-responsive .g-table { width: 100%; min-width: 1200px; }
+.table-responsive { display: block; width: 100%; max-width: 100%; min-width: 0; overflow-x: auto !important; overflow-y: visible; }
+.table-responsive .g-table { display: table; width: max(100%, 1200px); min-width: 1200px; table-layout: auto; }
+.table-responsive .g-table th:nth-child(1) { width: 70px; }
+.table-responsive .g-table th:nth-child(2) { width: 180px; }
+.table-responsive .g-table th:nth-child(3) { width: 140px; }
+.table-responsive .g-table th:nth-child(4), .table-responsive .g-table th:nth-child(6) { width: 115px; }
+.table-responsive .g-table th:nth-child(5) { width: 80px; }
+.table-responsive .g-table th:nth-child(7) { width: 95px; }
+.table-responsive .g-table th:nth-child(8) { width: 120px; }
+.table-responsive .g-table th:nth-child(9) { width: 150px; }
 
 .img-thumb {
   width: 52px; height: 52px;
@@ -387,7 +418,7 @@ onMounted(() => {
 
 .price-text { color: var(--primary); font-weight: 700; }
 
-.action-buttons { display: flex; gap: 6px; }
+.action-buttons { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 .btn-edit {
   background: color-mix(in srgb, var(--secondary) 15%, transparent);
   border: 1px solid color-mix(in srgb, var(--secondary) 30%, transparent);
@@ -407,4 +438,12 @@ onMounted(() => {
 
 .row-disabled td { opacity: 0.5; }
 .empty-row { text-align: center; color: var(--text-muted); padding: 40px; font-style: italic; }
+.pagination-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 20px; flex-wrap: wrap; }
+.pagination-summary { color: var(--text-muted); font-size: 0.88rem; }
+.pagination { display: flex; align-items: center; gap: 5px; }
+.page-button { min-width: 34px; height: 34px; border: 1px solid var(--border-light); border-radius: var(--radius-sm); background: var(--bg-card); color: var(--text-secondary); cursor: pointer; font-weight: 700; }
+.page-button:hover:not(:disabled), .page-button.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+.page-button:disabled { opacity: 0.4; cursor: not-allowed; }
+@media (max-width: 1100px) { .content-grid { grid-template-columns: 1fr; } .form-card { max-width: 560px; } }
+@media (max-width: 600px) { .admin-content { padding: 24px 12px; } .table-card { padding: 16px; } .pagination-bar { align-items: flex-start; flex-direction: column; } }
 </style>

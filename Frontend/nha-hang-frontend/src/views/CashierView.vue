@@ -700,7 +700,8 @@ onUnmounted(() => {
   font-size: 1.45rem !important;
   line-height: 1.2;
   font-weight: 900 !important;
-  color: var(--text-heading);
+  color: var(--primary);
+  text-shadow: 0 1px 0 var(--bg-card);
 }
 .cashier-table-location { margin: 2px 0 5px; color: var(--text-muted); font-size: 0.72rem; }
 .table-box.payment-priority { border: 2px solid var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 12%, transparent); }

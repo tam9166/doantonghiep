@@ -51,6 +51,7 @@ public class ReservationWaitlistService {
 
     @Transactional
     public WaitlistResponse create(WaitlistRequest request) {
+        // NOTE: Yêu cầu chờ được chuẩn hóa, lưu trạng thái WAITING rồi mới thông báo cho quản lý.
         NormalizedWaitlist normalized = normalize(request);
         ReservationWaitlist entry = new ReservationWaitlist();
         entry.setWaitlistCode(generateCode(normalized.date()));
@@ -98,6 +99,7 @@ public class ReservationWaitlistService {
 
     @Transactional
     public WaitlistResponse contact(Long id, WaitlistActionRequest request) {
+        // NOTE: Chỉ yêu cầu đang chờ hoặc đã liên hệ mới được cập nhật lần liên hệ tiếp theo.
         ReservationWaitlist entry = find(id);
         ensureWaitingOrContacted(entry);
         entry.setStatus(WaitlistStatus.CONTACTED);
@@ -111,6 +113,7 @@ public class ReservationWaitlistService {
 
     @Transactional
     public WaitlistResponse convert(Long id, WaitlistActionRequest request) {
+        // NOTE: Chuyển đổi chỉ liên kết với đặt bàn đã tồn tại và khớp khách, ngày, số người, khu vực.
         ReservationWaitlist entry = find(id);
         ensureWaitingOrContacted(entry);
         String reservationCode = limit(trimToNull(
@@ -152,6 +155,7 @@ public class ReservationWaitlistService {
 
     @Transactional
     public WaitlistResponse cancel(Long id, WaitlistActionRequest request) {
+        // NOTE: Hủy giữ nguyên bản ghi và ghi chú quản lý để bảo toàn dấu vết nghiệp vụ.
         ReservationWaitlist entry = find(id);
         ensureWaitingOrContacted(entry);
         entry.setStatus(WaitlistStatus.CANCELLED);

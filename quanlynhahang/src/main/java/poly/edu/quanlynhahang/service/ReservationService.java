@@ -84,9 +84,13 @@ public class ReservationService {
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}$", Pattern.CASE_INSENSITIVE);
     private static final Pattern UNSAFE_TEXT_PATTERN = Pattern.compile("(?i)<\\s*script|javascript:|onerror\\s*=|onload\\s*=");
     private static final int DEFAULT_DURATION_MINUTES = 120;
+    // NOTE: Thời gian dọn bàn được cộng vào cuối mỗi lượt để tránh xếp hai lượt quá sát nhau.
     private static final int CLEANUP_MINUTES = 15;
+    // NOTE: Quy tắc đặt trước được kiểm tra tại backend, không phụ thuộc dữ liệu hợp lệ từ giao diện.
     private static final int MIN_ADVANCE_MINUTES = 30;
+    // NOTE: Giới hạn số bàn ghép giúp phương án vận hành thực tế và tránh tổ hợp quá phức tạp.
     private static final int MAX_COMBINED_TABLES = 4;
+    // NOTE: Chỉ các trạng thái còn chiếm dụng khung giờ mới tham gia kiểm tra trùng bàn.
     private static final EnumSet<ReservationStatus> BLOCKING_STATUSES = EnumSet.of(
             ReservationStatus.PENDING,
             ReservationStatus.WAITING_TABLE_ASSIGNMENT,
@@ -278,6 +282,8 @@ public class ReservationService {
 
     @Transactional
     public ReservationResponse createReservation(ReservationRequest request, String idempotencyKey) {
+        // NOTE: Luồng tạo chuẩn hóa đầu vào, chống gửi lặp tùy chọn, kiểm tra sức chứa và gán bàn
+        // trước khi lưu; sự kiện realtime chỉ được phát sau khi bản ghi đã lưu thành công.
         NormalizedReservation normalized = normalizeAndValidate(request);
         String normalizedIdempotencyKey = normalizeIdempotencyKey(idempotencyKey);
         String requestFingerprint = fingerprint(request, normalized);
@@ -467,6 +473,7 @@ public class ReservationService {
     public List<AvailableTableResponse> findAvailableTables(String date, String time, Integer durationMinutes,
                                                             Integer guestCount, Integer areaId,
                                                             Boolean lateDiningConfirmed) {
+        // NOTE: Danh sách khả dụng được tính từ trạng thái vận hành, khu vực, sức chứa và lịch đặt thực tế.
         LocalDate reservationDate = parseDate(date);
         LocalTime arrivalTime = parseTime(time);
         int duration = durationMinutes == null || durationMinutes < 30 ? DEFAULT_DURATION_MINUTES : durationMinutes;
@@ -640,6 +647,8 @@ public class ReservationService {
 
     @Transactional
     public ReservationResponse confirm(Long id, ReservationActionRequest request) {
+        // NOTE: Khi xác nhận, bàn được khóa và kiểm tra lại để tránh dữ liệu khả dụng cũ giữa hai yêu cầu đồng thời.
+        // Trạng thái kế tiếp phụ thuộc nghĩa vụ cọc; realtime được phát sau khi trạng thái đã được lưu.
         Reservation reservation = findReservation(id);
         List<Integer> requestedTableIds = requestedTableIds(request, reservation);
         if (requestedTableIds.isEmpty()) {
@@ -967,6 +976,7 @@ public class ReservationService {
     }
 
     private NormalizedReservation normalizeAndValidate(ReservationRequest request) {
+        // NOTE: Backend là nguồn tin cậy cuối cùng: chuẩn hóa và xác thực lại toàn bộ dữ liệu khách gửi lên.
         if (request == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Dữ liệu đặt bàn không hợp lệ");
         String name = trimToNull(request.getCustomerName());
         String phone = normalizePhone(request.getCustomerPhone());
@@ -1012,6 +1022,7 @@ public class ReservationService {
     }
 
     private void validateReservationTime(LocalDate date, LocalTime time, int duration, boolean lateDiningConfirmed) {
+        // NOTE: Kiểm tra thời điểm quá khứ, thời gian đặt trước và giờ hoạt động trước khi giữ chỗ.
         LocalDateTime arrival = LocalDateTime.of(date, time);
         // P0: Check quá khứ tuyệt đối — không thể đặt bàn vào thời gian đã qua
         if (arrival.isBefore(LocalDateTime.now())) {
@@ -1032,6 +1043,8 @@ public class ReservationService {
     }
 
     private boolean hasConflict(Integer tableId, LocalDate date, LocalTime start, int duration, Long currentReservationId) {
+        // NOTE: Hai khoảng thời gian trùng khi requestedStart < otherEnd và requestedEnd > otherStart;
+        // cả hai khoảng đều cộng thời gian dọn bàn để bảo vệ khoảng chuyển ca phục vụ.
         LocalDateTime requestedStart = LocalDateTime.of(date, start);
         LocalDateTime requestedEnd = requestedStart.plusMinutes(duration + CLEANUP_MINUTES);
         List<Reservation> reservations = new ArrayList<>(
@@ -1060,6 +1073,7 @@ public class ReservationService {
     private List<RestaurantTable> lockAndValidateTables(List<Integer> requestedIds, int guestCount,
                                                           LocalDate date, LocalTime time, int duration,
                                                           Long currentReservationId, Integer requiredAreaId) {
+        // NOTE: Khóa bi quan các bàn theo thứ tự ID rồi kiểm tra lại tồn tại, khu vực, xung đột và sức chứa.
         if (requestedIds == null || requestedIds.isEmpty() || requestedIds.size() > MAX_COMBINED_TABLES) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Cần chọn từ 1 đến 4 bàn");
         }
