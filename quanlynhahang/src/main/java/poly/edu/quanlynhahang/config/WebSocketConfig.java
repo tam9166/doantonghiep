@@ -80,9 +80,11 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                     return message;
                 }
                 if (StompCommand.CONNECT.equals(accessor.getCommand())) {
+                    // NOTE: CONNECT xác thực JWT nếu có để gắn danh tính và vai trò cho phiên STOMP.
                     authenticate(accessor);
                 }
                 if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
+                    // NOTE: SUBSCRIBE được phân quyền theo từng destination, độc lập với kết nối socket.
                     authorizeSubscription(accessor);
                 }
                 if (StompCommand.SEND.equals(accessor.getCommand())) {
@@ -117,6 +119,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     }
 
     void authorizeSubscription(StompHeaderAccessor accessor) {
+        // NOTE: Chỉ các topic được liệt kê rõ ràng mới được phép đăng ký; topic quản trị kiểm tra vai trò.
         String destination = accessor.getDestination();
         if (!StringUtils.hasText(destination)) {
             throw new AccessDeniedException("Subscription destination is required");
@@ -154,6 +157,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     }
 
     private void authorizeReservationSubscription(StompHeaderAccessor accessor, String destination) {
+        // NOTE: Kênh khách hàng yêu cầu mã đặt bàn hợp lệ và capability phù hợp với chính đặt bàn đó.
         String code = destination.substring("/topic/reservations/".length()).trim();
         if (code.isBlank() || code.contains("/")) {
             throw new AccessDeniedException("Invalid reservation subscription");

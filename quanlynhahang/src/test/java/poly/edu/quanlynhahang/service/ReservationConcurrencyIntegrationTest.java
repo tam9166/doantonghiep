@@ -293,8 +293,12 @@ class ReservationConcurrencyIntegrationTest {
             voucherId = null;
             voucherCode = null;
         }
+        // area_pricing references the area, so remove every stale pricing row
+        // by fixture name before deleting table_areas. This also handles a
+        // prior interrupted run where the in-memory areaId is unavailable.
+        jdbc.update("DELETE p FROM area_pricing p JOIN table_areas a ON a.id = p.area_id "
+                + "WHERE a.name_vi LIKE 'reg_reservation_race_%'");
         jdbc.update("DELETE FROM restaurant_table WHERE name LIKE 'reg_reservation_race_%'");
-        jdbc.update("DELETE FROM area_pricing WHERE area_id = ?", areaId);
         jdbc.update("DELETE FROM table_areas WHERE name_vi LIKE 'reg_reservation_race_%'");
     }
 

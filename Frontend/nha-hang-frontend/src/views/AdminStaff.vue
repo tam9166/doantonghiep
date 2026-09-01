@@ -76,8 +76,10 @@
               <th>Username</th>
               <th>Họ Tên</th>
               <th>Email</th>
+              <th>Số điện thoại</th>
               <th>Điểm Tích Lũy</th>
               <th>Hạng Thẻ</th>
+              <th>Trạng thái</th>
               <th>Hành Động</th>
             </tr>
           </thead>
@@ -86,14 +88,19 @@
               <td>{{ cus.username }}</td>
               <td>{{ cus.fullname }}</td>
               <td>{{ cus.email }}</td>
+              <td>{{ cus.phone || '-' }}</td>
               <td><span class="customer-points">{{ cus.points }}</span></td>
               <td><span class="role-badge" :class="cus.membershipTier === 'Vàng' ? 'ROLE_ADMIN' : 'ROLE_USER'">{{ cus.membershipTier }}</span></td>
+              <td>{{ cus.status === 'LOCKED' ? 'Đã khóa' : 'Đang hoạt động' }}</td>
               <td>
                 <button class="g-btn-primary" @click="viewCustomerOrders(cus)">Xem Lịch Sử</button>
+                <button class="g-btn-primary" @click="openCustomerEdit(cus)">Sửa</button>
+                <button class="g-btn-primary" @click="resetCustomerPassword(cus)">Đặt lại mật khẩu</button>
+                <button :class="cus.status === 'LOCKED' ? 'g-btn-primary' : 'g-btn-danger'" @click="toggleCustomerStatus(cus)">{{ cus.status === 'LOCKED' ? 'Mở khóa' : 'Khóa' }}</button>
               </td>
             </tr>
             <tr v-if="filteredCustomerList.length === 0">
-              <td colspan="6" class="text-center">Không tìm thấy khách hàng nào.</td>
+              <td colspan="8" class="text-center">Không tìm thấy khách hàng nào.</td>
             </tr>
           </tbody>
         </table>
@@ -454,6 +461,32 @@
       </div>
     </div>
     <!-- MODAL LỊCH SỬ KHÁCH HÀNG -->
+    <div class="g-modal-overlay" v-if="showCustomerEditModal" @click.self="showCustomerEditModal = false">
+      <div class="g-modal">
+        <h2>Sửa thông tin khách hàng</h2>
+        <div class="form-group">
+          <label>Tên đăng nhập</label>
+          <input :value="editCustomer.username" disabled />
+        </div>
+        <div class="form-group">
+          <label>Họ tên</label>
+          <input v-model.trim="editCustomer.fullname" maxlength="100" required />
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input v-model.trim="editCustomer.email" type="email" maxlength="100" required />
+        </div>
+        <div class="form-group">
+          <label>Số điện thoại</label>
+          <input v-model.trim="editCustomer.phone" maxlength="20" />
+        </div>
+        <div class="modal-actions" style="margin-top: 20px; text-align: right;">
+          <button class="g-btn-danger" style="margin-right: 10px;" @click="showCustomerEditModal = false">Hủy</button>
+          <button class="g-btn-primary" @click="saveCustomerEdit">Lưu thay đổi</button>
+        </div>
+      </div>
+    </div>
+
     <div class="g-modal-overlay customer-history-overlay" v-if="showCustomerOrdersModal" @click.self="showCustomerOrdersModal = false">
       <div class="g-modal customer-history-modal">
         <div class="customer-history-header">
@@ -620,6 +653,8 @@ const filteredCustomerList = computed(() => {
 });
 
 const showCustomerOrdersModal = ref(false);
+const showCustomerEditModal = ref(false);
+const editCustomer = ref({ username: '', fullname: '', email: '', phone: '' });
 const customerOrders = ref([]);
 const searchCustomerOrderQuery = ref('');
 const currentCustomerView = ref(null);
@@ -755,6 +790,53 @@ const viewCustomerOrders = async (cus) => {
     customerOrders.value = [];
     toast.error(err.response?.data?.message || 'Không thể tải lịch sử hóa đơn của khách hàng.');
   }
+};
+
+const openCustomerEdit = (customer) => {
+  editCustomer.value = {
+    username: customer.username,
+    fullname: customer.fullname || '',
+    email: customer.email || '',
+    phone: customer.phone || ''
+  };
+  showCustomerEditModal.value = true;
+};
+
+const saveCustomerEdit = async () => {
+  const customer = editCustomer.value;
+  if (!customer.fullname || !customer.email) return toast.warning('Họ tên và email không được để trống.');
+  try {
+    await api.put(`/api/admin/staff/customers/${customer.username}`, {
+      fullname: customer.fullname,
+      email: customer.email,
+      phone: customer.phone
+    }, configHeader());
+    const current = customerList.value.find(item => item.username === customer.username);
+    if (current) Object.assign(current, { fullname: customer.fullname, email: customer.email, phone: customer.phone });
+    showCustomerEditModal.value = false;
+    toast.success('Đã cập nhật thông tin khách hàng.');
+  } catch (err) { toast.error(getApiErrorMessage(err, 'Không thể cập nhật khách hàng.')); }
+};
+
+const resetCustomerPassword = async (customer) => {
+  const password = window.prompt(`Nhập mật khẩu mới cho ${customer.username} (tối thiểu 10 ký tự):`);
+  if (password === null) return;
+  if (password.length < 10) return toast.warning('Mật khẩu phải có ít nhất 10 ký tự.');
+  if (!await confirmDialog({ title: 'Đặt lại mật khẩu', message: `Tài khoản: ${customer.username}\nEmail: ${customer.email || '-'}\nBạn có chắc muốn đặt lại mật khẩu?`, confirmLabel: 'Xác nhận', danger: true })) return;
+  try {
+    await api.post(`/api/admin/staff/customers/${customer.username}/reset-password`, { password }, configHeader());
+    toast.success('Đã đặt lại mật khẩu; khách cần đổi khi đăng nhập.');
+  } catch (err) { toast.error(getApiErrorMessage(err, 'Không thể đặt lại mật khẩu.')); }
+};
+
+const toggleCustomerStatus = async (customer) => {
+  const enabled = customer.status !== 'LOCKED';
+  if (!await confirmDialog({ title: enabled ? 'Mở khóa tài khoản' : 'Khóa tài khoản', message: `${enabled ? 'Mở khóa' : 'Khóa'} tài khoản ${customer.username}? Lịch sử đơn hàng vẫn được giữ lại.`, confirmLabel: enabled ? 'Mở khóa' : 'Khóa', danger: !enabled })) return;
+  try {
+    await api.put(`/api/admin/staff/customers/${customer.username}/status?enabled=${enabled}`, {}, configHeader());
+    customer.status = enabled ? 'ACTIVE' : 'LOCKED';
+    toast.success(enabled ? 'Đã mở khóa tài khoản khách hàng.' : 'Đã khóa tài khoản khách hàng.');
+  } catch (err) { toast.error(getApiErrorMessage(err, 'Không thể cập nhật trạng thái tài khoản.')); }
 };
 
 const analyzeCustomer = async () => {

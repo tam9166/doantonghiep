@@ -99,6 +99,10 @@
             <span class="nav-icon"><AdminNavIcon name="staff" /></span>
             <span class="nav-label" v-if="!sidebarCollapsed">Nhân viên</span>
           </router-link>
+          <router-link to="/admin/kitchen-proposals" class="nav-item" active-class="active">
+            <span class="nav-icon"><AdminNavIcon name="activity" /></span>
+            <span class="nav-label" v-if="!sidebarCollapsed">Đề xuất từ Bếp</span>
+          </router-link>
           <router-link to="/admin/posts" class="nav-item" active-class="active">
             <span class="nav-icon"><AdminNavIcon name="posts" /></span>
             <span class="nav-label" v-if="!sidebarCollapsed">Tin tức</span>

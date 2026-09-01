@@ -37,11 +37,13 @@ class BlankDatabaseMigrationIntegrationTest {
                     .baselineOnMigrate(true)
                     .baselineVersion("2")
                     .load();
-            assertEquals(94, flyway.migrate().migrationsExecuted);
+            assertEquals(96, flyway.migrate().migrationsExecuted);
 
             try (Connection target = DriverManager.getConnection(targetUrl, username, password);
                  Statement statement = target.createStatement()) {
                 assertTrue(tableExists(statement, "Accounts"));
+                assertEquals(1, count(statement,
+                        "SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Accounts') AND name = 'phone'"));
                 assertEquals(1, count(statement,
                         "SELECT CASE WHEN (@@OPTIONS & 512) = 0 THEN 1 ELSE 0 END"));
                 assertTrue(tableExists(statement, "reservations"));
@@ -52,6 +54,7 @@ class BlankDatabaseMigrationIntegrationTest {
                 assertTrue(tableExists(statement, "inventory_reservations"));
                 assertTrue(tableExists(statement, "area_pricing"));
                 assertTrue(tableExists(statement, "ingredient_batch_disposals"));
+                assertTrue(tableExists(statement, "kitchen_proposals"));
                 assertEquals(1, count(statement,
                         "SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Orders') AND name = 'order_code'"));
                 assertEquals(1, count(statement,

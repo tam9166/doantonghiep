@@ -19,6 +19,7 @@ public class TableCombinationPlanner {
     private static final Pattern POSITION_NUMBER = Pattern.compile("(.*?)(\\d+)$");
 
     public Optional<List<RestaurantTable>> findBestCombination(List<RestaurantTable> availableTables, int guestCount) {
+        // NOTE: Planner chỉ nhận các bàn đã qua kiểm tra khả dụng và chỉ ghép khi không có bàn đơn phù hợp.
         List<RestaurantTable> candidates = availableTables.stream()
                 .filter(table -> capacityOf(table) > 0)
                 .sorted(Comparator.comparing(RestaurantTable::getId))
@@ -27,6 +28,7 @@ public class TableCombinationPlanner {
             return Optional.empty();
         }
         Candidate best = null;
+        // NOTE: Duyệt từ ít bàn đến nhiều bàn; phương án đầu tiên hợp lệ ở một kích thước sẽ ưu tiên vận hành gọn hơn.
         for (int size = 2; size <= Math.min(MAX_COMBINED_TABLES, candidates.size()); size++) {
             best = search(candidates, guestCount, size, 0, new ArrayList<>(), best);
             if (best != null) {
@@ -61,6 +63,7 @@ public class TableCombinationPlanner {
     }
 
     private int proximityPenalty(List<RestaurantTable> tables) {
+        // NOTE: Điểm phạt vị trí giúp ưu tiên các bàn có mô tả vị trí gần nhau khi phải ghép bàn.
         int penalty = 0;
         for (int left = 0; left < tables.size(); left++) {
             for (int right = left + 1; right < tables.size(); right++) {
@@ -87,6 +90,7 @@ public class TableCombinationPlanner {
             implements Comparable<Candidate> {
         @Override
         public int compareTo(Candidate other) {
+            // NOTE: Xếp hạng lần lượt theo ghế dư, độ gần vị trí và ID để kết quả có tính xác định.
             int result = Integer.compare(surplus, other.surplus);
             if (result != 0) return result;
             result = Integer.compare(proximityPenalty, other.proximityPenalty);

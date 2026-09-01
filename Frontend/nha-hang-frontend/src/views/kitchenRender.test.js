@@ -19,7 +19,10 @@ vi.mock('@/services/session', () => ({
 vi.mock('@/composables/useDialog', () => ({
   useDialog: () => ({ confirmDialog: vi.fn(), promptDialog: vi.fn() })
 }))
-vi.mock('vue-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
+vi.mock('vue-router', () => ({
+  useRouter: () => ({ push: vi.fn() }),
+  useRoute: () => ({ path: '/kitchen' })
+}))
 vi.mock('sockjs-client', () => ({ default: vi.fn(function SockJsStub() { return {} }) }))
 vi.mock('@stomp/stompjs', () => ({
   Stomp: {

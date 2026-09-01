@@ -43,8 +43,10 @@ describe('final fix UI contracts', () => {
   it('keeps product and category management layouts usable on desktop', () => {
     const products = read('./AdminProduct.vue')
     const categories = read('./AdminCategory.vue')
-    expect(products).toContain('minmax(280px, 30%) minmax(0, 70%)')
+    expect(products).toContain('grid-template-columns: 320px minmax(0, 1fr)')
     expect(products).toContain('min-width: 1200px')
+    expect(products).toContain('const pageSize = 10')
+    expect(products).toContain('v-for="p in pagedProducts"')
     expect(categories).toContain('const pageSize = 20')
     expect(categories).toContain('pagedCategories.value.slice(0, 10)')
     expect(categories).toContain('currentPage.value - 2')

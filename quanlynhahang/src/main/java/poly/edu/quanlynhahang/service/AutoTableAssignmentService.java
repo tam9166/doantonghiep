@@ -33,6 +33,8 @@ public class AutoTableAssignmentService {
     }
 
     public RestaurantTable assign(Integer areaId, int guests, LocalDate date, LocalTime start, int duration) {
+        // NOTE: Bàn trong khu vực được khóa khi xét; ưu tiên bàn đủ chỗ có sức chứa nhỏ nhất,
+        // sau đó dùng thứ tự hiển thị và tên bàn để kết quả luôn ổn định.
         if (areaId == null) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Vui lòng chọn khu vực");
         }
@@ -48,6 +50,7 @@ public class AutoTableAssignmentService {
     }
 
     private boolean hasConflict(Integer tableId, LocalDate date, LocalTime start, int duration) {
+        // NOTE: Kiểm tra cả ngày trước để bắt lượt phục vụ kéo dài qua nửa đêm và cộng thời gian dọn bàn.
         LocalDateTime requestedStart = LocalDateTime.of(date, start);
         LocalDateTime requestedEnd = requestedStart.plusMinutes(duration + CLEANUP_MINUTES);
         java.util.List<Reservation> candidates = new java.util.ArrayList<>(

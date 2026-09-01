@@ -22,6 +22,7 @@ public class ReservationRealtimeService {
                         ReservationStatus newStatus,
                         String message,
                         ReservationResponse reservation) {
+        // NOTE: Realtime chỉ là kênh thông báo sau giao dịch; cơ sở dữ liệu vẫn là nguồn sự thật.
         ReservationRealtimeEvent event = new ReservationRealtimeEvent();
         event.setEventType(eventType);
         event.setReservationCode(reservationCode);
@@ -31,6 +32,7 @@ public class ReservationRealtimeService {
         event.setMessage(message);
         event.setReservation(reservation);
 
+        // NOTE: Kênh quản trị nhận DTO đầy đủ để cập nhật màn hình điều phối.
         messagingTemplate.convertAndSend("/topic/admin/reservations", event);
 
         ReservationRealtimeEvent privateEvent = new ReservationRealtimeEvent();
@@ -41,6 +43,7 @@ public class ReservationRealtimeService {
         privateEvent.setChangedAt(event.getChangedAt());
         privateEvent.setMessage(message);
         privateEvent.setReservation(null);
+        // NOTE: Kênh theo mã đặt bàn chỉ phát thông tin trạng thái tối thiểu, không gửi DTO nội bộ.
         messagingTemplate.convertAndSend("/topic/reservations/" + reservationCode, privateEvent);
     }
 }

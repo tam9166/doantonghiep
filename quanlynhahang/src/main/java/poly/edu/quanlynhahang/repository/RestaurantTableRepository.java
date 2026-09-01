@@ -17,14 +17,17 @@ import java.util.List;
 public interface RestaurantTableRepository extends JpaRepository<RestaurantTable, Integer> {
     Optional<RestaurantTable> findByName(String name);
 
+    // NOTE: Khóa ghi bảo vệ bước đọc-kiểm tra-gán bàn trước các yêu cầu đồng thời.
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select t from RestaurantTable t where t.id = :id")
     Optional<RestaurantTable> findLockedById(@Param("id") Integer id);
 
+    // NOTE: Danh sách ID được sắp thứ tự để các giao dịch khóa nhiều bàn theo cùng một trình tự.
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select t from RestaurantTable t where t.id in :ids order by t.id")
     List<RestaurantTable> findLockedByIdIn(@Param("ids") Collection<Integer> ids);
 
+    // NOTE: Tự động gán bàn khóa các bàn đang hoạt động trong đúng khu vực trước khi chọn ứng viên.
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select t from RestaurantTable t where t.areaId = :areaId and t.active = true order by t.displayOrder, t.name")
     List<RestaurantTable> findLockedActiveByAreaId(@Param("areaId") Integer areaId);
