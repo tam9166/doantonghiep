@@ -20,7 +20,7 @@ removed. The retained backup must not be imported, built, launched, or edited.
 
 1. Open `E:\DoAnTotNghiep\MOC_VI.code-workspace`.
 2. Select the single launch configuration `Run Mộc Vị`.
-3. The pre-launch pipeline builds the canonical frontend and cleans the canonical
+3. The pre-launch pipeline builds the canonical frontend and compiles the canonical
    backend before Java Debugger starts the application.
 
 The workspace and launch use the same default `dev` profile and ignored backend `.env`
@@ -35,7 +35,13 @@ From the canonical root:
 .\run-mocvi.ps1
 ```
 
-The script performs the same frontend build → Maven clean → Spring Boot run sequence.
+The script performs the same frontend build → Maven compile → Spring Boot run sequence.
+It intentionally does not run Maven `clean` during normal development runs because
+removing `target/classes` while the application is starting or running can trigger
+Spring Boot DevTools classpath deletion restarts.
+
+Use the separate `Clean & Rebuild Mộc Vị` VS Code task only when a manual full rebuild
+is required and the application is stopped.
 
 ## Cleanup status
 

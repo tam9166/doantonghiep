@@ -69,13 +69,15 @@ The ambiguous launch entry with empty `projectName` was removed.
 
 ## 7. Tasks pipeline
 
-The run pipeline is:
+The default `Run Mộc Vị` task pipeline is:
 
 1. `Mộc Vị: Frontend Build`
-2. `Mộc Vị: Backend Clean`
-3. `Mộc Vị: Backend Run`
+2. `Mộc Vị: Backend Compile`
+3. `Run Mộc Vị`
 
 The same sequence is also available through `E:\DoAnTotNghiep\run-mocvi.ps1`.
+Normal run workflows intentionally avoid Maven `clean`. `Clean & Rebuild Mộc Vị` is a
+separate manual task and should be used only while the application is stopped.
 
 ## 8. Frontend build output path
 

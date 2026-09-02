@@ -72,6 +72,9 @@ application reliably.
 - `MOC_VI.code-workspace` contains only the canonical backend and frontend folders.
 - The recommended launch selects `projectName: quanlynhahang` explicitly.
 - The ambiguous empty-project launch entry was removed from the local launch file.
+- The normal run workflow no longer calls Maven `clean`; it now runs frontend build,
+  backend compile, then backend run. `Clean & Rebuild Mộc Vị` is separated as a manual
+  task for stopped applications only.
 
 After opening `E:\DoAnTotNghiep\MOC_VI.code-workspace`, run
 `Java: Clean Java Language Server Workspace` once and allow VS Code to reload. This
@@ -160,7 +163,29 @@ Frontend verification also passed:
 - tests: 33 files, 125 tests PASS
 - build: PASS (285 modules)
 
-## 14. Warning groups intentionally not changed
+## 14. VS Code/Codex run workflow root cause
+
+Running the canonical backend from a plain PowerShell session did not reproduce mass
+classpath deletion. The reproducible risk was in the VS Code/Codex workflow:
+
+- `.vscode/launch.json` used `preLaunchTask: Mộc Vị: Backend Clean`.
+- `.vscode/tasks.json` made `Mộc Vị: Backend Run` depend on `Mộc Vị: Backend Clean`.
+- `run-mocvi.ps1` ran `mvnw.cmd clean` immediately before `spring-boot:run`.
+- `MOC_VI.code-workspace` carried the same clean-before-run task graph.
+
+Maven `clean` removes `E:\DoAnTotNghiep\quanlynhahang\target`, including
+`target\classes`. If Java debug/run or Spring Boot DevTools is already observing that
+classpath, the removal can appear as hundreds of classpath deletions and trigger a
+restart. The fixed normal workflow is:
+
+1. `npm run build`
+2. `mvnw.cmd compile`
+3. `mvnw.cmd spring-boot:run`
+
+Clean rebuild remains available only as the explicit `Clean & Rebuild Mộc Vị` task and
+should be run while the app is stopped.
+
+## 15. Warning groups intentionally not changed
 
 - Field-injection recommendations across controllers/services.
 - Unnecessary `@Repository` suggestions on Spring Data interfaces.
@@ -171,7 +196,7 @@ Frontend verification also passed:
 
 These warnings are not current build blockers and were not mass-refactored.
 
-## 15. Recommended technical debt
+## 16. Recommended technical debt
 
 1. Plan Java-time/JPA migration with schema, serialization, timezone, and Flyway tests.
 2. Migrate deprecated Spring MVC converter/path APIs in a focused compatibility change.
@@ -179,13 +204,14 @@ These warnings are not current build blockers and were not mass-refactored.
 4. Investigate the scheduled reservation expiry transaction rollback observed during
    runtime smoke in a separate business-flow task.
 
-## 16. Files changed
+## 17. Files changed
 
 - `.vscode/settings.json` — excludes backup/build trees from Java import and workspace scanning.
 - `.vscode/launch.json` — local launch now selects only the canonical Maven project
-  (the repository ignores this local file).
-- `.vscode/tasks.json` — local-only pipeline for frontend build, backend clean, and
-  backend run (the repository ignores this local file).
+  and pre-launches compile instead of clean (the repository ignores this local file).
+- `.vscode/tasks.json` — local-only pipeline for frontend build, backend compile, and
+  backend run; clean rebuild is a separate manual task (the repository ignores this
+  local file).
 - `MOC_VI.code-workspace` — canonical two-folder workspace and unambiguous Java launch.
 - `run-mocvi.ps1` — canonical PowerShell build/run entry point.
 - `PROJECT_SOURCE_OF_TRUTH.md` — canonical paths and build/run operating rules.

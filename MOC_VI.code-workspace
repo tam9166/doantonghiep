@@ -46,9 +46,9 @@
                 "problemMatcher": []
             },
             {
-                "label": "Mộc Vị: Backend Clean",
+                "label": "Mộc Vị: Backend Compile",
                 "type": "shell",
-                "command": ".\\mvnw.cmd clean",
+                "command": ".\\mvnw.cmd compile",
                 "options": {
                     "cwd": "${workspaceFolder:Moc Vi Backend}"
                 },
@@ -57,16 +57,27 @@
                 "problemMatcher": ["$javac"]
             },
             {
-                "label": "Mộc Vị: Backend Run",
+                "label": "Run Mộc Vị",
                 "type": "shell",
                 "command": ".\\mvnw.cmd spring-boot:run",
                 "options": {
                     "cwd": "${workspaceFolder:Moc Vi Backend}"
                 },
-                "dependsOn": "Mộc Vị: Backend Clean",
+                "dependsOn": "Mộc Vị: Backend Compile",
                 "dependsOrder": "sequence",
                 "problemMatcher": ["$javac"],
                 "isBackground": false
+            },
+            {
+                "label": "Clean & Rebuild Mộc Vị",
+                "type": "shell",
+                "command": ".\\mvnw.cmd clean package",
+                "options": {
+                    "cwd": "${workspaceFolder:Moc Vi Backend}"
+                },
+                "dependsOn": "Mộc Vị: Frontend Build",
+                "dependsOrder": "sequence",
+                "problemMatcher": ["$javac"]
             }
         ]
     },
@@ -81,7 +92,7 @@
                 "mainClass": "poly.edu.quanlynhahang.QuanlynhahangApplication",
                 "projectName": "quanlynhahang",
                 "envFile": "${workspaceFolder:Moc Vi Backend}/.env",
-                "preLaunchTask": "Mộc Vị: Backend Clean",
+                "preLaunchTask": "Mộc Vị: Backend Compile",
                 "vmArgs": "-Dfile.encoding=UTF-8 -Xmx512m -XX:MaxMetaspaceSize=256m"
             }
         ]

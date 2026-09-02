@@ -27,11 +27,11 @@ finally {
     Pop-Location
 }
 
-Write-Host 'Cleaning canonical backend...'
+Write-Host 'Compiling canonical backend...'
 Push-Location $taskBackendRoot
 try {
-    & .\mvnw.cmd clean
-    if ($LASTEXITCODE -ne 0) { throw "Backend clean failed with exit code $LASTEXITCODE" }
+    & .\mvnw.cmd compile
+    if ($LASTEXITCODE -ne 0) { throw "Backend compile failed with exit code $LASTEXITCODE" }
 
     Write-Host 'Starting Mộc Vị on 8080...'
     & .\mvnw.cmd spring-boot:run
