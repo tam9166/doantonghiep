@@ -1,0 +1,89 @@
+{
+    "folders": [
+        {
+            "name": "Moc Vi Backend",
+            "path": "quanlynhahang"
+        },
+        {
+            "name": "Moc Vi Frontend",
+            "path": "Frontend/nha-hang-frontend"
+        }
+    ],
+    "settings": {
+        "java.import.exclusions": [
+            "**/backup_*/**",
+            "**/node_modules/**",
+            "**/target/**",
+            "**/dist/**"
+        ],
+        "files.exclude": {
+            "**/backup_*/**": true
+        },
+        "search.exclude": {
+            "**/backup_*/**": true,
+            "**/node_modules/**": true,
+            "**/target/**": true,
+            "**/dist/**": true
+        },
+        "files.watcherExclude": {
+            "**/backup_*/**": true,
+            "**/node_modules/**": true,
+            "**/target/**": true,
+            "**/dist/**": true
+        },
+        "java.compile.nullAnalysis.mode": "automatic"
+    },
+    "tasks": {
+        "version": "2.0.0",
+        "tasks": [
+            {
+                "label": "Mộc Vị: Frontend Build",
+                "type": "shell",
+                "command": "npm run build",
+                "options": {
+                    "cwd": "${workspaceFolder:Moc Vi Frontend}"
+                },
+                "problemMatcher": []
+            },
+            {
+                "label": "Mộc Vị: Backend Clean",
+                "type": "shell",
+                "command": ".\\mvnw.cmd clean",
+                "options": {
+                    "cwd": "${workspaceFolder:Moc Vi Backend}"
+                },
+                "dependsOn": "Mộc Vị: Frontend Build",
+                "dependsOrder": "sequence",
+                "problemMatcher": ["$javac"]
+            },
+            {
+                "label": "Mộc Vị: Backend Run",
+                "type": "shell",
+                "command": ".\\mvnw.cmd spring-boot:run",
+                "options": {
+                    "cwd": "${workspaceFolder:Moc Vi Backend}"
+                },
+                "dependsOn": "Mộc Vị: Backend Clean",
+                "dependsOrder": "sequence",
+                "problemMatcher": ["$javac"],
+                "isBackground": false
+            }
+        ]
+    },
+    "launch": {
+        "version": "0.2.0",
+        "configurations": [
+            {
+                "type": "java",
+                "name": "Run Mộc Vị",
+                "request": "launch",
+                "cwd": "${workspaceFolder:Moc Vi Backend}",
+                "mainClass": "poly.edu.quanlynhahang.QuanlynhahangApplication",
+                "projectName": "quanlynhahang",
+                "envFile": "${workspaceFolder:Moc Vi Backend}/.env",
+                "preLaunchTask": "Mộc Vị: Backend Clean",
+                "vmArgs": "-Dfile.encoding=UTF-8 -Xmx512m -XX:MaxMetaspaceSize=256m"
+            }
+        ]
+    }
+}

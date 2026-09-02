@@ -15,11 +15,11 @@ public final class SpaRouteRegistry {
         "/login", "/register", "/staff-login", "/change-password",
         "/menu", "/history", "/profile",
         "/reservation", "/dat-su-kien", "/reservation-lookup", "/dine-in",
-        "/staff", "/staff/profile", "/waiter", "/kitchen", "/cashier",
-        "/admin", "/admin/orders", "/admin/reservations", "/admin/reservation-cancellations", "/admin/reservation-reviews",
+        "/staff", "/staff/profile", "/waiter", "/kitchen", "/kitchen/inventory", "/cashier",
+        "/admin", "/admin/products", "/admin/orders", "/admin/reservations", "/admin/reservation-cancellations", "/admin/reservation-reviews",
         "/admin/customer-history", "/admin/deposit-policies", "/admin/analytics",
         "/admin/ai-knowledge", "/admin/categories", "/admin/tables",
-        "/admin/table-areas", "/admin/staff", "/admin/kitchen-proposals", "/admin/posts", "/admin/ingredients",
+        "/admin/table-areas", "/admin/staff", "/admin/kitchen-proposals", "/admin/posts", "/admin/ingredients", "/admin/expired-food",
         "/admin/activity-log", "/admin/popular-items", "/admin/purchase-suggestions",
         "/admin/vouchers"
     };
