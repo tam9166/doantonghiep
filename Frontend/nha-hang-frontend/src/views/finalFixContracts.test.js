@@ -47,6 +47,8 @@ describe('final fix UI contracts', () => {
     expect(products).toContain('min-width: 1200px')
     expect(products).toContain('const pageSize = 10')
     expect(products).toContain('v-for="p in pagedProducts"')
+    expect(products).toContain('Giá bán tối thiểu:')
+    expect(products).toContain('minimumSalePriceForCost')
     expect(categories).toContain('const pageSize = 20')
     expect(categories).toContain('pagedCategories.value.slice(0, 10)')
     expect(categories).toContain('currentPage.value - 2')
@@ -58,6 +60,8 @@ describe('final fix UI contracts', () => {
     const staff = read('./AdminStaff.vue')
     expect(knowledge).toContain('slice(0, 140)')
     expect(knowledge).toContain('viewingSource')
+    expect(knowledge).toContain('displayedSources')
+    expect(knowledge).toContain('showAllFaqs')
     expect(tables).toContain('/api/admin/orders?limit=500')
     expect(tables).toContain('Chưa đủ dữ liệu phân tích')
     expect(staff).toContain('customerTotalSpend')
@@ -85,6 +89,7 @@ describe('final fix UI contracts', () => {
     expect(purchases).toContain('summary.expiredBatchesCount')
     expect(purchases).toContain('item.action')
     expect(purchases).toContain('Không nhập · Cần xử lý')
+    expect(purchases).not.toContain('>Đóng</button><button class="g-btn-primary"')
   })
 
   it('uses themed dialogs and toasts for inventory destructive actions', () => {

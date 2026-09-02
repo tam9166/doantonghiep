@@ -58,6 +58,21 @@ class StaffAccountServiceTest {
     }
 
     @Test
+    void adminCannotCreateSecondAdmin() {
+        authenticate("root", "ROLE_ADMIN");
+        CreateStaffRequest request = new CreateStaffRequest(
+                "admin02", "strong-password", "Second Admin", "admin02@example.com", null, null, null);
+        when(authorityRepository.countByRoleNameIn(any())).thenReturn(1L);
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+                () -> service.create(request, "ROLE_ADMIN"));
+
+        assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
+        verify(accountRepository, never()).save(any());
+        verify(authorityRepository, never()).save(any());
+    }
+
+    @Test
     void managerCannotManageAccountWithoutAnAssignedStaffRole() {
         authenticate("manager01", "ROLE_MANAGER");
         Account target = account("orphan", 0L);
@@ -107,10 +122,25 @@ class StaffAccountServiceTest {
         when(accountRepository.findLockedByUsername("admin02")).thenReturn(Optional.of(account));
         when(authorityRepository.findByAccountUsername("admin02"))
                 .thenReturn(List.of(authority(account, "ROLE_ADMIN")));
-        when(authorityRepository.countByRoleNameIn(any())).thenReturn(1L);
 
         ResponseStatusException error = assertThrows(ResponseStatusException.class,
                 () -> service.update("admin02", emptyUpdate(), "ROLE_WAITER"));
+
+        assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
+        verify(authorityRepository, never()).deleteAll(any());
+    }
+
+    @Test
+    void nonAdminCannotBePromotedWhenAdminAlreadyExists() {
+        authenticate("root", "ROLE_ADMIN");
+        Account account = account("manager02", 1L);
+        when(accountRepository.findLockedByUsername("manager02")).thenReturn(Optional.of(account));
+        when(authorityRepository.findByAccountUsername("manager02"))
+                .thenReturn(List.of(authority(account, "ROLE_MANAGER")));
+        when(authorityRepository.countByRoleNameIn(any())).thenReturn(1L);
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+                () -> service.update("manager02", emptyUpdate(), "ROLE_ADMIN"));
 
         assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
         verify(authorityRepository, never()).deleteAll(any());

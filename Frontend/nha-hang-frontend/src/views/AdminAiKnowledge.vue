@@ -26,9 +26,14 @@
       </section>
 
       <section class="card">
-        <h2>Nguồn hiện có</h2>
+        <div class="section-heading">
+          <h2>Nguồn hiện có</h2>
+          <button v-if="sources.length > previewLimit" class="secondary" @click="showAllSources = !showAllSources">
+            {{ showAllSources ? 'Thu gọn' : 'Xem toàn bộ' }}
+          </button>
+        </div>
         <p v-if="!sources.length" class="muted">Chưa có nguồn tri thức.</p>
-        <article v-for="source in sources" :key="source.id" class="source">
+        <article v-for="source in displayedSources" :key="source.id" class="source">
           <div><strong>{{ source.title }}</strong><span :class="source.enabled ? 'on' : 'off'">{{ source.enabled ? 'Đang dùng' : 'Đã tắt' }}</span></div>
           <p class="source-preview">{{ preview(source.content) }}</p>
           <div class="actions source-actions">
@@ -48,10 +53,15 @@
         <button @click="saveBrand">Lưu Brand Brain</button>
       </section>
       <section class="card">
-        <h2>FAQ / Training Examples</h2>
+        <div class="section-heading">
+          <h2>FAQ / Training Examples</h2>
+          <button v-if="faqs.length > previewLimit" class="secondary" @click="showAllFaqs = !showAllFaqs">
+            {{ showAllFaqs ? 'Thu gọn' : 'Xem toàn bộ' }}
+          </button>
+        </div>
         <input v-model="faqForm.question" placeholder="Câu hỏi mẫu"><textarea v-model="faqForm.idealAnswer" rows="3" placeholder="Câu trả lời lý tưởng"></textarea>
         <button @click="saveFaq">Thêm FAQ</button>
-        <article v-for="faq in faqs" :key="faq.id" class="source"><strong>{{ faq.question }}</strong><p>{{ faq.idealAnswer }}</p><button class="danger" @click="removeFaq(faq.id)">Xóa</button></article>
+        <article v-for="faq in displayedFaqs" :key="faq.id" class="source"><strong>{{ faq.question }}</strong><p>{{ faq.idealAnswer }}</p><button class="danger" @click="removeFaq(faq.id)">Xóa</button></article>
       </section>
       <section class="card">
         <h2>AI Test</h2><textarea v-model="testQuestion" rows="3" placeholder="Nhập câu hỏi để kiểm tra Knowledge Base và Brand Brain"></textarea>
@@ -72,7 +82,7 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import AdminLayout from '@/components/AdminLayout.vue'
 import api from '@/services/api'
 import { useToast } from '@/composables/useToast'
@@ -80,6 +90,9 @@ import { useDialog } from '@/composables/useDialog'
 
 const sources = ref([]), faqs = ref([]), logs = ref([]), editingId = ref(null), message = ref('')
 const viewingSource = ref(null)
+const previewLimit = 3
+const showAllSources = ref(false)
+const showAllFaqs = ref(false)
 const toast = useToast()
 const { confirmDialog } = useDialog()
 const selectedFile = ref(null), fileInput = ref(null), uploading = ref(false), uploadTitle = ref('')
@@ -88,6 +101,17 @@ const settings = reactive({ largePartyThreshold: 10, restaurantMaxCapacity: 200 
 const brand = reactive({ brandName: '', addressing: '', toneOfVoice: '', unknownAnswerRule: '', noFabricationRule: '', handoffRule: '' })
 const faqForm = reactive({ question: '', idealAnswer: '', enabled: true })
 const form = reactive({ title: '', content: '', type: 'TEXT', enabled: true })
+const sortNewestFirst = items => [...items].sort((left, right) => {
+  const leftDate = Date.parse(left.createdAt || left.createdDate || left.updatedAt || left.updatedDate || '')
+  const rightDate = Date.parse(right.createdAt || right.createdDate || right.updatedAt || right.updatedDate || '')
+  const leftRank = Number.isNaN(leftDate) ? Number(left.id || 0) : leftDate
+  const rightRank = Number.isNaN(rightDate) ? Number(right.id || 0) : rightDate
+  return rightRank - leftRank
+})
+const sortedSources = computed(() => sortNewestFirst(sources.value))
+const sortedFaqs = computed(() => sortNewestFirst(faqs.value))
+const displayedSources = computed(() => showAllSources.value ? sortedSources.value : sortedSources.value.slice(0, previewLimit))
+const displayedFaqs = computed(() => showAllFaqs.value ? sortedFaqs.value : sortedFaqs.value.slice(0, previewLimit))
 const notify = text => { message.value = text; setTimeout(() => message.value = '', 2500) }
 const preview = content => {
   const normalized = String(content || '').replace(/\s+/g, ' ').trim()
@@ -120,5 +144,5 @@ onMounted(() => load().catch(() => notify('Không thể tải dữ liệu')))
 </script>
 
 <style scoped>
-.page{max-width:1050px;margin:auto;padding:24px}.muted{color:var(--text-muted)}.card{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:22px;margin:18px 0;box-shadow:var(--shadow-sm)}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}label{display:grid;gap:7px;font-weight:600}input,textarea{width:100%;border:1px solid var(--border);border-radius:8px;padding:11px;font:inherit;margin:8px 0}input:focus,textarea:focus{outline:2px solid var(--primary-glow);border-color:var(--primary)}textarea{resize:vertical}button{background:var(--primary);color:var(--color-on-primary);border:0;border-radius:8px;padding:10px 16px;cursor:pointer}button:hover{background:var(--primary-dark)}button:disabled{opacity:.55}.actions{display:flex;gap:8px;flex-wrap:wrap}.secondary{background:var(--bg-card);border:1px solid var(--border);color:var(--primary)}.danger{background:var(--danger)}.check{display:flex;grid-template-columns:auto 1fr;align-items:center}.check input{width:auto}.source{border-top:1px solid var(--border-light);padding:14px 0}.source-preview{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;margin:8px 0 12px}.source p,.answer{white-space:pre-wrap;color:var(--text-secondary)}.answer{background:var(--bg-card2);padding:16px;border-radius:8px}.source span,.source-modal span{margin-left:10px;font-size:12px;padding:3px 7px;border-radius:10px}.on{background:color-mix(in srgb,var(--success) 14%,transparent);color:var(--success)}.off{background:var(--color-surface-container)}.icon-button{display:inline-flex;align-items:center;justify-content:center;gap:8px}.toast{position:fixed;right:25px;bottom:25px;background:var(--color-inverse-surface);color:var(--color-inverse-on-surface);padding:12px 18px;border-radius:8px}.modal-overlay{position:fixed;inset:0;z-index:1200;background:rgba(28,8,12,.6);display:flex;align-items:center;justify-content:center;padding:20px}.source-modal{width:min(760px,100%);max-height:85vh;overflow:auto;background:var(--bg-card);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow-lg);padding:22px}.source-modal header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;border-bottom:1px solid var(--border-light);padding-bottom:14px}.source-modal h2{margin:0;display:inline}.close-button{width:40px;height:40px;padding:0;display:flex;align-items:center;justify-content:center}.source-full{white-space:pre-wrap;line-height:1.65;color:var(--text-primary);padding-top:18px}@media(max-width:650px){.grid{grid-template-columns:1fr}}
+.page{max-width:1050px;margin:auto;padding:24px}.muted{color:var(--text-muted)}.card{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:22px;margin:18px 0;box-shadow:var(--shadow-sm)}.section-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}.section-heading h2{margin:0}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}label{display:grid;gap:7px;font-weight:600}input,textarea{width:100%;border:1px solid var(--border);border-radius:8px;padding:11px;font:inherit;margin:8px 0}input:focus,textarea:focus{outline:2px solid var(--primary-glow);border-color:var(--primary)}textarea{resize:vertical}button{background:var(--primary);color:var(--color-on-primary);border:0;border-radius:8px;padding:10px 16px;cursor:pointer}button:hover{background:var(--primary-dark)}button:disabled{opacity:.55}.actions{display:flex;gap:8px;flex-wrap:wrap}.secondary{background:var(--bg-card);border:1px solid var(--border);color:var(--primary)}.danger{background:var(--danger)}.check{display:flex;grid-template-columns:auto 1fr;align-items:center}.check input{width:auto}.source{border-top:1px solid var(--border-light);padding:14px 0}.source-preview{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;margin:8px 0 12px}.source p,.answer{white-space:pre-wrap;color:var(--text-secondary)}.answer{background:var(--bg-card2);padding:16px;border-radius:8px}.source span,.source-modal span{margin-left:10px;font-size:12px;padding:3px 7px;border-radius:10px}.on{background:color-mix(in srgb,var(--success) 14%,transparent);color:var(--success)}.off{background:var(--color-surface-container)}.icon-button{display:inline-flex;align-items:center;justify-content:center;gap:8px}.toast{position:fixed;right:25px;bottom:25px;background:var(--color-inverse-surface);color:var(--color-inverse-on-surface);padding:12px 18px;border-radius:8px}.modal-overlay{position:fixed;inset:0;z-index:1200;background:rgba(28,8,12,.6);display:flex;align-items:center;justify-content:center;padding:20px}.source-modal{width:min(760px,100%);max-height:85vh;overflow:auto;background:var(--bg-card);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow-lg);padding:22px}.source-modal header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;border-bottom:1px solid var(--border-light);padding-bottom:14px}.source-modal h2{margin:0;display:inline}.close-button{width:40px;height:40px;padding:0;display:flex;align-items:center;justify-content:center}.source-full{white-space:pre-wrap;line-height:1.65;color:var(--text-primary);padding-top:18px}@media(max-width:650px){.grid{grid-template-columns:1fr}.section-heading{align-items:flex-start;flex-direction:column}}
 </style>

@@ -17,6 +17,7 @@ import poly.edu.quanlynhahang.entity.DietType;
 public record ProductUpsertRequest(
         @NotBlank @Size(max = 200) String name,
         @NotNull @DecimalMin("0") BigDecimal price,
+        @DecimalMin("0") BigDecimal costPrice,
         @DecimalMin("0") @DecimalMax("100") BigDecimal taxRate,
         @Size(max = 255) String image,
         @Size(max = 20_000) String description,

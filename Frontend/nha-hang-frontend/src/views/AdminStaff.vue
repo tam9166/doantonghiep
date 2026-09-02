@@ -52,7 +52,7 @@
               </td>
               <td data-label="Hành động" class="staff-actions">
                 <button class="g-btn-primary" @click="openEditModal(staff)" style="margin-right: 5px;">Xem/Sửa</button>
-                <button v-if="isAdmin" class="g-btn-secondary" :disabled="resetUsername === staff.username" @click="resetAccountPassword(staff, 'staff')">{{ resetUsername === staff.username ? 'Đang đặt lại...' : 'Đặt lại mật khẩu' }}</button>
+                <button v-if="isAdmin" class="reset-password-action" :disabled="resetUsername === staff.username" @click="resetAccountPassword(staff, 'staff')"><UiIcon name="refresh" />{{ resetUsername === staff.username ? 'Đang đặt lại...' : 'Đặt lại mật khẩu' }}</button>
                 <button class="g-btn-danger" @click="deleteStaff(staff.username)" v-if="staff.username !== 'admin'">Xóa</button>
               </td>
             </tr>
@@ -96,7 +96,7 @@
               <td>
                 <button class="g-btn-primary" @click="viewCustomerOrders(cus)">Xem Lịch Sử</button>
                 <button class="g-btn-primary" @click="openCustomerEdit(cus)">Sửa</button>
-                <button v-if="isAdmin" class="g-btn-primary" :disabled="resetUsername === cus.username" @click="resetAccountPassword(cus, 'customer')">{{ resetUsername === cus.username ? 'Đang đặt lại...' : 'Đặt lại mật khẩu' }}</button>
+                <button v-if="isAdmin" class="reset-password-action" :disabled="resetUsername === cus.username" @click="resetAccountPassword(cus, 'customer')"><UiIcon name="refresh" />{{ resetUsername === cus.username ? 'Đang đặt lại...' : 'Đặt lại mật khẩu' }}</button>
                 <button :class="cus.status === 'LOCKED' ? 'g-btn-primary' : 'g-btn-danger'" @click="toggleCustomerStatus(cus)">{{ cus.status === 'LOCKED' ? 'Mở khóa' : 'Khóa' }}</button>
               </td>
             </tr>
@@ -415,7 +415,7 @@
         <div class="staff-modal-body">
         <div class="form-group">
           <label>Tên Đăng Nhập</label>
-          <input type="text" class="g-form-control" v-model="editStaff.username" disabled style="background: var(--color-inverse-surface); color:var(--color-outline); cursor:not-allowed;" />
+          <input type="text" class="g-form-control staff-locked-username" v-model="editStaff.username" disabled />
         </div>
         <div class="form-group">
           <label>Họ Tên</label>
@@ -427,7 +427,7 @@
         </div>
         <div class="form-group">
           <label>Vị Trí</label>
-          <select class="g-form-control" v-model="editStaff.role">
+          <select class="g-form-control" v-model="editStaff.role" :disabled="editStaff.role === 'ROLE_ADMIN'">
             <option value="ROLE_KITCHEN">Bếp (Kitchen)</option>
             <option value="ROLE_WAITER">Phục Vụ (Waiter)</option>
             <option value="ROLE_CASHIER">Thu Ngân (Cashier)</option>
@@ -453,7 +453,7 @@
           <input type="number" min="1" class="g-form-control" v-model.number="editStaff.shiftRate" placeholder="Chưa cấu hình" />
         </div>
         </div>
-        <footer class="staff-modal-footer"><button class="g-btn-secondary" @click="showEditModal = false">Đóng</button><button class="g-btn-primary" @click="updateStaff">Lưu Thay Đổi</button></footer>
+        <footer class="staff-modal-footer"><button class="g-btn-primary" @click="updateStaff">Lưu Thay Đổi</button></footer>
       </section>
     </div>
     <!-- MODAL LỊCH SỬ KHÁCH HÀNG -->
@@ -1174,6 +1174,10 @@ onMounted(() => {
 .staff-modal-header h3 { margin: 0; color: var(--text-heading); }
 .staff-modal-body { min-height: 0; overflow-y: auto; padding: 20px 22px; }
 .staff-modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 22px; border-top: 1px solid var(--border); background: #fffaf8; }
+.staff-locked-username:disabled { background: #5a2f28; color: #FFFFFF; border-color: #5a2f28; cursor: not-allowed; opacity: 1; font-weight: 850; }
+.reset-password-action { min-height: 36px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 8px 12px; border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--border)); border-radius: 8px; background: #fff7f8; color: var(--primary); font: inherit; font-size: .82rem; font-weight: 850; cursor: pointer; white-space: nowrap; }
+.reset-password-action:hover:not(:disabled) { background: var(--primary-glow); transform: translateY(-1px); }
+.reset-password-action:disabled { opacity: .58; cursor: wait; }
 .modal-icon-close { width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 1px solid var(--border); border-radius: 8px; background: #fff; color: var(--text-secondary); cursor: pointer; }
 .modal-icon-close:hover { color: var(--primary); border-color: var(--primary); background: #fff3f1; }
 .modal-icon-close:focus-visible, .customer-ai-button:focus-visible { outline: 3px solid color-mix(in srgb, var(--secondary) 28%, transparent); outline-offset: 2px; }

@@ -142,8 +142,13 @@ public class AdminProductController {
     private void applyRequest(Product product, ProductUpsertRequest request, boolean creating) {
         Category category = categoryRepository.findById(request.category().id())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "CATEGORY_NOT_FOUND"));
+        BigDecimal effectiveCostPrice = request.costPrice() == null
+                ? (product.getCostPrice() == null ? BigDecimal.ZERO : product.getCostPrice())
+                : request.costPrice();
+        validateMinimumSalePrice(request.price(), effectiveCostPrice);
         product.setName(request.name().trim());
         product.setPrice(request.price());
+        product.setCostPrice(effectiveCostPrice);
         product.setTaxRate(request.taxRate() == null ? new BigDecimal("8.00") : request.taxRate());
         product.setDescription(request.description() == null ? null : request.description().trim());
         product.setImage(request.image() == null ? null : request.image().trim());
@@ -158,6 +163,26 @@ public class AdminProductController {
         product.setCookingMethod(request.cookingMethod() == null ? poly.edu.quanlynhahang.entity.CookingMethod.KHAC : request.cookingMethod());
         product.setSpicyLevel(request.spicyLevel() == null ? 0 : request.spicyLevel());
         product.setIsSignatureDish(Boolean.TRUE.equals(request.isSignatureDish()));
+    }
+
+    private void validateMinimumSalePrice(BigDecimal price, BigDecimal costPrice) {
+        BigDecimal cost = costPrice == null ? BigDecimal.ZERO : costPrice;
+        BigDecimal minimum = minimumSalePrice(cost);
+        if (price.compareTo(minimum) < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Giá bán tối thiểu là " + minimum.toPlainString()
+                            + "đ theo giá vốn " + cost.toPlainString() + "đ");
+        }
+    }
+
+    private BigDecimal minimumSalePrice(BigDecimal costPrice) {
+        if (costPrice.compareTo(new BigDecimal("100000")) < 0) {
+            return costPrice.multiply(new BigDecimal("1.15"));
+        }
+        if (costPrice.compareTo(new BigDecimal("1000000")) < 0) {
+            return costPrice.multiply(new BigDecimal("1.10"));
+        }
+        return costPrice.multiply(new BigDecimal("1.05"));
     }
 
     private String pricingAuditValue(Product product, BigDecimal price,

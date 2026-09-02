@@ -27,10 +27,6 @@
             <span class="nav-icon"><AdminNavIcon name="analytics" /></span>
             <span class="nav-label" v-if="!sidebarCollapsed">Thống kê</span>
           </router-link>
-          <router-link to="/admin/ai-knowledge" class="nav-item" active-class="active">
-            <span class="nav-icon"><AdminNavIcon name="ai" /></span>
-            <span class="nav-label" v-if="!sidebarCollapsed">Tri thức AI</span>
-          </router-link>
         </div>
 
         <div class="nav-section">
@@ -118,6 +114,10 @@
           <router-link to="/admin/activity-log" class="nav-item" active-class="active">
             <span class="nav-icon"><AdminNavIcon name="activity" /></span>
             <span class="nav-label" v-if="!sidebarCollapsed">Nhật ký thao tác</span>
+          </router-link>
+          <router-link to="/admin/ai-knowledge" class="nav-item" active-class="active">
+            <span class="nav-icon"><AdminNavIcon name="ai" /></span>
+            <span class="nav-label" v-if="!sidebarCollapsed">Tri thức AI</span>
           </router-link>
         </div>
 
@@ -251,6 +251,7 @@ const adminModules = [
   { keywords: 'nguyên liệu kho inventory tồn kho nhập hàng', route: '/admin/ingredients' },
   { keywords: 'món hay dùng món bán chạy popular items', route: '/admin/popular-items' },
   { keywords: 'đề xuất mua hàng nhập kho purchase suggestions', route: '/admin/purchase-suggestions' },
+  { keywords: 'tri thức ai knowledge chatbot brand brain faq', route: '/admin/ai-knowledge' },
   { keywords: 'thống kê analytics doanh thu lợi nhuận', route: '/admin/analytics' }
 ]
 const normalizeSearch = (value) => value

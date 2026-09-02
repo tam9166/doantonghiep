@@ -75,4 +75,6 @@ public interface IngredientBatchRepository extends JpaRepository<IngredientBatch
     List<IngredientBatch> findPositiveBatchesWithIngredient();
     
     List<IngredientBatch> findByIngredientOrderByImportDateDesc(Ingredient ingredient);
+
+    Optional<IngredientBatch> findTopByIngredientIdAndUnitPriceIsNotNullOrderByImportDateDescIdDesc(Long ingredientId);
 }

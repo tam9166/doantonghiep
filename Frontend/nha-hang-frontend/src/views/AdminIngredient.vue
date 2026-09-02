@@ -323,7 +323,12 @@
       <div class="forecast-box">
         <div class="forecast-header">
           <h3> AI Phân Tích & Dự Báo</h3>
-          <button @click="showForecastModal = false" class="btn-close-modal"><UiIcon name="x" /></button>
+          <div class="forecast-header-actions">
+            <button v-if="forecastPurchasableResults.length" @click="applyAllForecasts" class="g-btn-primary">
+              Duyệt & Nhập tất cả ({{ forecastPurchasableResults.length }})
+            </button>
+            <button @click="showForecastModal = false" class="btn-close-modal"><UiIcon name="x" /></button>
+          </div>
         </div>
         <div class="forecast-body">
           <div v-if="isForecasting" class="forecasting-loader">
@@ -623,6 +628,7 @@ const showRestockModal = ref(false);
 const selectedIngForRestock = ref(null);
 const batchForm = ref({ quantity: 0, unitPrice: 0, expirationDate: '' });
 const batchSubmitting = ref(false);
+const restockRequiresRealData = ref(false);
 
 const showBatchesModal = ref(false);
 const selectedBatches = ref([]);
@@ -662,6 +668,7 @@ const invoiceTimeFilter = ref('all');
 const showCreateInvoiceModal = ref(false);
 const invoiceForm = ref({ supplier: '', note: '', items: [] });
 const invoiceSubmitting = ref(false);
+const invoiceRequiresCompleteRows = ref(false);
 const showInvoiceDetailsModal = ref(false);
 const selectedInvoiceId = ref(null);
 const invoiceDetails = ref([]);
@@ -709,6 +716,14 @@ const configHeader = () => ({ headers: { 'Authorization': `Bearer ${getToken()}`
 
 // === CHUNG ===
 const showToast = (msg) => { toastMsg.value = msg; setTimeout(() => toastMsg.value = '', 3000); };
+
+const forecastIngredient = item => {
+  const id = Number(item.ingredientId || 0);
+  return ingredients.value.find(ingredient => Number(ingredient.id) === id)
+    || ingredients.value.find(ingredient => ingredient.name?.toLowerCase() === item.name?.toLowerCase());
+};
+const forecastPurchasableResults = computed(() => forecastResults.value
+  .filter(item => Number(item.suggestedAmount) > 0 && forecastIngredient(item)));
 
 const loadData = async () => {
   try {
@@ -775,11 +790,16 @@ const deleteIngredient = async (id) => {
 const submitBatch = async () => {
   if (batchSubmitting.value) return;
   if (!batchForm.value.quantity || batchForm.value.quantity <= 0) return showToast('Số lượng phải lớn hơn 0.');
+  if (restockRequiresRealData.value) {
+    if (!batchForm.value.unitPrice || Number(batchForm.value.unitPrice) <= 0) return showToast('Vui lòng nhập đơn giá thực tế.');
+    if (!batchForm.value.expirationDate) return showToast('Vui lòng nhập hạn sử dụng thực tế.');
+  }
   batchSubmitting.value = true;
   try {
     await api.post(`/api/admin/ingredients/${selectedIngForRestock.value.id}/batches`, batchForm.value, configHeader());
     showToast(` Đã nhập lô mới thành công!`);
     showRestockModal.value = false;
+    restockRequiresRealData.value = false;
     loadData();
   } catch (err) { showToast(getApiErrorMessage(err, 'Không thể nhập lô vào kho.')); }
   finally { batchSubmitting.value = false; }
@@ -889,6 +909,7 @@ const analyzeInventory = async () => {
     const analysisResponse = await api.get('/api/admin/ingredients/analysis?expiringDays=3', configHeader());
     const analysis = analysisResponse.data || {};
     const canonicalResults = (analysis.suggestions || []).map(item => ({
+      ingredientId: item.ingredientId,
       name: item.name,
       unit: item.unit,
       suggestedAmount: item.suggestedAmount || 0,
@@ -933,16 +954,38 @@ const applyForecast = async (ingName, amount) => {
   const ing = ingredients.value.find(i => i.name.toLowerCase() === ingName.toLowerCase());
   if (!ing) return showToast(`Không tìm thấy nguyên liệu "${ingName}" trong hệ thống.`);
   
-  // Open restock modal and pre-fill amount
   selectedIngForRestock.value = ing;
-  batchForm.value = { quantity: amount, unitPrice: ing.unitPrice || 0, expirationDate: '' };
+  batchForm.value = { quantity: amount, unitPrice: '', expirationDate: '' };
+  restockRequiresRealData.value = true;
   showForecastModal.value = false;
   showRestockModal.value = true;
+};
+
+const applyAllForecasts = () => {
+  const rows = forecastPurchasableResults.value.map(item => {
+    const ingredient = forecastIngredient(item);
+    return {
+      ingredientId: ingredient.id,
+      quantity: Number(item.suggestedAmount),
+      unitPrice: '',
+      expirationDate: ''
+    };
+  });
+  if (!rows.length) return showToast('Không có đề xuất hợp lệ để nhập kho.');
+  invoiceForm.value = {
+    supplier: '',
+    note: 'Duyệt nhập kho theo AI dự báo',
+    items: rows
+  };
+  invoiceRequiresCompleteRows.value = true;
+  showForecastModal.value = false;
+  showCreateInvoiceModal.value = true;
 };
 
 // ================== HÓA ĐƠN NHẬP HÀNG ==================
 const openCreateInvoiceModal = () => {
   invoiceForm.value = { supplier: '', note: '', items: [{ ingredientId: '', quantity: 1, unitPrice: 0, expirationDate: '' }] };
+  invoiceRequiresCompleteRows.value = false;
   showCreateInvoiceModal.value = true;
 };
 
@@ -962,6 +1005,12 @@ const submitInvoice = async () => {
   const validItems = invoiceForm.value.items.filter(i => i.ingredientId && i.quantity > 0);
   if (validItems.length === 0) return showToast('Vui lòng thêm ít nhất 1 nguyên liệu hợp lệ.');
   if (!invoiceForm.value.supplier.trim()) return showToast('Vui lòng nhập nhà cung cấp.');
+  if (invoiceRequiresCompleteRows.value && validItems.some(i => !i.unitPrice || Number(i.unitPrice) <= 0)) {
+    return showToast('Vui lòng nhập đơn giá thực tế cho mọi đề xuất AI.');
+  }
+  if (invoiceRequiresCompleteRows.value && validItems.some(i => !i.expirationDate)) {
+    return showToast('Vui lòng nhập hạn sử dụng thực tế cho mọi đề xuất AI.');
+  }
   invoiceSubmitting.value = true;
   try {
     const payload = {
@@ -978,6 +1027,7 @@ const submitInvoice = async () => {
     await api.post('/api/admin/import-invoices', payload, configHeader());
     showToast(' Đã nhập hàng thành công! Đã tạo phiếu lưu kho.');
     showCreateInvoiceModal.value = false;
+    invoiceRequiresCompleteRows.value = false;
     fetchInvoices();
     // Cập nhật lại kho
     const res = await api.get('/api/admin/ingredients', configHeader());
@@ -1095,6 +1145,7 @@ onMounted(() => {
 .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 999; display: flex; align-items: center; justify-content: center; }
 .forecast-box { background: var(--bg-card); padding: 0; border-radius: 12px; width: 100%; max-width: 700px; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--color-tertiary); box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
 .forecast-header { background: color-mix(in srgb, var(--color-tertiary) 10%, transparent); padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid color-mix(in srgb, var(--color-tertiary) 30%, transparent); }
+.forecast-header-actions { display: inline-flex; align-items: center; gap: 10px; }
 .forecast-header h3 { margin: 0; color: var(--color-tertiary); font-size: 1.3rem; }
 .btn-close-modal { background: transparent; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; }
 .btn-close-modal:hover { color: var(--primary); }

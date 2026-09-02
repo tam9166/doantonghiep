@@ -54,6 +54,9 @@ public class StaffAccountService {
         Actor actor = currentActor();
         String roleName = normalizeRole(requestedRole);
         assertCanManageRole(actor, roleName);
+        if (ADMIN_ROLES.contains(roleName)) {
+            assertNoExistingAdmin();
+        }
         Role role = requiredRole(roleName);
         String username = request.username().trim().toLowerCase(Locale.ROOT);
         if (accountRepository.existsById(username)) {
@@ -100,11 +103,20 @@ public class StaffAccountService {
         if (requestedRole != null && !requestedRole.isBlank()) {
             String nextRole = normalizeRole(requestedRole);
             assertCanManageRole(actor, nextRole);
-            if (containsAdmin(currentRoles) && !ADMIN_ROLES.contains(nextRole)) assertNotLastAdmin();
-            Role role = requiredRole(nextRole);
-            authorityRepository.deleteAll(authorityRepository.findByAccountUsername(account.getUsername()));
-            assignRole(account, role);
-            revokeTokens(account);
+            boolean currentlyAdmin = containsAdmin(currentRoles);
+            if (currentlyAdmin && !ADMIN_ROLES.contains(nextRole)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Không được thay đổi vai trò tài khoản Admin gốc");
+            }
+            if (!currentlyAdmin && ADMIN_ROLES.contains(nextRole)) {
+                assertNoExistingAdmin();
+            }
+            if (!currentRoles.contains(nextRole)) {
+                Role role = requiredRole(nextRole);
+                authorityRepository.deleteAll(authorityRepository.findByAccountUsername(account.getUsername()));
+                assignRole(account, role);
+                revokeTokens(account);
+            }
         }
 
         Account saved = accountRepository.save(account);
@@ -215,6 +227,13 @@ public class StaffAccountService {
     private void assertNotLastAdmin() {
         if (authorityRepository.countByRoleNameIn(ADMIN_ROLES) <= 1) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Không thể khóa hoặc hạ quyền Admin cuối cùng");
+        }
+    }
+
+    private void assertNoExistingAdmin() {
+        if (authorityRepository.countByRoleNameIn(ADMIN_ROLES) > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Hệ thống chỉ cho phép một tài khoản Admin");
         }
     }
 
