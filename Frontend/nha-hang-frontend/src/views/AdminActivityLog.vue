@@ -202,7 +202,7 @@ onMounted(() => {
 @import '@/assets/admin-3d.css';
 
 .admin-content { max-width: 1200px; margin: 0 auto; padding: 28px 24px; }
-.page-header { margin-bottom: 28px; padding: 20px 0; }
+.page-header { margin-bottom: 38px; padding: 20px 0 6px; }
 .page-title { margin: 0; font-size: 1.8rem; font-weight: 900; }
 .page-subtitle { margin: 6px 0 0; color: var(--text-muted); font-size: 0.95rem; }
 
@@ -210,7 +210,8 @@ onMounted(() => {
 .stat-card { display: flex; align-items: center; gap: 14px; padding: 20px; border-radius: 14px; }
 .stat-icon { font-size: 1.8rem; }
 .stat-info { display: flex; flex-direction: column; }
-.stat-value { font-size: 1.6rem; font-weight: 900; color: var(--primary); }
+.stat-value { font-size: 1.55rem; font-weight: 750; line-height: 1.1; color: var(--primary); }
+.stat-value.neon-badge { font-weight: 800; }
 .stat-label { font-size: 0.78rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
 
 .filter-bar { border-radius: 14px; }

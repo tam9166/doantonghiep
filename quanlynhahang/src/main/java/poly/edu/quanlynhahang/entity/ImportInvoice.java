@@ -30,4 +30,7 @@ public class ImportInvoice {
 
     @Column(columnDefinition = "nvarchar(max)")
     private String note;
+
+    @Column(name = "source_request_id", length = 64, unique = true)
+    private String sourceRequestId;
 }

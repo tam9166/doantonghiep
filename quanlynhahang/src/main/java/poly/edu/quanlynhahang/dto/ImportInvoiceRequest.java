@@ -14,4 +14,5 @@ public class ImportInvoiceRequest {
     @NotEmpty
     @Valid
     private List<ImportInvoiceItemRequest> items;
+    private String sourceRequestId;
 }

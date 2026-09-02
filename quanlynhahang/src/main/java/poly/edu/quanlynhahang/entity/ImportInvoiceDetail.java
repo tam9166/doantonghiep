@@ -8,7 +8,7 @@ import lombok.Data;
 
 @Data
 @Entity
-@Table(name = "ImportInvoiceDetails")
+@Table(name = "import_invoice_details")
 public class ImportInvoiceDetail {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

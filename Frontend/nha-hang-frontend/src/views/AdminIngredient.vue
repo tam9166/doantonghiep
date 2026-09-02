@@ -376,8 +376,8 @@
         </div>
 
         <div class="form-actions" style="flex-direction: row; gap: 10px;">
-          <button @click="submitBatch" class="g-btn-primary" style="flex:1;"> Xác Nhận Nhập Kho</button>
-          <button @click="showRestockModal = false" class="btn-cancel" style="flex:1;">Hủy</button>
+          <button @click="submitBatch" class="g-btn-primary" style="flex:1;" :disabled="batchSubmitting">{{ batchSubmitting ? 'Đang nhập kho...' : 'Xác Nhận Nhập Kho' }}</button>
+          <button @click="showRestockModal = false" class="btn-cancel" style="flex:1;" :disabled="batchSubmitting">Hủy</button>
         </div>
       </div>
     </div>
@@ -446,7 +446,7 @@
       <div class="modal-content" style="max-width: 800px; width: 90%;">
         <div class="modal-header">
           <h3> Phiếu Nhập Hàng Vào Kho</h3>
-          <button @click="showCreateInvoiceModal = false" class="btn-close"><UiIcon name="x" /></button>
+          <button @click="showCreateInvoiceModal = false" class="btn-close" aria-label="Đóng phiếu nhập"><UiIcon name="x" /></button>
         </div>
         <div class="modal-body">
           <div v-if="ingredients.length === 0" style="padding: 20px; background: color-mix(in srgb, var(--primary) 10%, transparent); border: 1px solid var(--primary); border-radius: 8px; color: var(--primary); margin-bottom: 20px; text-align: center;">
@@ -501,15 +501,15 @@
               </tr>
             </tbody>
           </table>
-          <button @click="invoiceForm.items.push({ ingredientId: '', quantity: 1, unitPrice: 0, expirationDate: '' })" class="btn-sm btn-secondary" style="margin-bottom: 20px;"> Thêm dòng</button>
+          <button @click="invoiceForm.items.push({ ingredientId: '', quantity: 1, unitPrice: 0, expirationDate: '' })" class="invoice-add-row" style="margin-bottom: 20px;">Thêm dòng</button>
           
           <div style="text-align: right; font-size: 1.2rem; font-weight: bold; margin-bottom: 20px;">
             Tổng Tiền: <span style="color: var(--primary);">{{ calculateInvoiceTotal().toLocaleString() }}đ</span>
           </div>
 
           <div class="form-actions">
-            <button @click="submitInvoice" class="g-btn-primary"> Xác Nhận Nhập Kho</button>
-            <button @click="showCreateInvoiceModal = false" class="g-btn-secondary">Hủy</button>
+            <button @click="submitInvoice" class="g-btn-primary" :disabled="invoiceSubmitting">{{ invoiceSubmitting ? 'Đang nhập kho...' : 'Xác Nhận Nhập Kho' }}</button>
+            <button @click="showCreateInvoiceModal = false" class="invoice-cancel" :disabled="invoiceSubmitting">Hủy</button>
           </div>
         </div>
       </div>
@@ -622,6 +622,7 @@ const ingForm = ref({ name: '', unit: '', minStock: 5.0, unitPrice: 0, shelfLife
 const showRestockModal = ref(false);
 const selectedIngForRestock = ref(null);
 const batchForm = ref({ quantity: 0, unitPrice: 0, expirationDate: '' });
+const batchSubmitting = ref(false);
 
 const showBatchesModal = ref(false);
 const selectedBatches = ref([]);
@@ -660,6 +661,7 @@ const invoiceSearchQuery = ref('');
 const invoiceTimeFilter = ref('all');
 const showCreateInvoiceModal = ref(false);
 const invoiceForm = ref({ supplier: '', note: '', items: [] });
+const invoiceSubmitting = ref(false);
 const showInvoiceDetailsModal = ref(false);
 const selectedInvoiceId = ref(null);
 const invoiceDetails = ref([]);
@@ -771,14 +773,16 @@ const deleteIngredient = async (id) => {
 };
 
 const submitBatch = async () => {
+  if (batchSubmitting.value) return;
   if (!batchForm.value.quantity || batchForm.value.quantity <= 0) return showToast('Số lượng phải lớn hơn 0.');
-  
+  batchSubmitting.value = true;
   try {
     await api.post(`/api/admin/ingredients/${selectedIngForRestock.value.id}/batches`, batchForm.value, configHeader());
     showToast(` Đã nhập lô mới thành công!`);
     showRestockModal.value = false;
     loadData();
   } catch (err) { showToast(getApiErrorMessage(err, 'Không thể nhập lô vào kho.')); }
+  finally { batchSubmitting.value = false; }
 };
 
 const viewBatches = async (id) => {
@@ -902,7 +906,9 @@ const analyzeInventory = async () => {
     }
 
     const res = await api.post('/api/admin/ai/inventory', {
-      message: JSON.stringify(analysis),
+      // InventoryAlertService đã bổ sung dữ liệu chuẩn ở backend; tránh gửi lại
+      // toàn bộ danh sách lô khiến message vượt giới hạn 4.000 ký tự.
+      message: 'Phân tích dự báo nhập kho từ dữ liệu cảnh báo tồn và hạn sử dụng hiện tại.',
     }, configHeader());
 
     let reply = res.data.reply || '';
@@ -952,9 +958,11 @@ const calculateInvoiceTotal = () => {
 };
 
 const submitInvoice = async () => {
+  if (invoiceSubmitting.value) return;
   const validItems = invoiceForm.value.items.filter(i => i.ingredientId && i.quantity > 0);
   if (validItems.length === 0) return showToast('Vui lòng thêm ít nhất 1 nguyên liệu hợp lệ.');
-  
+  if (!invoiceForm.value.supplier.trim()) return showToast('Vui lòng nhập nhà cung cấp.');
+  invoiceSubmitting.value = true;
   try {
     const payload = {
       supplier: invoiceForm.value.supplier,
@@ -977,7 +985,7 @@ const submitInvoice = async () => {
   } catch (err) {
     showToast(getApiErrorMessage(err, 'Không thể tạo phiếu nhập kho.'));
     console.error(err);
-  }
+  } finally { invoiceSubmitting.value = false; }
 };
 
 const viewInvoiceDetails = async (id) => {
@@ -1120,14 +1128,35 @@ onMounted(() => {
 }
 .modal-header h3 { margin: 0; color: var(--primary); font-size: 1.2rem; }
 .btn-close {
-  background: transparent;
-  border: none;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: #fff;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
   color: var(--text-muted);
   font-size: 1.5rem;
   cursor: pointer;
   transition: 0.3s;
 }
-.btn-close:hover { color: var(--primary); transform: scale(1.1); }
+.btn-close:hover { color: var(--primary); border-color: var(--primary); background: #fff3f1; }
+.btn-close:focus-visible, .invoice-add-row:focus-visible, .invoice-cancel:focus-visible { outline: 3px solid color-mix(in srgb, var(--secondary) 28%, transparent); outline-offset: 2px; }
+.invoice-add-row, .invoice-cancel {
+  min-height: 38px;
+  border: 1px solid color-mix(in srgb, var(--secondary) 45%, var(--border));
+  border-radius: 8px;
+  padding: 8px 14px;
+  background: #fff;
+  color: var(--text-secondary);
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+.invoice-add-row:hover, .invoice-cancel:hover { background: var(--bg-hover); border-color: var(--secondary); }
+.invoice-cancel:disabled { opacity: .55; cursor: wait; }
 .modal-body {
   padding: 24px;
   overflow-y: auto;

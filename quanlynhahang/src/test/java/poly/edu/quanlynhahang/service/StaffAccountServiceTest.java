@@ -29,6 +29,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.anyString;
 
 class StaffAccountServiceTest {
     private final AccountRepository accountRepository = mock(AccountRepository.class);
@@ -132,6 +133,34 @@ class StaffAccountServiceTest {
         assertEquals(5L, account.getTokenVersion());
         verify(authorityRepository).deleteAll(any());
         verify(authorityRepository).save(any(Authority.class));
+    }
+
+    @Test
+    void adminGeneratedTemporaryPasswordIsHashedAndForcesNextLoginChange() {
+        authenticate("root", "ROLE_ADMIN");
+        Account account = account("waiter02", 2L);
+        when(accountRepository.findLockedByUsername("waiter02")).thenReturn(Optional.of(account));
+        when(authorityRepository.findByAccountUsername("waiter02"))
+                .thenReturn(List.of(authority(account, "ROLE_WAITER")));
+        when(passwordEncoder.encode(anyString())).thenReturn("bcrypt-hash-only");
+
+        String temporaryPassword = service.resetStaffPassword("waiter02", null, true);
+
+        assertTrue(temporaryPassword.length() >= 10);
+        assertEquals("bcrypt-hash-only", account.getPassword());
+        assertTrue(account.getMustChangePassword());
+        assertEquals(3L, account.getTokenVersion());
+        verify(accountRepository).save(account);
+    }
+
+    @Test
+    void managerCannotResetStaffPassword() {
+        authenticate("manager01", "ROLE_MANAGER");
+
+        assertThrows(AccessDeniedException.class,
+                () -> service.resetStaffPassword("waiter02", null, true));
+
+        verify(accountRepository, never()).save(any());
     }
 
     private UpdateStaffRequest emptyUpdate() {

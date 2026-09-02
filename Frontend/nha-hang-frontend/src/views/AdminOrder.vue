@@ -131,7 +131,7 @@
 
       <!-- Invoice Modal -->
       <div v-if="selectedOrder" class="modal-overlay" @click.self="closeModal">
-        <div class="invoice-modal printable-area">
+        <div id="admin-order-invoice" class="invoice-modal printable-area">
           <div class="modal-header hide-on-print">
             <h2>Chi Tiết Hóa Đơn</h2>
             <button @click="closeModal" class="btn-close"><UiIcon name="x" /></button>
@@ -229,6 +229,7 @@ import { foodImage, replaceFoodImage } from '@/utils/imageFallback';
 import { useDialog } from '@/composables/useDialog';
 import { useToast } from '@/composables/useToast';
 import { getApiErrorMessage } from '@/services/errorMessage';
+import { printElement } from '@/utils/printElement';
 
 const { confirmDialog } = useDialog();
 const toast = useToast();
@@ -348,7 +349,7 @@ const calculateTotal = (order) => {
   return order.totalAmount ?? order.subTotal ?? order.orderDetails.reduce((sum, item) => sum + Number(item.price || 0), 0);
 };
 const money = value => Number(value || 0).toLocaleString('vi-VN');
-const exportToPDF = () => { window.print(); };
+const exportToPDF = () => printElement('admin-order-invoice', 'Hóa đơn thanh toán - Mộc Vị');
 
 const getCountdown = (scheduledAt) => {
   if (!scheduledAt) return 'Chưa có giờ hẹn';
@@ -605,7 +606,7 @@ onUnmounted(() => {
 }
 
 .print-table { width: 100%; border-collapse: collapse; margin-bottom: 28px; }
-.print-table th { background: var(--color-inverse-surface); color: #FFFFFF; padding: 12px; font-size: 0.88rem; text-transform: uppercase; }
+.print-table th { background: var(--color-inverse-surface); color: #FFFFFF !important; padding: 12px; font-size: 0.88rem; text-transform: uppercase; }
 .print-table td { border-bottom: 1px solid var(--border); padding: 14px 12px; color: var(--text-primary); vertical-align: middle; }
 .invoice-thumb {
   width: 45px; height: 45px; border-radius: 6px; object-fit: cover;

@@ -37,7 +37,7 @@ class BlankDatabaseMigrationIntegrationTest {
                     .baselineOnMigrate(true)
                     .baselineVersion("2")
                     .load();
-            assertEquals(96, flyway.migrate().migrationsExecuted);
+            assertEquals(98, flyway.migrate().migrationsExecuted);
 
             try (Connection target = DriverManager.getConnection(targetUrl, username, password);
                  Statement statement = target.createStatement()) {
@@ -55,6 +55,9 @@ class BlankDatabaseMigrationIntegrationTest {
                 assertTrue(tableExists(statement, "area_pricing"));
                 assertTrue(tableExists(statement, "ingredient_batch_disposals"));
                 assertTrue(tableExists(statement, "kitchen_proposals"));
+                assertTrue(tableExists(statement, "import_invoice_details"));
+                assertEquals(1, count(statement,
+                        "SELECT COUNT(*) FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.import_invoices') AND name = 'UX_import_invoices_source_request_id' AND is_unique = 1"));
                 assertEquals(1, count(statement,
                         "SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('dbo.Orders') AND name = 'order_code'"));
                 assertEquals(1, count(statement,

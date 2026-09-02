@@ -15,6 +15,7 @@ class SpaRouteRegistryTest {
 
         assertTrue(routes.contains("/change-password"));
         assertTrue(routes.contains("/staff/profile"));
+        assertTrue(routes.contains("/admin/kitchen-proposals"));
         assertTrue(routes.contains("/dat-su-kien"));
         assertTrue(routes.contains("/admin/ai-knowledge"));
         assertTrue(routes.contains("/admin/deposit-policies"));

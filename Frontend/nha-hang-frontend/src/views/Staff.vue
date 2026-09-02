@@ -1,4 +1,5 @@
 <template>
+  <component :is="profileLayout">
   <div class="staff-dashboard">
     <header class="staff-header">
       <div class="header-left">
@@ -123,6 +124,7 @@
       </div>
     </main>
   </div>
+  </component>
 </template>
 
 <script setup>
@@ -130,6 +132,7 @@ import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '@/services/api';
 import { getStaffToken, getStaffUser } from '@/services/session';
+import AdminLayout from '@/components/AdminLayout.vue';
 
 const router = useRouter();
 const currentTab = ref('schedule');
@@ -140,6 +143,7 @@ const userRole = computed(() => {
   if (!user.value || !user.value.roles) return '';
   return user.value.roles.find(r => r.startsWith('ROLE_')) || '';
 });
+const profileLayout = computed(() => ['ROLE_ADMIN', 'ROLE_MANAGER'].includes(userRole.value) ? AdminLayout : 'div');
 
 const rate = computed(() => {
   if (userRole.value === 'ROLE_KITCHEN') return 250000;

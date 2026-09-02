@@ -24,6 +24,7 @@ import poly.edu.quanlynhahang.dto.CreateStaffRequest;
 import poly.edu.quanlynhahang.dto.UpdateStaffRequest;
 import poly.edu.quanlynhahang.dto.UpdateCustomerRequest;
 import poly.edu.quanlynhahang.dto.OrderResponse;
+import poly.edu.quanlynhahang.dto.AdminPasswordResetRequest;
 import poly.edu.quanlynhahang.repository.AccountRepository;
 import poly.edu.quanlynhahang.service.StaffAccountService;
 
@@ -154,11 +155,21 @@ public class AdminAccountController {
     }
 
     @PostMapping("/customers/{username}/reset-password")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> resetCustomerPassword(@PathVariable String username,
-                                                   @RequestBody java.util.Map<String, String> request) {
-        String password = request == null ? null : request.get("password");
-        staffAccountService.resetCustomerPassword(username, password);
-        return ResponseEntity.ok(java.util.Map.of("message", "Đã đặt lại mật khẩu; khách cần đổi mật khẩu khi đăng nhập."));
+                                                   @Valid @RequestBody AdminPasswordResetRequest request) {
+        String temporaryPassword = staffAccountService.resetCustomerPassword(
+                username, request.password(), Boolean.TRUE.equals(request.generateTemporary()));
+        return resetResponse(temporaryPassword);
+    }
+
+    @PostMapping("/{username}/reset-password")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> resetStaffPassword(@PathVariable String username,
+                                                @Valid @RequestBody AdminPasswordResetRequest request) {
+        String temporaryPassword = staffAccountService.resetStaffPassword(
+                username, request.password(), Boolean.TRUE.equals(request.generateTemporary()));
+        return resetResponse(temporaryPassword);
     }
 
     @DeleteMapping("/customers/{username}")
@@ -172,5 +183,13 @@ public class AdminAccountController {
                                                 @RequestParam boolean enabled) {
         staffAccountService.setCustomerEnabled(username, enabled);
         return ResponseEntity.ok(enabled ? "Đã mở khóa tài khoản khách hàng." : "Đã khóa tài khoản khách hàng.");
+    }
+
+    private ResponseEntity<?> resetResponse(String temporaryPassword) {
+        java.util.Map<String, Object> response = new java.util.LinkedHashMap<>();
+        response.put("message", "Đã đặt lại mật khẩu; người dùng phải đổi mật khẩu khi đăng nhập.");
+        response.put("mustChangePassword", true);
+        if (temporaryPassword != null) response.put("temporaryPassword", temporaryPassword);
+        return ResponseEntity.ok(response);
     }
 }

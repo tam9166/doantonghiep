@@ -50,12 +50,17 @@ public class InventoryImportService {
 
     @Transactional
     public ImportInvoice create(ImportInvoiceRequest request) {
+        if (request.getSourceRequestId() != null && !request.getSourceRequestId().isBlank()) {
+            ImportInvoice existing = invoiceRepository.findBySourceRequestId(request.getSourceRequestId().trim()).orElse(null);
+            if (existing != null) return existing;
+        }
         Date now = new Date();
         ImportInvoice invoice = new ImportInvoice();
         invoice.setInvoiceCode(nextInvoiceCode(now));
         invoice.setImportDate(now);
         invoice.setSupplier(request.getSupplier().trim());
         invoice.setNote(request.getNote());
+        invoice.setSourceRequestId(request.getSourceRequestId() == null ? null : request.getSourceRequestId().trim());
         invoice.setTotalAmount(BigDecimal.ZERO.setScale(2));
         ImportInvoice saved = invoiceRepository.saveAndFlush(invoice);
         BigDecimal total = BigDecimal.ZERO;

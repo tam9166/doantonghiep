@@ -194,12 +194,12 @@
             <div><span>Gửi lúc</span><strong>{{ formatDateTime(selected.receiptEmailSentAt) || '-' }}</strong></div>
           </div>
           <div class="detail-actions">
-            <a class="ghost" :href="`tel:${selected.customerPhone}`">Gọi khách</a>
-            <button type="button" @click="updateContact(selected, 'CONFIRMED_BY_CUSTOMER')">Khách xác nhận</button>
-            <button type="button" @click="updateContact(selected, 'UNREACHABLE')">Không liên lạc được</button>
-            <button type="button" @click="updateContact(selected, 'CHANGE_REQUESTED')">Yêu cầu thay đổi</button>
-            <button type="button" class="ghost" @click="updateContact(selected, 'NOT_REQUIRED')">Không cần gọi</button>
-            <button type="button" class="ghost" @click="resendReceipt(selected)">Gửi lại biên nhận</button>
+            <a class="contact-action contact-action--phone" :href="`tel:${selected.customerPhone}`">Gọi khách</a>
+            <button type="button" class="contact-action contact-action--success" :disabled="contactUpdating" @click="updateContact(selected, 'CONFIRMED_BY_CUSTOMER')">Khách xác nhận</button>
+            <button type="button" class="contact-action contact-action--warning" :disabled="contactUpdating" @click="updateContact(selected, 'UNREACHABLE')">Không liên lạc được</button>
+            <button type="button" class="contact-action contact-action--change" :disabled="contactUpdating" @click="updateContact(selected, 'CHANGE_REQUESTED')">Yêu cầu thay đổi</button>
+            <button type="button" class="contact-action contact-action--neutral" :disabled="contactUpdating" @click="updateContact(selected, 'NOT_REQUIRED')">Không cần gọi</button>
+            <button type="button" class="contact-action contact-action--secondary" :disabled="receiptSending" @click="resendReceipt(selected)">{{ receiptSending ? 'Đang gửi...' : 'Gửi lại biên nhận' }}</button>
           </div>
           <section v-if="selected.reservationStatus === 'WAITING_TABLE_ASSIGNMENT'" class="assignment-box">
             <h3>Bố trí bàn cho {{ selected.guestCount }} khách</h3>
@@ -272,6 +272,8 @@ const assignedTableIds = ref([])
 const assignmentNote = ref('')
 const assignmentLoading = ref(false)
 const savingAssignment = ref(false)
+const contactUpdating = ref(false)
+const receiptSending = ref(false)
 let stompClient = null
 let realtimeTimer = null
 let keywordTimer = null
@@ -503,6 +505,7 @@ async function confirmAssignment() {
 }
 
 async function updateContact(item, status) {
+  if (contactUpdating.value) return
   const note = await promptDialog({
     title: 'Cập nhật liên hệ',
     message: 'Ghi lại nội dung cuộc gọi với khách.',
@@ -510,15 +513,22 @@ async function updateContact(item, status) {
     defaultValue: item.contactCallNote || '',
   })
   if (note === null) return
-  const res = await api.patch(`/api/admin/reservations/${item.id}/contact-status`, { status, note })
-  selected.value = res.data
-  const idx = reservations.value.findIndex(reservation => reservation.id === item.id)
-  if (idx >= 0) reservations.value[idx] = res.data
+  contactUpdating.value = true
+  try {
+    const res = await api.patch(`/api/admin/reservations/${item.id}/contact-status`, { status, note })
+    selected.value = res.data
+    const idx = reservations.value.findIndex(reservation => reservation.id === item.id)
+    if (idx >= 0) reservations.value[idx] = res.data
+  } finally { contactUpdating.value = false }
 }
 
 async function resendReceipt(item) {
-  await api.post(`/api/admin/reservations/${item.id}/resend-receipt`)
-  window.setTimeout(() => refreshDetail(item), 800)
+  if (receiptSending.value) return
+  receiptSending.value = true
+  try {
+    await api.post(`/api/admin/reservations/${item.id}/resend-receipt`)
+    window.setTimeout(() => refreshDetail(item), 800)
+  } finally { receiptSending.value = false }
 }
 
 async function confirmReservation(item) {
@@ -937,6 +947,29 @@ td small {
 .detail-actions a {
   text-decoration: none;
 }
+.contact-action {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 13px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+  transition: background .18s ease, border-color .18s ease, transform .18s ease;
+}
+.contact-action:hover:not(:disabled) { transform: translateY(-1px); background: var(--bg-hover); }
+.contact-action:focus-visible { outline: 3px solid color-mix(in srgb, var(--secondary) 28%, transparent); outline-offset: 2px; }
+.contact-action:disabled { opacity: .58; cursor: wait; }
+.contact-action--success { border-color: #87b89a; background: #eef8f1; color: #17653b; }
+.contact-action--warning { border-color: #e6bd72; background: #fff8e8; color: #8a5a06; }
+.contact-action--change { border-color: #d9a56b; background: #fff5eb; color: #8a4710; }
+.contact-action--neutral { color: var(--text-secondary); }
+.contact-action--secondary, .contact-action--phone { border-color: color-mix(in srgb, var(--secondary) 45%, var(--border)); color: var(--secondary); }
 .assignment-box{margin:18px 0;padding:16px;border:1px solid #d7b56d;border-radius:10px;background:#fffaf0}.recommendations{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:10px 0 16px}.option-card{display:grid;text-align:left;gap:4px;background:var(--warning)}.option-card small{color:#fff}.manual-tables{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}.manual-tables label{display:flex;gap:8px;border:1px solid var(--border);border-radius:8px;padding:10px;cursor:pointer}.manual-tables label.chosen{border-color:var(--warning);background:#f7eee6}.manual-tables label span{display:grid}.manual-tables small{color:var(--text-muted)}.assignment-box textarea{width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;margin:8px 0}.capacity-error{color:var(--danger);font-weight:700}
 
 .detail-grid span {

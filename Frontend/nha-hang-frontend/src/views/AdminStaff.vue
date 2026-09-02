@@ -52,6 +52,7 @@
               </td>
               <td data-label="Hành động" class="staff-actions">
                 <button class="g-btn-primary" @click="openEditModal(staff)" style="margin-right: 5px;">Xem/Sửa</button>
+                <button v-if="isAdmin" class="g-btn-secondary" :disabled="resetUsername === staff.username" @click="resetAccountPassword(staff, 'staff')">{{ resetUsername === staff.username ? 'Đang đặt lại...' : 'Đặt lại mật khẩu' }}</button>
                 <button class="g-btn-danger" @click="deleteStaff(staff.username)" v-if="staff.username !== 'admin'">Xóa</button>
               </td>
             </tr>
@@ -95,7 +96,7 @@
               <td>
                 <button class="g-btn-primary" @click="viewCustomerOrders(cus)">Xem Lịch Sử</button>
                 <button class="g-btn-primary" @click="openCustomerEdit(cus)">Sửa</button>
-                <button class="g-btn-primary" @click="resetCustomerPassword(cus)">Đặt lại mật khẩu</button>
+                <button v-if="isAdmin" class="g-btn-primary" :disabled="resetUsername === cus.username" @click="resetAccountPassword(cus, 'customer')">{{ resetUsername === cus.username ? 'Đang đặt lại...' : 'Đặt lại mật khẩu' }}</button>
                 <button :class="cus.status === 'LOCKED' ? 'g-btn-primary' : 'g-btn-danger'" @click="toggleCustomerStatus(cus)">{{ cus.status === 'LOCKED' ? 'Mở khóa' : 'Khóa' }}</button>
               </td>
             </tr>
@@ -409,15 +410,12 @@
 
     <!-- MODAL XEM/SỬA NHÂN VIÊN -->
     <div class="g-modal-overlay" v-if="showEditModal" @click.self="showEditModal = false">
-      <div class="g-modal">
-        <h3>Xem & Cập Nhật Nhân Viên</h3>
+      <section class="g-modal staff-edit-modal" role="dialog" aria-modal="true" aria-labelledby="staff-edit-title">
+        <header class="staff-modal-header"><h3 id="staff-edit-title">Xem & Cập Nhật Nhân Viên</h3><button class="modal-icon-close" aria-label="Đóng" @click="showEditModal = false"><UiIcon name="x" /></button></header>
+        <div class="staff-modal-body">
         <div class="form-group">
           <label>Tên Đăng Nhập</label>
           <input type="text" class="g-form-control" v-model="editStaff.username" disabled style="background: var(--color-inverse-surface); color:var(--color-outline); cursor:not-allowed;" />
-        </div>
-        <div class="form-group">
-          <label>Mật Khẩu (Để trống nếu không đổi)</label>
-          <input type="password" class="g-form-control" v-model="editStaff.password" placeholder="***" />
         </div>
         <div class="form-group">
           <label>Họ Tên</label>
@@ -454,11 +452,9 @@
           <label>Đơn Giá / Ca</label>
           <input type="number" min="1" class="g-form-control" v-model.number="editStaff.shiftRate" placeholder="Chưa cấu hình" />
         </div>
-        <div class="modal-actions" style="margin-top: 20px; text-align: right;">
-          <button class="g-btn-danger" style="margin-right: 10px;" @click="showEditModal = false">Đóng</button>
-          <button class="g-btn-primary" @click="updateStaff">Lưu Thay Đổi</button>
         </div>
-      </div>
+        <footer class="staff-modal-footer"><button class="g-btn-secondary" @click="showEditModal = false">Đóng</button><button class="g-btn-primary" @click="updateStaff">Lưu Thay Đổi</button></footer>
+      </section>
     </div>
     <!-- MODAL LỊCH SỬ KHÁCH HÀNG -->
     <div class="g-modal-overlay" v-if="showCustomerEditModal" @click.self="showCustomerEditModal = false">
@@ -491,7 +487,7 @@
       <div class="g-modal customer-history-modal">
         <div class="customer-history-header">
           <h3>Lịch Sử Hóa Đơn Khách Hàng</h3>
-          <button class="g-btn-danger customer-history-close" @click="showCustomerOrdersModal = false">Đóng</button>
+          <button class="modal-icon-close customer-history-close" aria-label="Đóng lịch sử" @click="showCustomerOrdersModal = false"><UiIcon name="x" /></button>
         </div>
         <div class="crm-summary">
           <div><span>Tổng chi tiêu</span><strong>{{ customerTotalSpend.toLocaleString('vi-VN') }}đ</strong></div>
@@ -500,13 +496,14 @@
         </div>
         <div class="customer-history-tools">
           <input type="text" class="g-form-control customer-history-search" v-model="searchCustomerOrderQuery" placeholder="Tìm kiếm theo mã đơn..." />
-          <button class="g-btn-warning" @click="analyzeCustomer" :disabled="isAnalyzing">
+          <button class="customer-ai-button" @click="analyzeCustomer" :disabled="isAnalyzing">
              {{ isAnalyzing ? 'Đang phân tích...' : 'AI Phân Tích Khách Hàng' }}
           </button>
         </div>
-        <div v-if="aiCustomerAnalysis" style="margin-top:15px; padding:15px; background:color-mix(in srgb, var(--color-tertiary) 10%, transparent); border:1px solid color-mix(in srgb, var(--color-tertiary) 40%, transparent); border-radius:8px;">
-          <h4 style="margin:0 0 10px 0; color:var(--color-tertiary);"> Đánh Giá Từ AI:</h4>
-          <p style="margin:0; font-size:0.95rem; line-height:1.6; white-space:pre-wrap;">{{ aiCustomerAnalysis }}</p>
+        <div v-if="aiCustomerAnalysis" class="customer-ai-panel">
+          <h4>AI Phân Tích Khách Hàng</h4>
+          <div class="customer-ai-facts"><div><span>Giá trị khách hàng</span><strong>{{ customerTotalSpend.toLocaleString('vi-VN') }}đ</strong></div><div><span>Mức độ quay lại</span><strong>{{ customerUsageCount }} lần</strong></div><div><span>Món thường dùng</span><strong>{{ customerFavoriteItems || 'Chưa đủ dữ liệu' }}</strong></div></div>
+          <section><h5>Tóm tắt và gợi ý chăm sóc</h5><p>{{ aiCustomerAnalysis }}</p></section>
         </div>
         <div class="customer-history-table-wrap">
           <table class="data-table customer-history-table mt-10">
@@ -539,15 +536,19 @@
             </tbody>
           </table>
         </div>
-        <div class="modal-actions hide-on-print" style="margin-top: 20px; text-align: right;">
-          <button class="g-btn-danger" @click="showCustomerOrdersModal = false">Đóng</button>
-        </div>
       </div>
+    </div>
+
+    <div v-if="temporaryPassword" class="g-modal-overlay" @click.self="clearTemporaryPassword">
+      <section class="g-modal temporary-password-modal" role="dialog" aria-modal="true" aria-labelledby="temporary-password-title">
+        <header class="staff-modal-header"><h3 id="temporary-password-title">Mật khẩu tạm đã được tạo</h3><button class="modal-icon-close" aria-label="Đóng" @click="clearTemporaryPassword"><UiIcon name="x" /></button></header>
+        <div class="staff-modal-body"><p>Hãy cung cấp mật khẩu tạm cho người dùng. Mật khẩu này sẽ không được hiển thị lại.</p><div class="temporary-password-value"><code>{{ temporaryPassword }}</code><button class="g-btn-primary" @click="copyTemporaryPassword">Sao chép</button></div><p>Người dùng bắt buộc đổi mật khẩu ở lần đăng nhập tiếp theo.</p></div>
+      </section>
     </div>
 
     <!-- MODAL CHI TIẾT HÓA ĐƠN ĐỂ IN -->
     <div v-if="selectedCustomerOrder" class="g-modal-overlay" @click.self="selectedCustomerOrder = null">
-      <div class="g-modal printable-area invoice-modal">
+      <div id="admin-customer-invoice" class="g-modal printable-area invoice-modal">
         <div class="modal-header hide-on-print" style="display:flex; justify-content:space-between;">
           <h2 style="color:var(--primary); margin:0;">Chi Tiết Hóa Đơn</h2>
           <button @click="selectedCustomerOrder = null" style="background:transparent; border:none; font-size:1.5rem; cursor:pointer; color:var(--color-outline);"><UiIcon name="x" /></button>
@@ -620,6 +621,8 @@ import { toBusinessDate } from '@/utils/businessDate';
 import { useToast } from '@/composables/useToast';
 import { useDialog } from '@/composables/useDialog';
 import { getApiErrorMessage } from '@/services/errorMessage';
+import { printElement } from '@/utils/printElement';
+import { getStaffUser } from '@/services/session';
 
 const currentTab = ref('staff');
 const staffList = ref([]);
@@ -660,6 +663,9 @@ const searchCustomerOrderQuery = ref('');
 const currentCustomerView = ref(null);
 const aiCustomerAnalysis = ref('');
 const isAnalyzing = ref(false);
+const resetUsername = ref('');
+const temporaryPassword = ref('');
+const isAdmin = computed(() => (getStaffUser()?.roles || []).includes('ROLE_ADMIN'));
 const toast = useToast();
 const { confirmDialog } = useDialog();
 
@@ -679,13 +685,23 @@ const customerUsageCount = computed(() => customerOrders.value.filter(order => N
 const customerTotalSpend = computed(() => customerOrders.value
   .filter(order => Number(order?.status) === 4 || order?.isPaid === true)
   .reduce((sum, order) => sum + calculateOrderTotal(order), 0));
+const customerFavoriteItems = computed(() => {
+  const counts = new Map();
+  customerOrders.value.filter(order => Number(order?.status) === 4).forEach(order => {
+    (order.orderDetails || []).forEach(detail => {
+      const name = detail.product?.name;
+      if (name) counts.set(name, (counts.get(name) || 0) + Number(detail.quantity || 0));
+    });
+  });
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([name]) => name).join(', ');
+});
 
 const selectedCustomerOrder = ref(null);
 const viewCustomerInvoice = (order) => {
   selectedCustomerOrder.value = order;
 };
 const printInvoice = () => {
-  window.print();
+  printElement('admin-customer-invoice', 'Hóa đơn khách hàng - Mộc Vị');
 };
 
 const searchScheduleQuery = ref('');
@@ -712,7 +728,7 @@ const showAddModal = ref(false);
 const newStaff = ref({ username: '', password: '', fullname: '', email: '', role: 'ROLE_WAITER', shift: '', assignedArea: '', shiftRate: null });
 
 const showEditModal = ref(false);
-const editStaff = ref({ username: '', password: '', fullname: '', email: '', role: '', shift: '', assignedArea: '', shiftRate: null });
+const editStaff = ref({ username: '', fullname: '', email: '', role: '', shift: '', assignedArea: '', shiftRate: null });
 
 // Lấy ngày hôm nay định dạng yyyy-MM-dd
 const todayStr = toBusinessDate();
@@ -818,15 +834,25 @@ const saveCustomerEdit = async () => {
   } catch (err) { toast.error(getApiErrorMessage(err, 'Không thể cập nhật khách hàng.')); }
 };
 
-const resetCustomerPassword = async (customer) => {
-  const password = window.prompt(`Nhập mật khẩu mới cho ${customer.username} (tối thiểu 10 ký tự):`);
-  if (password === null) return;
-  if (password.length < 10) return toast.warning('Mật khẩu phải có ít nhất 10 ký tự.');
-  if (!await confirmDialog({ title: 'Đặt lại mật khẩu', message: `Tài khoản: ${customer.username}\nEmail: ${customer.email || '-'}\nBạn có chắc muốn đặt lại mật khẩu?`, confirmLabel: 'Xác nhận', danger: true })) return;
+const resetAccountPassword = async (account, type) => {
+  if (resetUsername.value || !isAdmin.value) return;
+  if (!await confirmDialog({ title: 'Tạo mật khẩu tạm', message: `Tài khoản: ${account.username}\nMật khẩu hiện tại không thể xem hoặc giải mã. Tạo mật khẩu tạm mới?`, confirmLabel: 'Tạo mật khẩu tạm', danger: true })) return;
+  resetUsername.value = account.username;
   try {
-    await api.post(`/api/admin/staff/customers/${customer.username}/reset-password`, { password }, configHeader());
-    toast.success('Đã đặt lại mật khẩu; khách cần đổi khi đăng nhập.');
+    const url = type === 'customer'
+      ? `/api/admin/staff/customers/${account.username}/reset-password`
+      : `/api/admin/staff/${account.username}/reset-password`;
+    const { data } = await api.post(url, { generateTemporary: true }, configHeader());
+    temporaryPassword.value = data.temporaryPassword || '';
+    if (!temporaryPassword.value) toast.warning('Mật khẩu đã được đổi nhưng máy chủ không trả mật khẩu tạm.');
   } catch (err) { toast.error(getApiErrorMessage(err, 'Không thể đặt lại mật khẩu.')); }
+  finally { resetUsername.value = ''; }
+};
+const clearTemporaryPassword = () => { temporaryPassword.value = ''; };
+const copyTemporaryPassword = async () => {
+  if (!temporaryPassword.value) return;
+  await navigator.clipboard.writeText(temporaryPassword.value);
+  toast.success('Đã sao chép mật khẩu tạm.');
 };
 
 const toggleCustomerStatus = async (customer) => {
@@ -840,7 +866,11 @@ const toggleCustomerStatus = async (customer) => {
 };
 
 const analyzeCustomer = async () => {
-  if (!currentCustomerView.value) return;
+  if (!currentCustomerView.value || isAnalyzing.value) return;
+  if (customerUsageCount.value === 0) {
+    aiCustomerAnalysis.value = 'Chưa đủ dữ liệu để phân tích khách hàng này.';
+    return;
+  }
   isAnalyzing.value = true;
   aiCustomerAnalysis.value = '';
   
@@ -864,16 +894,10 @@ const analyzeCustomer = async () => {
       message: JSON.stringify(data),
     }, configHeader());
     
-    // Tự đánh máy cho giống AI thật
     const reply = res.data.reply || 'Không có phản hồi từ AI.';
-    let i = 0;
-    const interval = setInterval(() => {
-      aiCustomerAnalysis.value += reply.charAt(i);
-      i++;
-      if (i >= reply.length) clearInterval(interval);
-    }, 15);
+    aiCustomerAnalysis.value = reply;
   } catch (err) {
-    aiCustomerAnalysis.value = 'Lỗi kết nối đến AI. Vui lòng thử lại sau.';
+    aiCustomerAnalysis.value = 'Không thể tạo phân tích AI lúc này. Dữ liệu khách hàng vẫn có thể xem bình thường.';
   } finally {
     isAnalyzing.value = false;
   }
@@ -897,7 +921,6 @@ const createStaff = async () => {
 const openEditModal = (staff) => {
   editStaff.value = {
     username: staff.username,
-    password: '',
     fullname: staff.fullname,
     email: staff.email,
     role: staff.role,
@@ -917,10 +940,6 @@ const updateStaff = async () => {
       assignedArea: editStaff.value.assignedArea,
       shiftRate: editStaff.value.shiftRate || null
     };
-    if (editStaff.value.password) {
-      payload.password = editStaff.value.password;
-    }
-    
     await api.put(`/api/admin/staff/${editStaff.value.username}?roleId=${editStaff.value.role}`, payload, configHeader());
     toast.success('Cập nhật nhân viên thành công.');
     showEditModal.value = false;
@@ -1138,16 +1157,48 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.g-modal-overlay { padding: 20px; background: rgba(43, 23, 26, .62); backdrop-filter: blur(3px); }
+.g-modal {
+  width: min(680px, 96vw);
+  max-height: 88vh;
+  overflow-y: auto;
+  padding: 22px;
+  background: #fff;
+  color: var(--text-primary, #2b171a);
+  border: 1px solid color-mix(in srgb, var(--primary) 24%, var(--border));
+  border-radius: 14px;
+  box-shadow: 0 24px 70px rgba(43, 23, 26, .34);
+}
+.staff-edit-modal { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+.staff-modal-header { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 18px 22px; border-bottom: 1px solid var(--border); background: #fffaf8; }
+.staff-modal-header h3 { margin: 0; color: var(--text-heading); }
+.staff-modal-body { min-height: 0; overflow-y: auto; padding: 20px 22px; }
+.staff-modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 22px; border-top: 1px solid var(--border); background: #fffaf8; }
+.modal-icon-close { width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 1px solid var(--border); border-radius: 8px; background: #fff; color: var(--text-secondary); cursor: pointer; }
+.modal-icon-close:hover { color: var(--primary); border-color: var(--primary); background: #fff3f1; }
+.modal-icon-close:focus-visible, .customer-ai-button:focus-visible { outline: 3px solid color-mix(in srgb, var(--secondary) 28%, transparent); outline-offset: 2px; }
 .crm-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 16px 0; }
 .customer-history-overlay { background: rgba(43, 23, 26, 0.72); backdrop-filter: blur(3px); }
-.customer-history-modal { max-width: 800px; width: 90%; max-height: 90vh; overflow-y: auto; position: relative; background: var(--bg-card); color: var(--text-primary, #2B171A); border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--border)); box-shadow: 0 22px 60px rgba(43, 23, 26, 0.34); }
+.customer-history-modal { max-width: 900px; width: 94%; max-height: 88vh; overflow-y: auto; position: relative; padding: 24px; background: #fff; color: var(--text-primary, #2B171A); border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--border)); border-radius: 14px; box-shadow: 0 22px 60px rgba(43, 23, 26, 0.34); }
 .customer-history-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
 .customer-history-header h3 { margin: 0; color: var(--text-heading, #2B171A); font-weight: 900; }
-.customer-history-close { min-height: 38px; padding: 7px 14px; border-radius: 8px; }
+.customer-history-close { flex: 0 0 36px; }
 .crm-summary > div { display: grid; gap: 5px; padding: 13px; border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--border)); border-radius: 10px; background: color-mix(in srgb, var(--primary) 6%, var(--bg-card)); }
 .crm-summary span { color: var(--text-secondary, #563B40); font-size: .8rem; font-weight: 750; }
 .crm-summary strong { color: var(--primary); font-size: 1.08rem; }
 .customer-history-tools { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 15px; }
+.customer-ai-button { min-height: 40px; padding: 9px 15px; border: 1px solid #d5a745; border-radius: 8px; background: linear-gradient(135deg, #9b3f32, #c0614e); color: #fff; font: inherit; font-weight: 800; cursor: pointer; box-shadow: 0 4px 12px rgba(143,47,37,.18); }
+.customer-ai-button:hover:not(:disabled) { filter: brightness(1.06); transform: translateY(-1px); }
+.customer-ai-button:disabled { opacity: .62; cursor: wait; }
+.customer-ai-panel { margin-top: 16px; padding: 16px; border: 1px solid #e4c98d; border-radius: 12px; background: #fffaf0; }
+.customer-ai-panel h4, .customer-ai-panel h5 { margin: 0 0 10px; color: var(--text-heading); }
+.customer-ai-facts { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 9px; margin-bottom: 12px; }
+.customer-ai-facts div { display: grid; gap: 4px; padding: 10px; border-radius: 8px; background: #fff; border: 1px solid #ead9b4; }
+.customer-ai-facts span { font-size: .75rem; color: var(--text-muted); }
+.customer-ai-panel p { margin: 0; white-space: pre-wrap; line-height: 1.6; }
+.temporary-password-modal { width: min(560px, 94vw); padding: 0; overflow: hidden; }
+.temporary-password-value { display: flex; align-items: center; gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 9px; background: var(--bg-card2); }
+.temporary-password-value code { flex: 1; overflow-wrap: anywhere; font-size: 1.05rem; font-weight: 800; letter-spacing: .5px; }
 .customer-history-search { width: 250px; background: var(--bg-input); color: var(--text-primary, #2B171A); border-color: color-mix(in srgb, var(--primary) 24%, var(--border)); }
 .customer-history-search::placeholder { color: var(--text-secondary, #563B40); opacity: 1; }
 .customer-history-table-wrap { max-height: 400px; overflow: auto; }
@@ -1160,7 +1211,7 @@ onMounted(() => {
 .section-state { margin: 12px 0; color: var(--text-secondary); }
 .salary-missing { color: var(--danger, #b42318); font-weight: 750; }
 .customer-invoice-button { min-height: 38px; white-space: nowrap; color: var(--color-on-primary); }
-@media (max-width: 640px) { .crm-summary { grid-template-columns: 1fr; } }
+@media (max-width: 640px) { .crm-summary, .customer-ai-facts { grid-template-columns: 1fr; } .customer-history-tools { align-items: stretch; flex-direction: column; } .customer-history-search { width: 100%; } .temporary-password-value { align-items: stretch; flex-direction: column; } }
 @media print {
   body * { visibility: hidden !important; }
   .printable-area, .printable-area * { visibility: visible !important; }
