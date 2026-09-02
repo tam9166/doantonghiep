@@ -44,7 +44,6 @@
             <label>Ảnh khu vực</label>
             <input v-model.trim="form.imageUrl" class="g-form-control" placeholder="URL ảnh minh họa" />
           </div>
-          <div class="form-row"><label>Gallery (mỗi URL một dòng)</label><textarea v-model="form.galleryText" class="g-form-control" rows="3" placeholder="https://.../anh-1.jpg"></textarea></div>
           <template v-if="form.areaType === 'EVENT_HALL'">
             <div class="form-columns"><div class="form-row"><label>Khách tối thiểu</label><input v-model.number="form.minGuestCount" type="number" min="1" class="g-form-control"></div><div class="form-row"><label>Khách tối đa</label><input v-model.number="form.maxGuestCount" type="number" min="1" class="g-form-control"></div></div>
             <div class="form-columns"><div class="form-row"><label>Số bàn tối đa</label><input v-model.number="form.maxTables" type="number" min="1" class="g-form-control"></div><div class="form-row"><label>Khách/bàn mặc định</label><input v-model.number="form.defaultGuestsPerTable" type="number" min="1" class="g-form-control"></div></div>
@@ -130,7 +129,7 @@ const defaultForm = () => ({
   descriptionVi: '',
   descriptionEn: '',
   imageUrl: '',
-  galleryText: '',
+  gallery: [],
   roomFee: 0,
   minimumSpend: 0,
   capacity: 0,
@@ -188,20 +187,18 @@ const editArea = (area) => {
     roomFee: Number(area.roomFee || 0),
     minimumSpend: Number(area.minimumSpend || 0),
     capacity: Number(area.capacity || 0),
-    galleryText: (area.gallery || []).join('\n'),
+    gallery: Array.isArray(area.gallery) ? [...area.gallery] : [],
     status: area.status || 'ACTIVE'
   };
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
 const normalizePayload = () => {
-  const galleryText = form.value.galleryText
   const base = { ...form.value }
-  delete base.galleryText
   delete base.id
   return { ...base, basePrice: 0, roomFee: form.value.areaType === 'PRIVATE_ROOM' ? Number(form.value.roomFee || 0) : 0,
     minimumSpend: form.value.areaType === 'PRIVATE_ROOM' ? Number(form.value.minimumSpend || 0) : 0, capacity: Number(form.value.capacity || 0),
-    status: form.value.status || 'ACTIVE', gallery: galleryText.split(/\r?\n/).map(v => v.trim()).filter(Boolean),
+    status: form.value.status || 'ACTIVE', gallery: Array.isArray(form.value.gallery) ? form.value.gallery : [],
     suitableEventTypes: form.value.suitableEventTypes || [] }
 };
 

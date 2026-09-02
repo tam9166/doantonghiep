@@ -116,7 +116,21 @@ public class ChatbotController {
     @PostMapping("/api/admin/ai/customer")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     public ResponseEntity<?> customer(@Valid @RequestBody AiRequest payload) {
-        return generateChat(payload.withType("CUSTOMER_ANALYTICS"));
+        String context = payload.message() == null ? "" : payload.message().replace(" ", "");
+        if (context.contains("\"orders\":[]")) {
+            return ResponseEntity.ok(Map.of(
+                    "reply", "Chưa đủ dữ liệu để phân tích khách hàng này.",
+                    "insufficientData", true,
+                    "source", "CUSTOMER_DATA_CHECK"));
+        }
+        try {
+            return generateChat(payload.withType("CUSTOMER_ANALYTICS"));
+        } catch (RuntimeException providerError) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE).body(Map.of(
+                    "reply", "Không thể tạo phân tích AI lúc này. Dữ liệu khách hàng vẫn có thể xem bình thường.",
+                    "providerAvailable", false,
+                    "source", "CUSTOMER_ANALYTICS_FALLBACK"));
+        }
     }
 
     @PostMapping("/api/staff/ai/waiter")

@@ -55,8 +55,11 @@ class OperationalOrderQueryScopeTest {
         InventoryAlertService.Analysis analysis = new InventoryAlertService.Analysis(
                 List.of(), 0, 0, 0, 0, 0, 0, 0, 0, 0, java.math.BigDecimal.ZERO);
         when(inventoryAlertService.analyze(3)).thenReturn(analysis);
-        PurchaseSuggestionController controller = new PurchaseSuggestionController();
-        ReflectionTestUtils.setField(controller, "inventoryAlertService", inventoryAlertService);
+        PurchaseSuggestionController controller = new PurchaseSuggestionController(
+                mock(poly.edu.quanlynhahang.repository.IngredientRepository.class),
+                mock(poly.edu.quanlynhahang.repository.IngredientBatchRepository.class),
+                inventoryAlertService,
+                mock(poly.edu.quanlynhahang.service.InventoryImportService.class));
 
         assertEquals(analysis, controller.getSuggestions().getBody());
 

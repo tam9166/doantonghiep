@@ -21,9 +21,12 @@ import poly.edu.quanlynhahang.security.PasswordPolicy;
 
 import java.util.Locale;
 import java.util.Set;
+import java.security.SecureRandom;
 
 @Service
 public class StaffAccountService {
+    private static final char[] TEMP_PASSWORD_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%".toCharArray();
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final Set<String> ADMIN_ROLES = Set.of("ADMIN", "ROLE_ADMIN");
     private static final Set<String> MANAGER_ALLOWED_ROLES = Set.of(
             "ROLE_WAITER", "ROLE_KITCHEN", "ROLE_CASHIER");
@@ -141,18 +144,28 @@ public class StaffAccountService {
     }
 
     @Transactional
-    public void resetCustomerPassword(String username, String newPassword) {
+    public String resetCustomerPassword(String username, String newPassword, boolean generateTemporary) {
         currentActor();
         Account account = lockedAccount(username);
         if (!isCustomer(account)) {
             throw new AccessDeniedException("Chỉ được đặt lại mật khẩu khách hàng");
         }
-        PasswordPolicy.validate(newPassword);
-        account.setPassword(passwordEncoder.encode(newPassword));
-        account.setMustChangePassword(true);
-        revokeTokens(account);
-        accountRepository.save(account);
-        activityLogService.log("ADMIN_RESET_CUSTOMER_PASSWORD", "Account", account.getUsername(), "Đặt lại mật khẩu khách hàng");
+        String temporaryPassword = resetPassword(account, newPassword, generateTemporary);
+        activityLogService.log("ADMIN_RESET_PASSWORD", "Account", account.getUsername(), "Đặt lại mật khẩu tài khoản khách hàng; bắt buộc đổi ở lần đăng nhập tiếp theo");
+        return temporaryPassword;
+    }
+
+    @Transactional
+    public String resetStaffPassword(String username, String newPassword, boolean generateTemporary) {
+        Actor actor = currentActor();
+        if (!actor.admin()) throw new AccessDeniedException("Chỉ Admin được đặt lại mật khẩu nhân viên");
+        Account account = lockedAccount(username);
+        if (isCustomer(account)) throw new AccessDeniedException("Tài khoản này không phải nhân viên");
+        String temporaryPassword = resetPassword(account, newPassword, generateTemporary);
+        String roles = String.join(",", accountRoles(account.getUsername()));
+        activityLogService.log("ADMIN_RESET_PASSWORD", "Account", account.getUsername(),
+                "Đặt lại mật khẩu tài khoản nhân viên (" + roles + "); bắt buộc đổi ở lần đăng nhập tiếp theo");
+        return temporaryPassword;
     }
 
     @Transactional
@@ -239,6 +252,24 @@ public class StaffAccountService {
 
     private void revokeTokens(Account account) {
         account.setTokenVersion((account.getTokenVersion() == null ? 0L : account.getTokenVersion()) + 1L);
+    }
+
+    private String resetPassword(Account account, String requestedPassword, boolean generateTemporary) {
+        String password = generateTemporary ? generateTemporaryPassword() : requestedPassword;
+        PasswordPolicy.validate(password);
+        account.setPassword(passwordEncoder.encode(password));
+        account.setMustChangePassword(true);
+        revokeTokens(account);
+        accountRepository.save(account);
+        return generateTemporary ? password : null;
+    }
+
+    private String generateTemporaryPassword() {
+        StringBuilder password = new StringBuilder("Mv!");
+        while (password.length() < 14) {
+            password.append(TEMP_PASSWORD_CHARS[SECURE_RANDOM.nextInt(TEMP_PASSWORD_CHARS.length)]);
+        }
+        return password.toString();
     }
 
     private String trimToNull(String value) {

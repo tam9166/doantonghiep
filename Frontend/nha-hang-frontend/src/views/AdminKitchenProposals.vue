@@ -1,13 +1,16 @@
 <template>
+  <AdminLayout>
   <div class="proposal-page">
     <div class="page-header"><div><h1>Đề xuất từ Bếp</h1><p>Kiểm duyệt nguyên liệu, món và công thức trước khi đưa vào dữ liệu chính thức.</p></div><button class="refresh" @click="load">Làm mới</button></div>
     <div v-if="loading" class="state">Đang tải đề xuất...</div>
     <div v-else-if="proposals.length === 0" class="state">Chưa có đề xuất nào.</div>
     <div v-else class="table-wrap"><table><thead><tr><th>Loại</th><th>Người đề xuất</th><th>Nội dung</th><th>Lý do</th><th>Trạng thái</th><th>Thời gian</th><th>Thao tác</th></tr></thead><tbody><tr v-for="item in proposals" :key="item.id"><td>{{ labels[item.proposalType] || item.proposalType }}</td><td>{{ item.proposedBy }}<small>{{ item.proposerRole }}</small></td><td><pre>{{ item.payload }}</pre></td><td>{{ item.reason }}</td><td><span :class="['status', item.status.toLowerCase()]">{{ item.status }}</span><small v-if="item.reviewNote">{{ item.reviewNote }}</small></td><td>{{ formatDate(item.createdAt) }}</td><td class="actions"><button v-if="item.status === 'PENDING'" class="approve" @click="approve(item)">Duyệt</button><button v-if="item.status === 'PENDING'" class="reject" @click="reject(item)">Từ chối</button><span v-else>Đã xử lý</span></td></tr></tbody></table></div>
   </div>
+  </AdminLayout>
 </template>
 <script setup>
 import { ref, onMounted } from 'vue';
+import AdminLayout from '@/components/AdminLayout.vue';
 import api from '@/services/api';
 import { useToast } from '@/composables/useToast';
 const proposals = ref([]); const loading = ref(false); const toast = useToast();

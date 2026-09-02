@@ -19,7 +19,7 @@ public final class SpaRouteRegistry {
         "/admin", "/admin/orders", "/admin/reservations", "/admin/reservation-cancellations", "/admin/reservation-reviews",
         "/admin/customer-history", "/admin/deposit-policies", "/admin/analytics",
         "/admin/ai-knowledge", "/admin/categories", "/admin/tables",
-        "/admin/table-areas", "/admin/staff", "/admin/posts", "/admin/ingredients",
+        "/admin/table-areas", "/admin/staff", "/admin/kitchen-proposals", "/admin/posts", "/admin/ingredients",
         "/admin/activity-log", "/admin/popular-items", "/admin/purchase-suggestions",
         "/admin/vouchers"
     };

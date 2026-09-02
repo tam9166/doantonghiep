@@ -5,4 +5,5 @@ import poly.edu.quanlynhahang.entity.ImportInvoice;
 
 public interface ImportInvoiceRepository extends JpaRepository<ImportInvoice, Long> {
     boolean existsByInvoiceCode(String invoiceCode);
+    java.util.Optional<ImportInvoice> findBySourceRequestId(String sourceRequestId);
 }
