@@ -8,7 +8,10 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -128,6 +131,8 @@ public class ReservationService {
     private final RestaurantBusinessHoursService businessHoursService;
     private final TableLifecycleService tableLifecycleService;
     private final SqlServerApplicationLockService applicationLockService;
+    private final TableAreaReadinessService areaReadinessService;
+    private final TransactionTemplate expiryTransactionTemplate;
     private final BigDecimal depositRate;
     private final long depositExpiryMinutes;
     private final long noShowGraceMinutes;
@@ -157,6 +162,8 @@ public class ReservationService {
                               ReservationContactLogRepository contactLogRepository,
                               TableLifecycleService tableLifecycleService,
                               SqlServerApplicationLockService applicationLockService,
+                              TableAreaReadinessService areaReadinessService,
+                              PlatformTransactionManager transactionManager,
                               @Value("${restaurant.reservation.deposit-rate:0.50}") BigDecimal depositRate,
                               @Value("${restaurant.reservation.deposit-expiry-minutes:15}") long depositExpiryMinutes,
                               @Value("${restaurant.reservation.no-show-grace-minutes:15}") long noShowGraceMinutes) {
@@ -185,6 +192,9 @@ public class ReservationService {
         this.contactLogRepository = contactLogRepository;
         this.tableLifecycleService = tableLifecycleService;
         this.applicationLockService = applicationLockService;
+        this.areaReadinessService = areaReadinessService;
+        this.expiryTransactionTemplate = new TransactionTemplate(transactionManager);
+        this.expiryTransactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         this.depositRate = depositRate;
         this.depositExpiryMinutes = depositExpiryMinutes;
         this.noShowGraceMinutes = noShowGraceMinutes;
@@ -301,6 +311,11 @@ public class ReservationService {
 
         restaurantCapacityService.requireCapacity(normalized.date(), normalized.time(),
                 normalized.durationMinutes(), normalized.guestCount());
+        if (request.getAreaId() != null) {
+            TableArea requestedArea = areaRepository.findById(request.getAreaId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy khu vực"));
+            areaReadinessService.requireBookingReady(requestedArea);
+        }
         boolean largeParty = normalized.guestCount() >= restaurantSettingsService.largePartyThreshold();
         RestaurantTable table = largeParty ? null : autoTableAssignmentService.assign(
                 request.getAreaId(), normalized.guestCount(), normalized.date(), normalized.time(), normalized.durationMinutes());
@@ -328,6 +343,7 @@ public class ReservationService {
         if (area == null) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Vui lòng chọn khu vực");
         }
+        areaReadinessService.requireBookingReady(area);
         reservation.setArea(area);
 
         Price tablePrice = calculatePrice(table, area);
@@ -479,9 +495,15 @@ public class ReservationService {
         int duration = durationMinutes == null || durationMinutes < 30 ? DEFAULT_DURATION_MINUTES : durationMinutes;
         int guests = guestCount == null || guestCount < 1 ? 1 : guestCount;
         validateReservationTime(reservationDate, arrivalTime, duration, Boolean.TRUE.equals(lateDiningConfirmed));
+        if (areaId != null) {
+            TableArea area = areaRepository.findById(areaId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy khu vực"));
+            areaReadinessService.requireBookingReady(area);
+        }
 
         return tableRepository.findOperationalTables().stream()
                 .filter(t -> areaId == null || (t.getAreaId() != null && t.getAreaId().equals(areaId)))
+                .filter(this::isTableInBookingReadyArea)
                 .map(t -> toAvailableTable(t, reservationDate, arrivalTime, duration, guests))
                 .sorted(Comparator.comparing((AvailableTableResponse t) -> availabilityRank(t.getAvailabilityStatus()))
                         .thenComparing(AvailableTableResponse::getFitScore))
@@ -499,6 +521,11 @@ public class ReservationService {
         int duration = request.getDurationMinutes() == null ? DEFAULT_DURATION_MINUTES : request.getDurationMinutes();
         validateReservationTime(quoteDate, quoteTime, duration, false);
         restaurantCapacityService.requireCapacity(quoteDate, quoteTime, duration, guests);
+        if (request.getAreaId() != null) {
+            TableArea requestedArea = areaRepository.findById(request.getAreaId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy khu vực"));
+            areaReadinessService.requireBookingReady(requestedArea);
+        }
         boolean largeParty = guests >= restaurantSettingsService.largePartyThreshold();
         RestaurantTable table = largeParty ? null : autoTableAssignmentService.assign(
                 request.getAreaId(), guests, quoteDate, quoteTime, duration);
@@ -506,6 +533,7 @@ public class ReservationService {
         if (area == null) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Vui lòng chọn khu vực");
         }
+        areaReadinessService.requireBookingReady(area);
         Price tablePrice = calculatePrice(table, area);
         List<ReservationPreorderItem> items = buildPreorderItems(request.getPreorderItems());
         BigDecimal foodAmount = items.stream()
@@ -553,6 +581,7 @@ public class ReservationService {
 
         List<TableSuggestionResponse> suggestions = tableRepository.findOperationalTables().stream()
                 .filter(t -> request.getAreaId() == null || request.getAreaId().equals(t.getAreaId()))
+                .filter(this::isTableInBookingReadyArea)
                 .map(t -> toSuggestion(t, date, time, duration, guests, preference, request.getAreaId()))
                 .filter(s -> "AVAILABLE".equals(s.getAvailabilityStatus()))
                 .sorted(Comparator.comparing(TableSuggestionResponse::getScore).reversed()
@@ -577,6 +606,7 @@ public class ReservationService {
         List<RestaurantTable> available = tableRepository.findOperationalTables().stream()
                 .filter(t -> t.getIsOccupied() == null || t.getIsOccupied() == 0)
                 .filter(t -> request.getAreaId() == null || request.getAreaId().equals(t.getAreaId()))
+                .filter(this::isTableInBookingReadyArea)
                 .filter(t -> !hasConflict(t.getId(), date, time, duration, null))
                 .toList();
 
@@ -618,6 +648,7 @@ public class ReservationService {
         List<RestaurantTable> available = tableRepository.findOperationalTables().stream()
                 .filter(t -> t.getIsOccupied() == null || t.getIsOccupied() == 0)
                 .filter(t -> areaId == null || areaId.equals(t.getAreaId()))
+                .filter(this::isTableInBookingReadyArea)
                 .filter(t -> !hasConflict(t.getId(), reservation.getReservationDate(), reservation.getArrivalTime(),
                         reservation.getExpectedDurationMinutes(), reservation.getId()))
                 .sorted(Comparator.comparingInt(this::maxCapacity)
@@ -664,7 +695,9 @@ public class ReservationService {
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy bàn chính"));
             reservation.setTable(newTable);
             setTableAssignments(reservation, assignedTables, primaryTableId);
-            reservation.setArea(resolveArea(request == null ? null : request.getAreaId(), newTable));
+            TableArea area = resolveArea(request == null ? null : request.getAreaId(), newTable);
+            areaReadinessService.requireBookingReady(area);
+            reservation.setArea(area);
             Price price = calculatePrice(newTable, reservation.getArea());
             BigDecimal foodAmount = reservation.getFoodAmount() == null ? BigDecimal.ZERO : reservation.getFoodAmount();
             BigDecimal totalAmount = price.total().add(foodAmount).setScale(0, RoundingMode.HALF_UP);
@@ -861,7 +894,6 @@ public class ReservationService {
     @Scheduled(
             initialDelayString = "${restaurant.reservation.expiry-initial-delay-ms:60000}",
             fixedDelayString = "${restaurant.reservation.expiry-scan-ms:60000}")
-    @Transactional
     public void expireStaleReservations() {
         LocalDateTime now = LocalDateTime.now();
         long expiryMinutes = depositExpiryMinutes > 0 ? depositExpiryMinutes : 1440;
@@ -879,19 +911,19 @@ public class ReservationService {
                 EnumSet.of(ReservationStatus.CONFIRMED, ReservationStatus.DEPOSIT_PAID,
                         ReservationStatus.FULLY_PAID),
                 PageRequest.of(0, 200));
-        List<Reservation> candidates = candidateIds.isEmpty()
-                ? List.of()
-                : reservationRepository.findExpiryCandidatesByIdIn(candidateIds);
         int total = 0, success = 0, fail = 0;
 
-        for (Reservation reservation : candidates) {
+        for (Long reservationId : candidateIds) {
             try {
-                processSingleExpiry(reservation, now, depositDeadline);
+                expiryTransactionTemplate.executeWithoutResult(status -> {
+                    Reservation reservation = reservationRepository.findById(reservationId)
+                            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy đặt bàn"));
+                    processSingleExpiry(reservation, now, depositDeadline);
+                });
                 success++;
             } catch (Exception e) {
                 fail++;
-                log.error("Expire failed for reservation {}: {}",
-                    reservation.getReservationCode(), e.getMessage());
+                log.error("Expire failed for reservation id {}: {}", reservationId, e.getMessage());
             }
             total++;
         }
@@ -1099,6 +1131,8 @@ public class ReservationService {
         if (totalCapacity < guestCount) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Tổng sức chứa các bàn chưa đủ cho số lượng khách");
         }
+        TableArea area = resolveArea(requiredAreaId, locked.getFirst());
+        areaReadinessService.requireBookingReady(area);
         return locked;
     }
 
@@ -1512,6 +1546,13 @@ public class ReservationService {
         Integer resolvedId = areaId != null ? areaId : (table == null ? null : table.getAreaId());
         if (resolvedId == null) return null;
         return areaRepository.findById(resolvedId).orElse(null);
+    }
+
+    private boolean isTableInBookingReadyArea(RestaurantTable table) {
+        if (table == null || table.getAreaId() == null) return false;
+        return areaRepository.findById(table.getAreaId())
+                .map(area -> areaReadinessService.evaluate(area).bookingReady())
+                .orElse(false);
     }
 
     private Reservation findReservation(Long id) {

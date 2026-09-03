@@ -262,6 +262,22 @@ class ReservationConcurrencyIntegrationTest {
         table.setActive(true);
         table.setDisplayOrder(0);
         tableId = tableRepository.save(table).getId();
+
+        // The production booking-ready rule requires at least two active tables in a dining/private area.
+        // This second table keeps the area operational but is intentionally too small for the two-guest
+        // race, so the test still validates competition for exactly one assignable table.
+        RestaurantTable supportTable = new RestaurantTable();
+        supportTable.setName(customerMarker + "_support");
+        supportTable.setFloor("REGRESSION");
+        supportTable.setAreaId(areaId);
+        supportTable.setCapacity(1);
+        supportTable.setMinCapacity(1);
+        supportTable.setMaxCapacity(1);
+        supportTable.setSeatCount(1);
+        supportTable.setIsOccupied(0);
+        supportTable.setActive(true);
+        supportTable.setDisplayOrder(1);
+        tableRepository.save(supportTable);
     }
 
     private void makeAreaChargeable() {

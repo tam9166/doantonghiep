@@ -516,8 +516,11 @@ const fetchTables = async () => {
 };
 
 const fetchAreas = async () => {
+  const token = sessionStorage.getItem('staff_token');
   try {
-    const res = await api.get('/api/areas');
+    const res = await api.get('/api/areas/admin', {
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+    });
     areas.value = Array.isArray(res.data) ? res.data : [];
   } catch (error) {
     console.error('Lỗi lấy danh sách khu vực', error);

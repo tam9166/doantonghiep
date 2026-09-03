@@ -107,6 +107,7 @@
             <table class="g-table">
               <thead>
                 <tr>
+                  <th>STT</th>
                   <th>Ảnh</th>
                   <th>Tên món</th>
                   <th>Danh mục</th>
@@ -119,7 +120,8 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="p in pagedProducts" :key="p.id" :class="{ 'row-disabled': p.status === false }">
+                <tr v-for="(p, index) in pagedProducts" :key="p.id" :class="{ 'row-disabled': p.status === false }">
+                  <td class="index-cell">{{ pageStart + index + 1 }}</td>
                   <td>
                     <img :src="foodImage(p.image)" class="img-thumb" @error="replaceFoodImage" />
                   </td>
@@ -145,7 +147,7 @@
                   </td>
                 </tr>
                 <tr v-if="pagedProducts.length === 0">
-                  <td colspan="9" class="empty-row">Chưa có món ăn nào.</td>
+                  <td colspan="10" class="empty-row">Chưa có món ăn nào.</td>
                 </tr>
               </tbody>
             </table>
@@ -419,15 +421,17 @@ onMounted(() => {
   font-weight: 800;
 }
 .table-responsive { display: block; width: 100%; max-width: 100%; min-width: 0; overflow-x: auto !important; overflow-y: visible; }
-.table-responsive .g-table { display: table; width: max(100%, 1200px); min-width: 1200px; table-layout: auto; }
-.table-responsive .g-table th:nth-child(1) { width: 70px; }
-.table-responsive .g-table th:nth-child(2) { width: 180px; }
-.table-responsive .g-table th:nth-child(3) { width: 140px; }
-.table-responsive .g-table th:nth-child(4), .table-responsive .g-table th:nth-child(6) { width: 115px; }
-.table-responsive .g-table th:nth-child(5) { width: 80px; }
-.table-responsive .g-table th:nth-child(7) { width: 95px; }
-.table-responsive .g-table th:nth-child(8) { width: 120px; }
-.table-responsive .g-table th:nth-child(9) { width: 150px; }
+.table-responsive .g-table { display: table; width: max(100%, 1320px); min-width: 1320px; table-layout: auto; }
+.table-responsive .g-table th:nth-child(1) { width: 64px; }
+.table-responsive .g-table th:nth-child(2) { width: 78px; }
+.table-responsive .g-table th:nth-child(3) { width: 230px; }
+.table-responsive .g-table th:nth-child(4) { width: 140px; }
+.table-responsive .g-table th:nth-child(5), .table-responsive .g-table th:nth-child(7) { width: 120px; }
+.table-responsive .g-table th:nth-child(6) { width: 80px; }
+.table-responsive .g-table th:nth-child(8) { width: 95px; }
+.table-responsive .g-table th:nth-child(9) { width: 120px; }
+.table-responsive .g-table th:nth-child(10) { width: 220px; }
+.index-cell { color: var(--text-muted); font-weight: 850; text-align: center; }
 
 .img-thumb {
   width: 52px; height: 52px;
@@ -449,7 +453,7 @@ onMounted(() => {
 
 .price-text { color: var(--primary); font-weight: 700; }
 
-.action-buttons { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.action-buttons { display: flex; min-width: 210px; align-items: center; justify-content: flex-end; gap: 6px; white-space: nowrap; }
 .btn-edit {
   background: color-mix(in srgb, var(--secondary) 15%, transparent);
   border: 1px solid color-mix(in srgb, var(--secondary) 30%, transparent);

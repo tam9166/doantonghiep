@@ -220,7 +220,7 @@ async function fetchData() {
   try {
     const [policyRes, areaRes] = await Promise.all([
       api.get('/api/admin/deposit-policies'),
-      api.get('/api/areas')
+      api.get('/api/areas/admin')
     ])
     policies.value = Array.isArray(policyRes.data) ? policyRes.data : []
     areas.value = Array.isArray(areaRes.data) ? areaRes.data : []

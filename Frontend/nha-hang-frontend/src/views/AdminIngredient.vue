@@ -133,7 +133,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="ing in ingredients" :key="ing.id">
+                <tr v-for="ing in pagedIngredients" :key="ing.id">
                   <td>
                     <img :src="ingredientImage(ing.image)" class="img-thumb-sm" @error="replaceIngredientImage" />
                   </td>
@@ -164,8 +164,19 @@
                     </div>
                   </td>
                 </tr>
+                <tr v-if="pagedIngredients.length === 0">
+                  <td colspan="6" style="text-align: center; color: var(--text-muted)">Không có nguyên liệu phù hợp.</td>
+                </tr>
               </tbody>
             </table>
+            <div v-if="ingredients.length > ingredientPageSize" class="pagination-bar">
+              <span class="pagination-summary">Hiển thị {{ ingredientPageStart + 1 }}–{{ ingredientPageEnd }} / {{ ingredients.length }} nguyên liệu</span>
+              <div class="pagination-controls">
+                <button class="page-button" :disabled="ingredientPage === 1" @click="ingredientPage--">‹</button>
+                <button v-for="page in ingredientVisiblePages" :key="page" class="page-button" :class="{ active: page === ingredientPage }" @click="ingredientPage = page">{{ page }}</button>
+                <button class="page-button" :disabled="ingredientPage === ingredientTotalPages" @click="ingredientPage++">›</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -202,12 +213,16 @@
 
             <!-- Form thêm nguyên liệu vào món -->
             <div class="add-recipe-box">
-              <select v-model="newRecipe.ingredientId" class="g-form-control">
-                <option value="" disabled>-- Chọn nguyên liệu --</option>
-                <option v-for="ing in ingredients" :key="ing.id" :value="ing.id">
-                  {{ ing.name }} (tính bằng {{ ing.unit }})
-                </option>
-              </select>
+              <div class="recipe-ingredient-picker">
+                <input v-model.trim="recipeIngredientSearch" type="search" class="g-form-control" placeholder="Tìm nguyên liệu theo tên..." />
+                <select v-model="newRecipe.ingredientId" class="g-form-control">
+                  <option value="" disabled>-- Chọn nguyên liệu --</option>
+                  <option v-for="ing in availableRecipeIngredients" :key="ing.id" :value="ing.id">
+                    {{ ing.name }} (tính bằng {{ ing.unit }})
+                  </option>
+                </select>
+                <small v-if="recipeIngredientSearch && availableRecipeIngredients.length === 0">Không tìm thấy nguyên liệu phù hợp hoặc nguyên liệu đã có trong công thức.</small>
+              </div>
               <input v-model="newRecipe.amount" type="number" step="0.01" placeholder="Số lượng..." class="g-form-control" style="width: 150px;"/>
               <button @click="addRecipe" class="g-btn-primary">Thêm Vào Món</button>
             </div>
@@ -303,7 +318,7 @@
                   <td style="color: var(--primary); font-weight: bold;">{{ inv.totalAmount?.toLocaleString() || 0 }}đ</td>
                   <td>{{ inv.note || '---' }}</td>
                   <td class="hide-on-print">
-                    <button @click="viewInvoiceDetails(inv.id)" class="btn-sm btn-secondary"> Chi Tiết</button>
+                    <button @click="viewInvoiceDetails(inv.id)" class="btn-sm btn-secondary invoice-detail-btn">Chi Tiết</button>
                   </td>
                 </tr>
                 <tr v-if="filteredInvoices.length === 0">
@@ -372,6 +387,10 @@
         
         <div class="form-group">
           <label>Đơn giá nhập (VNĐ / 1 đơn vị)</label>
+          <div class="latest-import-price">
+            <span>Đơn giá nhập gần nhất</span>
+            <strong>{{ latestImportPriceText }}</strong>
+          </div>
           <input v-model="batchForm.unitPrice" type="number" step="500" class="g-form-control" />
         </div>
         
@@ -622,6 +641,20 @@ const { confirmDialog } = useDialog();
 const isEditingIng = ref(false);
 const editingIngId = ref(null);
 const ingForm = ref({ name: '', unit: '', minStock: 5.0, unitPrice: 0, shelfLifeDays: 30, image: '' });
+const ingredientPage = ref(1);
+const ingredientPageSize = 7;
+const ingredientTotalPages = computed(() => Math.max(1, Math.ceil(ingredients.value.length / ingredientPageSize)));
+const ingredientPageStart = computed(() => (ingredientPage.value - 1) * ingredientPageSize);
+const ingredientPageEnd = computed(() => Math.min(ingredientPageStart.value + ingredientPageSize, ingredients.value.length));
+const pagedIngredients = computed(() => ingredients.value.slice(ingredientPageStart.value, ingredientPageEnd.value));
+const ingredientVisiblePages = computed(() => {
+  const total = ingredientTotalPages.value;
+  if (total <= 5) return Array.from({ length: total }, (_, i) => i + 1);
+  let start = Math.max(1, ingredientPage.value - 2);
+  let end = Math.min(total, start + 4);
+  start = Math.max(1, end - 4);
+  return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+});
 
 // Batch State
 const showRestockModal = ref(false);
@@ -629,6 +662,10 @@ const selectedIngForRestock = ref(null);
 const batchForm = ref({ quantity: 0, unitPrice: 0, expirationDate: '' });
 const batchSubmitting = ref(false);
 const restockRequiresRealData = ref(false);
+const latestImportPrice = ref(null);
+const latestImportPriceText = computed(() => latestImportPrice.value == null
+  ? 'Chưa có dữ liệu'
+  : `${Number(latestImportPrice.value || 0).toLocaleString('vi-VN')}đ / ${selectedIngForRestock.value?.unit || 'đơn vị'}`);
 
 const showBatchesModal = ref(false);
 const selectedBatches = ref([]);
@@ -654,6 +691,16 @@ const searchProduct = ref('');
 const selectedProduct = ref(null);
 const currentRecipes = ref([]);
 const newRecipe = ref({ ingredientId: '', amount: '' });
+const recipeIngredientSearch = ref('');
+const availableRecipeIngredients = computed(() => {
+  const usedIds = new Set(currentRecipes.value.map(recipe => Number(recipe.ingredient?.id || recipe.ingredientId)));
+  const keyword = recipeIngredientSearch.value.trim().toLowerCase();
+  return ingredients.value.filter(ingredient => {
+    if (usedIds.has(Number(ingredient.id))) return false;
+    if (!keyword) return true;
+    return String(ingredient.name || '').toLowerCase().includes(keyword);
+  });
+});
 
 // AI Forecast State
 const showForecastModal = ref(false);
@@ -729,6 +776,7 @@ const loadData = async () => {
   try {
     const resIng = await api.get('/api/admin/ingredients', configHeader());
     ingredients.value = resIng.data;
+    ingredientPage.value = Math.min(ingredientPage.value, ingredientTotalPages.value);
     
     const resStats = await api.get('/api/admin/ingredients/stats', configHeader());
     stats.value = resStats.data;
@@ -800,6 +848,7 @@ const submitBatch = async () => {
     showToast(` Đã nhập lô mới thành công!`);
     showRestockModal.value = false;
     restockRequiresRealData.value = false;
+    latestImportPrice.value = null;
     loadData();
   } catch (err) { showToast(getApiErrorMessage(err, 'Không thể nhập lô vào kho.')); }
   finally { batchSubmitting.value = false; }
@@ -868,6 +917,8 @@ const filteredProducts = computed(() => {
 
 const selectProduct = async (prod) => {
   selectedProduct.value = prod;
+  recipeIngredientSearch.value = '';
+  newRecipe.value = { ingredientId: '', amount: '' };
   try {
     const res = await api.get(`/api/admin/recipes/product/${prod.id}`, configHeader());
     currentRecipes.value = res.data;
@@ -885,6 +936,7 @@ const addRecipe = async () => {
     await api.post('/api/admin/recipes', payload, configHeader());
     showToast(' Đã thêm nguyên liệu vào món!');
     newRecipe.value = { ingredientId: '', amount: '' };
+    recipeIngredientSearch.value = '';
     selectProduct(selectedProduct.value); // reload recipes for this product
   } catch (err) { showToast(getApiErrorMessage(err, 'Không thể thêm công thức.')); }
 };
@@ -957,8 +1009,23 @@ const applyForecast = async (ingName, amount) => {
   selectedIngForRestock.value = ing;
   batchForm.value = { quantity: amount, unitPrice: '', expirationDate: '' };
   restockRequiresRealData.value = true;
+  await loadLatestImportPrice(ing.id);
   showForecastModal.value = false;
   showRestockModal.value = true;
+};
+
+const loadLatestImportPrice = async ingredientId => {
+  latestImportPrice.value = null;
+  try {
+    const response = await api.get(`/api/admin/ingredients/${ingredientId}/batches`, configHeader());
+    const batches = Array.isArray(response.data) ? response.data : [];
+    const latest = batches
+      .filter(batch => batch.unitPrice !== null && batch.unitPrice !== undefined)
+      .sort((a, b) => new Date(b.importDate || 0) - new Date(a.importDate || 0))[0];
+    latestImportPrice.value = latest ? Number(latest.unitPrice) : null;
+  } catch {
+    latestImportPrice.value = null;
+  }
 };
 
 const applyAllForecasts = () => {
@@ -1112,6 +1179,17 @@ onMounted(() => {
 .disposal-panel { margin-top: 18px; padding: 16px; border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent); border-radius: 12px; background: color-mix(in srgb, var(--primary) 5%, #fff); }
 .disposal-panel h4 { margin: 0 0 8px; color: var(--primary); }
 .disposal-panel p { margin: 6px 0; color: var(--text-secondary); }
+.latest-import-price { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; padding: 9px 12px; border: 1px dashed color-mix(in srgb, var(--secondary) 42%, var(--border)); border-radius: 9px; background: color-mix(in srgb, var(--secondary) 8%, #fff); color: var(--text-secondary); }
+.latest-import-price span { font-size: 0.78rem; font-weight: 750; text-transform: uppercase; color: var(--text-muted); }
+.latest-import-price strong { color: var(--primary); font-weight: 900; white-space: nowrap; }
+.invoice-detail-btn { display: inline-flex; min-height: 34px; align-items: center; justify-content: center; padding: 7px 12px; border: 1px solid color-mix(in srgb, var(--secondary) 45%, var(--border)); border-radius: 8px; background: #fff; color: var(--primary); font-weight: 800; cursor: pointer; }
+.invoice-detail-btn:hover { background: var(--primary-glow); border-color: var(--primary); }
+.invoice-detail-btn:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 24%, transparent); outline-offset: 2px; }
+.pagination-bar { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 18px; color: var(--text-muted); font-size: 0.88rem; }
+.pagination-controls { display: inline-flex; align-items: center; gap: 6px; }
+.page-button { min-width: 34px; height: 34px; border: 1px solid var(--border-light); border-radius: 8px; background: #fff; color: var(--text-secondary); cursor: pointer; font-weight: 800; }
+.page-button.active { border-color: var(--primary); background: var(--primary); color: #fff; }
+.page-button:disabled { opacity: .45; cursor: not-allowed; }
 
 /* Recipes Layout */
 .recipe-layout { display: grid; grid-template-columns: 350px 1fr; gap: 24px; height: 600px; }
@@ -1130,6 +1208,8 @@ onMounted(() => {
 .recipe-header h2 { margin: 0; font-size: 1.5rem; color: var(--text-heading); }
 .recipe-header h2 span { color: var(--primary); }
 .add-recipe-box { display: flex; gap: 10px; margin-bottom: 24px; background: rgba(0,0,0,0.2); padding: 16px; border-radius: 10px; border: 1px solid var(--border-light); }
+.recipe-ingredient-picker { flex: 1; display: grid; gap: 8px; min-width: 260px; }
+.recipe-ingredient-picker small { color: var(--text-muted); font-size: .78rem; }
 .amount-cell { color: var(--color-tertiary); font-weight: bold; font-size: 1.1rem; }
 .est-cell { color: var(--primary); font-weight: bold; font-size: 1.1rem; }
 .empty-selection { display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--bg-card); border: 1px dashed var(--border); border-radius: var(--radius-lg); color: var(--text-muted); }
@@ -1223,8 +1303,9 @@ onMounted(() => {
   body * { visibility: hidden !important; }
   .printable-area,
   .printable-area * { visibility: visible !important; }
+  .modal-overlay { position: static !important; display: block !important; background: transparent !important; padding: 0 !important; min-height: 0 !important; }
   .printable-area {
-    position: fixed !important;
+    position: static !important;
     inset: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
@@ -1236,17 +1317,24 @@ onMounted(() => {
     color: var(--text-primary) !important;
     padding: 0 !important;
     z-index: 99999 !important;
+    page-break-after: avoid !important;
+    break-after: avoid-page !important;
   }
   .invoice-content { padding: 16px !important; }
   .invoice-brand { padding-bottom: 10px !important; margin-bottom: 12px !important; }
   .invoice-brand h1 { font-size: 1.3rem !important; }
   .invoice-meta { margin-bottom: 12px !important; }
-  .print-table th { padding: 7px 8px !important; font-size: 0.78rem !important; }
+  .print-table th { background: var(--color-inverse-surface) !important; color: #FFFFFF !important; padding: 7px 8px !important; font-size: 0.78rem !important; }
   .print-table td { padding: 7px 8px !important; font-size: 0.82rem !important; }
   .invoice-total { margin-top: 10px !important; }
   .total-table td { padding: 4px 8px !important; font-size: 0.88rem !important; }
   .invoice-footer { margin-top: 16px !important; padding-top: 10px !important; }
   .hide-on-print { display: none !important; }
+}
+@media (max-width: 700px) {
+  .pagination-bar { align-items: flex-start; flex-direction: column; }
+  .add-recipe-box { flex-direction: column; }
+  .recipe-ingredient-picker { min-width: 0; }
 }
 </style>
 

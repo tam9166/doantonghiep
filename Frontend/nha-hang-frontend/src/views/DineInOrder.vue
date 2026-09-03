@@ -108,7 +108,7 @@
         </div>
 
           <h3 class="section-title">{{ text.fullMenu }}</h3>
-        <div v-for="product in activeProducts" :key="product.id" class="product-item">
+        <div v-for="product in pagedFullMenuProducts" :key="product.id" class="product-item">
             <img :src="foodImage(product.image)" :alt="productName(product)" loading="lazy" @error="replaceFoodImage" />
           <div class="product-info">
               <h4>{{ productName(product) }}</h4>
@@ -118,6 +118,11 @@
             <button v-if="!isAdminOrManager" class="btn-add-item" :disabled="product.availableQuantity <= 0" @click="addToCart(product)">{{ product.availableQuantity > 0 ? text.add : text.soldOut }}</button>
             <button v-else class="btn-add-item btn-disabled" disabled>{{ text.viewOnly }}</button>
         </div>
+        <nav v-if="fullMenuTotalPages > 1" class="menu-pagination" aria-label="Phân trang thực đơn đầy đủ">
+          <button type="button" :disabled="fullMenuPage === 1" @click="fullMenuPage--">‹</button>
+          <button v-for="page in fullMenuTotalPages" :key="page" type="button" :class="{ active: page === fullMenuPage }" @click="fullMenuPage = page">{{ page }}</button>
+          <button type="button" :disabled="fullMenuPage === fullMenuTotalPages" @click="fullMenuPage++">›</button>
+        </nav>
         </div>
         <aside v-if="cart.length > 0" class="inline-cart" :aria-label="text.selectedOrder">
           <h3>{{ text.selectedOrder }}</h3>
@@ -221,7 +226,7 @@
 import CustomerLayout from '@/components/CustomerLayout.vue';
 import UiIcon from '@/components/UiIcon.vue';
 
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import api from '@/services/api';
 import { useRoute } from 'vue-router';
 import { foodImage, replaceFoodImage } from '@/utils/imageFallback';
@@ -246,6 +251,8 @@ const addItemsIdempotencyKey = ref(crypto.randomUUID());
 const checkoutIdempotencyKey = ref(crypto.randomUUID());
 const tableSessionToken = ref(typeof route.query.cap === 'string' ? route.query.cap : '');
 const capabilityOrder = ref(null);
+const fullMenuPage = ref(1);
+const FULL_MENU_PAGE_SIZE = 10;
 
 const isAdminOrManager = computed(() => {
   return userRoles.value.includes('ROLE_ADMIN') || userRoles.value.includes('ROLE_MANAGER');
@@ -262,12 +269,23 @@ const userProfile = ref(null);
 const tierDiscount = ref(0);
 const voucherDiscountPercent = ref(0);
 
-const activeProducts = computed(() => products.value.filter(p => p.status !== false));
 const productName = product => locale.value === 'en'
   ? (product?.nameEn || product?.nameVi || product?.name)
   : (product?.nameVi || product?.name || product?.nameEn);
 const tableName = table => table?.code || table?.name || '';
 
+const activeProducts = computed(() => products.value.filter(p => p.status !== false));
+const sortedFullMenuProducts = computed(() => [...activeProducts.value].sort((a, b) => {
+  const aAvailable = Number(a.availableQuantity || 0) > 0 ? 0 : 1;
+  const bAvailable = Number(b.availableQuantity || 0) > 0 ? 0 : 1;
+  if (aAvailable !== bAvailable) return aAvailable - bAvailable;
+  return String(productName(a)).localeCompare(String(productName(b)), 'vi');
+}));
+const fullMenuTotalPages = computed(() => Math.max(1, Math.ceil(sortedFullMenuProducts.value.length / FULL_MENU_PAGE_SIZE)));
+const pagedFullMenuProducts = computed(() => {
+  const start = (fullMenuPage.value - 1) * FULL_MENU_PAGE_SIZE;
+  return sortedFullMenuProducts.value.slice(start, start + FULL_MENU_PAGE_SIZE);
+});
 // Gom nhóm bàn theo tầng để khách dễ tìm trong thẻ <select>
 const groupedTables = computed(() => {
   const groups = {};
@@ -280,6 +298,10 @@ const groupedTables = computed(() => {
 
 const totalItems = computed(() => cart.value.reduce((sum, item) => sum + item.quantity, 0));
 const cartSubtotal = computed(() => cart.value.reduce((sum, item) => sum + (item.price * item.quantity), 0));
+
+watch(sortedFullMenuProducts, () => {
+  fullMenuPage.value = Math.min(fullMenuPage.value, fullMenuTotalPages.value);
+});
 
 const discountAmount = computed(() => {
   let discount = tierDiscount.value;
@@ -811,6 +833,10 @@ onMounted(loadData);
 .btn-add-item { background: var(--primary-glow); color: var(--primary); border: 1px solid var(--primary); padding: 8px 15px; border-radius: 20px; font-weight: bold; cursor: pointer; transition: 0.3s;}
 .btn-add-item:hover { background: var(--primary); color: var(--bg-dark); }
 .btn-disabled { opacity: 0.5; cursor: not-allowed !important; background: var(--bg-root); color: var(--text-muted); border: 1px solid var(--border); }
+.menu-pagination { display: flex; justify-content: center; flex-wrap: wrap; gap: 7px; margin: 22px 0 0; }
+.menu-pagination button { min-width: 38px; min-height: 38px; border: 1px solid var(--border); border-radius: 9px; background: var(--bg-card); color: var(--text-primary); font: inherit; font-weight: 800; cursor: pointer; }
+.menu-pagination button.active { background: var(--primary); border-color: var(--primary); color: var(--color-on-primary); }
+.menu-pagination button:disabled { opacity: .45; cursor: not-allowed; }
 
 .empty-state { text-align: center; padding: 40px 20px; color: var(--text-muted); background: var(--bg-card); border-radius: 10px; border: 1px dashed var(--border); }
 
