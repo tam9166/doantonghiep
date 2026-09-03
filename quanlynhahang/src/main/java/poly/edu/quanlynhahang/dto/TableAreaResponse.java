@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 
 import poly.edu.quanlynhahang.entity.TableArea;
 import poly.edu.quanlynhahang.entity.AreaType;
+import poly.edu.quanlynhahang.service.TableAreaReadinessService;
 import java.util.List;
 
 /** Stable API projection for table areas. */
@@ -28,9 +29,17 @@ public record TableAreaResponse(
         BigDecimal packagePrice,
         Integer maxTables,
         Integer defaultGuestsPerTable,
-        List<String> suitableEventTypes) {
+        List<String> suitableEventTypes,
+        Boolean bookingReady,
+        String bookingReadyReason,
+        Integer usableTableCount,
+        Integer totalTableCapacity) {
 
     public static TableAreaResponse from(TableArea area) {
+        return from(area, null);
+    }
+
+    public static TableAreaResponse from(TableArea area, TableAreaReadinessService.Readiness readiness) {
         return new TableAreaResponse(
                 area.getId(), area.getNameVi(), area.getNameEn(), area.getDescriptionVi(), area.getDescriptionEn(),
                 area.getImageUrl(), area.getGallery(), BigDecimal.ZERO,
@@ -38,6 +47,10 @@ public record TableAreaResponse(
                 area.getPricing() == null ? BigDecimal.ZERO : area.getPricing().getMinimumSpend(),
                 area.getCapacity(), area.getStatus(), area.getAreaType(),
                 area.getMinGuestCount(), area.getMaxGuestCount(), area.getMinBookingHours(), area.getHourlyRate(), area.getPackagePrice(),
-                area.getMaxTables(), area.getDefaultGuestsPerTable(), area.getSuitableEventTypes());
+                area.getMaxTables(), area.getDefaultGuestsPerTable(), area.getSuitableEventTypes(),
+                readiness == null ? null : readiness.bookingReady(),
+                readiness == null ? null : readiness.reason(),
+                readiness == null ? null : readiness.usableTableCount(),
+                readiness == null ? null : readiness.totalTableCapacity());
     }
 }

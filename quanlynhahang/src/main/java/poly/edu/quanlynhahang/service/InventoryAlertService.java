@@ -114,12 +114,17 @@ public class InventoryAlertService {
 
             BigDecimal estimatedCost = suggestedAmount.multiply(zeroIfNull(ingredient.getUnitPrice()))
                     .setScale(0, RoundingMode.HALF_UP);
+            BigDecimal previousUnitPrice = ingredientBatchRepository
+                    .findTopByIngredientIdAndUnitPriceIsNotNullOrderByImportDateDescIdDesc(ingredient.getId())
+                    .map(IngredientBatch::getUnitPrice)
+                    .orElse(null);
             AlertText alertText = describe(expired, expiring, isOut, isLow, daysLeft, suggestedAmount);
             alerts.add(new Item(
                     ingredient.getId(), ingredient.getName(), ingredient.getUnit(), ingredient.getImage(),
                     usableStock, nearExpiryStock, longLivedStock, minStock,
                     dailyConsumption.setScale(2, RoundingMode.HALF_UP),
                     roundOneDecimal(daysLeft), suggestedAmount, estimatedCost,
+                    previousUnitPrice,
                     alertText.urgency(), alertText.label(), alertText.reason(), alertText.action(),
                     suggestedAmount.signum() > 0, expired, expiring));
         }
@@ -247,6 +252,7 @@ public class InventoryAlertService {
                        BigDecimal currentStock, BigDecimal nearExpiryStock, BigDecimal longLivedStock,
                        BigDecimal minStock, BigDecimal dailyConsumption,
                        double daysLeft, BigDecimal suggestedAmount, BigDecimal estimatedCost,
+                       BigDecimal previousUnitPrice,
                        String urgency, String urgencyLabel, String reason, String action,
                        boolean needsPurchase, List<Batch> expiredBatches, List<Batch> expiringBatches) {}
 

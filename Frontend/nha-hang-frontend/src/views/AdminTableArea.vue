@@ -87,10 +87,20 @@
                   <span class="status-pill" :class="area.status === 'ACTIVE' ? 'active' : 'inactive'">
                     {{ area.status === 'ACTIVE' ? 'Đang dùng' : 'Tạm ẩn' }}
                   </span>
+                  <span
+                    class="status-pill booking"
+                    :class="area.bookingReady ? 'active' : 'inactive'"
+                    :title="area.bookingReadyReason || ''"
+                  >
+                    {{ area.bookingReady ? 'Sẵn sàng đặt bàn' : 'Chưa sẵn sàng đặt bàn' }}
+                  </span>
                 </div>
                 <p class="area-desc">{{ area.descriptionVi || 'Chưa có mô tả.' }}</p>
                 <div class="area-meta">
                   <span>Sức chứa: {{ area.capacity || 0 }} người</span>
+                  <span v-if="area.usableTableCount != null">Bàn hoạt động: {{ area.usableTableCount }}</span>
+                  <span v-if="area.totalTableCapacity != null">Tổng chỗ bàn: {{ area.totalTableCapacity }}</span>
+                  <span v-if="area.bookingReadyReason">Lý do: {{ area.bookingReadyReason }}</span>
                   <span v-if="area.areaType === 'DINING'">Miễn phí đặt khu vực</span>
                   <span v-if="area.areaType === 'PRIVATE_ROOM'">Phí phòng: {{ formatCurrency(area.roomFee) }} · Chi tối thiểu: {{ formatCurrency(area.minimumSpend) }}</span>
                   <span v-if="area.areaType === 'EVENT_HALL'">Sảnh: {{ area.minGuestCount }}–{{ area.maxGuestCount }} khách · tối đa {{ area.maxTables || '-' }} bàn</span>
@@ -298,6 +308,8 @@ onMounted(fetchAreas);
 .status-pill { border-radius: 999px; padding: 5px 10px; font-size: 0.75rem; font-weight: 800; white-space: nowrap; }
 .status-pill.active { background: color-mix(in srgb, var(--secondary) 12%, transparent); color: var(--primary); }
 .status-pill.inactive { background: rgba(111, 122, 115, 0.16); color: var(--text-muted); }
+.status-pill.booking.active { background: color-mix(in srgb, #1f8a4c 14%, transparent); color: #17633a; }
+.status-pill.booking.inactive { background: color-mix(in srgb, var(--primary) 12%, transparent); color: var(--primary); }
 .area-desc { color: var(--text-secondary); line-height: 1.45; margin: 12px 0; }
 .area-meta { display: flex; flex-wrap: wrap; gap: 10px; color: var(--text-muted); font-size: 0.84rem; font-weight: 700; }
 .area-actions { display: flex; gap: 10px; margin-top: 14px; }

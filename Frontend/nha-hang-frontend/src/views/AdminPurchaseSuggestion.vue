@@ -168,10 +168,10 @@
           <header class="modal-heading"><div><h2 id="batch-title">Duyệt đề xuất theo lô</h2><p>Bổ sung dữ liệu thật trước khi tạo lô kho; hệ thống không tự đặt giá, HSD hoặc nhà cung cấp.</p></div><button class="icon-close" aria-label="Đóng" @click="closeBatchReview"><UiIcon name="x" /></button></header>
           <div class="batch-body">
             <label class="batch-supplier">Nhà cung cấp dùng chung *<input v-model.trim="batchSupplier" class="g-form-control" maxlength="255"></label>
-            <div class="batch-table-wrap"><table class="g-table"><thead><tr><th>Nguyên liệu</th><th>Số lượng</th><th>Đơn giá thực tế</th><th>Hạn sử dụng</th><th>Trạng thái</th></tr></thead><tbody><tr v-for="row in batchRows" :key="row.ingredientId"><td><strong>{{ row.name }}</strong><small>{{ row.unit }}</small></td><td><input v-model.number="row.quantity" type="number" min="0.01" step="0.1" class="g-form-control"></td><td><input v-model.number="row.unitPrice" type="number" min="1" step="500" class="g-form-control"></td><td><input v-model="row.expirationDate" type="date" :min="tomorrow" class="g-form-control"></td><td><span :class="rowValid(row) ? 'row-ready' : 'row-missing'">{{ rowValid(row) ? 'Sẵn sàng' : 'Thiếu thông tin' }}</span></td></tr></tbody></table></div>
+            <div class="batch-table-wrap"><table class="g-table"><thead><tr><th>Nguyên liệu</th><th>Số lượng</th><th>Đơn giá thực tế</th><th>Đơn giá nhập trước đó</th><th>Hạn sử dụng</th><th>Trạng thái</th></tr></thead><tbody><tr v-for="row in batchRows" :key="row.ingredientId"><td><strong>{{ row.name }}</strong><small>{{ row.unit }}</small></td><td><input v-model.number="row.quantity" type="number" min="0.01" step="0.1" class="g-form-control"></td><td><input v-model.number="row.unitPrice" type="number" min="1" step="500" class="g-form-control"><small v-if="priceDeltaText(row)" :class="priceDeltaClass(row)">{{ priceDeltaText(row) }}</small></td><td><strong>{{ formatVnd(row.previousUnitPrice) }}</strong></td><td><input v-model="row.expirationDate" type="date" :min="tomorrow" class="g-form-control"></td><td><span :class="rowValid(row) ? 'row-ready' : 'row-missing'">{{ rowValid(row) ? 'Sẵn sàng' : 'Thiếu thông tin' }}</span></td></tr></tbody></table></div>
             <div v-if="batchResult" class="batch-result"><strong>Đã xử lý {{ batchResult.successCount }}/{{ batchRows.length }} đề xuất.</strong><p v-if="batchResult.failureCount">{{ batchResult.failureCount }} đề xuất chưa thành công.</p><ul v-if="batchResult.failures?.length"><li v-for="failure in batchResult.failures" :key="failure.ingredientId">{{ ingredientName(failure.ingredientId) }}: {{ failure.reason }}</li></ul></div>
           </div>
-          <footer class="modal-footer"><button class="g-btn-secondary" :disabled="batchSubmitting" @click="closeBatchReview">Đóng</button><button class="g-btn-primary" :disabled="!batchCanSubmit || batchSubmitting" @click="submitBatchApproval">{{ batchSubmitting ? 'Đang xử lý...' : `Xác nhận ${batchRows.length} đề xuất` }}</button></footer>
+          <footer class="modal-footer"><button class="g-btn-primary" :disabled="!batchCanSubmit || batchSubmitting" @click="submitBatchApproval">{{ batchSubmitting ? 'Đang xử lý...' : `Xác nhận ${batchRows.length} đề xuất` }}</button></footer>
         </section>
       </div>
     </main>
@@ -260,6 +260,7 @@ const openBatchReview = () => {
   batchRows.value = suggestions.value.filter(item => Number(item.suggestedAmount) > 0 && !item.approved).map(item => ({
     ingredientId: item.ingredientId, name: item.name, unit: item.unit,
     quantity: Number(item.suggestedAmount), unitPrice: null, expirationDate: '',
+    previousUnitPrice: item.previousUnitPrice ?? null,
     requestId: requestId(`batch-${item.ingredientId}`)
   }));
   batchSupplier.value = '';
@@ -291,6 +292,34 @@ const formatMoney = (val) => {
   if (val >= 1000000) return (val / 1000000).toFixed(1) + ' Triệu';
   if (val >= 1000) return Math.round(val / 1000) + 'K';
   return Math.round(val).toLocaleString() + 'đ';
+};
+
+const formatVnd = (value) => {
+  const amount = Number(value || 0);
+  return amount > 0 ? `${Math.round(amount).toLocaleString('vi-VN')}đ` : 'Chưa có';
+};
+
+const formatCompactVnd = (value) => {
+  const amount = Math.round(Math.abs(Number(value || 0)));
+  if (amount <= 0) return '0đ';
+  if (amount < 1_000_000) return `${amount.toLocaleString('vi-VN')}đ`;
+  const millions = Math.floor(amount / 1_000_000);
+  const hundredThousands = Math.floor((amount % 1_000_000) / 100_000);
+  return `${millions}tr${hundredThousands ? hundredThousands : ''}`;
+};
+
+const priceDeltaText = row => {
+  const previous = Number(row.previousUnitPrice || 0);
+  const current = Number(row.unitPrice || 0);
+  if (previous <= 0 || current <= 0) return '';
+  const delta = current - previous;
+  if (delta === 0) return 'Bằng đơn giá trước';
+  return `${delta > 0 ? 'Tăng' : 'Giảm'} ${formatCompactVnd(delta)} so với lần nhập trước`;
+};
+
+const priceDeltaClass = row => {
+  const delta = Number(row.unitPrice || 0) - Number(row.previousUnitPrice || 0);
+  return delta > 0 ? 'price-delta-up' : delta < 0 ? 'price-delta-down' : 'price-delta-flat';
 };
 
 const analyzeWithAI = async () => {
@@ -398,6 +427,10 @@ onMounted(fetchSuggestions);
 .row-ready, .row-missing { display: inline-flex; padding: 4px 9px; border-radius: 999px; font-size: .75rem; font-weight: 800; white-space: nowrap; }
 .row-ready { color: #17653b; background: #eaf7ef; }
 .row-missing { color: #8a5a06; background: #fff6df; }
+.price-delta-up, .price-delta-down, .price-delta-flat { margin-top: 4px; font-weight: 800; }
+.price-delta-up { color: #BE123C; }
+.price-delta-down { color: #17653b; }
+.price-delta-flat { color: var(--text-muted); }
 .batch-result { margin-top: 16px; padding: 14px; border: 1px solid var(--border); border-radius: 10px; background: #fffaf8; }
 .batch-result p { margin: 4px 0; }
 .batch-result ul { margin: 10px 0 0; padding-left: 20px; color: var(--primary); }

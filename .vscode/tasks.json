@@ -1,0 +1,48 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Mộc Vị: Frontend Build",
+            "type": "shell",
+            "command": "npm run build",
+            "options": {
+                "cwd": "${workspaceFolder}/Frontend/nha-hang-frontend"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Mộc Vị: Backend Compile",
+            "type": "shell",
+            "command": ".\\mvnw.cmd compile",
+            "options": {
+                "cwd": "${workspaceFolder}/quanlynhahang"
+            },
+            "dependsOn": "Mộc Vị: Frontend Build",
+            "dependsOrder": "sequence",
+            "problemMatcher": ["$javac"]
+        },
+        {
+            "label": "Run Mộc Vị",
+            "type": "shell",
+            "command": ".\\mvnw.cmd spring-boot:run",
+            "options": {
+                "cwd": "${workspaceFolder}/quanlynhahang"
+            },
+            "dependsOn": "Mộc Vị: Backend Compile",
+            "dependsOrder": "sequence",
+            "problemMatcher": ["$javac"],
+            "isBackground": false
+        },
+        {
+            "label": "Clean & Rebuild Mộc Vị",
+            "type": "shell",
+            "command": ".\\mvnw.cmd clean package",
+            "options": {
+                "cwd": "${workspaceFolder}/quanlynhahang"
+            },
+            "dependsOn": "Mộc Vị: Frontend Build",
+            "dependsOrder": "sequence",
+            "problemMatcher": ["$javac"]
+        }
+    ]
+}

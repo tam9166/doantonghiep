@@ -127,20 +127,9 @@
           <button class="primary-btn" type="button" @click="resetForm">{{ text.newBooking }}</button>
         </section>
 
-        <form v-else class="reservation-card" @submit.prevent="submitReservation">
-          <aside class="booking-summary" aria-label="Tóm tắt đặt bàn">
-            <h2>{{ text.quickSummary }}</h2>
-            <dl>
-              <div><dt>{{ text.dateTime }}</dt><dd>{{ form.reservationDate }} · {{ form.arrivalTime || '-' }}</dd></div>
-              <div><dt>{{ text.guests }}</dt><dd>{{ form.guestCount }}</dd></div>
-              <div><dt>{{ text.areaInfo }}</dt><dd>{{ selectedAreaName || '-' }}</dd></div>
-              <div><dt>{{ text.selectedDishes }}</dt><dd>{{ cartQuantity }}</dd></div>
-              <div><dt>{{ text.total }}</dt><dd>{{ quote ? money(quote.totalAmount) : '-' }}</dd></div>
-              <div><dt>{{ text.payableNow }}</dt><dd>{{ quote ? money(quote.payableNow) : '-' }}</dd></div>
-              <div><dt>{{ text.remaining }}</dt><dd>{{ quote ? money(quote.remainingAmount) : '-' }}</dd></div>
-            </dl>
-          </aside>
-          <section v-show="step === 1" class="panel">
+        <div v-else class="booking-layout">
+          <form class="reservation-card" @submit.prevent="submitReservation">
+            <section v-show="step === 1" class="panel">
           <div class="section-heading"><span class="section-icon"><UiIcon name="user" /></span><div><h2>{{ text.customerInfo }}</h2><p>{{ text.customerHint }}</p></div></div>
             <div class="form-grid">
               <label>
@@ -225,12 +214,6 @@
                 <small v-if="earlyGroupWarning" class="group-warning">{{ earlyGroupWarning }}</small>
                 <p class="guest-tip">{{ text.guestTip }}</p>
               </div>
-              <aside class="quick-summary">
-                <h3>{{ text.quickSummary }}</h3>
-                <div><span>{{ text.customer }}</span><strong>{{ form.customerName || text.notEntered }}</strong></div>
-                <div><span>{{ text.dateTime }}</span><strong>{{ form.reservationDate }} · {{ form.arrivalTime }}</strong></div>
-                <p>{{ t('reservation.suggestionFor', { count: form.guestCount }) }}</p>
-              </aside>
             </div>
           </section>
 
@@ -251,7 +234,7 @@
             <div v-else-if="!activeAreas.length" class="empty-state">{{ text.noAreas }}</div>
             <div v-else class="area-chip-grid">
               <button
-                v-for="area in activeAreas"
+                v-for="area in pagedAreas"
                 :key="area.id"
                 type="button"
                 :class="['area-chip', { selected: form.areaId === area.id }]"
@@ -268,6 +251,11 @@
                 <span v-if="form.areaId === area.id" class="area-chip-selected">{{ text.selected }}</span>
               </button>
             </div>
+            <nav v-if="areaTotalPages > 1" class="area-pagination" aria-label="Phân trang khu vực">
+              <button type="button" :disabled="areaPage === 1" @click="areaPage--">‹</button>
+              <button v-for="page in areaTotalPages" :key="page" type="button" :class="{ active: page === areaPage }" @click="areaPage = page">{{ page }}</button>
+              <button type="button" :disabled="areaPage === areaTotalPages" @click="areaPage++">›</button>
+            </nav>
           </section>
 
           <section v-show="step === 5" class="panel">
@@ -345,7 +333,7 @@
                 <span>{{ t('reservation.selectedPortions', { count: cartQuantity }) }}</span>
               </div>
               <div class="dish-grid">
-                <article v-for="dish in filteredMenu" :key="dish.id" class="dish-card">
+                <article v-for="dish in pagedPreorderMenu" :key="dish.id" class="dish-card">
                   <img :src="dish.image || fallbackDishImage" :alt="dishName(dish)" loading="lazy" @error="replaceDishImage" />
                   <div>
                     <strong>{{ dishName(dish) }}</strong>
@@ -358,6 +346,11 @@
                   </div>
                 </article>
               </div>
+              <nav v-if="preorderTotalPages > 1" class="menu-pagination" aria-label="Phân trang gọi món trước">
+                <button type="button" :disabled="preorderPage === 1" @click="preorderPage--">‹</button>
+                <button v-for="page in preorderTotalPages" :key="page" type="button" :class="{ active: page === preorderPage }" @click="preorderPage = page">{{ page }}</button>
+                <button type="button" :disabled="preorderPage === preorderTotalPages" @click="preorderPage++">›</button>
+              </nav>
               <aside v-if="cartItems.length" class="cart-box">
                 <h3>{{ text.selectedDishes }}</h3>
                 <div v-for="item in cartItems" :key="item.productId" class="cart-row">
@@ -451,7 +444,21 @@
               {{ submitting ? text.submitting : text.submit }}
             </button>
           </div>
-        </form>
+          </form>
+          <aside class="booking-summary" aria-label="Tóm tắt đặt bàn">
+            <h2>{{ text.quickSummary }}</h2>
+            <dl>
+              <div><dt>{{ text.customer }}</dt><dd>{{ form.customerName || text.notEntered }}</dd></div>
+              <div><dt>{{ text.dateTime }}</dt><dd>{{ form.reservationDate }} · {{ form.arrivalTime || '-' }}</dd></div>
+              <div><dt>{{ text.guests }}</dt><dd>{{ form.guestCount }}</dd></div>
+              <div><dt>{{ text.areaInfo }}</dt><dd>{{ selectedAreaName || '-' }}</dd></div>
+              <div><dt>{{ text.selectedDishes }}</dt><dd>{{ cartQuantity }}</dd></div>
+              <div><dt>{{ text.total }}</dt><dd>{{ quote ? money(quote.totalAmount) : '-' }}</dd></div>
+              <div><dt>{{ text.payableNow }}</dt><dd>{{ quote ? money(quote.payableNow) : '-' }}</dd></div>
+              <div><dt>{{ text.remaining }}</dt><dd>{{ quote ? money(quote.remainingAmount) : '-' }}</dd></div>
+            </dl>
+          </aside>
+        </div>
       </section>
     </main>
   </CustomerLayout>
@@ -520,6 +527,10 @@ const qrError = ref('')
 const quote = ref(null)
 const menuSearch = ref('')
 const menuCategory = ref('')
+const areaPage = ref(1)
+const preorderPage = ref(1)
+const AREA_PAGE_SIZE = 3
+const PREORDER_PAGE_SIZE = 10
 const idempotencyKey = ref(crypto.randomUUID())
 const lateDiningConfirmed = ref(false)
 const businessHours = ref({ openingTime: '09:00', closingTime: '22:00', lastOrderTime: '21:30' })
@@ -562,7 +573,12 @@ const reservationPhase = computed(() => {
   const phase = reservationPhases[index < 0 ? reservationPhases.length - 1 : index]
   return { ...phase, index: (index < 0 ? reservationPhases.length : index + 1) }
 })
-const activeAreas = computed(() => areas.value.filter(area => (area.status || 'ACTIVE') === 'ACTIVE'))
+const activeAreas = computed(() => areas.value.filter(area => (area.status || 'ACTIVE') === 'ACTIVE' && area.bookingReady !== false))
+const areaTotalPages = computed(() => Math.max(1, Math.ceil(activeAreas.value.length / AREA_PAGE_SIZE)))
+const pagedAreas = computed(() => {
+  const start = (areaPage.value - 1) * AREA_PAGE_SIZE
+  return activeAreas.value.slice(start, start + AREA_PAGE_SIZE)
+})
 const suggestionById = computed(() => Object.fromEntries(suggestedTables.value.map(item => [item.tableId, item])))
 const availableTables = computed(() => tables.value
   .filter(table => table.availabilityStatus === 'AVAILABLE')
@@ -585,6 +601,11 @@ const filteredMenu = computed(() => {
     const matchesCategory = !menuCategory.value || dishCategory(item) === menuCategory.value
     return matchesKeyword && matchesCategory
   })
+})
+const preorderTotalPages = computed(() => Math.max(1, Math.ceil(filteredMenu.value.length / PREORDER_PAGE_SIZE)))
+const pagedPreorderMenu = computed(() => {
+  const start = (preorderPage.value - 1) * PREORDER_PAGE_SIZE
+  return filteredMenu.value.slice(start, start + PREORDER_PAGE_SIZE)
 })
 const paymentOptions = computed(() => Object.entries(text.value.paymentOptions).map(([key, value]) => ({ key, label: value[0], hint: value[1] })))
 const cartQuantity = computed(() => cartItems.value.reduce((total, item) => total + item.quantity, 0))
@@ -758,7 +779,10 @@ async function loadAreas() {
   try {
     const res = await api.get('/api/areas')
     areas.value = Array.isArray(res.data) ? res.data : []
-    if (areas.value.length && !form.value.areaId) form.value.areaId = areas.value[0].id
+    areaPage.value = Math.min(areaPage.value, areaTotalPages.value)
+    if (activeAreas.value.length && (!form.value.areaId || !activeAreas.value.some(area => area.id === form.value.areaId))) {
+      form.value.areaId = activeAreas.value[0].id
+    }
     await refreshAreaCounts()
   } catch (err) {
     areaError.value = lang.value === 'vi' && err.response?.data?.message ? err.response.data.message : t('reservation.errors.areas')
@@ -904,6 +928,7 @@ async function loadPreorderMenu() {
   try {
     const res = await api.get('/api/menu-items/preorder')
     menuItems.value = Array.isArray(res.data) ? res.data : []
+    preorderPage.value = Math.min(preorderPage.value, preorderTotalPages.value)
   } catch (err) {
     menuError.value = lang.value === 'vi' && err.response?.data?.message ? err.response.data.message : t('reservation.errors.menu')
   }
@@ -949,6 +974,18 @@ function disablePreorder() {
   form.value.orderNote = ''
   quote.value = null
 }
+
+watch([menuSearch, menuCategory], () => {
+  preorderPage.value = 1
+})
+
+watch(activeAreas, () => {
+  areaPage.value = Math.min(areaPage.value, areaTotalPages.value)
+})
+
+watch(filteredMenu, () => {
+  preorderPage.value = Math.min(preorderPage.value, preorderTotalPages.value)
+})
 
 function setQty(item, rawValue) {
   const parsed = Number.parseInt(rawValue, 10)
@@ -2272,7 +2309,9 @@ input:focus, select:focus, textarea:focus { outline-color: var(--primary-glow); 
 .step-chip.active span { color: var(--wine); background: #fff; }
 .step-chip.done { border-color: #e6b8bd; color: var(--ink); background: #fff; }
 .step-chip.done span { color: #fff; background: var(--wine); }
+.booking-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; align-items: start; margin-top: 18px; }
 .reservation-card, .success-panel { margin-top: 18px; padding: 28px 30px; border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 12px 28px rgba(96,43,48,.07); }
+.booking-layout .reservation-card { margin-top: 0; min-width: 0; }
 .section-heading { display: flex; align-items: center; gap: 18px; margin-bottom: 24px; }
 .section-heading h2 { margin: 0 0 4px; font-family: inherit; font-size: 1.55rem; font-weight: 850; }
 .section-heading p { margin: 0; color: var(--muted); }
@@ -2312,6 +2351,10 @@ input:focus, select:focus, textarea:focus { outline: 3px solid rgba(190,11,47,.0
 .area-chip.selected { border-color: var(--primary); background: var(--color-surface-container-low); box-shadow: var(--shadow-glow); }
 .area-chip-selected { position: absolute; right: 18px; top: 18px; width: 28px; height: 28px; overflow: hidden; color: transparent; border-radius: 50%; background: var(--primary); }
 .area-chip-selected::after { content: '✓'; display: grid; height: 100%; place-items: center; color: #fff; }
+.area-pagination, .menu-pagination { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 18px; }
+.area-pagination button, .menu-pagination button { min-width: 38px; min-height: 38px; border: 1px solid var(--color-outline-variant); border-radius: 9px; background: var(--bg-card); color: var(--text-primary); font: inherit; font-weight: 800; cursor: pointer; }
+.area-pagination button.active, .menu-pagination button.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+.area-pagination button:disabled, .menu-pagination button:disabled { opacity: .45; cursor: not-allowed; }
 .choice-grid button { min-height: 128px; border-color: #e7d4bd; border-radius: 12px; }
 .choice-grid button.selected { border-color: var(--primary); background: var(--color-surface-container-low); }
 .menu-picker { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 20px; margin-top: 24px; align-items: start; }
@@ -2341,7 +2384,7 @@ input:focus, select:focus, textarea:focus { outline: 3px solid rgba(190,11,47,.0
 .reservation-code { background: var(--wine); }
 @media (max-width: 1100px) {
   .reservation-page { padding: 34px 22px 56px; }
-  .guest-layout, .menu-picker { grid-template-columns: 1fr; }
+  .booking-layout, .guest-layout, .menu-picker { grid-template-columns: 1fr; }
   .cart-box { grid-column: 1; position: static; }
   .dish-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .preference-grid { grid-template-columns: repeat(3, minmax(0,1fr)); }
@@ -2370,6 +2413,7 @@ input:focus, select:focus, textarea:focus { outline: 3px solid rgba(190,11,47,.0
 .area-chip-title { position: static; display: block; margin: 0 0 6px 52px; text-align: left; }
 .area-chip-description { display: block; min-height: 42px; margin: 0; text-align: left; }
 .area-chip-meta { display: block; text-align: left; }
+.area-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .preorder-note { display: grid; grid-column: 1 / -1; gap: 8px; margin-top: 8px; text-align: left; }
 .preorder-note small { justify-self: end; color: var(--text-muted); }
 .dish-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
@@ -2385,6 +2429,7 @@ input:focus, select:focus, textarea:focus { outline: 3px solid rgba(190,11,47,.0
   .dish-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 700px) {
+  .area-grid { grid-template-columns: 1fr; }
   .dish-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dish-card img { height: 150px; }
   .qr-actions { align-items: stretch; flex-direction: column; }
@@ -2419,12 +2464,12 @@ input:focus, select:focus, textarea:focus { outline: 3px solid rgba(190,11,47,.0
 }
 .reservation-progress { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:-12px 0 16px; padding:8px 12px; border:1px solid var(--color-outline-variant); border-radius:10px; background:var(--color-surface-container-low); color:var(--text-secondary); font-size:.85rem; }
 .reservation-progress strong { color:var(--primary); white-space:nowrap; }
-.booking-summary { position:sticky; top:16px; z-index:2; float:right; width:280px; margin:0 0 20px 24px; padding:16px; border:1px solid var(--color-outline-variant); border-radius:14px; background:var(--bg-card); box-shadow:var(--shadow-sm); }
+.booking-summary { position:sticky; top:16px; z-index:2; width:100%; margin:0; padding:16px; border:1px solid var(--color-outline-variant); border-radius:14px; background:var(--bg-card); box-shadow:var(--shadow-sm); }
 .booking-summary h2 { margin:0 0 12px; font-size:1rem; }
 .booking-summary dl { display:grid; gap:8px; margin:0; }
 .booking-summary dl div { display:flex; justify-content:space-between; gap:10px; border-bottom:1px dashed var(--color-outline-variant); padding-bottom:6px; }
 .booking-summary dt { color:var(--text-muted); font-size:.78rem; }
 .booking-summary dd { margin:0; text-align:right; font-weight:700; font-size:.82rem; overflow-wrap:anywhere; }
-@media (max-width: 900px) { .booking-summary { float:none; position:static; width:auto; margin:0 0 16px; } }
+@media (max-width: 900px) { .booking-summary { position:static; width:auto; margin:0; } }
 @media (max-width: 520px) { .reservation-progress { font-size:.78rem; } .booking-summary { padding:12px; } }
 </style>

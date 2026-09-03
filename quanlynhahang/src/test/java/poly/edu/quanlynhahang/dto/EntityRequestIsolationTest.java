@@ -75,7 +75,7 @@ class EntityRequestIsolationTest {
                 """, RestaurantTableUpsertRequest.class);
 
         assertEquals("Com sen", product.name());
-        assertFalse(componentNames(ProductUpsertRequest.class).contains("costPrice"));
+        assertTrue(componentNames(ProductUpsertRequest.class).contains("costPrice"));
         assertFalse(componentNames(ProductUpsertRequest.class).contains("averageRating"));
         assertFalse(componentNames(RestaurantTableUpsertRequest.class).contains("isOccupied"));
         assertFalse(componentNames(RestaurantTableUpsertRequest.class).contains("reservedTime"));

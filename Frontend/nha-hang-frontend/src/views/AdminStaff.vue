@@ -52,7 +52,7 @@
               </td>
               <td data-label="Hành động" class="staff-actions">
                 <button class="g-btn-primary" @click="openEditModal(staff)" style="margin-right: 5px;">Xem/Sửa</button>
-                <button v-if="isAdmin" class="g-btn-secondary" :disabled="resetUsername === staff.username" @click="resetAccountPassword(staff, 'staff')">{{ resetUsername === staff.username ? 'Đang đặt lại...' : 'Đặt lại mật khẩu' }}</button>
+                <button v-if="isAdmin" class="reset-password-action" :disabled="resetUsername === staff.username" @click="resetAccountPassword(staff, 'staff')"><UiIcon name="refresh" />{{ resetUsername === staff.username ? 'Đang đặt lại...' : 'Đặt lại mật khẩu' }}</button>
                 <button class="g-btn-danger" @click="deleteStaff(staff.username)" v-if="staff.username !== 'admin'">Xóa</button>
               </td>
             </tr>
@@ -96,7 +96,7 @@
               <td>
                 <button class="g-btn-primary" @click="viewCustomerOrders(cus)">Xem Lịch Sử</button>
                 <button class="g-btn-primary" @click="openCustomerEdit(cus)">Sửa</button>
-                <button v-if="isAdmin" class="g-btn-primary" :disabled="resetUsername === cus.username" @click="resetAccountPassword(cus, 'customer')">{{ resetUsername === cus.username ? 'Đang đặt lại...' : 'Đặt lại mật khẩu' }}</button>
+                <button v-if="isAdmin" class="reset-password-action" :disabled="resetUsername === cus.username" @click="resetAccountPassword(cus, 'customer')"><UiIcon name="refresh" />{{ resetUsername === cus.username ? 'Đang đặt lại...' : 'Đặt lại mật khẩu' }}</button>
                 <button :class="cus.status === 'LOCKED' ? 'g-btn-primary' : 'g-btn-danger'" @click="toggleCustomerStatus(cus)">{{ cus.status === 'LOCKED' ? 'Mở khóa' : 'Khóa' }}</button>
               </td>
             </tr>
@@ -415,7 +415,7 @@
         <div class="staff-modal-body">
         <div class="form-group">
           <label>Tên Đăng Nhập</label>
-          <input type="text" class="g-form-control" v-model="editStaff.username" disabled style="background: var(--color-inverse-surface); color:var(--color-outline); cursor:not-allowed;" />
+          <input type="text" class="g-form-control staff-locked-username" v-model="editStaff.username" disabled />
         </div>
         <div class="form-group">
           <label>Họ Tên</label>
@@ -427,7 +427,7 @@
         </div>
         <div class="form-group">
           <label>Vị Trí</label>
-          <select class="g-form-control" v-model="editStaff.role">
+          <select class="g-form-control" v-model="editStaff.role" :disabled="editStaff.role === 'ROLE_ADMIN'">
             <option value="ROLE_KITCHEN">Bếp (Kitchen)</option>
             <option value="ROLE_WAITER">Phục Vụ (Waiter)</option>
             <option value="ROLE_CASHIER">Thu Ngân (Cashier)</option>
@@ -453,34 +453,42 @@
           <input type="number" min="1" class="g-form-control" v-model.number="editStaff.shiftRate" placeholder="Chưa cấu hình" />
         </div>
         </div>
-        <footer class="staff-modal-footer"><button class="g-btn-secondary" @click="showEditModal = false">Đóng</button><button class="g-btn-primary" @click="updateStaff">Lưu Thay Đổi</button></footer>
+        <footer class="staff-modal-footer"><button class="g-btn-primary" @click="updateStaff">Lưu Thay Đổi</button></footer>
       </section>
     </div>
     <!-- MODAL LỊCH SỬ KHÁCH HÀNG -->
     <div class="g-modal-overlay" v-if="showCustomerEditModal" @click.self="showCustomerEditModal = false">
-      <div class="g-modal">
-        <h2>Sửa thông tin khách hàng</h2>
-        <div class="form-group">
-          <label>Tên đăng nhập</label>
-          <input :value="editCustomer.username" disabled />
+      <section class="g-modal customer-edit-modal" role="dialog" aria-modal="true" aria-labelledby="customer-edit-title">
+        <header class="customer-edit-header">
+          <div>
+            <p>Hồ sơ khách hàng</p>
+            <h2 id="customer-edit-title">Sửa thông tin khách hàng</h2>
+          </div>
+          <button class="modal-icon-close" aria-label="Đóng" @click="showCustomerEditModal = false"><UiIcon name="x" /></button>
+        </header>
+        <div class="customer-edit-body">
+          <div class="form-group">
+            <label>Tên đăng nhập</label>
+            <input class="g-form-control customer-locked-username" :value="editCustomer.username" disabled />
+          </div>
+          <div class="form-group">
+            <label>Họ tên</label>
+            <input class="g-form-control" v-model.trim="editCustomer.fullname" maxlength="100" required />
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input class="g-form-control" v-model.trim="editCustomer.email" type="email" maxlength="100" required />
+          </div>
+          <div class="form-group">
+            <label>Số điện thoại</label>
+            <input class="g-form-control" v-model.trim="editCustomer.phone" maxlength="20" />
+          </div>
         </div>
-        <div class="form-group">
-          <label>Họ tên</label>
-          <input v-model.trim="editCustomer.fullname" maxlength="100" required />
-        </div>
-        <div class="form-group">
-          <label>Email</label>
-          <input v-model.trim="editCustomer.email" type="email" maxlength="100" required />
-        </div>
-        <div class="form-group">
-          <label>Số điện thoại</label>
-          <input v-model.trim="editCustomer.phone" maxlength="20" />
-        </div>
-        <div class="modal-actions" style="margin-top: 20px; text-align: right;">
-          <button class="g-btn-danger" style="margin-right: 10px;" @click="showCustomerEditModal = false">Hủy</button>
+        <footer class="customer-edit-footer">
+          <button class="g-btn-danger" @click="showCustomerEditModal = false">Hủy</button>
           <button class="g-btn-primary" @click="saveCustomerEdit">Lưu thay đổi</button>
-        </div>
-      </div>
+        </footer>
+      </section>
     </div>
 
     <div class="g-modal-overlay customer-history-overlay" v-if="showCustomerOrdersModal" @click.self="showCustomerOrdersModal = false">
@@ -1174,6 +1182,30 @@ onMounted(() => {
 .staff-modal-header h3 { margin: 0; color: var(--text-heading); }
 .staff-modal-body { min-height: 0; overflow-y: auto; padding: 20px 22px; }
 .staff-modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 22px; border-top: 1px solid var(--border); background: #fffaf8; }
+.staff-edit-modal input.g-form-control.staff-locked-username,
+.staff-edit-modal input.g-form-control.staff-locked-username:disabled,
+.staff-edit-modal input.g-form-control.staff-locked-username:read-only,
+.staff-edit-modal input.g-form-control.staff-locked-username:focus {
+  background: #5a2f28 !important;
+  color: #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+  border-color: #5a2f28 !important;
+  cursor: not-allowed;
+  opacity: 1 !important;
+  font-weight: 850;
+}
+.customer-edit-modal { width: min(560px, 94vw); padding: 0; overflow: hidden; background: #FFFFFF; border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--border)); border-radius: 18px; box-shadow: 0 22px 60px rgba(70, 24, 30, .18); }
+.customer-edit-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 22px 24px 18px; border-bottom: 1px solid #f0d7d8; background: linear-gradient(135deg, #fff7f8, #fffdfb); }
+.customer-edit-header p { margin: 0 0 4px; color: var(--primary); font-size: .78rem; font-weight: 850; letter-spacing: .04em; text-transform: uppercase; }
+.customer-edit-header h2 { margin: 0; color: var(--text-heading); font-size: 1.3rem; }
+.customer-edit-body { display: grid; gap: 16px; padding: 22px 24px; }
+.customer-edit-body .form-group { margin: 0; }
+.customer-edit-body label { color: var(--text-secondary); font-size: .82rem; font-weight: 850; text-transform: uppercase; }
+.customer-edit-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 24px; border-top: 1px solid #f0d7d8; background: #fff9fa; }
+.customer-locked-username:disabled { background: #f7eee8; color: #5a2f28; -webkit-text-fill-color: #5a2f28; opacity: 1; font-weight: 850; }
+.reset-password-action { min-height: 36px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 8px 12px; border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--border)); border-radius: 8px; background: #fff7f8; color: var(--primary); font: inherit; font-size: .82rem; font-weight: 850; cursor: pointer; white-space: nowrap; }
+.reset-password-action:hover:not(:disabled) { background: var(--primary-glow); transform: translateY(-1px); }
+.reset-password-action:disabled { opacity: .58; cursor: wait; }
 .modal-icon-close { width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 1px solid var(--border); border-radius: 8px; background: #fff; color: var(--text-secondary); cursor: pointer; }
 .modal-icon-close:hover { color: var(--primary); border-color: var(--primary); background: #fff3f1; }
 .modal-icon-close:focus-visible, .customer-ai-button:focus-visible { outline: 3px solid color-mix(in srgb, var(--secondary) 28%, transparent); outline-offset: 2px; }
@@ -1211,7 +1243,7 @@ onMounted(() => {
 .section-state { margin: 12px 0; color: var(--text-secondary); }
 .salary-missing { color: var(--danger, #b42318); font-weight: 750; }
 .customer-invoice-button { min-height: 38px; white-space: nowrap; color: var(--color-on-primary); }
-@media (max-width: 640px) { .crm-summary, .customer-ai-facts { grid-template-columns: 1fr; } .customer-history-tools { align-items: stretch; flex-direction: column; } .customer-history-search { width: 100%; } .temporary-password-value { align-items: stretch; flex-direction: column; } }
+@media (max-width: 640px) { .crm-summary, .customer-ai-facts { grid-template-columns: 1fr; } .customer-history-tools { align-items: stretch; flex-direction: column; } .customer-history-search { width: 100%; } .temporary-password-value { align-items: stretch; flex-direction: column; } .customer-edit-footer { flex-direction: column-reverse; } .customer-edit-footer button { width: 100%; } }
 @media print {
   body * { visibility: hidden !important; }
   .printable-area, .printable-area * { visibility: visible !important; }

@@ -28,8 +28,15 @@
           </div>
 
           <div class="form-group">
-            <label>Giá tiền (VNĐ) (*)</label>
+            <label>Giá vốn (VNĐ) (*)</label>
+            <input v-model.number="formData.costPrice" type="number" min="0" step="1000" placeholder="VD: 40000" class="g-form-control" />
+          </div>
+
+          <div class="form-group">
+            <label>Giá bán (VNĐ) (*)</label>
             <input v-model="formData.price" type="number" placeholder="VD: 55000" class="g-form-control" />
+            <small class="price-policy">Giá bán tối thiểu: {{ formatCurrency(minimumSalePrice) }}</small>
+            <small v-if="priceValidationMessage" class="price-policy-error">{{ priceValidationMessage }}</small>
           </div>
 
           <div class="form-group">
@@ -100,6 +107,7 @@
             <table class="g-table">
               <thead>
                 <tr>
+                  <th>STT</th>
                   <th>Ảnh</th>
                   <th>Tên món</th>
                   <th>Danh mục</th>
@@ -112,7 +120,8 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="p in pagedProducts" :key="p.id" :class="{ 'row-disabled': p.status === false }">
+                <tr v-for="(p, index) in pagedProducts" :key="p.id" :class="{ 'row-disabled': p.status === false }">
+                  <td class="index-cell">{{ pageStart + index + 1 }}</td>
                   <td>
                     <img :src="foodImage(p.image)" class="img-thumb" @error="replaceFoodImage" />
                   </td>
@@ -138,7 +147,7 @@
                   </td>
                 </tr>
                 <tr v-if="pagedProducts.length === 0">
-                  <td colspan="9" class="empty-row">Chưa có món ăn nào.</td>
+                  <td colspan="10" class="empty-row">Chưa có món ăn nào.</td>
                 </tr>
               </tbody>
             </table>
@@ -190,8 +199,25 @@ const toast = useToast();
 const { confirmDialog } = useDialog();
 
 const formData = ref({
-  name: '', price: '', description: '', image: '', categoryId: '', status: true, taxRate: 8,
+  name: '', price: '', costPrice: 0, description: '', image: '', categoryId: '', status: true, taxRate: 8,
   dietType: 'MAN', cookingMethod: 'KHAC', spicyLevel: 0, isSignatureDish: false
+});
+
+const formatCurrency = value => `${Math.ceil(Number(value || 0)).toLocaleString('vi-VN')}đ`;
+const minimumSalePriceForCost = cost => {
+  const normalized = Number(cost || 0);
+  if (normalized < 100_000) return normalized * 1.15;
+  if (normalized < 1_000_000) return normalized * 1.10;
+  return normalized * 1.05;
+};
+const minimumSalePrice = computed(() => minimumSalePriceForCost(formData.value.costPrice));
+const priceValidationMessage = computed(() => {
+  const price = Number(formData.value.price || 0);
+  const cost = Number(formData.value.costPrice || 0);
+  const minimum = minimumSalePriceForCost(cost);
+  if (price <= 0 || price >= minimum) return '';
+  const tier = cost < 100_000 ? '15%' : cost < 1_000_000 ? '10%' : '5%';
+  return `Giá bán phải đạt tối thiểu ${formatCurrency(minimum)} theo giá vốn ${formatCurrency(cost)} và biên lợi nhuận ${tier}.`;
 });
 
 const getAuthConfig = () => {
@@ -220,6 +246,7 @@ const startEdit = (product) => {
   formData.value = {
     name: product.name,
     price: product.price,
+    costPrice: product.costPrice || 0,
     description: product.description || '',
     image: product.image || '',
     categoryId: product.category ? product.category.id : '',
@@ -236,17 +263,21 @@ const startEdit = (product) => {
 const cancelEdit = () => {
   isEditing.value = false;
   editingId.value = null;
-  formData.value = { name: '', price: '', description: '', image: '', categoryId: '', status: true, taxRate: 8, dietType: 'MAN', cookingMethod: 'KHAC', spicyLevel: 0, isSignatureDish: false };
+  formData.value = { name: '', price: '', costPrice: 0, description: '', image: '', categoryId: '', status: true, taxRate: 8, dietType: 'MAN', cookingMethod: 'KHAC', spicyLevel: 0, isSignatureDish: false };
 };
 
 const saveProduct = async () => {
   if (!formData.value.name || !formData.value.price || !formData.value.categoryId) {
     toast.warning('Vui lòng nhập đủ tên, giá và danh mục.'); return;
   }
+  if (priceValidationMessage.value) {
+    toast.warning(priceValidationMessage.value); return;
+  }
 
   const payload = {
     name: formData.value.name,
     price: formData.value.price,
+    costPrice: formData.value.costPrice || 0,
     description: formData.value.description,
     image: formData.value.image,
     status: formData.value.status,
@@ -341,6 +372,8 @@ onMounted(() => {
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
+.price-policy { display: block; margin-top: 6px; color: var(--text-secondary); font-weight: 750; }
+.price-policy-error { display: block; margin-top: 5px; color: var(--danger); font-weight: 850; line-height: 1.35; }
 .signature-field { display: flex; align-items: center; gap: 8px; margin: 0 0 16px; color: var(--text-secondary); font-weight: 600; cursor: pointer; }
 .tag-summary { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; font-size: 0.72rem; color: var(--text-muted); }
 .tag-summary span { background: var(--bg-input); border-radius: 999px; padding: 2px 6px; }
@@ -388,15 +421,17 @@ onMounted(() => {
   font-weight: 800;
 }
 .table-responsive { display: block; width: 100%; max-width: 100%; min-width: 0; overflow-x: auto !important; overflow-y: visible; }
-.table-responsive .g-table { display: table; width: max(100%, 1200px); min-width: 1200px; table-layout: auto; }
-.table-responsive .g-table th:nth-child(1) { width: 70px; }
-.table-responsive .g-table th:nth-child(2) { width: 180px; }
-.table-responsive .g-table th:nth-child(3) { width: 140px; }
-.table-responsive .g-table th:nth-child(4), .table-responsive .g-table th:nth-child(6) { width: 115px; }
-.table-responsive .g-table th:nth-child(5) { width: 80px; }
-.table-responsive .g-table th:nth-child(7) { width: 95px; }
-.table-responsive .g-table th:nth-child(8) { width: 120px; }
-.table-responsive .g-table th:nth-child(9) { width: 150px; }
+.table-responsive .g-table { display: table; width: max(100%, 1320px); min-width: 1320px; table-layout: auto; }
+.table-responsive .g-table th:nth-child(1) { width: 64px; }
+.table-responsive .g-table th:nth-child(2) { width: 78px; }
+.table-responsive .g-table th:nth-child(3) { width: 230px; }
+.table-responsive .g-table th:nth-child(4) { width: 140px; }
+.table-responsive .g-table th:nth-child(5), .table-responsive .g-table th:nth-child(7) { width: 120px; }
+.table-responsive .g-table th:nth-child(6) { width: 80px; }
+.table-responsive .g-table th:nth-child(8) { width: 95px; }
+.table-responsive .g-table th:nth-child(9) { width: 120px; }
+.table-responsive .g-table th:nth-child(10) { width: 220px; }
+.index-cell { color: var(--text-muted); font-weight: 850; text-align: center; }
 
 .img-thumb {
   width: 52px; height: 52px;
@@ -418,7 +453,7 @@ onMounted(() => {
 
 .price-text { color: var(--primary); font-weight: 700; }
 
-.action-buttons { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.action-buttons { display: flex; min-width: 210px; align-items: center; justify-content: flex-end; gap: 6px; white-space: nowrap; }
 .btn-edit {
   background: color-mix(in srgb, var(--secondary) 15%, transparent);
   border: 1px solid color-mix(in srgb, var(--secondary) 30%, transparent);

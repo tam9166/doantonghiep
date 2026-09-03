@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -24,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.web.server.ResponseStatusException;
 
 import poly.edu.quanlynhahang.entity.Reservation;
@@ -63,6 +65,7 @@ class ReservationServiceTest {
     private final RestaurantSettingsService settingsService = mock(RestaurantSettingsService.class);
     private final TableLifecycleService tableLifecycleService = mock(TableLifecycleService.class);
     private final SqlServerApplicationLockService applicationLockService = mock(SqlServerApplicationLockService.class);
+    private final TableAreaReadinessService areaReadinessService = mock(TableAreaReadinessService.class);
     private ReservationService service;
 
     @BeforeEach
@@ -74,6 +77,8 @@ class ReservationServiceTest {
         when(businessHoursService.getClosingTime()).thenReturn(LocalTime.of(22, 0));
         when(businessHoursService.getLastOrderTime()).thenReturn(LocalTime.of(21, 30));
         when(businessHoursService.getFormattedHours()).thenReturn("09:00 - 22:00");
+        when(areaReadinessService.evaluate(any())).thenReturn(
+                new TableAreaReadinessService.Readiness(true, "Sẵn sàng nhận đặt bàn", 2, 8));
         
         service = new ReservationService(
                 reservationRepository,
@@ -100,6 +105,8 @@ class ReservationServiceTest {
                 contactLogRepository,
                 tableLifecycleService,
                 applicationLockService,
+                areaReadinessService,
+                mock(PlatformTransactionManager.class),
                 new BigDecimal("0.50"), 15, 15);
     }
 
@@ -150,9 +157,14 @@ class ReservationServiceTest {
         RestaurantTable table = new RestaurantTable();
         table.setId(7);
         table.setName("Bàn đêm");
+        table.setAreaId(3);
         table.setActive(true);
         table.setIsOccupied(0);
         table.setCapacity(4);
+        poly.edu.quanlynhahang.entity.TableArea area = new poly.edu.quanlynhahang.entity.TableArea();
+        area.setId(3);
+        area.setNameVi("Sảnh chính");
+        area.setStatus("ACTIVE");
 
         Reservation overnight = new Reservation();
         overnight.setId(70L);
@@ -163,6 +175,7 @@ class ReservationServiceTest {
 
         when(businessHoursService.getClosingTime()).thenReturn(LocalTime.of(6, 0));
         when(tableRepository.findOperationalTables()).thenReturn(List.of(table));
+        when(areaRepository.findById(3)).thenReturn(Optional.of(area));
         when(reservationRepository.findLockedByReservationDateAndTableIdAndReservationStatusIn(
                 org.mockito.ArgumentMatchers.eq(requestedDate), org.mockito.ArgumentMatchers.eq(7), any())).thenReturn(List.of());
         when(reservationRepository.findLockedByReservationDateAndTableIdAndReservationStatusIn(
@@ -174,6 +187,24 @@ class ReservationServiceTest {
         assertEquals(1, result.size());
         assertEquals("RESERVED", result.getFirst().getAvailabilityStatus());
         assertTrue(result.getFirst().getFitScore() >= 0);
+    }
+
+    @Test
+    void availabilityRejectsAreaThatIsActiveButNotBookingReady() {
+        LocalDate requestedDate = LocalDate.now().plusDays(30);
+        poly.edu.quanlynhahang.entity.TableArea area = new poly.edu.quanlynhahang.entity.TableArea();
+        area.setId(12);
+        area.setNameVi("Khu thiếu bàn");
+        area.setStatus("ACTIVE");
+        when(areaRepository.findById(12)).thenReturn(Optional.of(area));
+        doThrow(new ResponseStatusException(HttpStatus.CONFLICT, "Cần ít nhất 2 bàn đang hoạt động"))
+                .when(areaReadinessService).requireBookingReady(area);
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+                () -> service.findAvailableTables(requestedDate.toString(), "18:00", 120, 2, 12, false));
+
+        assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
+        verify(tableRepository, never()).findOperationalTables();
     }
 
     @Test
@@ -449,6 +480,32 @@ class ReservationServiceTest {
         // Should be expired due to deposit expiry
         assertEquals(ReservationStatus.EXPIRED, pendingReservation.getReservationStatus());
     }
+
+    @Test
+    void expiryJobContinuesWhenOneCandidateFailsBusinessTransition() {
+        Reservation failingNoShow = noShowReservation(DepositStatus.PAID);
+        failingNoShow.setId(61L);
+        failingNoShow.setReservationCode("MV-TEST-FAIL");
+        failingNoShow.setDepositAmount(BigDecimal.valueOf(500_000));
+        failingNoShow.setPaidAmount(BigDecimal.valueOf(500_000));
+
+        Reservation expiringPayment = new Reservation();
+        expiringPayment.setId(62L);
+        expiringPayment.setReservationCode("MV-TEST-EXPIRE");
+        expiringPayment.setReservationStatus(ReservationStatus.PENDING);
+        expiringPayment.setDepositAmount(BigDecimal.TEN);
+        expiringPayment.setCreatedAt(Date.from(java.time.Instant.now().minusSeconds(25 * 3600)));
+
+        stubExpiryCandidates(failingNoShow, expiringPayment);
+        when(depositPolicyService.calculateNoShowForfeiture(failingNoShow)).thenReturn(BigDecimal.valueOf(500_000));
+        doThrow(new ResponseStatusException(HttpStatus.CONFLICT, "Bàn còn hóa đơn chưa thanh toán"))
+                .when(tableLifecycleService).releaseReservationTables(failingNoShow);
+
+        service.expireStaleReservations();
+
+        assertEquals(ReservationStatus.EXPIRED, expiringPayment.getReservationStatus());
+        verify(reservationRepository).save(expiringPayment);
+    }
     
     @Test
     void doesNotMarkInServiceReservationAsNoShow() {
@@ -487,11 +544,17 @@ class ReservationServiceTest {
 
     private void stubExpiryCandidates(Reservation... reservations) {
         List<Long> ids = java.util.stream.IntStream.range(0, reservations.length)
-                .mapToObj(index -> (long) index + 1)
+                .mapToObj(index -> {
+                    long id = reservations[index].getId() == null ? index + 1L : reservations[index].getId();
+                    reservations[index].setId(id);
+                    return id;
+                })
                 .toList();
         when(reservationRepository.findExpiryCandidateIds(any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(ids);
-        when(reservationRepository.findExpiryCandidatesByIdIn(ids)).thenReturn(List.of(reservations));
+        for (int index = 0; index < reservations.length; index++) {
+            when(reservationRepository.findById(ids.get(index))).thenReturn(Optional.of(reservations[index]));
+        }
         when(reservationRepository.save(any(Reservation.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
     }

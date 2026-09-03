@@ -49,6 +49,8 @@ class InventoryAlertServiceTest {
         }
         when(ingredientRepository.findAll()).thenReturn(List.of(rice));
         when(ingredientBatchRepository.findPositiveBatchesWithIngredient()).thenReturn(batches);
+        when(ingredientBatchRepository.findTopByIngredientIdAndUnitPriceIsNotNullOrderByImportDateDescIdDesc(1L))
+                .thenReturn(java.util.Optional.of(batches.getFirst()));
         when(orderRepository.findByStatusSinceWithDetails(eq(OrderStatus.COMPLETED.code()), any(Date.class)))
                 .thenReturn(List.of());
 
@@ -85,6 +87,8 @@ class InventoryAlertServiceTest {
 
         when(ingredientRepository.findAll()).thenReturn(List.of(rice));
         when(ingredientBatchRepository.findPositiveBatchesWithIngredient()).thenReturn(List.of(validBatch));
+        when(ingredientBatchRepository.findTopByIngredientIdAndUnitPriceIsNotNullOrderByImportDateDescIdDesc(2L))
+                .thenReturn(java.util.Optional.of(validBatch));
         when(orderRepository.findByStatusSinceWithDetails(eq(OrderStatus.COMPLETED.code()), any(Date.class)))
                 .thenReturn(List.of(order));
         when(recipeRepository.findByProductIdsWithIngredient(List.of(10))).thenReturn(List.of(recipe));
@@ -94,6 +98,7 @@ class InventoryAlertServiceTest {
         assertEquals(new BigDecimal("8.00"), item.dailyConsumption());
         assertEquals(new BigDecimal("51.0"), item.suggestedAmount());
         assertEquals(new BigDecimal("510000"), item.estimatedCost());
+        assertEquals(new BigDecimal("10000"), item.previousUnitPrice());
         assertTrue(item.needsPurchase());
         assertEquals("warning", item.urgency());
     }
@@ -118,6 +123,8 @@ class InventoryAlertServiceTest {
         when(ingredientRepository.findAll()).thenReturn(List.of(beef));
         when(ingredientBatchRepository.findPositiveBatchesWithIngredient())
                 .thenReturn(List.of(nearExpiry, longLived));
+        when(ingredientBatchRepository.findTopByIngredientIdAndUnitPriceIsNotNullOrderByImportDateDescIdDesc(3L))
+                .thenReturn(java.util.Optional.of(longLived));
         when(orderRepository.findByStatusSinceWithDetails(eq(OrderStatus.COMPLETED.code()), any(Date.class)))
                 .thenReturn(List.of(order));
         when(recipeRepository.findByProductIdsWithIngredient(List.of(11))).thenReturn(List.of(recipe));
@@ -149,6 +156,7 @@ class InventoryAlertServiceTest {
         batch.setQuantity(new BigDecimal(quantity));
         batch.setImportDate(new Date(System.currentTimeMillis() - 86_400_000L));
         batch.setExpirationDate(new Date(System.currentTimeMillis() + expiryOffsetDays * 86_400_000L));
+        batch.setUnitPrice(ingredient.getUnitPrice());
         return batch;
     }
 }

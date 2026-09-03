@@ -1,4 +1,4 @@
-export const MENU_PAGE_SIZE = 24
+export const MENU_PAGE_SIZE = 12
 
 export function paginateMenu(items, requestedPage, pageSize = MENU_PAGE_SIZE) {
   const safeItems = Array.isArray(items) ? items : []

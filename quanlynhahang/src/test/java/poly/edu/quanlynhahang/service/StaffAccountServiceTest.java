@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -53,6 +54,21 @@ class StaffAccountServiceTest {
 
         assertThrows(AccessDeniedException.class, () -> service.create(request, "ROLE_ADMIN"));
 
+        verify(accountRepository, never()).save(any());
+        verify(authorityRepository, never()).save(any());
+    }
+
+    @Test
+    void adminCannotCreateSecondAdmin() {
+        authenticate("root", "ROLE_ADMIN");
+        CreateStaffRequest request = new CreateStaffRequest(
+                "admin02", "strong-password", "Second Admin", "admin02@example.com", null, null, null);
+        when(authorityRepository.countByRoleNameIn(any())).thenReturn(1L);
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+                () -> service.create(request, "ROLE_ADMIN"));
+
+        assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
         verify(accountRepository, never()).save(any());
         verify(authorityRepository, never()).save(any());
     }
@@ -107,10 +123,25 @@ class StaffAccountServiceTest {
         when(accountRepository.findLockedByUsername("admin02")).thenReturn(Optional.of(account));
         when(authorityRepository.findByAccountUsername("admin02"))
                 .thenReturn(List.of(authority(account, "ROLE_ADMIN")));
-        when(authorityRepository.countByRoleNameIn(any())).thenReturn(1L);
 
         ResponseStatusException error = assertThrows(ResponseStatusException.class,
                 () -> service.update("admin02", emptyUpdate(), "ROLE_WAITER"));
+
+        assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
+        verify(authorityRepository, never()).deleteAll(any());
+    }
+
+    @Test
+    void nonAdminCannotBePromotedWhenAdminAlreadyExists() {
+        authenticate("root", "ROLE_ADMIN");
+        Account account = account("manager02", 1L);
+        when(accountRepository.findLockedByUsername("manager02")).thenReturn(Optional.of(account));
+        when(authorityRepository.findByAccountUsername("manager02"))
+                .thenReturn(List.of(authority(account, "ROLE_MANAGER")));
+        when(authorityRepository.countByRoleNameIn(any())).thenReturn(1L);
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+                () -> service.update("manager02", emptyUpdate(), "ROLE_ADMIN"));
 
         assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
         verify(authorityRepository, never()).deleteAll(any());
@@ -150,6 +181,34 @@ class StaffAccountServiceTest {
         assertEquals("bcrypt-hash-only", account.getPassword());
         assertTrue(account.getMustChangePassword());
         assertEquals(3L, account.getTokenVersion());
+        verify(accountRepository).save(account);
+    }
+
+    @Test
+    void adminGeneratedCustomerTemporaryPasswordIsShownOnceAndNotLoggedOrStoredPlaintext() {
+        authenticate("root", "ROLE_ADMIN");
+        Account account = account("customer01", 5L);
+        account.setPassword("existing-hash");
+        when(accountRepository.findLockedByUsername("customer01")).thenReturn(Optional.of(account));
+        when(authorityRepository.findByAccountUsername("customer01")).thenReturn(List.of());
+        when(passwordEncoder.encode(anyString())).thenReturn("new-bcrypt-hash");
+
+        String temporaryPassword = service.resetCustomerPassword("customer01", null, true);
+
+        assertTrue(temporaryPassword.length() >= 10);
+        assertEquals("new-bcrypt-hash", account.getPassword());
+        assertFalse(account.getPassword().contains(temporaryPassword));
+        assertTrue(account.getMustChangePassword());
+        assertEquals(6L, account.getTokenVersion());
+
+        org.mockito.ArgumentCaptor<String> logCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(activityLogService).log(
+                org.mockito.ArgumentMatchers.eq("ADMIN_RESET_PASSWORD"),
+                org.mockito.ArgumentMatchers.eq("Account"),
+                org.mockito.ArgumentMatchers.eq("customer01"),
+                logCaptor.capture());
+        assertFalse(logCaptor.getValue().contains(temporaryPassword));
+        assertFalse(logCaptor.getValue().contains("existing-hash"));
         verify(accountRepository).save(account);
     }
 

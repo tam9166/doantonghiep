@@ -17,6 +17,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.web.server.ResponseStatusException;
 import poly.edu.quanlynhahang.dto.ApiErrorResponse;
 import poly.edu.quanlynhahang.exception.InsufficientInventoryException;
@@ -80,6 +81,13 @@ public class GlobalExceptionHandler {
             EntityNotFoundException exception, HttpServletRequest request) {
         return response(HttpStatus.NOT_FOUND, "NOT_FOUND",
                 "Không tìm thấy dữ liệu yêu cầu.", request, Map.of());
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiErrorResponse> handleNoResourceFound(
+            NoResourceFoundException exception, HttpServletRequest request) {
+        return response(HttpStatus.NOT_FOUND, "NOT_FOUND",
+                "Không tìm thấy tài nguyên yêu cầu.", request, Map.of());
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)

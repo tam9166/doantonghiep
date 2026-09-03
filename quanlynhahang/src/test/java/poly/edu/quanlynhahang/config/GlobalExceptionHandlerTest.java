@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import poly.edu.quanlynhahang.dto.ApiErrorResponse;
 import poly.edu.quanlynhahang.exception.InsufficientInventoryException;
 
@@ -56,5 +57,19 @@ class GlobalExceptionHandlerTest {
         assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
         assertEquals("INSUFFICIENT_INVENTORY", response.getBody().code());
         assertEquals("required=2.0, available=1.0", response.getBody().fieldErrors().get("Thit bo"));
+    }
+
+    @Test
+    void missingApiResourceRemainsJsonNotFoundInsteadOfSpaHtmlOrInternalError() {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/products/not-a-real-resource");
+
+        ResponseEntity<ApiErrorResponse> response = handler.handleNoResourceFound(
+                new NoResourceFoundException(org.springframework.http.HttpMethod.GET,
+                        "/api/products/not-a-real-resource", "api/products/not-a-real-resource"), request);
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertEquals(MediaType.APPLICATION_JSON, response.getHeaders().getContentType());
+        assertEquals("NOT_FOUND", response.getBody().code());
+        assertEquals("/api/products/not-a-real-resource", response.getBody().path());
     }
 }

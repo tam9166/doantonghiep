@@ -16,6 +16,7 @@ import poly.edu.quanlynhahang.repository.TableAreaRepository;
 import poly.edu.quanlynhahang.repository.AreaPricingRepository;
 import poly.edu.quanlynhahang.entity.AreaPricing;
 import poly.edu.quanlynhahang.entity.AreaType;
+import poly.edu.quanlynhahang.service.TableAreaReadinessService;
 import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.validation.Valid;
@@ -26,29 +27,41 @@ import java.util.Date;
 public class TableAreaController {
     private final TableAreaRepository areaRepository;
     private final AreaPricingRepository pricingRepository;
+    private final TableAreaReadinessService readinessService;
 
-    public TableAreaController(TableAreaRepository areaRepository, AreaPricingRepository pricingRepository) {
+    public TableAreaController(TableAreaRepository areaRepository,
+                               AreaPricingRepository pricingRepository,
+                               TableAreaReadinessService readinessService) {
         this.areaRepository = areaRepository;
         this.pricingRepository = pricingRepository;
+        this.readinessService = readinessService;
     }
 
     @GetMapping
     public ResponseEntity<?> getActiveAreas() {
         return ResponseEntity.ok(areaRepository.findByStatusOrderByNameViAsc("ACTIVE").stream()
-                .map(TableAreaResponse::from).toList());
+                .map(area -> TableAreaResponse.from(area, readinessService.evaluate(area)))
+                .filter(TableAreaResponse::bookingReady)
+                .toList());
     }
 
     @GetMapping("/admin")
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     public ResponseEntity<?> getAreasForAdmin() {
-        return ResponseEntity.ok(areaRepository.findAll().stream().map(TableAreaResponse::from).toList());
+        return ResponseEntity.ok(areaRepository.findAll().stream()
+                .map(area -> TableAreaResponse.from(area, readinessService.evaluate(area)))
+                .toList());
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<?> getArea(@PathVariable Integer id) {
-        return areaRepository.findById(id)
-                .<ResponseEntity<?>>map(area -> ResponseEntity.ok(TableAreaResponse.from(area)))
-                .orElseGet(() -> ResponseEntity.notFound().build());
+        return areaRepository.findById(id).<ResponseEntity<?>>map(area -> {
+            TableAreaReadinessService.Readiness readiness = readinessService.evaluate(area);
+            if (!readiness.bookingReady()) {
+                return ResponseEntity.notFound().build();
+            }
+            return ResponseEntity.ok(TableAreaResponse.from(area, readiness));
+        }).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @PostMapping
@@ -61,7 +74,7 @@ public class TableAreaController {
         area.setCreatedAt(new Date());
         areaRepository.save(area);
         savePricing(area, request);
-        return ResponseEntity.ok(TableAreaResponse.from(area));
+        return ResponseEntity.ok(TableAreaResponse.from(area, readinessService.evaluate(area)));
     }
 
     @PutMapping("/{id}")
@@ -74,7 +87,7 @@ public class TableAreaController {
             area.setUpdatedAt(new Date());
             areaRepository.save(area);
             savePricing(area, request);
-            return ResponseEntity.ok(TableAreaResponse.from(area));
+            return ResponseEntity.ok(TableAreaResponse.from(area, readinessService.evaluate(area)));
         }).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
@@ -84,7 +97,8 @@ public class TableAreaController {
         return areaRepository.findById(id).map(area -> {
             area.setStatus("INACTIVE");
             area.setUpdatedAt(new Date());
-            return ResponseEntity.ok(TableAreaResponse.from(areaRepository.save(area)));
+            TableArea saved = areaRepository.save(area);
+            return ResponseEntity.ok(TableAreaResponse.from(saved, readinessService.evaluate(saved)));
         }).orElseGet(() -> ResponseEntity.notFound().build());
     }
 

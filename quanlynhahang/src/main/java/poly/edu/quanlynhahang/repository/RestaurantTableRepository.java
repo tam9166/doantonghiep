@@ -41,4 +41,9 @@ public interface RestaurantTableRepository extends JpaRepository<RestaurantTable
             + "where t.active = true or t.active is null "
             + "order by t.areaId asc, t.id asc")
     List<RestaurantTable> findOperationalTables();
+
+    @Query("select t from RestaurantTable t "
+            + "where t.areaId = :areaId and (t.active = true or t.active is null) "
+            + "order by t.displayOrder asc, t.id asc")
+    List<RestaurantTable> findOperationalTablesByAreaId(@Param("areaId") Integer areaId);
 }
