@@ -1,11 +1,18 @@
-export function createDeliveryCheckoutRequest({ recipientName, recipientPhone, deliveryAddress, deliveryNote, items }) {
+export function createDeliveryCheckoutRequest({
+  recipientName,
+  recipientPhone,
+  deliveryAddress,
+  deliveryNote,
+  paymentOption = 'PREPAID_TRANSFER',
+  items
+}) {
   return {
     recipientName,
     recipientPhone,
     deliveryAddress,
     deliveryNote: deliveryNote?.trim() || null,
     orderType: 'DELIVERY',
-    paymentOption: 'PREPAID_TRANSFER',
+    paymentOption,
     items
   }
 }

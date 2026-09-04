@@ -15,6 +15,8 @@ describe('final fix UI contracts', () => {
     expect(menu).toContain('checkout-header')
     expect(menu).toContain('.checkout-actions')
     expect(menu).toContain('max-height: 100dvh')
+    expect(menu).toContain('checkout-success-grid')
+    expect(menu).toContain('payment-choice-grid')
   })
 
   it('does not let non-list API error payloads crash the menu computed state', () => {

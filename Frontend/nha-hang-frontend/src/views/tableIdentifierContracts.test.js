@@ -10,8 +10,14 @@ describe('waiter and cashier table identifier contracts', () => {
 
     expect(cashier).toContain('class="cashier-table-code" :title="tableIdentifier(table)"')
     expect(cashier).toContain('{{ tableIdentifier(table) }}')
+    expect(cashier).toContain('.cashier-table-code {')
+    expect(cashier).toContain('color: var(--text-heading);')
+    expect(cashier).toContain('text-shadow: none;')
     expect(waiter).toContain('class="table-code" :title="tableIdentifier(table)"')
     expect(waiter).toContain('{{ tableIdentifier(table) }}')
+    expect(waiter).toContain('.table-code {')
+    expect(waiter).toContain('color: var(--text-heading);')
+    expect(waiter).toContain('text-shadow: none;')
   })
 
   it('keeps the card identifier in cashier detail and waiter modal', () => {

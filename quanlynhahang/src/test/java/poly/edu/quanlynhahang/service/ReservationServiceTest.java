@@ -31,6 +31,7 @@ import org.springframework.web.server.ResponseStatusException;
 import poly.edu.quanlynhahang.entity.Reservation;
 import poly.edu.quanlynhahang.entity.DepositStatus;
 import poly.edu.quanlynhahang.entity.PaymentStatus;
+import poly.edu.quanlynhahang.entity.Product;
 import poly.edu.quanlynhahang.entity.ReservationPreorderItem;
 import poly.edu.quanlynhahang.entity.ReservationStatus;
 import poly.edu.quanlynhahang.entity.RestaurantTable;
@@ -66,6 +67,8 @@ class ReservationServiceTest {
     private final TableLifecycleService tableLifecycleService = mock(TableLifecycleService.class);
     private final SqlServerApplicationLockService applicationLockService = mock(SqlServerApplicationLockService.class);
     private final TableAreaReadinessService areaReadinessService = mock(TableAreaReadinessService.class);
+    private final ProductRepository productRepository = mock(ProductRepository.class);
+    private final MenuAvailabilityService menuAvailabilityService = mock(MenuAvailabilityService.class);
     private ReservationService service;
 
     @BeforeEach
@@ -87,7 +90,7 @@ class ReservationServiceTest {
                 mock(ReservationStatusHistoryRepository.class),
                 tableRepository,
                 areaRepository,
-                mock(ProductRepository.class),
+                productRepository,
                 mock(VoucherRepository.class),
                 mock(ReservationVoucherUsageRepository.class),
                 notificationService,
@@ -106,6 +109,7 @@ class ReservationServiceTest {
                 tableLifecycleService,
                 applicationLockService,
                 areaReadinessService,
+                menuAvailabilityService,
                 mock(PlatformTransactionManager.class),
                 new BigDecimal("0.50"), 15, 15);
     }
@@ -282,6 +286,42 @@ class ReservationServiceTest {
                 org.mockito.ArgumentMatchers.eq("EVENT_BOOKING_NEW"), any(), any(), any(), any(), any(), any());
         verify(realtimeService).publish(
                 org.mockito.ArgumentMatchers.eq("EVENT_BOOKING_CREATED"), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void eventBookingRejectsUnavailablePreorderDishBeforeSavingReservation() {
+        poly.edu.quanlynhahang.entity.TableArea area = new poly.edu.quanlynhahang.entity.TableArea();
+        area.setId(2);
+        area.setNameVi("Sảnh cưới");
+        area.setAreaType(poly.edu.quanlynhahang.entity.AreaType.EVENT_HALL);
+        area.setStatus("ACTIVE");
+        area.setMinGuestCount(20);
+        area.setMaxGuestCount(200);
+        area.setMinBookingHours(2);
+        area.setHourlyRate(new BigDecimal("1000000"));
+        area.setPackagePrice(BigDecimal.ZERO);
+        Product product = new Product();
+        product.setId(77);
+        product.setNameVi("Gỏi sen");
+        product.setStatus(true);
+        product.setAvailable(true);
+        poly.edu.quanlynhahang.dto.PreorderItemRequest preorder = new poly.edu.quanlynhahang.dto.PreorderItemRequest();
+        preorder.setProductId(77);
+        preorder.setQuantity(2);
+        when(areaRepository.findById(2)).thenReturn(Optional.of(area));
+        when(productRepository.findById(77)).thenReturn(Optional.of(product));
+        when(menuAvailabilityService.availableQuantity(product)).thenReturn(1);
+        var request = new poly.edu.quanlynhahang.dto.EventBookingRequest(
+                "Nguyễn An", "0901234567", "an@example.test", 2,
+                poly.edu.quanlynhahang.entity.EventType.WEDDING,
+                LocalDate.now().plusDays(2).toString(), "18:00", 4, 80,
+                true, false, "Tiệc tối", true, List.of(preorder));
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+                () -> service.createEventBooking(request, "event-key-unavailable"));
+
+        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY, error.getStatusCode());
+        verify(reservationRepository, never()).save(any(Reservation.class));
     }
     
     @Test

@@ -11,4 +11,12 @@ describe('kitchen realtime fallback', () => {
     expect(source).toContain('}, 60000)')
     expect(source).not.toContain('}, 5000)')
   })
+
+  it('pages kitchen menu after sorting available dishes before unavailable dishes', () => {
+    expect(source).toContain('const MENU_PAGE_SIZE = 12')
+    expect(source).toContain('sortedMenuProducts')
+    expect(source).toContain('menuPagedProducts')
+    expect(source).toContain("const aAvailable = a.available ? 0 : 1")
+    expect(source).toContain('class="menu-pagination-wrap"')
+  })
 })

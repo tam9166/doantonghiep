@@ -43,6 +43,18 @@ public class ReservationCancellationRequest {
     @Column(columnDefinition = "nvarchar(1000)")
     private String reason;
 
+    @Column(name = "contact_method", length = 20)
+    private String contactMethod;
+
+    @Column(name = "refund_bank_name", length = 120)
+    private String refundBankName;
+
+    @Column(name = "refund_account_number", length = 40)
+    private String refundAccountNumber;
+
+    @Column(name = "refund_account_holder", columnDefinition = "nvarchar(150)")
+    private String refundAccountHolder;
+
     @Enumerated(EnumType.STRING)
     @Column(length = 30, nullable = false)
     private CancellationRequestStatus status = CancellationRequestStatus.PENDING;

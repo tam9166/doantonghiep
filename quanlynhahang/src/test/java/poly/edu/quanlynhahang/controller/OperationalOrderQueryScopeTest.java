@@ -12,6 +12,7 @@ import java.util.Date;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -43,10 +44,28 @@ class OperationalOrderQueryScopeTest {
         AdminOrderController controller = new AdminOrderController();
         ReflectionTestUtils.setField(controller, "orderRepository", repository);
 
-        assertEquals(List.of(), controller.getAllOrders(9999).getBody());
+        assertEquals(List.of(), controller.getAllOrders(null, 10, 9999).getBody());
 
         verify(repository).findRecentOrderIds(PageRequest.of(0, 500));
         verify(repository, never()).findAllWithDetailsByIdIn(any());
+    }
+
+    @Test
+    void adminOrderListSupportsTenRowPageContractWhenPageParameterIsPresent() {
+        OrderRepository repository = mock(OrderRepository.class);
+        when(repository.findRecentOrderIds(PageRequest.of(1, 10))).thenReturn(List.of());
+        when(repository.count()).thenReturn(23L);
+        AdminOrderController controller = new AdminOrderController();
+        ReflectionTestUtils.setField(controller, "orderRepository", repository);
+
+        @SuppressWarnings("unchecked")
+        Page<?> page = (Page<?>) controller.getAllOrders(1, 10, 200).getBody();
+
+        assertEquals(10, page.getSize());
+        assertEquals(1, page.getNumber());
+        assertEquals(23, page.getTotalElements());
+        verify(repository).findRecentOrderIds(PageRequest.of(1, 10));
+        verify(repository).count();
     }
 
     @Test

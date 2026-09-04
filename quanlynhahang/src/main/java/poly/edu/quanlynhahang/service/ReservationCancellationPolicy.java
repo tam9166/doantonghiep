@@ -7,7 +7,6 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Date;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import poly.edu.quanlynhahang.entity.Reservation;
@@ -16,18 +15,16 @@ import poly.edu.quanlynhahang.entity.Reservation;
 public class ReservationCancellationPolicy {
     public static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
-    private final long refundHours;
-    private final BigDecimal refundRate;
+    private static final BigDecimal FULL_REFUND_THRESHOLD_HOURS = BigDecimal.valueOf(24);
+    private static final BigDecimal HALF_DAY_THRESHOLD_HOURS = BigDecimal.valueOf(12);
+    private static final BigDecimal HALF_ORDER_PENALTY_RATE = new BigDecimal("0.50");
 
-    public ReservationCancellationPolicy(
-            @Value("${restaurant.cancellation.refund-hours:12}") long refundHours,
-            @Value("${restaurant.cancellation.refund-rate:0.50}") BigDecimal refundRate) {
-        if (refundHours < 0 || refundRate == null
-                || refundRate.signum() < 0 || refundRate.compareTo(BigDecimal.ONE) > 0) {
-            throw new IllegalArgumentException("Cấu hình chính sách hủy không hợp lệ");
-        }
-        this.refundHours = refundHours;
-        this.refundRate = refundRate;
+    public ReservationCancellationPolicy() {
+        // Policy is intentionally fixed in code because refund is money-critical backend business logic.
+    }
+
+    public ReservationCancellationPolicy(long ignoredRefundHours, BigDecimal ignoredRefundRate) {
+        this();
     }
 
     public Calculation calculate(Reservation reservation, Date requestedAt, BigDecimal actuallyPaidDeposit) {
@@ -41,12 +38,31 @@ public class ReservationCancellationPolicy {
         long minutesBefore = Duration.between(requestAt, bookingAt).toMinutes();
         BigDecimal hoursBefore = BigDecimal.valueOf(minutesBefore)
                 .divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP);
-        BigDecimal paidDeposit = actuallyPaidDeposit == null
+        BigDecimal paidAmount = actuallyPaidDeposit == null
                 ? BigDecimal.ZERO : actuallyPaidDeposit.max(BigDecimal.ZERO);
-        boolean eligible = minutesBefore >= refundHours * 60;
-        BigDecimal appliedRate = eligible ? refundRate : BigDecimal.ZERO;
-        BigDecimal refundAmount = paidDeposit.multiply(appliedRate).setScale(0, RoundingMode.HALF_UP);
-        return new Calculation(hoursBefore, appliedRate, paidDeposit, refundAmount, eligible);
+        BigDecimal orderTotal = reservation.getTotalAmount() == null
+                ? BigDecimal.ZERO : reservation.getTotalAmount().max(BigDecimal.ZERO);
+        BigDecimal penaltyAmount;
+        String policyApplied;
+        if (minutesBefore >= FULL_REFUND_THRESHOLD_HOURS.longValue() * 60) {
+            penaltyAmount = BigDecimal.ZERO;
+            policyApplied = "Hủy trước giờ đặt từ 24 giờ: hoàn 100% số tiền đã thanh toán.";
+        } else if (minutesBefore >= HALF_DAY_THRESHOLD_HOURS.longValue() * 60) {
+            penaltyAmount = orderTotal.multiply(HALF_ORDER_PENALTY_RATE)
+                    .setScale(0, RoundingMode.HALF_UP);
+            policyApplied = "Hủy trước giờ đặt từ 12 đến dưới 24 giờ: phí hủy bằng 50% giá trị đơn.";
+        } else {
+            penaltyAmount = paidAmount;
+            policyApplied = "Hủy dưới 12 giờ trước giờ đặt: giữ nguyên chính sách hiện tại, không hoàn tiền.";
+        }
+        BigDecimal refundAmount = paidAmount.subtract(penaltyAmount).max(BigDecimal.ZERO).min(paidAmount)
+                .setScale(0, RoundingMode.HALF_UP);
+        BigDecimal appliedRate = paidAmount.signum() == 0
+                ? BigDecimal.ZERO
+                : refundAmount.divide(paidAmount, 2, RoundingMode.HALF_UP);
+        boolean eligible = refundAmount.signum() > 0 || minutesBefore >= HALF_DAY_THRESHOLD_HOURS.longValue() * 60;
+        return new Calculation(hoursBefore, appliedRate, paidAmount, refundAmount, eligible,
+                orderTotal, penaltyAmount.min(paidAmount), policyApplied);
     }
 
     public record Calculation(
@@ -54,6 +70,9 @@ public class ReservationCancellationPolicy {
             BigDecimal refundRate,
             BigDecimal paidDepositAmount,
             BigDecimal refundAmount,
-            boolean eligible) {
+            boolean eligible,
+            BigDecimal orderTotalAmount,
+            BigDecimal penaltyAmount,
+            String policyApplied) {
     }
 }

@@ -700,8 +700,8 @@ onUnmounted(() => {
   font-size: 1.45rem !important;
   line-height: 1.2;
   font-weight: 900 !important;
-  color: var(--primary);
-  text-shadow: 0 1px 0 var(--bg-card);
+  color: var(--text-heading);
+  text-shadow: none;
 }
 .cashier-table-location { margin: 2px 0 5px; color: var(--text-muted); font-size: 0.72rem; }
 .table-box.payment-priority { border: 2px solid var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 12%, transparent); }
@@ -780,7 +780,8 @@ onUnmounted(() => {
   margin: 0 0 5px 0;
   font-size: 1.2rem;
   font-weight: 900;
-  color: #FFFFFF;
+  color: var(--text-heading);
+  text-shadow: none;
 }
 .tc-subtitle {
   margin: 0;

@@ -164,6 +164,24 @@ class OrderPaymentServiceTest {
     }
 
     @Test
+    void adminCanConfirmTransferPaymentWithoutDispatchingToKitchen() {
+        Order order = order(12, OrderPaymentOption.PREPAID_TRANSFER, PaymentStatus.UNPAID, 216_000.0);
+        when(orderRepository.findLockedById(12)).thenReturn(Optional.of(order));
+
+        Order result = service.confirmTransferPayment(12, "cashier");
+
+        assertEquals(true, result.getIsPaid());
+        assertEquals(PaymentStatus.PAID, result.getPaymentStatus());
+        assertEquals(new BigDecimal("216000"), result.getPaidAmount());
+        assertEquals(BigDecimal.ZERO, result.getRemainingAmount());
+        assertEquals("cashier", result.getPaymentConfirmedBy());
+        verify(inventoryReservationService, never()).consume(12);
+        verify(messagingTemplate).convertAndSend("/topic/orders", "ORDER_PAYMENT_CONFIRMED");
+        verify(activityLogService).log("MANUAL_PAYMENT_CONFIRM", "Order", "12",
+                "Xác nhận thanh toán chuyển khoản cho đơn hàng #12");
+    }
+
+    @Test
     void paidTransferOrderCanBeDispatchedByAnAuthorizedOperator() {
         Order order = order(12, OrderPaymentOption.PREPAID_TRANSFER, PaymentStatus.PAID, 216_000.0);
         order.setIsPaid(true);
@@ -172,6 +190,23 @@ class OrderPaymentServiceTest {
         Order result = service.confirmManualDispatch(12);
 
         assertEquals(1, result.getStatus());
+        verify(inventoryReservationService).consume(12);
+        verify(messagingTemplate).convertAndSend("/topic/kitchen", "NEW_ORDER");
+    }
+
+    @Test
+    void legacyPaidTransferFlagCanBeNormalizedAndDispatched() {
+        Order order = order(12, OrderPaymentOption.PREPAID_TRANSFER, PaymentStatus.UNPAID, 216_000.0);
+        order.setIsPaid(true);
+        when(orderRepository.findLockedById(12)).thenReturn(Optional.of(order));
+
+        Order result = service.confirmManualDispatch(12);
+
+        assertEquals(1, result.getStatus());
+        assertEquals(true, result.getIsPaid());
+        assertEquals(PaymentStatus.PAID, result.getPaymentStatus());
+        assertEquals(new BigDecimal("216000"), result.getPaidAmount());
+        assertEquals(0, BigDecimal.ZERO.compareTo(result.getRemainingAmount()));
         verify(inventoryReservationService).consume(12);
         verify(messagingTemplate).convertAndSend("/topic/kitchen", "NEW_ORDER");
     }

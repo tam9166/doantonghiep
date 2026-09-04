@@ -36,4 +36,17 @@ describe('latest customer flow contracts', () => {
     expect(menu).toContain("t('menu.remaining', { count: product.availableQuantity })")
     expect(menu).toContain('class="menu-pagination"')
   })
+
+  it('labels the customer nav as delivery and keeps QR/COD checkout choices explicit', () => {
+    const menu = read('./ProductMenu.vue')
+    const viLocale = read('../locales/vi.json')
+    const enLocale = read('../locales/en.json')
+
+    expect(viLocale).toContain('"menu": "Giao hàng"')
+    expect(enLocale).toContain('"menu": "Delivery"')
+    expect(menu).toContain('deliveryPaymentOptions')
+    expect(menu).toContain('selectedDeliveryPaymentOption')
+    expect(menu).toContain('copyOrderCode')
+    expect(menu).toContain('checkoutResult.orderCode')
+  })
 })

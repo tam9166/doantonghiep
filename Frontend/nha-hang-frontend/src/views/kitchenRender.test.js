@@ -116,9 +116,9 @@ describe('Kitchen runtime resilience', () => {
       if (url.includes('/kitchen/board')) {
         return Promise.resolve({ data: [{
           id: 91,
-          status: 1,
+          status: 6,
           createDate: new Date().toISOString(),
-          orderDetails: [{ id: 911, status: 0, quantity: 2, product: { name: 'Phở bò' } }]
+          orderDetails: [{ id: 911, status: 0, startedAt: new Date().toISOString(), quantity: 2, product: { name: 'Phở bò' } }]
         }] })
       }
       if (url.endsWith('/api/admin/ingredients')) {
@@ -134,6 +134,7 @@ describe('Kitchen runtime resilience', () => {
     await flush()
     expect(host.textContent).toContain('#91')
     expect(host.textContent).toContain('Phở bò')
+    expect(host.textContent).toContain('Đang làm')
 
     const inventoryTab = [...host.querySelectorAll('button')]
       .find(button => button.textContent.includes('Tồn Kho'))

@@ -57,6 +57,9 @@
               <option value="ACTIVE">Đang sử dụng</option>
               <option value="INACTIVE">Tạm ẩn</option>
             </select>
+            <small v-if="form.status === 'ACTIVE' && form.areaType !== 'EVENT_HALL'" class="readiness-note">
+              Khu vực ACTIVE chỉ sẵn sàng cho khách đặt khi có ít nhất 2 bàn đang hoạt động và tổng sức chứa bàn không vượt sức chứa khu vực.
+            </small>
           </div>
           <div class="form-actions">
             <button class="g-btn-primary" @click="submitArea" :disabled="saving">
@@ -263,6 +266,7 @@ onMounted(fetchAreas);
 .form-panel h3 { margin-bottom: 18px; }
 .form-row { display: grid; gap: 7px; margin-bottom: 14px; }
 .form-row label { color: var(--text-muted); font-size: 0.8rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; }
+.readiness-note { display: block; color: var(--primary); font-size: .78rem; font-weight: 750; line-height: 1.4; }
 .event-checks{display:grid;grid-template-columns:1fr 1fr;gap:8px}.event-checks label{display:flex;align-items:center;gap:6px;text-transform:none}.event-checks input{width:auto}
 .form-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .form-actions { display: flex; gap: 10px; margin-top: 18px; }

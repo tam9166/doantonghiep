@@ -18,6 +18,17 @@ describe('public view API contracts', () => {
     expect(source).toContain("api.post('/api/reservation-cancellations'")
     expect(source).not.toContain('phone: form.value.phone || undefined')
     expect(source).not.toContain('route.query.phone')
+    expect(source).toContain('canSendCancellationRequest')
+    expect(source).toContain('cancellationAvailabilityMessage')
+    expect(source).toContain("Vui lòng nhập lý do hủy.")
+    expect(source).toContain('cancellationRequestPayload')
+    expect(source).toContain('reservation.value.customerPhone')
+    expect(source).toContain('Phương thức liên lạc mong muốn')
+    expect(source).toContain('refundRequired')
+    expect(source).toContain('refundBankName')
+    expect(source).toContain('refundAccountNumber')
+    expect(source).toContain('refundAccountHolder')
+    expect(source).not.toContain('v-if="refundPreview" class="danger-btn"')
   })
 
   it('does not hard-code a 50% manual refund in the cashier cancellation flow', () => {

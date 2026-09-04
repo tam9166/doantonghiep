@@ -37,7 +37,7 @@ class BlankDatabaseMigrationIntegrationTest {
                     .baselineOnMigrate(true)
                     .baselineVersion("2")
                     .load();
-            assertEquals(98, flyway.migrate().migrationsExecuted);
+            assertEquals(99, flyway.migrate().migrationsExecuted);
 
             try (Connection target = DriverManager.getConnection(targetUrl, username, password);
                  Statement statement = target.createStatement()) {
@@ -50,6 +50,11 @@ class BlankDatabaseMigrationIntegrationTest {
                 assertTrue(tableExists(statement, "api_rate_limits"));
                 assertTrue(tableExists(statement, "table_sessions"));
                 assertTrue(tableExists(statement, "reservation_cancellation_requests"));
+                assertEquals(4, count(statement, """
+                        SELECT COUNT(*) FROM sys.columns
+                        WHERE object_id = OBJECT_ID('dbo.reservation_cancellation_requests')
+                          AND name IN ('contact_method','refund_bank_name','refund_account_number','refund_account_holder')
+                        """));
                 assertTrue(tableExists(statement, "reservation_contact_logs"));
                 assertTrue(tableExists(statement, "inventory_reservations"));
                 assertTrue(tableExists(statement, "area_pricing"));

@@ -73,8 +73,9 @@
               <col style="width: 160px" />
               <col style="width: auto" />
               <col style="width: 160px" />
+              <col style="width: 160px" />
               <col style="width: 130px" />
-              <col style="width: 170px" />
+              <col style="width: 160px" />
             </colgroup>
             <thead>
               <tr>
@@ -82,12 +83,13 @@
                 <th>KHÁCH HÀNG</th>
                 <th>CHI TIẾT ĐƠN HÀNG</th>
                 <th>THỜI GIAN</th>
+                <th>THANH TOÁN</th>
                 <th>TRẠNG THÁI</th>
                 <th class="hide-on-print">HÀNH ĐỘNG</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="order in filteredOrders" :key="order.id" class="invoice-row">
+              <tr v-for="order in visibleOrders" :key="order.id" class="invoice-row">
                 <td class="col-code">
                   <span class="code-badge">#{{ getOrderCode(order) }}</span>
                 </td>
@@ -106,26 +108,67 @@
                 </td>
                 <td class="date-cell"> {{ formatDate(order.createDate) }}</td>
                 <td>
+                  <div class="payment-cell">
+                    <strong>{{ paymentOptionText(order.paymentOption) }}</strong>
+                    <span :class="['payment-badge', paymentStatusClass(order.paymentStatus, order.paymentOption, order.isPaid)]">
+                      {{ paymentStatusText(order.paymentStatus, order.paymentOption, order.isPaid) }}
+                    </span>
+                  </div>
+                </td>
+                <td>
                   <span :class="['g-badge', getStatusClass(order.status)]">
                     {{ getStatusText(order.status) }}
                   </span>
                 </td>
                 <td class="hide-on-print">
-                  <div class="action-row">
-                    <button @click="viewInvoice(order)" class="btn-view"> Xem</button>
+                  <div class="action-stack">
                     <button
-                      v-if="order.status === 0 || order.status === 5"
-                      @click="approveOrderToKitchen(order.id)"
-                      class="btn-approve"
-                    > Chuyển Bếp</button>
+                      v-if="canConfirmTransferPayment(order)"
+                      @click="confirmOrderPayment(order.id)"
+                      class="btn-confirm action-primary"
+                    > Xác nhận thanh toán</button>
+                    <div class="action-row">
+                      <button @click="viewInvoice(order)" class="btn-view">Xem</button>
+                      <button
+                        v-if="canDispatchToKitchen(order)"
+                        @click="approveOrderToKitchen(order.id)"
+                        class="btn-approve"
+                        :disabled="dispatchingOrderId !== null"
+                      >{{ dispatchingOrderId === order.id ? 'Đang chuyển...' : 'Chuyển Bếp' }}</button>
+                      <button
+                        v-else-if="requiresPaymentConfirmation(order)"
+                        class="btn-approve btn-disabled"
+                        disabled
+                        :title="dispatchBlockedReason(order)"
+                      >Chuyển Bếp</button>
+                    </div>
                   </div>
                 </td>
               </tr>
-              <tr v-if="filteredOrders.length === 0">
-                <td colspan="6" class="empty-row"> Không tìm thấy hóa đơn nào!</td>
+              <tr v-if="visibleOrders.length === 0">
+                <td colspan="7" class="empty-row"> Không tìm thấy hóa đơn nào!</td>
               </tr>
             </tbody>
           </table>
+        </div>
+        <div v-if="effectiveTotalOrders > 0" class="pagination-bar hide-on-print">
+          <span class="pagination-summary">
+            Hiển thị {{ paginationStart }}–{{ paginationEnd }} / {{ effectiveTotalOrders }} đơn
+          </span>
+          <nav class="pagination" aria-label="Phân trang đơn hàng">
+            <button type="button" :disabled="currentPage === 1" @click="changeOrderPage(currentPage - 1)">‹</button>
+            <button
+              v-for="page in orderPageButtons"
+              :key="page"
+              type="button"
+              :class="{ active: page === currentPage }"
+              @click="changeOrderPage(page)"
+            >
+              {{ page }}
+            </button>
+            <button type="button" :disabled="currentPage === effectiveTotalPages" @click="changeOrderPage(currentPage + 1)">›</button>
+          </nav>
+          <span class="pagination-page">Trang {{ currentPage }} / {{ effectiveTotalPages }}</span>
         </div>
       </div>
 
@@ -152,6 +195,7 @@
                 <p><strong>Khách hàng:</strong> {{ selectedOrder.account?.fullname || selectedOrder.username || 'Khách Vãng Lai' }}</p>
                 <p><strong>Vị trí:</strong> {{ cleanAddress(selectedOrder.address) }}</p>
                 <p><strong>Ngày lập:</strong> {{ formatDate(selectedOrder.createDate) }}</p>
+                <p><strong>Thanh toán:</strong> {{ paymentOptionText(selectedOrder.paymentOption) }} · {{ paymentStatusText(selectedOrder.paymentStatus, selectedOrder.paymentOption, selectedOrder.isPaid) }}</p>
               </div>
               <div class="meta-right">
                 <h3>HÓA ĐƠN THANH TOÁN</h3>
@@ -221,7 +265,7 @@
 <script setup>
 import AdminLayout from '@/components/AdminLayout.vue';
 
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import SockJS from 'sockjs-client';
 import { Stomp } from '@stomp/stompjs';
 import api from '@/services/api';
@@ -238,6 +282,12 @@ const orders = ref([]);
 const searchCode = ref('');
 const timeFilter = ref('all');
 const selectedOrder = ref(null);
+const ORDER_PAGE_SIZE = 10;
+const currentPage = ref(1);
+const totalOrders = ref(0);
+const totalPages = ref(1);
+const serverPagedOrders = ref(false);
+const dispatchingOrderId = ref(null);
 let scheduledActivationInterval = null;
 let stompClient = null;
 
@@ -246,27 +296,89 @@ const configHeader = () => {
   return { headers: { 'Authorization': `Bearer ${token}` } };
 };
 
-const loadData = async () => {
+const loadData = async (pageNumber = currentPage.value) => {
   try {
-    const resOrders = await api.get('/api/admin/orders', configHeader());
-    orders.value = resOrders.data;
-  } catch (err) { console.error('Lỗi tải dữ liệu', err); }
+    const requestedPage = Math.max(1, Number(pageNumber) || 1);
+    const resOrders = await api.get('/api/admin/orders', {
+      ...configHeader(),
+      params: { page: requestedPage - 1, size: ORDER_PAGE_SIZE },
+    });
+    const payload = resOrders.data;
+    if (Array.isArray(payload)) {
+      serverPagedOrders.value = false;
+      orders.value = payload;
+      totalOrders.value = payload.length;
+      totalPages.value = Math.max(1, Math.ceil(payload.length / ORDER_PAGE_SIZE));
+    } else {
+      serverPagedOrders.value = true;
+      orders.value = Array.isArray(payload?.content) ? payload.content : [];
+      totalOrders.value = Number(payload?.totalElements || orders.value.length);
+      totalPages.value = Math.max(1, Number(payload?.totalPages || 1));
+    }
+    currentPage.value = Math.min(requestedPage, totalPages.value);
+    return true;
+  } catch (err) {
+    console.error('Lỗi tải dữ liệu', err);
+    return false;
+  }
+};
+
+const isKitchenDispatchComplete = (order) => Number(order?.status) === 1;
+
+const verifyKitchenDispatch = async (orderId) => {
+  const refreshed = await loadData();
+  if (!refreshed) {
+    return false;
+  }
+  return isKitchenDispatchComplete(orders.value.find(order => order.id === orderId));
 };
 
 const approveOrderToKitchen = async (orderId) => {
+  if (dispatchingOrderId.value !== null) return;
   const confirmed = await confirmDialog({
     title: 'Chuyển đơn xuống bếp',
     message: 'Xác nhận chuyển đơn hàng này xuống bếp để chuẩn bị?',
     confirmLabel: 'Chuyển xuống bếp',
   });
   if (confirmed) {
+    dispatchingOrderId.value = orderId;
     try {
       await api.put(`/api/admin/orders/${orderId}/dispatch-to-kitchen`, {}, configHeader());
-      toast.success('Đã chuyển đơn xuống Bếp thành công!');
-      await loadData();
+      toast.success('Đã chuyển đơn xuống bếp.');
+      const refreshed = await loadData();
+      if (!refreshed) {
+        toast.warning('Đơn đã chuyển bếp thành công nhưng chưa thể làm mới danh sách. Vui lòng tải lại.');
+      }
     } catch (error) {
+      const recovered = await verifyKitchenDispatch(orderId).catch(() => false);
+      if (recovered) {
+        toast.success('Đã chuyển đơn xuống bếp.');
+        toast.warning('Đơn đã chuyển bếp thành công nhưng chưa thể làm mới danh sách. Vui lòng tải lại.');
+        return;
+      }
       toast.error(getApiErrorMessage(error, 'Không thể chuyển đơn xuống bếp. Vui lòng thử lại.'));
+    } finally {
+      dispatchingOrderId.value = null;
     }
+  }
+};
+
+const confirmOrderPayment = async (orderId) => {
+  const confirmed = await confirmDialog({
+    title: 'Xác nhận thanh toán',
+    message: 'Xác nhận ngân hàng đã chuyển đủ tiền cho đơn QR/chuyển khoản này?',
+    confirmLabel: 'Xác nhận',
+  });
+  if (!confirmed) return;
+  try {
+    const res = await api.put(`/api/admin/orders/${orderId}/confirm-payment`, {}, configHeader());
+    toast.success('Đã xác nhận thanh toán thành công!');
+    if (selectedOrder.value?.id === orderId) {
+      selectedOrder.value = res.data;
+    }
+    await loadData();
+  } catch (error) {
+    toast.error(getApiErrorMessage(error, 'Không thể xác nhận thanh toán. Vui lòng thử lại.'));
   }
 };
 
@@ -293,6 +405,50 @@ const filteredOrders = computed(() => {
   return result;
 });
 
+const effectiveTotalOrders = computed(() => (
+  serverPagedOrders.value ? totalOrders.value : filteredOrders.value.length
+));
+
+const effectiveTotalPages = computed(() => Math.max(
+  1,
+  serverPagedOrders.value ? totalPages.value : Math.ceil(filteredOrders.value.length / ORDER_PAGE_SIZE)
+));
+
+const visibleOrders = computed(() => {
+  if (serverPagedOrders.value) return filteredOrders.value;
+  const start = (currentPage.value - 1) * ORDER_PAGE_SIZE;
+  return filteredOrders.value.slice(start, start + ORDER_PAGE_SIZE);
+});
+
+const paginationStart = computed(() => {
+  if (!visibleOrders.value.length) return 0;
+  return (currentPage.value - 1) * ORDER_PAGE_SIZE + 1;
+});
+
+const paginationEnd = computed(() => Math.min(
+  paginationStart.value + visibleOrders.value.length - 1,
+  effectiveTotalOrders.value
+));
+
+const orderPageButtons = computed(() => {
+  const total = effectiveTotalPages.value;
+  const start = Math.max(1, currentPage.value - 2);
+  const end = Math.min(total, currentPage.value + 2);
+  return Array.from({ length: end - start + 1 }, (_, index) => start + index);
+});
+
+const changeOrderPage = async (page) => {
+  const nextPage = Math.min(Math.max(1, Number(page) || 1), effectiveTotalPages.value);
+  currentPage.value = nextPage;
+  if (serverPagedOrders.value) {
+    await loadData(nextPage);
+  }
+};
+
+watch([searchCode, timeFilter], () => {
+  currentPage.value = 1;
+});
+
 const dynamicStats = computed(() => {
   let revenue = 0, completed = 0, items = 0, pending = 0;
   filteredOrders.value.forEach(order => {
@@ -308,7 +464,7 @@ const dynamicStats = computed(() => {
   return { totalRevenue: revenue, completedOrdersCount: completed, totalItemsSold: items, pendingOrdersCount: pending };
 });
 
-const resetFilters = () => { searchCode.value = ''; timeFilter.value = 'all'; };
+const resetFilters = () => { searchCode.value = ''; timeFilter.value = 'all'; currentPage.value = 1; };
 
 const getOrderCode = (order) => {
   if (!order) return '----';
@@ -323,17 +479,79 @@ const cleanAddress = (address) => {
 };
 
 const getStatusText = (status) => {
-  const map = { 0: 'Chờ xử lý', 1: 'Đang nấu', 2: 'Đã lên món', 3: 'Đang phục vụ', 4: 'Hoàn thành', 5: 'Chờ hẹn giờ', 6: 'Đã hủy', 7: 'Từ chối' };
+  const map = { 0: 'Chờ xử lý', 1: 'Đang nấu', 2: 'Sẵn sàng', 3: 'Đã hủy', 4: 'Hoàn thành', 5: 'Chờ hẹn giờ', 6: 'Đang làm một phần', 7: 'Đã phục vụ' };
   return map[status] || 'Không xác định';
+};
+
+const paymentOptionText = (option) => {
+  const map = {
+    PREPAID_TRANSFER: 'QR / Chuyển khoản',
+    COD: 'Tiền mặt',
+    PAY_AT_RESTAURANT: 'Thanh toán tại quán'
+  };
+  return map[option] || option || '---';
+};
+
+const paymentStatusText = (status, paymentOption, isPaid = false) => {
+  if (isPaid && (status === 'UNPAID' || status === 'PENDING' || !status)) {
+    return 'Đã thanh toán';
+  }
+  const map = {
+    UNPAID: paymentOption === 'COD' ? 'Chưa thu tiền' : 'Chờ xác nhận',
+    PENDING: 'Đang chờ xác nhận',
+    PARTIALLY_PAID: 'Thanh toán một phần',
+    PAID: 'Đã thanh toán',
+    OVERPAID: 'Thanh toán dư',
+    REFUND_PENDING: 'Chờ hoàn tiền',
+    PARTIALLY_REFUNDED: 'Đã hoàn một phần',
+    REFUNDED: 'Đã hoàn tiền'
+  };
+  return map[status] || status || '---';
+};
+
+const paymentStatusClass = (status, paymentOption, isPaid = false) => {
+  if (isPaid && (status === 'UNPAID' || status === 'PENDING' || !status)) return 'payment-success';
+  if (paymentOption === 'COD' && status === 'UNPAID') return 'payment-warn';
+  if (status === 'PAID' || status === 'OVERPAID') return 'payment-success';
+  if (status === 'REFUND_PENDING' || status === 'PARTIALLY_REFUNDED') return 'payment-warning';
+  return 'payment-pending';
+};
+
+const requiresPaymentConfirmation = (order) => order?.paymentOption === 'PREPAID_TRANSFER'
+  && !order?.isPaid
+  && !['PAID', 'OVERPAID'].includes(String(order?.paymentStatus || ''));
+
+const canConfirmTransferPayment = (order) => order?.paymentOption === 'PREPAID_TRANSFER'
+  && !['PAID', 'OVERPAID'].includes(String(order?.paymentStatus || ''))
+  && !order?.isPaid;
+
+const canDispatchToKitchen = (order) => {
+  const inQueue = order?.status === 0 || order?.status === 5;
+  if (!inQueue) return false;
+  if (order?.paymentOption === 'PREPAID_TRANSFER') {
+    return order?.isPaid || ['PAID', 'OVERPAID'].includes(String(order?.paymentStatus || ''));
+  }
+  return true;
+};
+
+const dispatchBlockedReason = (order) => {
+  if (order?.paymentOption === 'PREPAID_TRANSFER'
+    && !order?.isPaid
+    && !['PAID', 'OVERPAID'].includes(String(order?.paymentStatus || ''))) {
+    return 'Đơn chuyển khoản chưa được xác nhận đủ tiền';
+  }
+  return 'Đơn chưa sẵn sàng chuyển bếp';
 };
 
 const getStatusClass = (status) => {
   if (status === 0) return 'g-badge-warning';
   if (status === 1) return 'g-badge-info';
   if (status === 2) return 'g-badge-info';
+  if (status === 3) return 'g-badge-danger';
   if (status === 4) return 'g-badge-success';
   if (status === 5) return 'g-badge-scheduled';
-  if (status === 6 || status === 7) return 'g-badge-danger';
+  if (status === 6) return 'g-badge-info';
+  if (status === 7) return 'g-badge-success';
   return 'g-badge-info';
 };
 
@@ -543,22 +761,127 @@ onUnmounted(() => {
   border-color: color-mix(in srgb, var(--color-tertiary) 30%, transparent) !important;
 }
 .date-cell { color: var(--text-muted); font-size: 0.88rem; white-space: nowrap; }
-.action-row { display: flex; gap: 6px; }
+.payment-cell {
+  display: grid;
+  gap: 4px;
+}
+.payment-cell strong {
+  color: var(--text-primary);
+  font-size: 0.92rem;
+}
+.payment-badge {
+  display: inline-flex;
+  width: fit-content;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+.payment-pending {
+  background: color-mix(in srgb, var(--color-tertiary) 14%, transparent);
+  color: var(--color-tertiary);
+  border-color: color-mix(in srgb, var(--color-tertiary) 28%, transparent);
+}
+.payment-warning {
+  background: color-mix(in srgb, var(--warning) 14%, transparent);
+  color: var(--warning);
+  border-color: color-mix(in srgb, var(--warning) 28%, transparent);
+}
+.payment-success {
+  background: color-mix(in srgb, var(--success) 14%, transparent);
+  color: var(--success);
+  border-color: color-mix(in srgb, var(--success) 28%, transparent);
+}
+.payment-warn {
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 24%, transparent);
+}
+.action-stack {
+  display: grid;
+  gap: 6px;
+  width: min(150px, 100%);
+}
+.action-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
 .btn-view {
   background: color-mix(in srgb, var(--secondary) 10%, transparent); border: 1px solid var(--border);
-  color: var(--primary); padding: 7px 12px;
+  color: var(--primary); padding: 7px 10px;
   border-radius: var(--radius-sm); cursor: pointer; font-size: 0.82rem; font-weight: 600;
   transition: var(--transition);
 }
 .btn-view:hover { background: var(--primary-glow); }
+.btn-confirm {
+  background: var(--primary); border: 1px solid color-mix(in srgb, var(--primary) 80%, transparent);
+  color: var(--color-on-primary); padding: 8px 10px;
+  border-radius: var(--radius-sm); cursor: pointer; font-size: 0.82rem; font-weight: 700;
+  white-space: nowrap; transition: var(--transition);
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+.btn-confirm:hover { background: color-mix(in srgb, var(--primary) 86%, #000); }
+.action-primary { width: 100%; }
 .btn-approve {
   background: color-mix(in srgb, var(--color-tertiary) 15%, transparent); border: 1px solid color-mix(in srgb, var(--color-tertiary) 30%, transparent);
-  color: var(--color-tertiary); padding: 7px 12px;
+  color: var(--color-tertiary); padding: 7px 10px;
   border-radius: var(--radius-sm); cursor: pointer; font-size: 0.82rem; font-weight: 600;
   white-space: nowrap; transition: var(--transition);
 }
 .btn-approve:hover { background: color-mix(in srgb, var(--color-tertiary) 30%, transparent); }
+.btn-disabled { opacity: 0.55; cursor: not-allowed; }
 .empty-row { text-align: center; color: var(--text-muted); padding: 50px; font-style: italic; }
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 18px;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  flex-wrap: wrap;
+}
+.pagination-summary,
+.pagination-page {
+  font-weight: 700;
+}
+.pagination {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.pagination button {
+  min-width: 34px;
+  min-height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+.pagination button.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--color-on-primary);
+}
+.pagination button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+@media (max-width: 760px) {
+  .admin-content { padding: 24px 12px; }
+  .action-stack { width: 145px; }
+  .pagination-bar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
 
 /* ===== MODAL ===== */
 .modal-overlay {

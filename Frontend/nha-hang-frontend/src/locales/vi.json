@@ -1,7 +1,7 @@
 {
   "nav": {
     "home": "Trang chủ",
-    "menu": "Thực đơn",
+    "menu": "Giao hàng",
     "booking": "Đặt chỗ",
     "dine_in": "Tại bàn",
     "history": "Lịch Sử",
@@ -471,6 +471,18 @@
     "addressPlaceholder": "Số nhà, tên đường...",
     "deliveryNote": "Ghi chú giao hàng",
     "deliveryNotePlaceholder": "Ví dụ: gọi trước khi giao, giao tại lễ tân...",
+    "deliveryPayment": "Hình thức thanh toán",
+    "deliveryPaymentHint": "Chọn một phương thức trước khi hoàn tất đơn giao hàng.",
+    "deliveryPaymentOptions": {
+      "PREPAID_TRANSFER": [
+        "Chuyển khoản QR",
+        "Tạo QR VietQR và chờ xác nhận thanh toán."
+      ],
+      "COD": [
+        "Tiền mặt khi nhận",
+        "Không tạo QR. Thu tiền khi giao hàng."
+      ]
+    },
     "bankTransfer": "Chuyển khoản qua VietQR",
     "subtotal": "Tạm tính",
     "tax": "Thuế GTGT dự kiến",
@@ -484,6 +496,16 @@
     "accountHolder": "Chủ tài khoản",
     "transferContent": "Nội dung",
     "paymentConfirmedHint": "Đơn chỉ được chuyển xuống bếp sau khi ngân hàng xác nhận đủ tiền.",
+    "cashOnDeliveryHint": "Không tạo QR. Nhà hàng thu tiền khi giao hàng.",
+    "orderSuccessTitle": "Đặt hàng thành công",
+    "orderCreatedSuccess": "Đơn giao hàng đã được ghi nhận.",
+    "orderCode": "Mã đơn",
+    "orderStatus": "Trạng thái đơn",
+    "paymentMethod": "Phương thức thanh toán",
+    "paymentStatus": "Trạng thái thanh toán",
+    "copyOrderCode": "Sao chép mã đơn",
+    "copiedOrderCode": "Đã sao chép mã đơn",
+    "viewHistory": "Xem lịch sử đơn",
     "close": "Đóng",
     "understood": "Đã hiểu",
     "creatingOrder": "Đang tạo đơn...",
