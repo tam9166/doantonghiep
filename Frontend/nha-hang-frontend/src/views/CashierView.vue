@@ -106,28 +106,25 @@
           </table>
           <hr />
           <div class="invoice-total">
-            <span>TỔNG ĐỒ ĂN:</span>
+            <span>TỔNG GIÁ TRỊ:</span>
             <span class="total-amount">{{ calculateTotal(selectedOrder).toLocaleString() }} VNĐ</span>
           </div>
-          <div class="invoice-total" v-if="selectedOrder.deposit > 0">
-            <span>ĐÃ ĐẶT CỌC:</span>
-            <span class="total-amount">- {{ selectedOrder.deposit.toLocaleString() }} VNĐ</span>
+          <div class="invoice-total" v-if="confirmedPaidAmount(selectedOrder) > 0">
+            <span>ĐÃ THANH TOÁN / ĐÃ CỌC:</span>
+            <span class="total-amount">{{ confirmedPaidAmount(selectedOrder).toLocaleString() }} VNĐ</span>
           </div>
-          <hr v-if="selectedOrder.deposit > 0" />
+          <hr v-if="confirmedPaidAmount(selectedOrder) > 0" />
           <div class="invoice-total" style="font-size: 1.3rem; margin-top: 10px;">
-            <span>CẦN THANH TOÁN:</span>
-            <span class="total-amount">{{ Math.max(0, calculateTotal(selectedOrder) - (selectedOrder.deposit || 0)).toLocaleString() }} VNĐ</span>
+            <span>CÒN PHẢI THANH TOÁN:</span>
+            <span class="total-amount">{{ outstandingAmount(selectedOrder).toLocaleString() }} VNĐ</span>
           </div>
           <div class="invoice-total" style="font-size: 1rem; margin-top: 10px; color: var(--text-primary);">
             <span>TRẠNG THÁI THANH TOÁN:</span>
             <span class="total-amount">{{ paymentSummary(selectedOrder) }}</span>
           </div>
-          <div v-if="(calculateTotal(selectedOrder) - (selectedOrder.deposit || 0)) < 0" style="text-align: right; color: var(--primary); font-style: italic;">
-            (Thu ngân thối lại: {{ Math.abs(calculateTotal(selectedOrder) - (selectedOrder.deposit || 0)).toLocaleString() }} VNĐ)
-          </div>
 
           <!-- Khu vực QR Code Thanh Toán -->
-          <div class="qr-payment-section hide-on-print" v-if="!selectedOrder.isPaid" style="margin-top: 20px; padding: 15px; background: color-mix(in srgb, var(--secondary) 5%, transparent); border: 1px dashed var(--primary); border-radius: 8px;">
+          <div class="qr-payment-section hide-on-print" v-if="outstandingAmount(selectedOrder) > 0" style="margin-top: 20px; padding: 15px; background: color-mix(in srgb, var(--secondary) 5%, transparent); border: 1px dashed var(--primary); border-radius: 8px;">
             <h4 style="text-align: center; margin-top: 0; margin-bottom: 10px; color: var(--primary); font-size: 1.1rem;">QR Chuyển Khoản Theo Hóa Đơn</h4>
             <p v-if="paymentQrLoading" style="text-align: center; color: var(--text-secondary);">Đang tạo QR an toàn...</p>
             <div v-else-if="paymentQr" style="text-align: center;">
@@ -425,6 +422,13 @@ const calculateTotal = (order) => {
   return order.orderDetails.reduce((sum, item) => sum + Number(item.price || 0) + Number(item.taxAmount || 0), 0);
 };
 
+const confirmedPaidAmount = (order) => Math.max(0, Number(order?.paidAmount || 0));
+const outstandingAmount = (order) => {
+  const persisted = Number(order?.remainingAmount);
+  return Number.isFinite(persisted) ? Math.max(0, persisted)
+    : Math.max(0, calculateTotal(order) - confirmedPaidAmount(order));
+};
+
 const paymentSummary = (order) => {
   if (order.isPaid || order.paymentStatus === 'PAID' || order.paymentStatus === 'OVERPAID') {
     return 'Đã thanh toán đủ 100%';
@@ -492,7 +496,9 @@ const orderMatchesTable = (order, table) => {
   return Number(order.tableId) === Number(table.id);
 };
 
-const getOpenOrderForTable = (table) => pendingOrders.value.find(order => orderMatchesTable(order, table));
+const getOpenOrderForTable = (table) => Number(table?.isOccupied) === 0
+  ? null
+  : pendingOrders.value.find(order => orderMatchesTable(order, table));
 
 const getPendingTotalForTable = (table) => {
   const order = getOpenOrderForTable(table);

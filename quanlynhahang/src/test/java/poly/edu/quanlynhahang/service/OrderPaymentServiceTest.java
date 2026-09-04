@@ -89,6 +89,23 @@ class OrderPaymentServiceTest {
     }
 
     @Test
+    void reservationDepositIsSubtractedOnceWhenGeneratingFinalQr() {
+        Order order = order(12, OrderPaymentOption.PAY_AT_RESTAURANT, PaymentStatus.PARTIALLY_PAID, 700_000.0);
+        order.setDeposit(new BigDecimal("500000"));
+        order.setPaidAmount(new BigDecimal("500000"));
+        order.setRemainingAmount(new BigDecimal("200000"));
+        when(orderRepository.findLockedById(12)).thenReturn(Optional.of(order));
+        when(intentRepository.findFirstByOrderIdAndPaymentOptionAndStatusOrderByCreatedAtDesc(
+                12, PaymentOption.FULL, PaymentStatus.PENDING)).thenReturn(Optional.empty());
+
+        PaymentQrResponse response = service.createForExistingOrder(12);
+
+        assertEquals(new BigDecimal("200000"), response.getAmount());
+        assertEquals(new BigDecimal("500000"), order.getPaidAmount());
+        assertEquals(new BigDecimal("200000"), order.getRemainingAmount());
+    }
+
+    @Test
     void reusesUnexpiredOrderQrInsteadOfCreatingDuplicateIntent() {
         Order order = order(12, OrderPaymentOption.PAY_AT_RESTAURANT, PaymentStatus.UNPAID, 216_000.0);
         PaymentIntent active = new PaymentIntent();
@@ -256,6 +273,20 @@ class OrderPaymentServiceTest {
         assertEquals(BigDecimal.ZERO, order.getRemainingAmount());
         verify(inventoryReservationService).consume(12);
         verify(messagingTemplate).convertAndSend("/topic/kitchen", "NEW_ORDER");
+    }
+
+    @Test
+    void orderLedgerAddsOnlyTheNewPaymentToReservationDeposit() {
+        Order order = order(12, OrderPaymentOption.PREPAID_TRANSFER, PaymentStatus.PARTIALLY_PAID, 700_000.0);
+        order.setDeposit(new BigDecimal("250000"));
+        order.setPaidAmount(new BigDecimal("250000"));
+        when(orderRepository.findLockedById(12)).thenReturn(Optional.of(order));
+
+        service.applyLedgerPayment(12, new BigDecimal("200000"), PaymentStatus.PARTIALLY_PAID);
+
+        assertEquals(new BigDecimal("450000"), order.getPaidAmount());
+        assertEquals(new BigDecimal("250000"), order.getRemainingAmount());
+        assertEquals(PaymentStatus.PARTIALLY_PAID, order.getPaymentStatus());
     }
 
     private Order order(int id, OrderPaymentOption option, PaymentStatus status, double total) {

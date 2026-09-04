@@ -154,6 +154,8 @@ class ReservationCancellationServiceTest {
         assertEquals(new BigDecimal("500000"), preview.expectedRefundAmount());
         assertEquals(true, preview.eligible());
         assertEquals("Có khoản hoàn dự kiến theo chính sách hủy hiện tại.", preview.message());
+        assertEquals("FULL_REFUND_24H", preview.policyCode());
+        assertEquals("REFUND_AVAILABLE", preview.messageCode());
     }
 
     @Test
@@ -176,6 +178,7 @@ class ReservationCancellationServiceTest {
         assertEquals(new BigDecimal("0"), preview.paidDepositAmount());
         assertEquals(new BigDecimal("0"), preview.expectedRefundAmount());
         assertEquals("Đặt bàn hợp lệ nhưng không có khoản tiền hoàn dự kiến.", preview.message());
+        assertEquals("NO_REFUND", preview.messageCode());
         assertEquals(CancellationRequestStatus.PENDING, service.create(new CancellationRequestCreateRequest(
                 "RES-A", null, "0912345678", null, "Khách đổi lịch")).status());
     }

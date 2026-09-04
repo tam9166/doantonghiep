@@ -120,6 +120,27 @@ class ReservationWaitlistServiceTest {
     }
 
     @Test
+    void promotesWaitlistIntoOneWaitingForTableReservationWithoutDeletingTheSourceRecord() {
+        ReservationWaitlist entry = waitingEntry(31L);
+        when(waitlistRepository.findLockedById(31L)).thenReturn(Optional.of(entry));
+        when(reservationRepository.findByReservationCode(any())).thenReturn(Optional.empty());
+        when(reservationRepository.save(any(Reservation.class))).thenAnswer(invocation -> {
+            Reservation reservation = invocation.getArgument(0);
+            reservation.setId(91L);
+            return reservation;
+        });
+        when(waitlistRepository.save(entry)).thenReturn(entry);
+
+        WaitlistResponse promoted = service.promoteToReservation(31L, new WaitlistActionRequest());
+
+        assertEquals(WaitlistStatus.CONVERTED, promoted.getStatus());
+        org.junit.jupiter.api.Assertions.assertTrue(promoted.getLinkedReservationCode().startsWith("RV"));
+        verify(reservationRepository).save(org.mockito.ArgumentMatchers.argThat(reservation ->
+                reservation.getReservationStatus() == poly.edu.quanlynhahang.entity.ReservationStatus.WAITING_TABLE_ASSIGNMENT));
+        verify(waitlistRepository).save(entry);
+    }
+
+    @Test
     void storesGroupTooLargeReasonWhenEventHallHasNoCapacity() {
         WaitlistRequest request = new WaitlistRequest();
         request.setCustomerName("Nguyen Van A");

@@ -2,6 +2,7 @@ package poly.edu.quanlynhahang.controller;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -73,8 +74,23 @@ public class ReservationController {
 
     @GetMapping("/api/admin/reservations")
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
-    public ResponseEntity<?> getAdminList() {
+    public ResponseEntity<?> getAdminList(@RequestParam(required = false) Integer page,
+                                          @RequestParam(required = false) Integer size,
+                                          @RequestParam(required = false) String status,
+                                          @RequestParam(required = false) String q) {
+        if (page != null) {
+            int safePage = Math.max(0, page);
+            int safeSize = Math.max(1, Math.min(size == null ? 10 : size, 100));
+            return ResponseEntity.ok(reservationService.getAdminReservations(
+                    PageRequest.of(safePage, safeSize), status, q));
+        }
         return ResponseEntity.ok(reservationService.getAdminReservations());
+    }
+
+    @GetMapping("/api/admin/reservations/stats")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+    public ResponseEntity<?> getAdminStatusCounts() {
+        return ResponseEntity.ok(reservationService.getAdminReservationStatusCounts());
     }
 
     @GetMapping("/api/reservations/history")

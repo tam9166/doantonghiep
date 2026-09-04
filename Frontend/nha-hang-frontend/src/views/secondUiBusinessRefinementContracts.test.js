@@ -142,7 +142,7 @@ describe('second UI and business refinement contracts', () => {
     expect(lookup).toContain('refundPreview.orderTotalAmount')
     expect(lookup).toContain('refundPreview.paidDepositAmount')
     expect(lookup).toContain('refundPreview.penaltyAmount')
-    expect(lookup).toContain('refundPreview.policyApplied')
+    expect(lookup).toContain('refundPolicyText(refundPreview)')
     expect(lookup).toContain("api.post('/api/reservation-cancellations/preview'")
     expect(lookup).toContain('v-if="canSendCancellationRequest" class="danger-btn"')
     expect(lookup).toContain('cancellationAvailabilityMessage')

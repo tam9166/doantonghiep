@@ -329,9 +329,9 @@ public class OrderCheckoutService {
     @Transactional
     public Integer dispatchReservationPreorder(Reservation reservation,
                                                List<ReservationPreorderItem> preorderItems) {
-        if (reservation == null || reservation.getTable() == null || preorderItems == null || preorderItems.isEmpty()) {
+        if (reservation == null || reservation.getTable() == null || preorderItems == null) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
-                    "Đặt bàn không có món đặt trước để chuyển xuống bếp");
+                    "Đặt bàn chưa có thông tin bàn để tạo đơn tại quán");
         }
 
         List<RequestedItem> requestedItems = preorderItems.stream()
@@ -381,11 +381,19 @@ public class OrderCheckoutService {
             subTotal = subTotal.add(lineTotal);
         }
 
-        savedOrder.setSubTotal(subTotal);
+        // The reservation total is the immutable booked value.  Extra dishes are
+        // subsequently added to this running subtotal; do not recalculate a deposit.
+        BigDecimal bookedTotal = money(reservation.getTotalAmount()).setScale(0, RoundingMode.HALF_UP);
+        BigDecimal initialTotal = bookedTotal.max(subTotal);
+        savedOrder.setSubTotal(initialTotal);
         savedOrder.setTaxAmount(BigDecimal.ZERO);
-        savedOrder.setTotalAmount(subTotal);
-        savedOrder.setRemainingAmount(subTotal.subtract(money(reservation.getPaidAmount()))
+        savedOrder.setTotalAmount(initialTotal);
+        BigDecimal confirmedPaid = money(reservation.getPaidAmount()).setScale(0, RoundingMode.HALF_UP);
+        savedOrder.setPaidAmount(confirmedPaid);
+        savedOrder.setRemainingAmount(initialTotal.subtract(confirmedPaid)
                 .max(BigDecimal.ZERO).setScale(0, RoundingMode.HALF_UP));
+        savedOrder.setIsPaid(savedOrder.getRemainingAmount().signum() == 0);
+        savedOrder.setPaymentStatus(paymentStatus(confirmedPaid, initialTotal));
         consumeInventory(requirements, lockedBatches);
         orderRepository.save(savedOrder);
         activityLogService.log("CREATE", "Order", String.valueOf(savedOrder.getId()),
@@ -419,8 +427,10 @@ public class OrderCheckoutService {
             return new AddItemsResult(orderId, operation.getAddedItems(), operation.getSubTotal(),
                     operation.getTaxAmount(), operation.getTotalAmount());
         }
-        if (Boolean.TRUE.equals(order.getIsPaid()) || Integer.valueOf(3).equals(order.getStatus())
-                || Integer.valueOf(4).equals(order.getStatus())) {
+        if (Integer.valueOf(3).equals(order.getStatus()) || Integer.valueOf(4).equals(order.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Order cannot accept more items");
+        }
+        if (Boolean.TRUE.equals(order.getIsPaid()) && !isReservationPrepaidDineInOrder(order)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Order cannot accept more items");
         }
         List<CheckoutLine> lines = loadProducts(requestedItems);
@@ -458,6 +468,18 @@ public class OrderCheckoutService {
         order.setSubTotal(subTotal);
         order.setTaxAmount(taxAmount);
         order.setTotalAmount(totalAmount);
+        BigDecimal confirmedPaid = money(order.getPaidAmount()).setScale(0, RoundingMode.HALF_UP);
+        BigDecimal remaining = totalAmount.setScale(0, RoundingMode.HALF_UP)
+                .subtract(confirmedPaid).max(BigDecimal.ZERO);
+        order.setRemainingAmount(remaining);
+        order.setIsPaid(remaining.signum() == 0);
+        order.setPaymentStatus(paymentStatus(confirmedPaid,
+                totalAmount.setScale(0, RoundingMode.HALF_UP)));
+        if ((Integer.valueOf(poly.edu.quanlynhahang.entity.OrderStatus.READY.code()).equals(order.getStatus())
+                || Integer.valueOf(poly.edu.quanlynhahang.entity.OrderStatus.SERVED.code()).equals(order.getStatus()))
+                && remaining.signum() >= 0) {
+            orderStateMachineService.transition(order, poly.edu.quanlynhahang.entity.OrderStatus.IN_PREPARATION);
+        }
         orderRepository.save(order);
         OrderItemOperation operation = new OrderItemOperation();
         operation.setOrderId(orderId);
@@ -470,6 +492,18 @@ public class OrderCheckoutService {
         orderItemOperationRepository.save(operation);
         activityLogService.log("UPDATE", "Order", String.valueOf(orderId), "Them mon vao don hang");
         return new AddItemsResult(order.getId(), addedItems, subTotal, taxAmount, totalAmount);
+    }
+
+    private boolean isReservationPrepaidDineInOrder(Order order) {
+        return order.getOrderType() == OrderType.DINE_IN
+                && money(order.getDeposit()).signum() > 0;
+    }
+
+    private PaymentStatus paymentStatus(BigDecimal paid, BigDecimal total) {
+        if (paid.signum() <= 0) return PaymentStatus.UNPAID;
+        int comparison = paid.compareTo(total);
+        if (comparison < 0) return PaymentStatus.PARTIALLY_PAID;
+        return comparison == 0 ? PaymentStatus.PAID : PaymentStatus.OVERPAID;
     }
 
     private String normalizeIdempotencyKey(String idempotencyKey) {

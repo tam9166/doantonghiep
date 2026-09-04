@@ -95,4 +95,27 @@ class OrderResponsePrivacyTest {
         assertEquals("Tầng trệt", response.areaName());
         assertEquals(null, response.deliveryAddress());
     }
+
+    @Test
+    void kitchenResponseContainsOnlyNewQueuedDetails() {
+        Product oldProduct = new Product();
+        oldProduct.setName("Món cũ");
+        OrderDetail oldDetail = new OrderDetail();
+        oldDetail.setProduct(oldProduct);
+        oldDetail.setQuantity(1);
+        oldDetail.setStatus(1);
+        Product addedProduct = new Product();
+        addedProduct.setName("Món gọi thêm");
+        OrderDetail addedDetail = new OrderDetail();
+        addedDetail.setProduct(addedProduct);
+        addedDetail.setQuantity(1);
+        addedDetail.setStatus(0);
+        Order order = new Order();
+        order.setOrderDetails(List.of(oldDetail, addedDetail));
+
+        OrderResponse response = OrderResponse.forKitchen(order);
+
+        assertEquals(1, response.orderDetails().size());
+        assertEquals("Món gọi thêm", response.orderDetails().getFirst().product().name());
+    }
 }

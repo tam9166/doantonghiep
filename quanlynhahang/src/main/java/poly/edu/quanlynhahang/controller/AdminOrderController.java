@@ -114,7 +114,11 @@ public class AdminOrderController {
         List<Order> orders = (ids.isEmpty() ? List.<Order>of() : orderRepository.findAllWithDetailsByIdIn(ids)).stream()
                 .sorted((o1, o2) -> o2.getId().compareTo(o1.getId()))
                 .collect(Collectors.toList());
-        return ResponseEntity.ok(orders.stream().map(OrderResponse::from).toList());
+        return ResponseEntity.ok(orders.stream()
+                .filter(order -> order.getOrderDetails() != null && order.getOrderDetails().stream()
+                        .anyMatch(detail -> detail.getStatus() == null || detail.getStatus() == 0))
+                .map(OrderResponse::forKitchen)
+                .toList());
     }
 
     @GetMapping("/kitchen/board")

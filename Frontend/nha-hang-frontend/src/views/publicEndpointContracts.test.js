@@ -20,15 +20,29 @@ describe('public view API contracts', () => {
     expect(source).not.toContain('route.query.phone')
     expect(source).toContain('canSendCancellationRequest')
     expect(source).toContain('cancellationAvailabilityMessage')
-    expect(source).toContain("Vui lòng nhập lý do hủy.")
+    expect(source).toContain("t('reservationLookup.errors.reasonRequired')")
     expect(source).toContain('cancellationRequestPayload')
     expect(source).toContain('reservation.value.customerPhone')
-    expect(source).toContain('Phương thức liên lạc mong muốn')
+    expect(source).toContain("t('reservationLookup.contactMethod')")
     expect(source).toContain('refundRequired')
     expect(source).toContain('refundBankName')
     expect(source).toContain('refundAccountNumber')
     expect(source).toContain('refundAccountHolder')
     expect(source).not.toContain('v-if="refundPreview" class="danger-btn"')
+  })
+
+  it('keeps reservation lookup usable when realtime falls back and renders through locale keys', () => {
+    const source = readFileSync(`${views}/ReservationLookup.vue`, 'utf8')
+
+    expect(source).toContain("const realtimeState = ref('DISCONNECTED')")
+    expect(source).toContain("realtimeState.value = 'FAILED'")
+    expect(source).toContain('}, 8000)')
+    expect(source).toContain("t('reservationLookup.realtime.updated')")
+    expect(source).toContain("t('reservationLookup.paymentQr')")
+    expect(source).toContain("t('reservationLookup.refundPreview')")
+    expect(source).toContain('refundPolicyText(refundPreview)')
+    expect(source).toContain('refundPreviewMessage(refundPreview)')
+    expect(source).not.toMatch(/>[^<{]*[À-ỹ][^<{]*</)
   })
 
   it('does not hard-code a 50% manual refund in the cashier cancellation flow', () => {

@@ -28,6 +28,7 @@ import poly.edu.quanlynhahang.entity.Reservation;
 import poly.edu.quanlynhahang.entity.ReservationStatus;
 import poly.edu.quanlynhahang.repository.PaymentIntentRepository;
 import poly.edu.quanlynhahang.repository.ReservationRepository;
+import poly.edu.quanlynhahang.repository.RestaurantTableRepository;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -46,6 +47,7 @@ class PaymentServiceTest {
     private final ActivityLogService activityLogService = mock(ActivityLogService.class);
     private final ReservationReceiptService receiptService = mock(ReservationReceiptService.class);
     private final RestaurantSettingsService settingsService = mock(RestaurantSettingsService.class);
+    private final RestaurantTableRepository tableRepository = mock(RestaurantTableRepository.class);
     private final PaymentService service = new PaymentService(
             reservationRepository,
             paymentIntentRepository,
@@ -55,7 +57,8 @@ class PaymentServiceTest {
             capabilityService,
             activityLogService,
             receiptService,
-            settingsService);
+            settingsService,
+            tableRepository);
 
     @AfterEach
     void clearSecurityContext() {

@@ -11,12 +11,18 @@ import poly.edu.quanlynhahang.entity.ReservationWaitlist;
 import poly.edu.quanlynhahang.entity.Reservation;
 import poly.edu.quanlynhahang.entity.TableArea;
 import poly.edu.quanlynhahang.entity.WaitlistStatus;
+import poly.edu.quanlynhahang.entity.ReservationStatus;
+import poly.edu.quanlynhahang.entity.DepositStatus;
+import poly.edu.quanlynhahang.entity.PaymentOption;
+import poly.edu.quanlynhahang.entity.PaymentStatus;
 import poly.edu.quanlynhahang.repository.ReservationWaitlistRepository;
 import poly.edu.quanlynhahang.repository.ReservationRepository;
 import poly.edu.quanlynhahang.repository.TableAreaRepository;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.Duration;
+import java.math.BigDecimal;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -139,6 +145,61 @@ public class ReservationWaitlistService {
         activityLogService.log("UPDATE", "ReservationWaitlist", String.valueOf(entry.getId()),
                 "Chuyển danh sách chờ thành đặt bàn " + entry.getWaitlistCode());
         return toResponse(waitlistRepository.save(entry), true);
+    }
+
+    /**
+     * Keeps the original waitlist record for audit, then creates the single real booking
+     * which the existing table-assignment lifecycle can manage.
+     */
+    @Transactional
+    public WaitlistResponse promoteToReservation(Long id, WaitlistActionRequest request) {
+        ReservationWaitlist entry = find(id);
+        ensureWaitingOrContacted(entry);
+        Reservation reservation = new Reservation();
+        reservation.setReservationCode(generateReservationCode(entry.getReservationDate()));
+        reservation.setCustomerName(entry.getCustomerName());
+        reservation.setCustomerPhone(entry.getCustomerPhone());
+        reservation.setCustomerEmail(entry.getCustomerEmail());
+        reservation.setReservationDate(entry.getReservationDate());
+        reservation.setArrivalTime(entry.getPreferredStartTime());
+        reservation.setExpectedDurationMinutes(durationMinutes(entry));
+        reservation.setGuestCount(entry.getGuestCount());
+        reservation.setArea(entry.getArea());
+        reservation.setSeatingPreference(entry.getSeatingPreference());
+        reservation.setSpecialRequest(entry.getSpecialRequest());
+        reservation.setReservationStatus(ReservationStatus.WAITING_TABLE_ASSIGNMENT);
+        reservation.setPaymentOption(PaymentOption.DEPOSIT_50);
+        reservation.setPaymentStatus(PaymentStatus.UNPAID);
+        reservation.setDepositStatus(DepositStatus.NOT_REQUIRED);
+        reservation.setTotalAmount(BigDecimal.ZERO);
+        reservation.setTableAmount(BigDecimal.ZERO);
+        reservation.setFoodAmount(BigDecimal.ZERO);
+        reservation.setDepositAmount(BigDecimal.ZERO);
+        reservation.setPaidAmount(BigDecimal.ZERO);
+        reservation.setRemainingAmount(BigDecimal.ZERO);
+        Reservation savedReservation = reservationRepository.save(reservation);
+
+        entry.setStatus(WaitlistStatus.CONVERTED);
+        entry.setLinkedReservationCode(savedReservation.getReservationCode());
+        entry.setManagerNote(limit(trimToNull(request == null ? null : request.getNote()), 500));
+        entry.setUpdatedAt(new Date());
+        activityLogService.log("CONVERT", "ReservationWaitlist", String.valueOf(entry.getId()),
+                "Chuyển yêu cầu chờ thành đặt bàn chờ bố trí " + savedReservation.getReservationCode());
+        return toResponse(waitlistRepository.save(entry), true);
+    }
+
+    private int durationMinutes(ReservationWaitlist entry) {
+        long minutes = Duration.between(entry.getPreferredStartTime(), entry.getPreferredEndTime()).toMinutes();
+        return (int) Math.max(30, Math.min(480, minutes > 0 ? minutes : 120));
+    }
+
+    private String generateReservationCode(LocalDate date) {
+        for (int attempt = 0; attempt < 5; attempt++) {
+            String code = "RV" + date.toString().replace("-", "") + "-"
+                    + UUID.randomUUID().toString().substring(0, 8).toUpperCase(Locale.ROOT);
+            if (reservationRepository.findByReservationCode(code).isEmpty()) return code;
+        }
+        throw new ResponseStatusException(HttpStatus.CONFLICT, "Không thể tạo mã đặt bàn, vui lòng thử lại");
     }
 
     private void validateLinkedReservation(ReservationWaitlist entry, Reservation reservation) {

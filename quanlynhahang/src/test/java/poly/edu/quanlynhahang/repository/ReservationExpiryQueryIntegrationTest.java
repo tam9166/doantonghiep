@@ -26,14 +26,8 @@ class ReservationExpiryQueryIntegrationTest {
     @Transactional(readOnly = true)
     void sqlServerCanCompareArrivalTimeWithoutTimeDatetimeTypeMismatch() {
         List<Long> ids = reservations.findExpiryCandidateIds(
-                new Date(),
-                new Date(System.currentTimeMillis() - 15 * 60_000L),
                 LocalDate.now(),
                 LocalTime.now(),
-                EnumSet.of(ReservationStatus.PENDING, ReservationStatus.WAITING_TABLE_ASSIGNMENT,
-                        ReservationStatus.DEPOSIT_REQUIRED, ReservationStatus.DEPOSIT_PENDING),
-                EnumSet.of(ReservationStatus.PENDING, ReservationStatus.DEPOSIT_REQUIRED,
-                        ReservationStatus.DEPOSIT_PENDING),
                 EnumSet.of(ReservationStatus.CONFIRMED, ReservationStatus.DEPOSIT_PAID,
                         ReservationStatus.FULLY_PAID),
                 PageRequest.of(0, 200));

@@ -22,6 +22,20 @@ public record OrderResponse(Integer id, String orderCode, LocalDateTime schedule
     public static OrderResponse from(Order order) {
         List<OrderDetailResponse> details = order.getOrderDetails() == null ? List.of()
                 : order.getOrderDetails().stream().map(OrderDetailResponse::from).toList();
+        return from(order, details);
+    }
+
+    /** Kitchen receives only details that have not completed their kitchen lifecycle. */
+    public static OrderResponse forKitchen(Order order) {
+        List<OrderDetailResponse> details = order.getOrderDetails() == null ? List.of()
+                : order.getOrderDetails().stream()
+                .filter(detail -> detail.getStatus() == null || detail.getStatus() == 0)
+                .map(OrderDetailResponse::from)
+                .toList();
+        return from(order, details);
+    }
+
+    private static OrderResponse from(Order order, List<OrderDetailResponse> details) {
         RestaurantTable table = order.getRestaurantTable();
         return new OrderResponse(order.getId(), order.getOrderCode(), order.getScheduledAt(), order.getCreateDate(), order.getAddress(), order.getStatus(),
                 money(order.getOriginalSubtotal()), money(order.getMembershipDiscount()), money(order.getVoucherDiscount()),

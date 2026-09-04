@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Page;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Repository;
 import poly.edu.quanlynhahang.entity.Reservation;
@@ -93,29 +94,51 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     List<Reservation> findAllByOrderByCreatedAtDesc();
 
     @Query("""
+            select r from Reservation r
+            where (:status is null or r.reservationStatus = :status)
+              and (:keyword is null
+                   or lower(r.reservationCode) like lower(concat('%', :keyword, '%'))
+                   or lower(r.customerName) like lower(concat('%', :keyword, '%'))
+                   or r.customerPhone like concat('%', :keyword, '%'))
+            order by
+              case
+                when r.reservationStatus = poly.edu.quanlynhahang.entity.ReservationStatus.PENDING then 1
+                when r.reservationStatus = poly.edu.quanlynhahang.entity.ReservationStatus.WAITING_TABLE_ASSIGNMENT then 2
+                when r.reservationStatus in (poly.edu.quanlynhahang.entity.ReservationStatus.DEPOSIT_REQUIRED,
+                                              poly.edu.quanlynhahang.entity.ReservationStatus.DEPOSIT_PENDING) then 3
+                else 4
+              end asc,
+              r.createdAt desc, r.id desc
+            """)
+    Page<Reservation> findAdminPage(@Param("status") ReservationStatus status,
+                                    @Param("keyword") String keyword,
+                                    Pageable pageable);
+
+    interface AdminStatusCount {
+        ReservationStatus getStatus();
+        long getTotal();
+    }
+
+    @Query("""
+            select r.reservationStatus as status, count(r) as total
+            from Reservation r
+            group by r.reservationStatus
+            """)
+    List<AdminStatusCount> countAdminByStatus();
+
+    @Query("""
             select r.id from Reservation r
-            where (r.depositExpiresAt is not null
-                   and r.depositExpiresAt <= :now
-                   and r.reservationStatus in :waitingStatuses)
-               or (r.createdAt is not null
-                   and r.createdAt <= :depositDeadline
-                   and r.depositAmount > 0
-                   and r.reservationStatus in :legacyDepositStatuses)
-               or (r.reservationStatus in :noShowStatuses
-                   and r.reservationDate is not null
-                   and r.arrivalTime is not null
-                   and (r.reservationDate < :noShowDate
-                        or (r.reservationDate = :noShowDate
-                            and r.arrivalTime <= cast(:noShowTime as LocalTime))))
+            where r.reservationStatus in :noShowStatuses
+              and r.reservationDate is not null
+              and r.arrivalTime is not null
+              and (r.reservationDate < :noShowDate
+                   or (r.reservationDate = :noShowDate
+                       and r.arrivalTime < cast(:noShowTime as LocalTime)))
             order by r.id
             """)
     List<Long> findExpiryCandidateIds(
-            @Param("now") Date now,
-            @Param("depositDeadline") Date depositDeadline,
             @Param("noShowDate") LocalDate noShowDate,
             @Param("noShowTime") LocalTime noShowTime,
-            @Param("waitingStatuses") Collection<ReservationStatus> waitingStatuses,
-            @Param("legacyDepositStatuses") Collection<ReservationStatus> legacyDepositStatuses,
             @Param("noShowStatuses") Collection<ReservationStatus> noShowStatuses,
             Pageable pageable);
 

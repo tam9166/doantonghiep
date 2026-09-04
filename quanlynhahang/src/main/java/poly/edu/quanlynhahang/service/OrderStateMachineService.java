@@ -22,10 +22,15 @@ public class OrderStateMachineService {
                     OrderStatus.CANCELLED, OrderStatus.COMPLETED),
             OrderStatus.PARTIALLY_READY, EnumSet.of(OrderStatus.IN_PREPARATION, OrderStatus.READY,
                     OrderStatus.CANCELLED, OrderStatus.COMPLETED),
-            OrderStatus.READY, EnumSet.of(OrderStatus.SERVED, OrderStatus.CANCELLED, OrderStatus.COMPLETED),
+            // A served/ready table can legitimately add a new dish.  Returning the
+            // aggregate order to preparation exposes only the newly queued detail to
+            // Kitchen; already served details retain their own terminal status.
+            OrderStatus.READY, EnumSet.of(OrderStatus.IN_PREPARATION, OrderStatus.SERVED,
+                    OrderStatus.CANCELLED, OrderStatus.COMPLETED),
             OrderStatus.SCHEDULED, EnumSet.of(OrderStatus.IN_PREPARATION, OrderStatus.CANCELLED,
                     OrderStatus.COMPLETED),
-            OrderStatus.SERVED, EnumSet.of(OrderStatus.COMPLETED, OrderStatus.CANCELLED),
+            OrderStatus.SERVED, EnumSet.of(OrderStatus.IN_PREPARATION, OrderStatus.COMPLETED,
+                    OrderStatus.CANCELLED),
             OrderStatus.COMPLETED, EnumSet.of(OrderStatus.CANCELLED),
             OrderStatus.CANCELLED, EnumSet.noneOf(OrderStatus.class));
 

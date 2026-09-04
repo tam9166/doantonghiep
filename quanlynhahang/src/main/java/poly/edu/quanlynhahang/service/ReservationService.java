@@ -3,6 +3,8 @@ package poly.edu.quanlynhahang.service;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.Authentication;
@@ -71,6 +73,8 @@ import java.util.Comparator;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.EnumSet;
+import java.util.EnumMap;
+import java.util.Map;
 import java.util.HexFormat;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -168,7 +172,7 @@ public class ReservationService {
                                PlatformTransactionManager transactionManager,
                               @Value("${restaurant.reservation.deposit-rate:0.50}") BigDecimal depositRate,
                               @Value("${restaurant.reservation.deposit-expiry-minutes:15}") long depositExpiryMinutes,
-                              @Value("${restaurant.reservation.no-show-grace-minutes:15}") long noShowGraceMinutes) {
+                              @Value("${restaurant.reservation.no-show-grace-minutes:20}") long noShowGraceMinutes) {
         this.reservationRepository = reservationRepository;
         this.preorderItemRepository = preorderItemRepository;
         this.paymentIntentRepository = paymentIntentRepository;
@@ -354,7 +358,7 @@ public class ReservationService {
         BigDecimal foodAmount = preorderItems.stream()
                 .map(ReservationPreorderItem::getLineTotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        PaymentOption paymentOption = request.getPaymentOption() == null ? PaymentOption.DEPOSIT_50 : request.getPaymentOption();
+        PaymentOption paymentOption = advanceReservationPaymentOption(request.getPaymentOption());
         BigDecimal originalTotalAmount = tablePrice.total().add(foodAmount).setScale(0, RoundingMode.HALF_UP);
         VoucherApplication voucherApplication = applyVoucher(request.getVoucherCode(), originalTotalAmount, true);
         BigDecimal totalAmount = voucherApplication.totalAfterDiscount();
@@ -386,7 +390,7 @@ public class ReservationService {
         reservation.setDepositExpiresAt(new Date(System.currentTimeMillis() + expiryMinutes * 60_000L));
 
         String paymentCapabilityToken = null;
-        if (payableNow.signum() > 0 && !PaymentOption.PAY_AT_RESTAURANT.equals(paymentOption)) {
+        if (payableNow.signum() > 0) {
             paymentCapabilityToken = paymentCapabilityService.issue(reservation, currentUsernameOrNull());
         }
 
@@ -474,6 +478,33 @@ public class ReservationService {
     }
 
     @Transactional(readOnly = true)
+    public Page<ReservationResponse> getAdminReservations(Pageable pageable, String rawStatus, String rawKeyword) {
+        ReservationStatus status = null;
+        if (rawStatus != null && !rawStatus.isBlank()) {
+            try {
+                status = ReservationStatus.valueOf(rawStatus.trim().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException exception) {
+                throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Trạng thái đặt bàn không hợp lệ");
+            }
+        }
+        String keyword = trimToNull(rawKeyword);
+        return reservationRepository.findAdminPage(status, keyword, pageable)
+                .map(reservation -> toResponse(reservation, true));
+    }
+
+    /** Global status totals for the admin tabs; deliberately independent of the current page/filter. */
+    @Transactional(readOnly = true)
+    public Map<ReservationStatus, Long> getAdminReservationStatusCounts() {
+        Map<ReservationStatus, Long> totals = new EnumMap<>(ReservationStatus.class);
+        for (ReservationStatus status : ReservationStatus.values()) {
+            totals.put(status, 0L);
+        }
+        reservationRepository.countAdminByStatus()
+                .forEach(row -> totals.put(row.getStatus(), row.getTotal()));
+        return totals;
+    }
+
+    @Transactional(readOnly = true)
     public List<ReservationResponse> getReservationsForUser(String username) {
         if (username == null || username.isBlank() || "anonymousUser".equals(username)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Vui lòng đăng nhập để xem lịch sử đặt bàn");
@@ -545,7 +576,7 @@ public class ReservationService {
         BigDecimal originalTotal = tablePrice.total().add(foodAmount).setScale(0, RoundingMode.HALF_UP);
         VoucherApplication voucherApplication = applyVoucher(request.getVoucherCode(), originalTotal, false);
         BigDecimal total = voucherApplication.totalAfterDiscount();
-        PaymentOption option = request.getPaymentOption() == null ? PaymentOption.DEPOSIT_50 : request.getPaymentOption();
+        PaymentOption option = advanceReservationPaymentOption(request.getPaymentOption());
         DepositPolicyService.DepositCalculation deposit = depositPolicyService.calculate(
                 total, guests, quoteDate,
                 quoteTime, area == null ? null : area.getId(), table, depositRate);
@@ -722,9 +753,17 @@ public class ReservationService {
         boolean depositPaid = DepositStatus.PAID.equals(reservation.getDepositStatus())
                 || (depositRequired && reservation.getPaidAmount() != null
                     && reservation.getPaidAmount().compareTo(reservation.getDepositAmount()) >= 0);
-        ReservationStatus nextStatus = depositRequired && !depositPaid
-                ? ReservationStatus.DEPOSIT_REQUIRED
-                : ReservationStatus.CONFIRMED;
+        boolean fullyPaid = PaymentStatus.PAID.equals(reservation.getPaymentStatus())
+                || (reservation.getTotalAmount() != null && reservation.getTotalAmount().signum() > 0
+                    && reservation.getPaidAmount() != null
+                    && reservation.getPaidAmount().compareTo(reservation.getTotalAmount()) >= 0);
+        ReservationStatus nextStatus = fullyPaid
+                ? ReservationStatus.FULLY_PAID
+                : depositRequired && depositPaid
+                    ? ReservationStatus.DEPOSIT_PAID
+                    : depositRequired
+                        ? ReservationStatus.DEPOSIT_REQUIRED
+                        : ReservationStatus.CONFIRMED;
         stateMachine.assertCanTransition(old, nextStatus);
         reservation.setReservationStatus(nextStatus);
         if (depositRequired && !depositPaid) {
@@ -829,6 +868,7 @@ public class ReservationService {
                 : PaymentStatus.PARTIALLY_PAID);
         reservation.setManagerNote(trimToNull(request != null ? request.getNote() : null));
         reservation.setUpdatedAt(new Date());
+        markAssignedTablesAsDeposited(reservation);
         Reservation saved = reservationRepository.save(reservation);
         addHistory(saved, old, ReservationStatus.DEPOSIT_PAID, "Đã nhận tiền đặt cọc");
         notifyReservation(saved, "RESERVATION_DEPOSIT_PAID", "Đã nhận tiền đặt cọc", saved.getReservationCode());
@@ -886,6 +926,9 @@ public class ReservationService {
             table.setReservedTime("Khách đã đến: " + reservation.getReservationCode());
             tableRepository.save(table);
         }
+        if (reservation.getKitchenOrderId() == null) {
+            reservation.setKitchenOrderId(orderCheckoutService.dispatchReservationPreorder(reservation, List.of()));
+        }
         Reservation saved = reservationRepository.save(reservation);
         addHistory(saved, old, ReservationStatus.CHECKED_IN, trimToNull(request != null ? request.getNote() : null));
         ReservationResponse response = toResponse(saved, true);
@@ -899,18 +942,10 @@ public class ReservationService {
             fixedDelayString = "${restaurant.reservation.expiry-scan-ms:60000}")
     public void expireStaleReservations() {
         LocalDateTime now = LocalDateTime.now();
-        long expiryMinutes = depositExpiryMinutes > 0 ? depositExpiryMinutes : 1440;
-        Date depositDeadline = new Date(System.currentTimeMillis() - expiryMinutes * 60_000L);
         LocalDateTime noShowThreshold = now.minusMinutes(noShowGraceMinutes);
         List<Long> candidateIds = reservationRepository.findExpiryCandidateIds(
-                new Date(),
-                depositDeadline,
                 noShowThreshold.toLocalDate(),
                 noShowThreshold.toLocalTime(),
-                EnumSet.of(ReservationStatus.PENDING, ReservationStatus.WAITING_TABLE_ASSIGNMENT,
-                        ReservationStatus.DEPOSIT_REQUIRED, ReservationStatus.DEPOSIT_PENDING),
-                EnumSet.of(ReservationStatus.PENDING, ReservationStatus.DEPOSIT_REQUIRED,
-                        ReservationStatus.DEPOSIT_PENDING),
                 EnumSet.of(ReservationStatus.CONFIRMED, ReservationStatus.DEPOSIT_PAID,
                         ReservationStatus.FULLY_PAID),
                 PageRequest.of(0, 200));
@@ -921,7 +956,7 @@ public class ReservationService {
                 expiryTransactionTemplate.executeWithoutResult(status -> {
                     Reservation reservation = reservationRepository.findById(reservationId)
                             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy đặt bàn"));
-                    processSingleExpiry(reservation, now, depositDeadline);
+                    processSingleExpiry(reservation, now);
                 });
                 success++;
             } catch (Exception e) {
@@ -937,45 +972,11 @@ public class ReservationService {
     }
 
     @Transactional
-    public void processSingleExpiry(Reservation reservation, LocalDateTime now, Date depositDeadline) {
+    public void processSingleExpiry(Reservation reservation, LocalDateTime now) {
         ReservationStatus status = reservation.getReservationStatus();
-
-        // P0-05: Check explicit expiry first
-        if (reservation.getDepositExpiresAt() != null && reservation.getDepositExpiresAt().before(new Date())) {
-            if (isWaitingStatus(status)) {
-                transitionSystem(reservation, ReservationStatus.EXPIRED, "Quá hạn chờ bố trí bàn");
-                return;
-            }
-        }
-
-        // Legacy check using created_at
-        if (isDepositExpired(status, reservation, depositDeadline)) {
-            transitionSystem(reservation, ReservationStatus.EXPIRED, "Quá hạn thanh toán đặt cọc");
-            return;
-        }
         if (isNoShow(status, reservation, now)) {
             transitionSystem(reservation, ReservationStatus.NO_SHOW, "Khách không đến sau thời gian giữ bàn");
         }
-    }
-
-    /** P0-05: Check if status is a waiting/pending status that should expire */
-    private boolean isWaitingStatus(ReservationStatus status) {
-        return EnumSet.of(
-            ReservationStatus.PENDING,
-            ReservationStatus.WAITING_TABLE_ASSIGNMENT,
-            ReservationStatus.DEPOSIT_REQUIRED,
-            ReservationStatus.DEPOSIT_PENDING
-        ).contains(status);
-    }
-
-    private boolean isDepositExpired(ReservationStatus status, Reservation reservation, Date deadline) {
-        if (!EnumSet.of(ReservationStatus.PENDING, ReservationStatus.DEPOSIT_REQUIRED, ReservationStatus.DEPOSIT_PENDING).contains(status)) {
-            return false;
-        }
-        if (reservation.getDepositAmount() == null || reservation.getDepositAmount().signum() <= 0) {
-            return false;
-        }
-        return reservation.getCreatedAt() != null && reservation.getCreatedAt().before(deadline);
     }
 
     private boolean isNoShow(ReservationStatus status, Reservation reservation, LocalDateTime now) {
@@ -1203,6 +1204,24 @@ public class ReservationService {
         return depositAmount == null
                 ? totalAmount.multiply(depositRate).setScale(0, RoundingMode.HALF_UP)
                 : depositAmount.setScale(0, RoundingMode.HALF_UP);
+    }
+
+    private PaymentOption advanceReservationPaymentOption(PaymentOption requested) {
+        PaymentOption option = requested == null ? PaymentOption.DEPOSIT_50 : requested;
+        if (option != PaymentOption.DEPOSIT_50 && option != PaymentOption.FULL) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Đặt bàn trước chỉ hỗ trợ đặt cọc 50% hoặc thanh toán toàn bộ.");
+        }
+        return option;
+    }
+
+    private void markAssignedTablesAsDeposited(Reservation reservation) {
+        for (RestaurantTable table : assignedTables(reservation)) {
+            if (Integer.valueOf(2).equals(table.getIsOccupied())) continue;
+            table.setIsOccupied(1);
+            table.setReservedTime("Đã cọc: " + reservation.getReservationCode());
+            tableRepository.save(table);
+        }
     }
 
     private VoucherApplication applyVoucher(String rawCode, BigDecimal originalTotal, boolean markAsUsed) {

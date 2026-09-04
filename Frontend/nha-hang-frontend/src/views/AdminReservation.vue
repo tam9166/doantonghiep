@@ -57,7 +57,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="item in filteredReservations" :key="item.id">
+            <tr v-for="item in displayReservations" :key="item.id">
               <td>
                 <strong>{{ item.reservationCode }}</strong>
                 <small>{{ formatDateTime(item.createdAt) }}</small>
@@ -87,80 +87,35 @@
               <td>
                 <div class="row-actions">
                   <button v-if="item.reservationStatus === 'PENDING'" type="button" @click="confirmReservation(item)">Xác nhận</button>
-                  <button v-if="item.reservationStatus === 'WAITING_TABLE_ASSIGNMENT'" type="button" @click="openAssignment(item)">Bố trí bàn</button>
-                  <button v-if="['PENDING','WAITING_TABLE_ASSIGNMENT'].includes(item.reservationStatus)" type="button" class="danger" @click="rejectReservation(item)">Từ chối</button>
+                  <button v-if="item.waitlistSource" type="button" @click="promoteWaitlist(item)">Tạo đặt bàn & bố trí</button>
+                  <button v-else-if="item.reservationStatus === 'WAITING_TABLE_ASSIGNMENT'" type="button" @click="openAssignment(item)">Bố trí bàn</button>
+                  <button v-if="!item.waitlistSource && ['PENDING','WAITING_TABLE_ASSIGNMENT'].includes(item.reservationStatus)" type="button" class="danger" @click="rejectReservation(item)">Từ chối</button>
                   <button v-if="['DEPOSIT_REQUIRED','DEPOSIT_PENDING'].includes(item.reservationStatus)" type="button" @click="markDeposit(item)">Đã cọc</button>
                   <button v-if="['CONFIRMED','DEPOSIT_REQUIRED','DEPOSIT_PENDING','DEPOSIT_PAID','FULLY_PAID'].includes(item.reservationStatus)" type="button" @click="checkIn(item)">Check-in</button>
-                  <button v-if="!['CANCELLED','REJECTED','COMPLETED'].includes(item.reservationStatus)" type="button" class="ghost" @click="cancelReservation(item)">Hủy</button>
-                  <button type="button" class="ghost" @click="refreshDetail(item)">Chi tiết</button>
+                  <button v-if="!item.waitlistSource && !['CANCELLED','REJECTED','COMPLETED'].includes(item.reservationStatus)" type="button" class="ghost" :disabled="cancellingReservationId === item.id" @click="cancelReservation(item)">{{ cancellingReservationId === item.id ? 'Đang hủy...' : 'Hủy' }}</button>
+                  <button v-if="!item.waitlistSource" type="button" class="ghost" @click="refreshDetail(item)">Chi tiết</button>
                 </div>
               </td>
             </tr>
-            <tr v-if="filteredReservations.length === 0">
+            <tr v-if="displayReservations.length === 0">
               <td colspan="7" class="empty">Chưa có yêu cầu đặt bàn phù hợp.</td>
             </tr>
           </tbody>
         </table>
       </div>
-
-      <section class="waitlist-panel">
-        <div class="section-heading">
-          <div>
-            <h2>Danh sách chờ</h2>
-            <p>Khách chưa chọn được bàn phù hợp và đang chờ nhà hàng liên hệ.</p>
+      <nav class="pagination" v-if="reservationTotalPages > 1" aria-label="Phân trang đặt bàn">
+        <button class="pagination-nav" type="button" :disabled="reservationPage === 1 || loading" @click="goToReservationPage(reservationPage - 1)">Trước</button>
+        <div class="pagination-center">
+          <div class="pagination-pages" aria-label="Số trang">
+            <template v-for="(page, index) in reservationPageNumbers" :key="`${page}-${index}`">
+              <span v-if="page === null" class="pagination-ellipsis">…</span>
+              <button v-else type="button" class="pagination-page" :class="{ active: page === reservationPage }" :aria-current="page === reservationPage ? 'page' : undefined" @click="goToReservationPage(page)">{{ page }}</button>
+            </template>
           </div>
-          <strong>{{ activeWaitlist.length }} đang chờ</strong>
+          <small>{{ reservationTotal }} đặt bàn</small>
         </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Mã chờ</th>
-                <th>Khách hàng</th>
-                <th>Khung giờ</th>
-                <th>Khu vực</th>
-                <th>Trạng thái</th>
-                <th>Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="item in waitlist" :key="item.id">
-                <td>
-                  <strong>{{ item.waitlistCode }}</strong>
-                  <small>{{ formatDateTime(item.createdAt) }}</small>
-                </td>
-                <td>
-                  <strong>{{ item.customerName }}</strong>
-                  <span>{{ item.customerPhone }}</span>
-                  <span v-if="item.customerEmail">{{ item.customerEmail }}</span>
-                </td>
-                <td>
-                  <strong>{{ item.reservationDate }}</strong>
-                  <span>{{ item.preferredStartTime }} - {{ item.preferredEndTime }}</span>
-                  <span>{{ item.guestCount }} khách</span>
-                </td>
-                <td>
-                  <strong>{{ item.areaName || '-' }}</strong>
-                  <span>{{ item.seatingPreference || '-' }}</span>
-                </td>
-                <td>
-                  <span class="status-badge" :class="item.status">{{ waitlistStatusText(item.status) }}</span>
-                </td>
-                <td>
-                  <div class="row-actions">
-                    <button v-if="['WAITING','CONTACTED'].includes(item.status)" type="button" @click="contactWaitlist(item)">Đã liên hệ</button>
-                    <button v-if="['WAITING','CONTACTED'].includes(item.status)" type="button" @click="convertWaitlist(item)">Đã chuyển đặt bàn</button>
-                    <button v-if="['WAITING','CONTACTED'].includes(item.status)" type="button" class="ghost" @click="cancelWaitlist(item)">Hủy</button>
-                  </div>
-                </td>
-              </tr>
-              <tr v-if="waitlist.length === 0">
-                <td colspan="6" class="empty">Chưa có khách trong danh sách chờ.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
+        <button class="pagination-nav pagination-next" type="button" :disabled="reservationPage === reservationTotalPages || loading" @click="goToReservationPage(reservationPage + 1)">Sau</button>
+      </nav>
 
       <div v-if="selected" class="modal" @click.self="selected = null">
         <article class="detail-panel">
@@ -265,6 +220,11 @@ const error = ref('')
 const keywordInput = ref('')
 const keyword = ref('')
 const statusFilter = ref('')
+const reservationPage = ref(1)
+const reservationTotal = ref(0)
+const reservationTotalPages = ref(1)
+const statusCounts = ref({})
+const cancellingReservationId = ref(null)
 const selected = ref(null)
 const realtimeMessage = ref('')
 const assignmentOptions = ref(null)
@@ -288,14 +248,15 @@ const groups = [
   { key: 'CANCELLED', label: 'Đã hủy' },
   { key: 'REJECTED', label: 'Từ chối' }
 ]
-
-const filteredReservations = computed(() => {
-  const q = keyword.value.toLowerCase()
-  return reservations.value.filter(item => {
-    const matchStatus = !statusFilter.value || item.reservationStatus === statusFilter.value
-    const haystack = `${item.reservationCode} ${item.customerName} ${item.customerPhone} ${item.customerEmail || ''} ${tableNames(item)} ${item.areaName || ''} ${item.tableFloor || ''}`.toLowerCase()
-    return matchStatus && (!q || haystack.includes(q))
-  })
+const reservationPageNumbers = computed(() => {
+  const total = reservationTotalPages.value
+  const current = reservationPage.value
+  if (total <= 7) return Array.from({ length: total }, (_, index) => index + 1)
+  const pages = [1, current - 1, current, current + 1, total]
+    .filter(page => page >= 1 && page <= total)
+    .filter((page, index, list) => list.indexOf(page) === index)
+    .sort((left, right) => left - right)
+  return pages.flatMap((page, index) => index > 0 && page - pages[index - 1] > 1 ? [null, page] : [page])
 })
 
 function tableNames(reservation) {
@@ -309,20 +270,53 @@ function selectOption(ids) { assignedTableIds.value = [...ids] }
 
 watch(keywordInput, (value) => {
   if (keywordTimer) clearTimeout(keywordTimer)
-  keywordTimer = setTimeout(() => { keyword.value = value }, 220)
+  keywordTimer = setTimeout(() => { keyword.value = value; reservationPage.value = 1; fetchReservations() }, 220)
 })
+watch(statusFilter, () => { reservationPage.value = 1; fetchReservations() })
 
 function clearSearch() {
   if (keywordTimer) clearTimeout(keywordTimer)
   keywordInput.value = ''
   keyword.value = ''
+  reservationPage.value = 1
+  fetchReservations()
 }
 
 const activeWaitlist = computed(() => waitlist.value.filter(item => ['WAITING', 'CONTACTED'].includes(item.status)))
+const waitlistReservationRows = computed(() => activeWaitlist.value.map(item => ({
+  id: `waitlist-${item.id}`,
+  waitlistId: item.id,
+  waitlistSource: true,
+  reservationCode: item.waitlistCode,
+  customerName: item.customerName,
+  customerPhone: item.customerPhone,
+  customerEmail: item.customerEmail,
+  reservationDate: item.reservationDate,
+  arrivalTime: `${item.preferredStartTime} - ${item.preferredEndTime}`,
+  expectedDurationMinutes: null,
+  guestCount: item.guestCount,
+  areaName: item.areaName,
+  seatingPreference: item.seatingPreference,
+  specialRequest: item.specialRequest,
+  reservationStatus: 'WAITING_TABLE_ASSIGNMENT',
+  depositAmount: 0,
+  totalAmount: 0,
+  depositStatus: item.status,
+  createdAt: item.createdAt
+})))
+const displayReservations = computed(() => {
+  const rows = statusFilter.value === 'WAITING_TABLE_ASSIGNMENT'
+    ? [...waitlistReservationRows.value, ...reservations.value]
+    : reservations.value
+  const priority = row => row.reservationStatus === 'PENDING' ? 1 : row.reservationStatus === 'WAITING_TABLE_ASSIGNMENT' ? 2 : row.reservationStatus === 'DEPOSIT_REQUIRED' || row.reservationStatus === 'DEPOSIT_PENDING' ? 3 : 4
+  return rows.sort((left, right) => priority(left) - priority(right)
+    || new Date(right.createdAt || 0) - new Date(left.createdAt || 0))
+})
 
 const money = (value) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(Number(value || 0))
 const formatDateTime = (value) => value ? new Date(value).toLocaleString('vi-VN') : ''
-const countByStatus = (status) => reservations.value.filter(item => item.reservationStatus === status).length
+const countByStatus = (status) => Number(statusCounts.value[status] || 0)
+  + (status === 'WAITING_TABLE_ASSIGNMENT' ? activeWaitlist.value.length : 0)
 
 function statusText(status) {
   const map = {
@@ -377,22 +371,11 @@ function contactStatusText(status) {
   }[status] || status || 'Chưa gọi'
 }
 
-function waitlistStatusText(status) {
-  const map = {
-    WAITING: 'Đang chờ',
-    CONTACTED: 'Đã liên hệ',
-    CONVERTED: 'Đã chuyển đặt bàn',
-    CANCELLED: 'Đã hủy',
-    EXPIRED: 'Hết hạn'
-  }
-  return map[status] || status || '-'
-}
-
 async function refreshAdminData() {
   loading.value = true
   error.value = ''
   try {
-    await Promise.all([fetchReservations(), fetchWaitlist()])
+    await Promise.all([fetchReservations(), fetchStatusCounts(), fetchWaitlist()])
   } finally {
     loading.value = false
   }
@@ -400,8 +383,12 @@ async function refreshAdminData() {
 
 async function fetchReservations() {
   try {
-    const res = await api.get('/api/admin/reservations')
-    reservations.value = res.data
+    const res = await api.get('/api/admin/reservations', {
+      params: { page: reservationPage.value - 1, size: 10, status: statusFilter.value || undefined, q: keyword.value || undefined }
+    })
+    reservations.value = Array.isArray(res.data) ? res.data : (res.data.content || [])
+    reservationTotal.value = Number(res.data.totalElements ?? reservations.value.length)
+    reservationTotalPages.value = Math.max(1, Number(res.data.totalPages || 1))
   } catch (err) {
     error.value = err.response?.data?.message || err.response?.data || 'Không tải được danh sách đặt bàn'
   }
@@ -416,20 +403,9 @@ async function fetchWaitlist() {
   }
 }
 
-function upsertReservation(item) {
-  if (!item?.id) return
-  const idx = reservations.value.findIndex(r => r.id === item.id)
-  if (idx >= 0) {
-    reservations.value[idx] = { ...reservations.value[idx], ...item }
-  } else {
-    reservations.value.unshift(item)
-    playSoftBeep()
-  }
-}
-
 function handleRealtimeEvent(event) {
   if (!event) return
-  if (event.reservation) upsertReservation(event.reservation)
+  void refreshReservationListAndCounts()
   realtimeMessage.value = event.message || `Cập nhật ${event.reservationCode || ''}`
   window.clearTimeout(realtimeTimer)
   realtimeTimer = window.setTimeout(() => {
@@ -458,29 +434,30 @@ function connectRealtime() {
   stompClient.activate()
 }
 
-function playSoftBeep() {
-  try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext
-    if (!AudioContext) return
-    const ctx = new AudioContext()
-    const oscillator = ctx.createOscillator()
-    const gain = ctx.createGain()
-    oscillator.frequency.value = 720
-    gain.gain.value = 0.04
-    oscillator.connect(gain)
-    gain.connect(ctx.destination)
-    oscillator.start()
-    oscillator.stop(ctx.currentTime + 0.08)
-  } catch {
-    // Browser may block sound until the user interacts with the page.
-  }
-}
-
 async function refreshDetail(item) {
   const res = await api.get(`/api/admin/reservations/${item.id}`)
   const idx = reservations.value.findIndex(r => r.id === item.id)
   if (idx >= 0) reservations.value[idx] = res.data
   selected.value = res.data
+}
+
+async function fetchStatusCounts() {
+  try {
+    const res = await api.get('/api/admin/reservations/stats')
+    statusCounts.value = res.data || {}
+  } catch (err) {
+    error.value = err.response?.data?.message || err.response?.data || 'Không tải được thống kê đặt bàn'
+  }
+}
+
+async function refreshReservationListAndCounts() {
+  await Promise.all([fetchReservations(), fetchStatusCounts(), fetchWaitlist()])
+}
+
+function goToReservationPage(page) {
+  if (page < 1 || page > reservationTotalPages.value) return
+  reservationPage.value = page
+  fetchReservations()
 }
 async function openAssignment(item) {
   assignmentLoading.value = true
@@ -500,7 +477,7 @@ async function confirmAssignment() {
   try {
     await api.patch(`/api/admin/reservations/${selected.value.id}/confirm`, { tableId: assignedTableIds.value[0], tableIds: assignedTableIds.value, areaId: selected.value.areaId, note: assignmentNote.value })
     selected.value = null
-    await fetchReservations()
+    await refreshReservationListAndCounts()
   } finally { savingAssignment.value = false }
 }
 
@@ -540,7 +517,7 @@ async function confirmReservation(item) {
   })
   if (note === null) return
   await api.patch(`/api/admin/reservations/${item.id}/confirm`, { note })
-  await fetchReservations()
+  await refreshReservationListAndCounts()
 }
 
 async function rejectReservation(item) {
@@ -554,17 +531,17 @@ async function rejectReservation(item) {
   })
   if (reason === null) return
   await api.patch(`/api/admin/reservations/${item.id}/reject`, { reason })
-  await fetchReservations()
+  await refreshReservationListAndCounts()
 }
 
 async function markDeposit(item) {
   await api.patch(`/api/admin/reservations/${item.id}/deposit`, { note: 'Đã nhận tiền đặt cọc' })
-  await fetchReservations()
+  await refreshReservationListAndCounts()
 }
 
 async function checkIn(item) {
   await api.patch(`/api/admin/reservations/${item.id}/check-in`, { note: 'Khách đã đến' })
-  await fetchReservations()
+  await refreshReservationListAndCounts()
 }
 
 async function cancelReservation(item) {
@@ -577,54 +554,35 @@ async function cancelReservation(item) {
     confirmLabel: 'Hủy đặt bàn',
   })
   if (note === null) return
-  await api.patch(`/api/admin/reservations/${item.id}/cancel`, { note })
-  await fetchReservations()
+  if (cancellingReservationId.value) return
+  cancellingReservationId.value = item.id
+  try {
+    await api.patch(`/api/admin/reservations/${item.id}/cancel`, { note })
+    realtimeMessage.value = 'Đã hủy đặt bàn.'
+    await refreshReservationListAndCounts()
+  } catch (err) {
+    const message = err.response?.data?.message || err.response?.data || 'Không thể hủy đặt bàn.'
+    realtimeMessage.value = String(message).includes('quy trình yêu cầu hủy/hoàn cọc')
+      ? 'Đặt bàn đã cọc: hãy xử lý qua quy trình yêu cầu hủy/hoàn cọc.'
+      : String(message)
+  } finally {
+    cancellingReservationId.value = null
+  }
 }
 
-async function contactWaitlist(item) {
+async function promoteWaitlist(item) {
   const note = await promptDialog({
-    title: 'Liên hệ khách chờ',
-    inputLabel: 'Ghi chú liên hệ',
-    defaultValue: item.managerNote || '',
-  })
-  if (note === null) return
-  await api.patch(`/api/admin/reservation-waitlist/${item.id}/contact`, { note })
-  await fetchWaitlist()
-}
-
-async function convertWaitlist(item) {
-  const linkedReservationCode = await promptDialog({
-    title: 'Chuyển thành đặt bàn',
-    message: 'Nhập mã đặt bàn đã tạo đúng cho khách trong danh sách chờ.',
-    inputLabel: 'Mã đặt bàn',
-    defaultValue: item.linkedReservationCode || '',
-    required: true,
-    confirmLabel: 'Tiếp tục',
-  })
-  if (linkedReservationCode === null) return
-  const note = await promptDialog({
-    title: 'Ghi chú chuyển đổi',
+    title: 'Tạo đặt bàn chờ bố trí',
+    message: `Tạo booking cho ${item.customerName} để chọn bàn và tiếp tục quy trình?`,
     inputLabel: 'Ghi chú (không bắt buộc)',
-    defaultValue: item.managerNote || '',
-    confirmLabel: 'Hoàn tất',
+    confirmLabel: 'Tạo booking',
   })
   if (note === null) return
-  await api.patch(`/api/admin/reservation-waitlist/${item.id}/convert`, { linkedReservationCode, note })
-  await fetchWaitlist()
-}
-
-async function cancelWaitlist(item) {
-  const note = await promptDialog({
-    title: 'Hủy yêu cầu chờ',
-    inputLabel: 'Lý do hủy',
-    defaultValue: item.managerNote || '',
-    required: true,
-    danger: true,
-    confirmLabel: 'Hủy yêu cầu',
-  })
-  if (note === null) return
-  await api.patch(`/api/admin/reservation-waitlist/${item.id}/cancel`, { note })
-  await fetchWaitlist()
+  const { data } = await api.patch(`/api/admin/reservation-waitlist/${item.waitlistId}/promote`, { note })
+  statusFilter.value = 'WAITING_TABLE_ASSIGNMENT'
+  await refreshReservationListAndCounts()
+  const booking = reservations.value.find(row => row.reservationCode === data.linkedReservationCode)
+  if (booking) await openAssignment(booking)
 }
 
 onMounted(() => {
@@ -1006,6 +964,38 @@ td small {
   margin: 8px 0 18px;
 }
 
+.pagination {
+  display: grid;
+  grid-template-columns: minmax(92px, 1fr) auto minmax(92px, 1fr);
+  align-items: center;
+  gap: 16px;
+  margin: 18px 0 6px;
+}
+
+.pagination-nav,
+.pagination-page {
+  min-height: 38px;
+  border: 1px solid var(--secondary);
+  border-radius: 8px;
+  background: #FFFFFF;
+  color: var(--secondary);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.pagination-nav { min-width: 92px; padding: 0 14px; justify-self: start; }
+.pagination-next { justify-self: end; }
+.pagination-nav:hover:not(:disabled),
+.pagination-page:hover:not(.active):not(:disabled) { background: color-mix(in srgb, var(--secondary) 8%, #FFFFFF); }
+.pagination-nav:disabled { border-color: var(--border); color: var(--text-muted); background: var(--bg-hover); cursor: not-allowed; }
+.pagination-center { display: grid; justify-items: center; gap: 5px; min-width: 0; }
+.pagination-center small { color: var(--text-muted); font-weight: 700; }
+.pagination-pages { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.pagination-page { width: 38px; padding: 0; }
+.pagination-page.active { background: var(--secondary); color: #FFFFFF; box-shadow: 0 4px 10px color-mix(in srgb, var(--secondary) 26%, transparent); }
+.pagination-ellipsis { width: 22px; text-align: center; color: var(--text-muted); font-weight: 900; }
+
 @media (max-width: 780px) {
   .toolbar,
   .filters {
@@ -1020,5 +1010,14 @@ td small {
   .preorder-row {
     grid-template-columns: 1fr;
   }
+
+  .pagination {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  .pagination-nav { min-width: 0; padding: 0 10px; }
+  .pagination-pages { gap: 4px; }
+  .pagination-page { width: 34px; }
 }
 </style>

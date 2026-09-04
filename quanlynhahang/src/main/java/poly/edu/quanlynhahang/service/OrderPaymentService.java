@@ -88,9 +88,12 @@ public class OrderPaymentService {
 
         if (!OrderPaymentOption.PREPAID_TRANSFER.equals(order.getPaymentOption())) {
             order.setPaymentOption(OrderPaymentOption.PREPAID_TRANSFER);
-            order.setPaymentStatus(PaymentStatus.UNPAID);
-            order.setPaidAmount(BigDecimal.ZERO);
-            order.setRemainingAmount(payableAmount(order));
+            BigDecimal confirmedPaid = money(order.getPaidAmount()).setScale(0, RoundingMode.HALF_UP);
+            BigDecimal remaining = payableAmount(order);
+            order.setPaymentStatus(paymentStatus(confirmedPaid,
+                    money(order.getTotalAmount()).setScale(0, RoundingMode.HALF_UP)));
+            order.setIsPaid(remaining.signum() == 0);
+            order.setRemainingAmount(remaining);
             orderRepository.save(order);
         }
 
@@ -321,9 +324,14 @@ public class OrderPaymentService {
         Order order = orderRepository.findLockedById(orderId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Đơn hàng không tồn tại"));
         BigDecimal total = money(order.getTotalAmount()).setScale(0, RoundingMode.HALF_UP);
-        order.setPaidAmount(aggregatePaid.max(BigDecimal.ZERO));
-        order.setRemainingAmount(total.subtract(aggregatePaid).max(BigDecimal.ZERO));
-        PaymentStatus effectiveStatus = paymentStatus(aggregatePaid, total);
+        // Payment ledger only aggregates ORDER transactions.  A reservation's
+        // confirmed deposit was already copied once into Order.deposit when its
+        // preorder became a dine-in order, so add it exactly once here.
+        BigDecimal reservationPrepayment = money(order.getDeposit()).setScale(0, RoundingMode.HALF_UP);
+        BigDecimal confirmedPaid = reservationPrepayment.add(aggregatePaid.max(BigDecimal.ZERO));
+        order.setPaidAmount(confirmedPaid);
+        order.setRemainingAmount(total.subtract(confirmedPaid).max(BigDecimal.ZERO));
+        PaymentStatus effectiveStatus = paymentStatus(confirmedPaid, total);
         order.setPaymentStatus(effectiveStatus);
         boolean fullyPaid = PaymentStatus.PAID.equals(effectiveStatus)
                 || PaymentStatus.OVERPAID.equals(effectiveStatus);
@@ -354,7 +362,9 @@ public class OrderPaymentService {
     }
 
     private BigDecimal payableAmount(Order order) {
-        return money(order.getTotalAmount()).setScale(0, RoundingMode.HALF_UP);
+        BigDecimal total = money(order.getTotalAmount()).setScale(0, RoundingMode.HALF_UP);
+        BigDecimal paid = money(order.getPaidAmount()).setScale(0, RoundingMode.HALF_UP);
+        return total.subtract(paid).max(BigDecimal.ZERO);
     }
 
     private PaymentStatus paymentStatus(BigDecimal paidAmount, BigDecimal expectedAmount) {

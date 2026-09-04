@@ -433,7 +433,7 @@
               <div><span>{{ text.payableNow }}</span><strong>{{ money(quote.payableNow) }}</strong></div>
               <div><span>{{ text.remaining }}</span><strong>{{ money(quote.remainingAmount) }}</strong></div>
             </div>
-            <p class="review-note">{{ form.paymentOption === 'PAY_AT_RESTAURANT' ? text.payLaterWarning : text.qrAfterSubmit }}</p>
+            <p class="review-note">{{ text.qrAfterSubmit }}</p>
           </section>
 
           <section v-show="step === 9" class="panel">
@@ -576,7 +576,7 @@ const form = ref({
   tableIds: [],
   preorderEnabled: false,
   orderNote: sessionStorage.getItem('reservation-order-note') || '',
-  paymentOption: null,
+  paymentOption: 'DEPOSIT_50',
   voucherCode: ''
 })
 
@@ -634,7 +634,11 @@ const pagedPreorderMenu = computed(() => {
   return filteredMenu.value.slice(start, start + PREORDER_PAGE_SIZE)
 })
 const preorderPageButtons = computed(() => compactPageButtons(preorderPage.value, preorderTotalPages.value))
-const paymentOptions = computed(() => Object.entries(text.value.paymentOptions).map(([key, value]) => ({ key, label: value[0], hint: value[1] })))
+const paymentOptions = computed(() => ['DEPOSIT_50', 'FULL'].map(key => ({
+  key,
+  label: text.value.paymentOptions[key][0],
+  hint: text.value.paymentOptions[key][1]
+})))
 const validCartItems = computed(() => cartItems.value.filter(isCartItemValid))
 const cartQuantity = computed(() => validCartItems.value.reduce((total, item) => total + item.quantity, 0))
 const skipPaymentStep = computed(() => shouldSkipReservationPayment(quote.value))
@@ -1203,7 +1207,7 @@ async function submitReservation() {
       sessionStorage.setItem(`reservation-capability:${res.data.reservationCode}`, paymentCapabilityToken.value)
     }
     idempotencyKey.value = crypto.randomUUID()
-    if (form.value.paymentOption !== 'PAY_AT_RESTAURANT' && Number(res.data.depositAmount || 0) > 0) {
+    if (Number(res.data.depositAmount || 0) > 0) {
       await createPaymentQr()
     }
   } catch (err) {
