@@ -31,6 +31,7 @@ import poly.edu.quanlynhahang.repository.OrderRepository;
 import poly.edu.quanlynhahang.repository.RestaurantTableRepository;
 import poly.edu.quanlynhahang.service.CustomerInvoiceEmailService;
 import poly.edu.quanlynhahang.service.OrderCheckoutService;
+import poly.edu.quanlynhahang.service.OrderPaymentService;
 import poly.edu.quanlynhahang.service.OrderStateMachineService;
 import poly.edu.quanlynhahang.service.KitchenOrderDetailService;
 import poly.edu.quanlynhahang.dto.GuestBookingRequest;
@@ -165,6 +166,56 @@ class OrderWorkflowGuardTest {
         assertEquals(2, second.getStatus());
         assertEquals(7, order.getStatus());
         verify(orderRepository).save(order);
+    }
+
+    @Test
+    void startingKitchenWorkMarksEveryWaitingDishAsStarted() {
+        AdminOrderController controller = new AdminOrderController();
+        OrderRepository orderRepository = mock(OrderRepository.class);
+        OrderDetail first = new OrderDetail();
+        first.setStatus(0);
+        OrderDetail second = new OrderDetail();
+        second.setStatus(0);
+        Order order = new Order();
+        order.setId(24);
+        order.setStatus(1);
+        order.setOrderDetails(List.of(first, second));
+        when(orderRepository.findById(24)).thenReturn(Optional.of(order));
+        ReflectionTestUtils.setField(controller, "orderRepository", orderRepository);
+        ReflectionTestUtils.setField(controller, "activityLogService",
+                mock(poly.edu.quanlynhahang.service.ActivityLogService.class));
+        ReflectionTestUtils.setField(controller, "messagingTemplate",
+                mock(org.springframework.messaging.simp.SimpMessagingTemplate.class));
+        ReflectionTestUtils.setField(controller, "orderStateMachineService", new OrderStateMachineService());
+
+        var response = controller.updateOrderStatus(24, 6);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(6, order.getStatus());
+        assertTrue(first.getStartedAt() != null);
+        assertTrue(second.getStartedAt() != null);
+        verify(orderRepository).save(order);
+    }
+
+    @Test
+    void confirmingTransferPaymentReturnsUpdatedOrderWithoutDispatchingToKitchen() {
+        AdminOrderController controller = new AdminOrderController();
+        OrderPaymentService paymentService = mock(OrderPaymentService.class);
+        Order order = new Order();
+        order.setId(30);
+        order.setPaymentOption(poly.edu.quanlynhahang.entity.OrderPaymentOption.PREPAID_TRANSFER);
+        order.setPaymentStatus(poly.edu.quanlynhahang.entity.PaymentStatus.PAID);
+        order.setIsPaid(true);
+        when(paymentService.confirmTransferPayment(30, "cashier")).thenReturn(order);
+        ReflectionTestUtils.setField(controller, "orderPaymentService", paymentService);
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("cashier", "n/a"));
+        try {
+            assertEquals(HttpStatus.OK, controller.confirmTransferPayment(30).getStatusCode());
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
+        verify(paymentService).confirmTransferPayment(30, "cashier");
     }
 
     @Test

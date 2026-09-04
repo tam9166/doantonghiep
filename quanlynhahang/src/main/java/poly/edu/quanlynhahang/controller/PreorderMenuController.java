@@ -23,8 +23,6 @@ public class PreorderMenuController {
     public List<MenuPreorderItemResponse> preorderItems() {
         return productRepository.findAll().stream()
                 .filter(product -> !Boolean.FALSE.equals(product.getStatus()))
-                .filter(product -> menuAvailabilityService.availableQuantity(product) != 0
-                        || Boolean.TRUE.equals(product.getAvailable()))
                 .map(this::toResponse)
                 .toList();
     }
@@ -40,11 +38,12 @@ public class PreorderMenuController {
         response.setDescriptionEn(firstNonBlank(product.getDescriptionEn(), product.getDescription()));
         response.setPrice(product.getPrice());
         response.setImage(product.getImage());
-        response.setAvailable(product.getAvailable());
         int quantity = menuAvailabilityService.availableQuantity(product);
         response.setAvailableQuantity(quantity);
         response.setInventoryManaged(quantity >= 0);
-        response.setAvailable(Boolean.TRUE.equals(product.getStatus()) && (quantity < 0 || quantity > 0));
+        response.setAvailable(Boolean.TRUE.equals(product.getStatus())
+                && Boolean.TRUE.equals(product.getAvailable())
+                && (quantity < 0 || quantity > 0));
         return response;
     }
 

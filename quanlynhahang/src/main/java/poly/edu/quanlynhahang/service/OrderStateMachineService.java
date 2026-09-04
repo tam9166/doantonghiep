@@ -102,10 +102,6 @@ public class OrderStateMachineService {
                 && active.stream().anyMatch(detail -> !Integer.valueOf(2).equals(detail.getStatus()))) {
             throw conflict("Chỉ được báo đã phục vụ khi tất cả món đã được bưng");
         }
-        if (target == OrderStatus.PARTIALLY_READY
-                && active.stream().noneMatch(detail -> Integer.valueOf(1).equals(detail.getStatus()))) {
-            throw conflict("Chưa có món nào sẵn sàng");
-        }
     }
 
     private List<OrderDetail> activeDetails(Order order) {

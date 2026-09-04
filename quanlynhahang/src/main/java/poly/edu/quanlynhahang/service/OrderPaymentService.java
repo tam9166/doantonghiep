@@ -9,6 +9,7 @@ import poly.edu.quanlynhahang.config.PaymentProperties;
 import poly.edu.quanlynhahang.dto.PaymentQrResponse;
 import poly.edu.quanlynhahang.entity.Order;
 import poly.edu.quanlynhahang.entity.OrderPaymentOption;
+import poly.edu.quanlynhahang.entity.OrderStatus;
 import poly.edu.quanlynhahang.entity.PaymentIntent;
 import poly.edu.quanlynhahang.entity.PaymentOption;
 import poly.edu.quanlynhahang.entity.PaymentStatus;
@@ -215,13 +216,17 @@ public class OrderPaymentService {
     public Order confirmManualDispatch(Integer orderId) {
         Order order = orderRepository.findLockedById(orderId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Đơn hàng không tồn tại"));
-        if (Integer.valueOf(poly.edu.quanlynhahang.entity.OrderStatus.CANCELLED.code()).equals(order.getStatus())) {
+        OrderStatus currentStatus = orderStateMachineService.current(order);
+        if (currentStatus == OrderStatus.CANCELLED) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Không thể chuyển đơn đã hủy xuống bếp");
         }
-        if (Integer.valueOf(poly.edu.quanlynhahang.entity.OrderStatus.IN_PREPARATION.code()).equals(order.getStatus())
-                || Integer.valueOf(poly.edu.quanlynhahang.entity.OrderStatus.PARTIALLY_READY.code()).equals(order.getStatus())
-                || Integer.valueOf(poly.edu.quanlynhahang.entity.OrderStatus.READY.code()).equals(order.getStatus())
-                || Integer.valueOf(poly.edu.quanlynhahang.entity.OrderStatus.SERVED.code()).equals(order.getStatus())) {
+        if (currentStatus == OrderStatus.COMPLETED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Đơn đã hoàn thành, không thể chuyển bếp");
+        }
+        if (currentStatus == OrderStatus.IN_PREPARATION
+                || currentStatus == OrderStatus.PARTIALLY_READY
+                || currentStatus == OrderStatus.READY
+                || currentStatus == OrderStatus.SERVED) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Đơn đã được chuyển xuống bếp trước đó");
         }
         if (order.getPaymentOption() == null) {
@@ -229,20 +234,20 @@ public class OrderPaymentService {
                     "Đơn legacy thiếu hình thức thanh toán; vui lòng cập nhật trước khi chuyển bếp");
         }
         if (OrderPaymentOption.PREPAID_TRANSFER.equals(order.getPaymentOption())) {
-            if (!PaymentStatus.PAID.equals(order.getPaymentStatus())
-                    && !PaymentStatus.OVERPAID.equals(order.getPaymentStatus())) {
+            if (!isConfirmedTransferPayment(order)) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT,
                         "Đơn chuyển khoản chưa được xác nhận đủ tiền");
             }
+            normalizeConfirmedTransferPayment(order);
         } else if (!OrderPaymentOption.COD.equals(order.getPaymentOption())
                 && !OrderPaymentOption.PAY_AT_RESTAURANT.equals(order.getPaymentOption())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Đơn này không dùng luồng xác nhận thủ công");
         }
-        if (!Integer.valueOf(0).equals(order.getStatus()) && !Integer.valueOf(5).equals(order.getStatus())) {
+        if (currentStatus != OrderStatus.PENDING && currentStatus != OrderStatus.SCHEDULED) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Trạng thái đơn không cho phép xác nhận");
         }
         inventoryReservationService.consume(orderId);
-        orderStateMachineService.transition(order, poly.edu.quanlynhahang.entity.OrderStatus.IN_PREPARATION);
+        orderStateMachineService.transition(order, OrderStatus.IN_PREPARATION);
         Order saved = orderRepository.save(order);
         if (order.getTableId() != null) {
             tableRepository.findById(order.getTableId()).ifPresent(table -> {
@@ -254,6 +259,60 @@ public class OrderPaymentService {
         activityLogService.log("MANUAL_ORDER_CONFIRM", "Order", String.valueOf(orderId),
                 "Xác nhận thủ công đơn COD/tại quán và chuyển xuống bếp");
         messagingTemplate.convertAndSend("/topic/kitchen", "NEW_ORDER");
+        return saved;
+    }
+
+    private boolean isConfirmedTransferPayment(Order order) {
+        return Boolean.TRUE.equals(order.getIsPaid())
+                || PaymentStatus.PAID.equals(order.getPaymentStatus())
+                || PaymentStatus.OVERPAID.equals(order.getPaymentStatus());
+    }
+
+    private void normalizeConfirmedTransferPayment(Order order) {
+        BigDecimal total = money(order.getTotalAmount()).setScale(0, RoundingMode.HALF_UP);
+        if (!Boolean.TRUE.equals(order.getIsPaid())) {
+            order.setIsPaid(true);
+        }
+        if (!PaymentStatus.PAID.equals(order.getPaymentStatus())
+                && !PaymentStatus.OVERPAID.equals(order.getPaymentStatus())) {
+            order.setPaymentStatus(PaymentStatus.PAID);
+        }
+        if (order.getPaidAmount() == null || order.getPaidAmount().signum() <= 0) {
+            order.setPaidAmount(total);
+        }
+        order.setRemainingAmount(total.subtract(money(order.getPaidAmount())).max(BigDecimal.ZERO));
+    }
+
+    @Transactional
+    public Order confirmTransferPayment(Integer orderId, String confirmedBy) {
+        Order order = orderRepository.findLockedById(orderId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Đơn hàng không tồn tại"));
+        if (Integer.valueOf(poly.edu.quanlynhahang.entity.OrderStatus.CANCELLED.code()).equals(order.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Không thể xác nhận đơn đã hủy");
+        }
+        if (!OrderPaymentOption.PREPAID_TRANSFER.equals(order.getPaymentOption())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Chỉ đơn chuyển khoản/QR mới cần xác nhận thanh toán");
+        }
+        if (Boolean.TRUE.equals(order.getIsPaid())
+                || PaymentStatus.PAID.equals(order.getPaymentStatus())
+                || PaymentStatus.OVERPAID.equals(order.getPaymentStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Đơn hàng đã được xác nhận thanh toán trước đó");
+        }
+        BigDecimal total = money(order.getTotalAmount()).setScale(0, RoundingMode.HALF_UP);
+        if (total.signum() <= 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Đơn hàng chưa có tổng tiền hợp lệ");
+        }
+        order.setIsPaid(true);
+        order.setPaidAmount(total);
+        order.setRemainingAmount(BigDecimal.ZERO);
+        order.setPaymentStatus(PaymentStatus.PAID);
+        order.setPaymentConfirmedBy(confirmedBy == null || confirmedBy.isBlank() ? "SYSTEM" : confirmedBy.trim());
+        order.setPaymentConfirmedAt(new Date());
+        Order saved = orderRepository.save(order);
+        activityLogService.log("MANUAL_PAYMENT_CONFIRM", "Order", String.valueOf(orderId),
+                "Xác nhận thanh toán chuyển khoản cho đơn hàng #" + orderId);
+        messagingTemplate.convertAndSend("/topic/orders", "ORDER_PAYMENT_CONFIRMED");
         return saved;
     }
 

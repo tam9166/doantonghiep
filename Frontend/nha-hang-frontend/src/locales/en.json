@@ -1,7 +1,7 @@
 {
   "nav": {
     "home": "Home",
-    "menu": "Menu",
+    "menu": "Delivery",
     "booking": "Booking",
     "dine_in": "Dine in",
     "history": "History",
@@ -471,6 +471,18 @@
     "addressPlaceholder": "House number, street...",
     "deliveryNote": "Delivery note",
     "deliveryNotePlaceholder": "For example: call before delivery...",
+    "deliveryPayment": "Payment method",
+    "deliveryPaymentHint": "Choose one payment method before finishing the delivery order.",
+    "deliveryPaymentOptions": {
+      "PREPAID_TRANSFER": [
+        "QR transfer",
+        "Generate a VietQR code and wait for payment confirmation."
+      ],
+      "COD": [
+        "Cash on delivery",
+        "No QR is generated. Collect payment on delivery."
+      ]
+    },
     "bankTransfer": "Transfer with VietQR",
     "subtotal": "Subtotal",
     "tax": "Estimated VAT",
@@ -484,6 +496,16 @@
     "accountHolder": "Account holder",
     "transferContent": "Transfer content",
     "paymentConfirmedHint": "The order is sent to the kitchen only after the bank confirms full payment.",
+    "cashOnDeliveryHint": "No QR is generated. The restaurant collects payment on delivery.",
+    "orderSuccessTitle": "Order placed successfully",
+    "orderCreatedSuccess": "The delivery order has been recorded.",
+    "orderCode": "Order code",
+    "orderStatus": "Order status",
+    "paymentMethod": "Payment method",
+    "paymentStatus": "Payment status",
+    "copyOrderCode": "Copy order code",
+    "copiedOrderCode": "Order code copied",
+    "viewHistory": "View order history",
     "close": "Close",
     "understood": "Understood",
     "creatingOrder": "Creating order...",

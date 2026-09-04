@@ -136,13 +136,13 @@
                       {{ p.status === false ? 'Hết món' : 'Đang bán' }}
                     </span>
                   </td>
-                  <td>
+                  <td class="action-cell">
                     <div class="action-buttons">
-                      <button @click="startEdit(p)" class="btn-edit"><UiIcon name="edit" /></button>
-                      <button @click="toggleStatus(p)" class="btn-toggle">
+                      <button @click="startEdit(p)" class="btn-edit" title="Sửa món" aria-label="Sửa món"><UiIcon name="edit" /></button>
+                      <button @click="toggleStatus(p)" class="btn-toggle" :title="p.status === false ? 'Mở bán lại' : 'Báo hết món'" :aria-label="p.status === false ? 'Mở bán lại' : 'Báo hết món'">
                         <UiIcon :name="p.status === false ? 'play' : 'pause'" />
                       </button>
-                      <button @click="handleDelete(p.id)" class="g-btn-danger"><UiIcon name="trash" /></button>
+                      <button @click="handleDelete(p.id)" class="g-btn-danger" title="Xóa món" aria-label="Xóa món"><UiIcon name="trash" /></button>
                     </div>
                   </td>
                 </tr>
@@ -453,7 +453,10 @@ onMounted(() => {
 
 .price-text { color: var(--primary); font-weight: 700; }
 
+.action-cell { min-width: 220px; opacity: 1 !important; }
 .action-buttons { display: flex; min-width: 210px; align-items: center; justify-content: flex-end; gap: 6px; white-space: nowrap; }
+.action-buttons button { min-width: 42px; min-height: 36px; display: inline-flex; align-items: center; justify-content: center; }
+.action-buttons button .ui-icon { width: 17px; height: 17px; flex-basis: 17px; }
 .btn-edit {
   background: color-mix(in srgb, var(--secondary) 15%, transparent);
   border: 1px solid color-mix(in srgb, var(--secondary) 30%, transparent);
@@ -471,7 +474,7 @@ onMounted(() => {
 }
 .btn-toggle:hover { background: color-mix(in srgb, var(--color-tertiary) 30%, transparent); }
 
-.row-disabled td { opacity: 0.5; }
+.row-disabled td:not(.action-cell) { opacity: 0.5; }
 .empty-row { text-align: center; color: var(--text-muted); padding: 40px; font-style: italic; }
 .pagination-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 20px; flex-wrap: wrap; }
 .pagination-summary { color: var(--text-muted); font-size: 0.88rem; }

@@ -86,9 +86,14 @@
             </div>
             <img :src="paymentQr.qrUrl" :alt="text.qrTitle" />
             <div class="qr-actions">
-              <button class="secondary-btn" type="button" :disabled="qrLoading" @click="refreshPaymentStatus">{{ text.checkPayment }}</button>
-              <button class="secondary-btn" type="button" :disabled="qrLoading" @click="regeneratePaymentQr">{{ text.regenerateQr }}</button>
+              <button class="qr-action-btn" type="button" :disabled="qrLoading" @click="refreshPaymentStatus">
+                {{ qrLoading ? 'Đang kiểm tra...' : text.checkPayment }}
+              </button>
+              <button class="qr-action-btn outline" type="button" :disabled="qrLoading" @click="regeneratePaymentQr">
+                {{ qrLoading ? 'Đang xử lý...' : text.regenerateQr }}
+              </button>
             </div>
+            <p v-if="qrStatusMessage" class="qr-status-message" role="status">{{ qrStatusMessage }}</p>
           </article>
           <div v-else-if="qrLoading" class="qr-local-state">
             {{ text.creatingQr }}
@@ -318,49 +323,65 @@
               </button>
             </div>
 
-            <div v-if="form.preorderEnabled" class="menu-picker">
-              <div class="filters">
-                <input v-model.trim="menuSearch" type="search" :placeholder="text.searchDish" />
-                <select v-model="menuCategory">
-                  <option value="">{{ text.allCategories }}</option>
-                  <option v-for="category in menuCategories" :key="category" :value="category">{{ category }}</option>
-                </select>
-                <button class="ghost-btn" type="button" @click="loadPreorderMenu">{{ text.reloadMenu }}</button>
+            <div v-if="form.preorderEnabled" class="menu-picker preorder-layout">
+              <div class="menu-picker-main">
+                <div class="filters">
+                  <input v-model.trim="menuSearch" type="search" :placeholder="text.searchDish" />
+                  <select v-model="menuCategory">
+                    <option value="">{{ text.allCategories }}</option>
+                    <option v-for="category in menuCategories" :key="category" :value="category">{{ category }}</option>
+                  </select>
+                  <button class="ghost-btn" type="button" @click="loadPreorderMenu">{{ text.reloadMenu }}</button>
+                </div>
+                <div v-if="menuError" class="error-banner">{{ menuError }}</div>
+                <div v-if="cartItems.length" class="preorder-summary" aria-live="polite">
+                  <strong>{{ t('reservation.addedDishes', { count: validCartItems.length }) }}</strong>
+                  <span>{{ t('reservation.selectedPortions', { count: cartQuantity }) }}</span>
+                </div>
+                <div class="dish-grid">
+                  <article v-for="dish in pagedPreorderMenu" :key="dish.id" :class="['dish-card', { unavailable: !isDishAvailable(dish) }]">
+                    <img :src="dish.image || fallbackDishImage" :alt="dishName(dish)" loading="lazy" @error="replaceDishImage" />
+                    <div class="dish-card__content">
+                      <strong class="dish-card__title" :title="dishName(dish)">{{ dishName(dish) }}</strong>
+                      <span class="dish-card__category">{{ dishCategory(dish) }}</span>
+                      <p class="dish-card__description" :title="dishDescription(dish)">{{ dishDescription(dish) }}</p>
+                      <b class="dish-card__price">{{ money(dish.price) }}</b>
+                      <small v-if="cartQuantityForDish(dish.id)" class="dish-added">{{ t('reservation.addedPortions', { count: cartQuantityForDish(dish.id) }) }}</small>
+                      <small v-if="dish.inventoryManaged" class="dish-stock-limit">{{ Math.max(0, Number(dish.availableQuantity || 0)) }} {{ t('reservation.portionsRemaining') }}</small>
+                      <small v-if="!isDishAvailable(dish)" class="dish-unavailable">Không khả dụng để đặt trước</small>
+                      <div class="dish-card__actions">
+                        <button class="primary-btn" type="button" :disabled="!isDishAvailable(dish)" @click="addDish(dish)">
+                        {{ isDishAvailable(dish) ? text.addDish : 'Tạm hết' }}
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                </div>
+                <nav v-if="preorderTotalPages > 1" class="menu-pagination compact" aria-label="Phân trang gọi món trước">
+                  <button type="button" :disabled="preorderPage === 1" @click="preorderPage--">‹</button>
+                  <button
+                    v-for="page in preorderPageButtons"
+                    :key="page.key"
+                    type="button"
+                    :disabled="page.ellipsis"
+                    :class="{ active: page.value === preorderPage, ellipsis: page.ellipsis }"
+                    @click="!page.ellipsis && (preorderPage = page.value)"
+                  >{{ page.label }}</button>
+                  <button type="button" :disabled="preorderPage === preorderTotalPages" @click="preorderPage++">›</button>
+                </nav>
               </div>
-              <div v-if="menuError" class="error-banner">{{ menuError }}</div>
-              <div v-if="cartItems.length" class="preorder-summary" aria-live="polite">
-                <strong>{{ t('reservation.addedDishes', { count: cartItems.length }) }}</strong>
-                <span>{{ t('reservation.selectedPortions', { count: cartQuantity }) }}</span>
-              </div>
-              <div class="dish-grid">
-                <article v-for="dish in pagedPreorderMenu" :key="dish.id" class="dish-card">
-                  <img :src="dish.image || fallbackDishImage" :alt="dishName(dish)" loading="lazy" @error="replaceDishImage" />
-                  <div>
-                    <strong>{{ dishName(dish) }}</strong>
-                    <span>{{ dishCategory(dish) }}</span>
-                    <p>{{ dishDescription(dish) }}</p>
-                    <b>{{ money(dish.price) }}</b>
-                    <small v-if="cartQuantityForDish(dish.id)" class="dish-added">{{ t('reservation.addedPortions', { count: cartQuantityForDish(dish.id) }) }}</small>
-                    <small v-if="dish.inventoryManaged" class="dish-stock-limit">{{ dish.availableQuantity }} {{ t('reservation.portionsRemaining') }}</small>
-                    <button class="primary-btn" type="button" :disabled="dish.inventoryManaged && !dish.availableQuantity" @click="addDish(dish)">{{ text.addDish }}</button>
-                  </div>
-                </article>
-              </div>
-              <nav v-if="preorderTotalPages > 1" class="menu-pagination" aria-label="Phân trang gọi món trước">
-                <button type="button" :disabled="preorderPage === 1" @click="preorderPage--">‹</button>
-                <button v-for="page in preorderTotalPages" :key="page" type="button" :class="{ active: page === preorderPage }" @click="preorderPage = page">{{ page }}</button>
-                <button type="button" :disabled="preorderPage === preorderTotalPages" @click="preorderPage++">›</button>
-              </nav>
-              <aside v-if="cartItems.length" class="cart-box">
+              <aside class="cart-box selected-dishes-panel">
                 <h3>{{ text.selectedDishes }}</h3>
-                <div v-for="item in cartItems" :key="item.productId" class="cart-row">
+                <p v-if="!cartItems.length" class="cart-empty">Chưa chọn món nào.</p>
+                <div v-for="item in cartItems" :key="item.productId" :class="['cart-row', { invalid: !isCartItemValid(item) }]">
                   <strong>{{ item.name }}</strong>
+                  <small v-if="!isCartItemValid(item)" class="cart-invalid-reason">{{ item.invalidReason || 'Không còn khả dụng' }}</small>
                   <div class="qty">
-                    <button type="button" @click="changeQty(item.productId, -1)">-</button>
-                    <input class="qty-input" type="number" min="1" :max="item.availableQuantity || undefined" :value="item.quantity" @change="setQty(item, $event.target.value)" @keydown="blockInvalidQuantity" aria-label="Số lượng món" />
-                    <button type="button" @click="changeQty(item.productId, 1)">+</button>
+                    <button type="button" :disabled="!isCartItemValid(item)" @click="changeQty(item.productId, -1)">-</button>
+                    <input class="qty-input" type="number" min="1" :max="item.availableQuantity || undefined" :disabled="!isCartItemValid(item)" :value="item.quantity" @change="setQty(item, $event.target.value)" @keydown="blockInvalidQuantity" aria-label="Số lượng món" />
+                    <button type="button" :disabled="!isCartItemValid(item)" @click="changeQty(item.productId, 1)">+</button>
                   </div>
-                  <span>{{ money(item.price * item.quantity) }}</span>
+                  <span>{{ isCartItemValid(item) ? money(item.price * item.quantity) : money(0) }}</span>
                   <button type="button" class="danger-btn" @click="removeDish(item.productId)">{{ text.remove }}</button>
                 </div>
                 <label class="preorder-note">
@@ -368,9 +389,6 @@
                   <textarea v-model.trim="form.orderNote" maxlength="500" rows="3" :placeholder="text.kitchenNotePlaceholder"></textarea>
                   <small>{{ form.orderNote.length }}/500</small>
                 </label>
-                <button class="primary-btn cart-continue-btn" type="button" @click="nextStep">
-                  {{ text.next }} →
-                </button>
               </aside>
             </div>
           </section>
@@ -524,6 +542,7 @@ const paymentIdempotencyKey = ref(crypto.randomUUID())
 const regenerateIdempotencyKey = ref('')
 const qrLoading = ref(false)
 const qrError = ref('')
+const qrStatusMessage = ref('')
 const quote = ref(null)
 const menuSearch = ref('')
 const menuCategory = ref('')
@@ -594,21 +613,30 @@ const selectedAreaName = computed(() => {
 })
 const menuCategories = computed(() => [...new Set(menuItems.value.map(dishCategory).filter(Boolean))])
 const visiblePreferences = computed(() => text.value.preferences.filter(item => !/kh\u00f4ng gian ri\u00eang t\u01b0|private space/i.test(item)))
+const alcoholKeywords = ['bia', 'rượu', 'beer', 'lager', 'wine', 'vang', 'whisky', 'whiskey', 'vodka', 'gin', 'rum', 'soju', 'sake', 'cocktail', 'champagne', 'cognac', 'hennessy', 'chivas', 'johnnie', 'martell', 'remy']
+const isAlcoholicDish = dish => {
+  const content = `${dishName(dish)} ${dishDescription(dish)} ${dishCategory(dish)}`.toLocaleLowerCase('vi-VN')
+  return alcoholKeywords.some(keyword => content.includes(keyword))
+}
 const filteredMenu = computed(() => {
   const keyword = menuSearch.value.toLowerCase()
   return menuItems.value.filter(item => {
     const matchesKeyword = !keyword || `${dishName(item)} ${dishDescription(item)} ${dishCategory(item)}`.toLowerCase().includes(keyword)
     const matchesCategory = !menuCategory.value || dishCategory(item) === menuCategory.value
     return matchesKeyword && matchesCategory
-  })
+  }).sort((a, b) => Number(isDishAvailable(b)) - Number(isDishAvailable(a))
+    || Number(isAlcoholicDish(a)) - Number(isAlcoholicDish(b))
+    || dishName(a).localeCompare(dishName(b), 'vi'))
 })
 const preorderTotalPages = computed(() => Math.max(1, Math.ceil(filteredMenu.value.length / PREORDER_PAGE_SIZE)))
 const pagedPreorderMenu = computed(() => {
   const start = (preorderPage.value - 1) * PREORDER_PAGE_SIZE
   return filteredMenu.value.slice(start, start + PREORDER_PAGE_SIZE)
 })
+const preorderPageButtons = computed(() => compactPageButtons(preorderPage.value, preorderTotalPages.value))
 const paymentOptions = computed(() => Object.entries(text.value.paymentOptions).map(([key, value]) => ({ key, label: value[0], hint: value[1] })))
-const cartQuantity = computed(() => cartItems.value.reduce((total, item) => total + item.quantity, 0))
+const validCartItems = computed(() => cartItems.value.filter(isCartItemValid))
+const cartQuantity = computed(() => validCartItems.value.reduce((total, item) => total + item.quantity, 0))
 const skipPaymentStep = computed(() => shouldSkipReservationPayment(quote.value))
 const latestArrivalTime = computed(() => minuteBefore(businessHours.value.lastOrderTime))
 const lateDiningEndTime = computed(() => {
@@ -709,6 +737,26 @@ function isTimeValidationError(error) {
   return /ngo\u00e0i gi\u1edd|gi\u1edd ho\u1ea1t \u0111\u1ed9ng|qu\u00e1 kh\u1ee9|past|operating hours|service hours/.test(message)
 }
 
+function syncStep2ValidationErrors() {
+  if (step.value !== 2) return
+
+  if (!form.value.reservationDate || !form.value.arrivalTime) {
+    delete errors.value.arrivalTime
+    delete errors.value.lateDiningConfirmed
+    return
+  }
+
+  const timeError = reservationTimeError()
+  if (timeError) errors.value.arrivalTime = timeError
+  else delete errors.value.arrivalTime
+
+  if (lateDiningEndTime.value && !lateDiningConfirmed.value) {
+    errors.value.lateDiningConfirmed = t('reservation.validation.lateConfirm')
+  } else {
+    delete errors.value.lateDiningConfirmed
+  }
+}
+
 function validateCurrentStep() {
   errors.value = {}
   serverError.value = ''
@@ -734,6 +782,19 @@ function validateCurrentStep() {
   return Object.keys(errors.value).length === 0 && !serverError.value
 }
 
+watch(
+  () => [
+    form.value.reservationDate,
+    form.value.arrivalTime,
+    form.value.expectedDurationMinutes,
+    lateDiningConfirmed.value,
+    step.value
+  ],
+  () => {
+    if (step.value === 2) syncStep2ValidationErrors()
+  }
+)
+
 async function nextStep() {
   if (navigating.value || !validateCurrentStep()) return
   navigating.value = true
@@ -741,11 +802,20 @@ async function nextStep() {
     if (step.value === 3) await refreshAreaCounts()
     if (step.value === 4) await loadAvailableTables()
     if (step.value === 5 && !menuItems.value.length) await loadPreorderMenu()
+    if (step.value === 6) {
+      await loadPreorderMenu()
+      if (!validateSelectedDishes()) return
+      await loadQuote()
+    }
     if (step.value === 7 || step.value === 8) await loadQuote()
     step.value = nextReservationStep(step.value, quote.value)
   } catch (error) {
     const fallback = step.value === 7 ? t('reservation.errors.specialRequest') : t('reservation.errors.quote')
     serverError.value = lang.value === 'vi' ? getApiErrorMessage(error, fallback) : fallback
+    if (step.value === 6) {
+      markUnavailableFromServerMessage(serverError.value)
+      menuError.value = serverError.value
+    }
     toast.error(serverError.value)
   } finally {
     navigating.value = false
@@ -859,11 +929,14 @@ watch(
     form.value.arrivalTime,
     form.value.expectedDurationMinutes,
     form.value.guestCount,
-    form.value.areaId
+    form.value.areaId,
+    lateDiningConfirmed.value
   ],
   async (current, previous) => {
     if (!previous || current.every((value, index) => value === previous[index])) return
     if (!form.value.areaId || !form.value.reservationDate || !form.value.arrivalTime || !form.value.guestCount) return
+
+    syncStep2ValidationErrors()
 
     if (current.slice(0, 4).some((value, index) => value !== previous[index])) {
       form.value.tableId = null
@@ -928,13 +1001,19 @@ async function loadPreorderMenu() {
   try {
     const res = await api.get('/api/menu-items/preorder')
     menuItems.value = Array.isArray(res.data) ? res.data : []
-    preorderPage.value = Math.min(preorderPage.value, preorderTotalPages.value)
+    syncCartAvailability()
+    preorderPage.value = Math.max(1, Math.min(preorderPage.value, preorderTotalPages.value))
   } catch (err) {
     menuError.value = lang.value === 'vi' && err.response?.data?.message ? err.response.data.message : t('reservation.errors.menu')
   }
 }
 
 function addDish(dish) {
+  if (!isDishAvailable(dish)) {
+    menuError.value = `${dishName(dish)} không còn khả dụng để đặt trước`
+    markCartItemInvalid(dish.id, menuError.value)
+    return
+  }
   const existing = cartItems.value.find(item => item.productId === dish.id)
   const limit = dish.inventoryManaged ? Number(dish.availableQuantity || 0) : Infinity
   if (limit <= 0 || (existing && existing.quantity >= limit)) {
@@ -943,15 +1022,17 @@ function addDish(dish) {
   }
   if (existing) {
     existing.quantity += 1
+    existing.availableQuantity = dish.inventoryManaged ? Number(dish.availableQuantity || 0) : -1
+    existing.invalidReason = ''
     return
   }
-  cartItems.value.push({ productId: dish.id, name: dishName(dish), price: Number(dish.price || 0), quantity: 1, availableQuantity: dish.inventoryManaged ? Number(dish.availableQuantity || 0) : -1 })
+  cartItems.value.push({ productId: dish.id, name: dishName(dish), price: Number(dish.price || 0), quantity: 1, availableQuantity: dish.inventoryManaged ? Number(dish.availableQuantity || 0) : -1, invalidReason: '' })
   quote.value = null
 }
 
 function changeQty(productId, delta) {
   const item = cartItems.value.find(row => row.productId === productId)
-  if (!item) return
+  if (!item || !isCartItemValid(item)) return
   const dish = menuItems.value.find(row => row.id === productId)
   const limit = dish?.inventoryManaged ? Number(dish.availableQuantity || 0) : Infinity
   if (delta > 0 && item.quantity >= limit) {
@@ -975,6 +1056,72 @@ function disablePreorder() {
   quote.value = null
 }
 
+function isDishAvailable(dish) {
+  if (!dish || dish.available === false) return false
+  if (dish.inventoryManaged) return Number(dish.availableQuantity || 0) > 0
+  return true
+}
+
+function isCartItemValid(item) {
+  return Boolean(item && !item.invalidReason && (item.availableQuantity == null || item.availableQuantity < 0 || item.quantity <= item.availableQuantity))
+}
+
+function markCartItemInvalid(productId, reason) {
+  const item = cartItems.value.find(row => row.productId === productId)
+  if (item) item.invalidReason = reason
+}
+
+function markUnavailableFromServerMessage(message) {
+  const normalized = String(message || '').toLowerCase()
+  cartItems.value.forEach(item => {
+    if (normalized.includes(String(item.name || '').toLowerCase())) {
+      item.invalidReason = message
+    }
+  })
+}
+
+function syncCartAvailability() {
+  cartItems.value.forEach(item => {
+    const dish = menuItems.value.find(row => row.id === item.productId)
+    if (!dish || !isDishAvailable(dish)) {
+      item.availableQuantity = 0
+      item.invalidReason = `${item.name} không còn khả dụng để đặt trước`
+      return
+    }
+    item.availableQuantity = dish.inventoryManaged ? Number(dish.availableQuantity || 0) : -1
+    if (dish.inventoryManaged && item.quantity > item.availableQuantity) {
+      item.invalidReason = `${item.name} chỉ còn ${item.availableQuantity} phần`
+      item.quantity = Math.max(1, item.availableQuantity)
+      return
+    }
+    item.invalidReason = ''
+  })
+}
+
+function validateSelectedDishes() {
+  syncCartAvailability()
+  const invalid = cartItems.value.filter(item => !isCartItemValid(item))
+  if (!invalid.length) return true
+  menuError.value = invalid.map(item => item.invalidReason || `${item.name} không còn khả dụng`).join('; ')
+  serverError.value = ''
+  toast.error(menuError.value)
+  return false
+}
+
+function compactPageButtons(current, total) {
+  const pages = new Set([1, total, current - 1, current, current + 1])
+  const valid = [...pages].filter(page => page >= 1 && page <= total).sort((a, b) => a - b)
+  const result = []
+  valid.forEach((page, index) => {
+    const previous = valid[index - 1]
+    if (previous && page - previous > 1) {
+      result.push({ key: `ellipsis-${previous}-${page}`, label: '…', ellipsis: true })
+    }
+    result.push({ key: `page-${page}`, label: String(page), value: page, ellipsis: false })
+  })
+  return result
+}
+
 watch([menuSearch, menuCategory], () => {
   preorderPage.value = 1
 })
@@ -984,10 +1131,11 @@ watch(activeAreas, () => {
 })
 
 watch(filteredMenu, () => {
-  preorderPage.value = Math.min(preorderPage.value, preorderTotalPages.value)
+  preorderPage.value = Math.max(1, Math.min(preorderPage.value, preorderTotalPages.value))
 })
 
 function setQty(item, rawValue) {
+  if (!isCartItemValid(item)) return
   const parsed = Number.parseInt(rawValue, 10)
   const limit = item.availableQuantity == null || item.availableQuantity < 0 ? Infinity : Number(item.availableQuantity)
   if (!Number.isInteger(parsed) || parsed < 1) { item.quantity = 1; return }
@@ -1005,7 +1153,7 @@ function selectPayment(option) {
 }
 
 function preorderPayload() {
-  return form.value.preorderEnabled ? cartItems.value.map(item => ({
+  return form.value.preorderEnabled ? validCartItems.value.map(item => ({
     productId: item.productId,
     quantity: item.quantity
   })) : []
@@ -1117,6 +1265,7 @@ async function createPaymentQr() {
   if (!submitResult.value?.reservationCode || qrLoading.value) return
   qrLoading.value = true
   qrError.value = ''
+  qrStatusMessage.value = ''
   try {
     const qrRes = await api.post('/api/payments/qr', {
       reservationCode: submitResult.value.reservationCode,
@@ -1143,6 +1292,7 @@ async function regeneratePaymentQr() {
   }
   qrLoading.value = true
   qrError.value = ''
+  qrStatusMessage.value = ''
   try {
     const qrRes = await api.post(`/api/payments/${paymentQr.value.paymentCode}/regenerate`, null, {
       headers: {
@@ -1152,6 +1302,7 @@ async function regeneratePaymentQr() {
     })
     paymentQr.value = qrRes.data
     regenerateIdempotencyKey.value = ''
+    qrStatusMessage.value = 'Đã tạo lại QR thanh toán mới.'
   } catch (err) {
     qrError.value = lang.value === 'vi' && err.response?.data?.message
       ? err.response.data.message : t('reservation.errors.regenerateQr')
@@ -1164,16 +1315,26 @@ async function refreshPaymentStatus() {
   if (!paymentQr.value?.paymentCode || qrLoading.value) return
   qrLoading.value = true
   qrError.value = ''
+  qrStatusMessage.value = ''
   try {
     const response = await api.get(`/api/payments/${paymentQr.value.paymentCode}`, {
       headers: { 'X-Payment-Capability': paymentCapabilityToken.value }
     })
     paymentQr.value = response.data
+    qrStatusMessage.value = paymentStatusMessage(response.data?.status)
   } catch (err) {
     qrError.value = lang.value === 'vi' && err.response?.data?.message ? err.response.data.message : t('reservation.errors.paymentStatus')
   } finally {
     qrLoading.value = false
   }
+}
+
+function paymentStatusMessage(status) {
+  const normalized = String(status || '').toUpperCase()
+  if (normalized === 'PAID' || normalized === 'SUCCESS') return 'Đã ghi nhận thanh toán.'
+  if (normalized === 'EXPIRED') return 'QR đã hết hạn.'
+  if (normalized === 'FAILED') return 'Thanh toán thất bại.'
+  return 'Chưa ghi nhận thanh toán.'
 }
 
 async function submitWaitlist() {
@@ -1225,6 +1386,7 @@ function resetForm() {
   paymentIdempotencyKey.value = crypto.randomUUID()
   regenerateIdempotencyKey.value = ''
   qrError.value = ''
+  qrStatusMessage.value = ''
   quote.value = null
   step.value = 1
   form.value.tableId = null
@@ -1475,6 +1637,7 @@ small {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 16px;
+  align-items: stretch;
 }
 
 .area-card,
@@ -1540,11 +1703,64 @@ small {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  height: 100%;
 }
 
-.dish-card > div {
+.dish-card__content {
   flex: 1;
+  display: flex;
+  flex-direction: column;
   min-width: 0;
+  gap: 10px;
+}
+
+.dish-card__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.dish-card__title,
+.dish-card__description {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  word-break: break-word;
+}
+
+.dish-card__title {
+  -webkit-line-clamp: 2;
+  line-height: 1.35;
+  min-height: calc(1.35em * 2);
+}
+
+.dish-card__description {
+  -webkit-line-clamp: 3;
+  line-height: 1.45;
+  min-height: calc(1.45em * 3);
+}
+
+.dish-card__category,
+.dish-card__price,
+.dish-added,
+.dish-stock-limit,
+.dish-unavailable {
+  min-height: 1.25em;
+}
+
+.dish-card__category {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.dish-card__price {
+  color: var(--wine);
+  font-size: 1.05rem;
+  font-weight: 900;
+  line-height: 1.2;
 }
 
 .dish-card .primary-btn {
@@ -1701,11 +1917,19 @@ small {
   outline-offset: 2px;
 }
 
-.card-body,
-.dish-card > div {
+.card-body {
   padding: 14px;
   display: grid;
   gap: 10px;
+}
+
+.dish-card__content {
+  padding: 14px;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
 }
 
 .card-body p,
@@ -2355,19 +2579,25 @@ input:focus, select:focus, textarea:focus { outline: 3px solid rgba(190,11,47,.0
 .area-pagination button, .menu-pagination button { min-width: 38px; min-height: 38px; border: 1px solid var(--color-outline-variant); border-radius: 9px; background: var(--bg-card); color: var(--text-primary); font: inherit; font-weight: 800; cursor: pointer; }
 .area-pagination button.active, .menu-pagination button.active { background: var(--primary); border-color: var(--primary); color: #fff; }
 .area-pagination button:disabled, .menu-pagination button:disabled { opacity: .45; cursor: not-allowed; }
+.menu-pagination.compact { flex-wrap: wrap; max-width: 100%; }
+.menu-pagination button.ellipsis { cursor: default; background: transparent; border-color: transparent; color: var(--text-muted); opacity: 1; }
 .choice-grid button { min-height: 128px; border-color: #e7d4bd; border-radius: 12px; }
 .choice-grid button.selected { border-color: var(--primary); background: var(--color-surface-container-low); }
-.menu-picker { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 20px; margin-top: 24px; align-items: start; }
-.menu-picker .filters, .menu-picker .error-banner, .menu-picker .preorder-summary { grid-column: 1 / -1; }
-.dish-grid { grid-column: 1; grid-template-columns: repeat(3, minmax(0,1fr)); }
+.menu-picker { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 340px); gap: 20px; margin-top: 24px; align-items: start; }
+.menu-picker-main { min-width: 0; }
+.menu-picker-main .filters { margin-bottom: 14px; }
+.menu-picker-main .error-banner, .menu-picker-main .preorder-summary { margin-bottom: 14px; }
+.dish-grid { grid-column: auto; grid-template-columns: repeat(3, minmax(0,1fr)); }
 .dish-card { border-radius: 13px; overflow: hidden; }
+.dish-card.unavailable { opacity: .72; }
 .dish-card img { height: 180px; }
-.dish-card b { color: var(--wine); font-size: 1.05rem; }
 .dish-card .primary-btn { border-radius: 9px; }
+.dish-unavailable, .cart-invalid-reason { color: var(--danger); font-weight: 800; }
 .cart-box { grid-column: 2; position: sticky; top: 88px; margin-top: 0; border-color: var(--line); border-radius: 13px; background: #fffdfa; }
+.cart-empty { margin: 8px 0 0; color: var(--text-muted); }
 .cart-row { grid-template-columns: 1fr 96px; padding: 12px 0; border-top: 1px solid var(--line); }
+.cart-row.invalid { background: color-mix(in srgb, var(--danger) 7%, transparent); border-radius: 10px; padding-inline: 8px; }
 .cart-row input, .cart-row .danger-btn { grid-column: 1 / -1; }
-.cart-continue-btn { width: 100%; margin-top: 16px; }
 .preference-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
 .preference-grid label { min-height: 64px; justify-content: space-between; border-color: var(--line); border-radius: 10px; padding: 14px; }
 .preference-grid input { order: 2; accent-color: var(--wine); }
@@ -2425,6 +2655,12 @@ input:focus, select:focus, textarea:focus { outline: 3px solid rgba(190,11,47,.0
 .copy-field-btn { min-height: 34px; padding: 5px 9px; border: 1px solid var(--border); border-radius: 8px; background: #fff; color: var(--primary); cursor: pointer; }
 .copy-field-btn .ui-icon { width: 16px; height: 16px; flex-basis: 16px; }
 .qr-actions { grid-column: 1 / -1; justify-content: flex-end; }
+.qr-action-btn { min-height: 42px; padding: 9px 14px; border: 1px solid var(--primary); border-radius: 10px; background: var(--primary); color: var(--color-on-primary); font: inherit; font-weight: 850; cursor: pointer; transition: background .18s ease, border-color .18s ease, transform .18s ease; }
+.qr-action-btn.outline { background: #fff; color: var(--primary); }
+.qr-action-btn:hover:not(:disabled) { background: var(--primary-dark); border-color: var(--primary-dark); color: var(--color-on-primary); transform: translateY(-1px); }
+.qr-action-btn:focus-visible { outline: 3px solid var(--primary-glow); outline-offset: 2px; }
+.qr-action-btn:disabled { opacity: .58; cursor: wait; transform: none; }
+.qr-status-message { grid-column: 1 / -1; margin: 4px 0 0; color: var(--primary); font-weight: 800; text-align: right; }
 @media (max-width: 1100px) and (min-width: 701px) {
   .dish-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
@@ -2439,6 +2675,17 @@ input:focus, select:focus, textarea:focus { outline: 3px solid rgba(190,11,47,.0
 }
 
 /* Keep preorder quantity controls compact despite the shared mobile input rule. */
+.dish-card__title,
+.dish-card__description {
+  overflow-wrap: anywhere;
+}
+.dish-card__category,
+.dish-card__price,
+.dish-added,
+.dish-stock-limit,
+.dish-unavailable {
+  overflow-wrap: anywhere;
+}
 .cart-row .qty {
   display: inline-grid;
   grid-template-columns: 32px 52px 32px;

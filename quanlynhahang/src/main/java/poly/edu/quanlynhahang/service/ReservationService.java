@@ -132,6 +132,7 @@ public class ReservationService {
     private final TableLifecycleService tableLifecycleService;
     private final SqlServerApplicationLockService applicationLockService;
     private final TableAreaReadinessService areaReadinessService;
+    private final MenuAvailabilityService menuAvailabilityService;
     private final TransactionTemplate expiryTransactionTemplate;
     private final BigDecimal depositRate;
     private final long depositExpiryMinutes;
@@ -160,10 +161,11 @@ public class ReservationService {
                               RestaurantSettingsService restaurantSettingsService,
                               RestaurantBusinessHoursService businessHoursService,
                               ReservationContactLogRepository contactLogRepository,
-                              TableLifecycleService tableLifecycleService,
-                              SqlServerApplicationLockService applicationLockService,
-                              TableAreaReadinessService areaReadinessService,
-                              PlatformTransactionManager transactionManager,
+                               TableLifecycleService tableLifecycleService,
+                               SqlServerApplicationLockService applicationLockService,
+                               TableAreaReadinessService areaReadinessService,
+                               MenuAvailabilityService menuAvailabilityService,
+                               PlatformTransactionManager transactionManager,
                               @Value("${restaurant.reservation.deposit-rate:0.50}") BigDecimal depositRate,
                               @Value("${restaurant.reservation.deposit-expiry-minutes:15}") long depositExpiryMinutes,
                               @Value("${restaurant.reservation.no-show-grace-minutes:15}") long noShowGraceMinutes) {
@@ -193,6 +195,7 @@ public class ReservationService {
         this.tableLifecycleService = tableLifecycleService;
         this.applicationLockService = applicationLockService;
         this.areaReadinessService = areaReadinessService;
+        this.menuAvailabilityService = menuAvailabilityService;
         this.expiryTransactionTemplate = new TransactionTemplate(transactionManager);
         this.expiryTransactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         this.depositRate = depositRate;
@@ -1267,7 +1270,11 @@ public class ReservationService {
         Product product = productRepository.findById(request.getProductId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy món ăn"));
         if (Boolean.FALSE.equals(product.getStatus()) || Boolean.FALSE.equals(product.getAvailable())) {
-            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Món ăn không còn khả dụng để đặt trước");
+            throw preorderUnavailable(product);
+        }
+        int availableQuantity = menuAvailabilityService.availableQuantity(product);
+        if (availableQuantity == 0 || (availableQuantity > 0 && request.getQuantity() > availableQuantity)) {
+            throw preorderUnavailable(product);
         }
         BigDecimal unitPrice = (product.getPrice() == null ? BigDecimal.ZERO : product.getPrice())
                 .setScale(0, RoundingMode.HALF_UP);
@@ -1281,6 +1288,12 @@ public class ReservationService {
         item.setNote(null);
         item.setLineTotal(unitPrice.multiply(BigDecimal.valueOf(request.getQuantity())).setScale(0, RoundingMode.HALF_UP));
         return item;
+    }
+
+    private ResponseStatusException preorderUnavailable(Product product) {
+        String name = product == null ? "Món ăn" : firstNonBlank(product.getNameVi(), product.getName());
+        return new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                name + " không còn khả dụng để đặt trước");
     }
 
     private PreorderItemResponse toPreorderResponse(ReservationPreorderItem item) {
@@ -1678,6 +1691,11 @@ public class ReservationService {
         if (value == null) return null;
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private String firstNonBlank(String preferred, String fallback) {
+        String normalized = trimToNull(preferred);
+        return normalized == null ? trimToNull(fallback) : normalized;
     }
 
     private String limit(String value, int max) {

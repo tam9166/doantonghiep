@@ -495,6 +495,7 @@
               <tr>
                 <th>Nguyên liệu</th>
                 <th>Số lượng</th>
+                <th>Đơn giá gần nhất</th>
                 <th>Đơn giá (VNĐ)</th>
                 <th>Thành tiền</th>
                 <th>Hạn SD (Tùy chọn)</th>
@@ -513,6 +514,9 @@
                   <input v-model="item.quantity" type="number" step="0.1" class="g-form-control" style="width: 80px;" />
                 </td>
                 <td>
+                  <span class="invoice-latest-price">{{ latestPriceText(item.previousUnitPrice, ingredientUnit(item.ingredientId)) }}</span>
+                </td>
+                <td>
                   <input v-model="item.unitPrice" type="number" step="500" class="g-form-control" style="width: 120px;" />
                 </td>
                 <td style="color: var(--primary); font-weight: bold;">{{ ((item.quantity || 0) * (item.unitPrice || 0)).toLocaleString() }}đ</td>
@@ -520,12 +524,12 @@
                   <input v-model="item.expirationDate" type="date" class="g-form-control" style="width: 140px;" />
                 </td>
                 <td>
-                  <button @click="invoiceForm.items.splice(index, 1)" class="btn-sm btn-delete"><UiIcon name="trash" /></button>
+                  <button @click="invoiceForm.items.splice(index, 1)" class="invoice-row-delete" title="Xóa dòng" aria-label="Xóa dòng nguyên liệu"><UiIcon name="trash" /></button>
                 </td>
               </tr>
             </tbody>
           </table>
-          <button @click="invoiceForm.items.push({ ingredientId: '', quantity: 1, unitPrice: 0, expirationDate: '' })" class="invoice-add-row" style="margin-bottom: 20px;">Thêm dòng</button>
+          <button @click="invoiceForm.items.push(makeInvoiceRow())" class="invoice-add-row" style="margin-bottom: 20px;">Thêm dòng</button>
           
           <div style="text-align: right; font-size: 1.2rem; font-weight: bold; margin-bottom: 20px;">
             Tổng Tiền: <span style="color: var(--primary);">{{ calculateInvoiceTotal().toLocaleString() }}đ</span>
@@ -663,9 +667,12 @@ const batchForm = ref({ quantity: 0, unitPrice: 0, expirationDate: '' });
 const batchSubmitting = ref(false);
 const restockRequiresRealData = ref(false);
 const latestImportPrice = ref(null);
-const latestImportPriceText = computed(() => latestImportPrice.value == null
-  ? 'Chưa có dữ liệu'
-  : `${Number(latestImportPrice.value || 0).toLocaleString('vi-VN')}đ / ${selectedIngForRestock.value?.unit || 'đơn vị'}`);
+const latestImportPriceByIngredient = ref({});
+const latestPriceText = (value, unit = 'đơn vị') => {
+  const amount = Number(value || 0);
+  return amount > 0 ? `${amount.toLocaleString('vi-VN')}đ / ${unit || 'đơn vị'}` : 'Chưa có dữ liệu trước đó';
+};
+const latestImportPriceText = computed(() => latestPriceText(latestImportPrice.value, selectedIngForRestock.value?.unit));
 
 const showBatchesModal = ref(false);
 const selectedBatches = ref([]);
@@ -771,6 +778,15 @@ const forecastIngredient = item => {
 };
 const forecastPurchasableResults = computed(() => forecastResults.value
   .filter(item => Number(item.suggestedAmount) > 0 && forecastIngredient(item)));
+const ingredientUnit = ingredientId => ingredients.value.find(i => Number(i.id) === Number(ingredientId))?.unit || 'đơn vị';
+const makeInvoiceRow = (overrides = {}) => ({
+  ingredientId: '',
+  quantity: 1,
+  unitPrice: 0,
+  previousUnitPrice: null,
+  expirationDate: '',
+  ...overrides
+});
 
 const loadData = async () => {
   try {
@@ -1009,34 +1025,50 @@ const applyForecast = async (ingName, amount) => {
   selectedIngForRestock.value = ing;
   batchForm.value = { quantity: amount, unitPrice: '', expirationDate: '' };
   restockRequiresRealData.value = true;
-  await loadLatestImportPrice(ing.id);
+  await loadLatestImportPrice(ing.id, { fillRestockPrice: true });
   showForecastModal.value = false;
   showRestockModal.value = true;
 };
 
-const loadLatestImportPrice = async ingredientId => {
-  latestImportPrice.value = null;
+const fetchLatestImportPriceValue = async ingredientId => {
+  const key = Number(ingredientId);
+  if (!key) return null;
+  if (Object.prototype.hasOwnProperty.call(latestImportPriceByIngredient.value, key)) {
+    return latestImportPriceByIngredient.value[key];
+  }
   try {
-    const response = await api.get(`/api/admin/ingredients/${ingredientId}/batches`, configHeader());
+    const response = await api.get(`/api/admin/ingredients/${key}/batches`, configHeader());
     const batches = Array.isArray(response.data) ? response.data : [];
     const latest = batches
-      .filter(batch => batch.unitPrice !== null && batch.unitPrice !== undefined)
+      .filter(batch => Number(batch.unitPrice || 0) > 0)
       .sort((a, b) => new Date(b.importDate || 0) - new Date(a.importDate || 0))[0];
-    latestImportPrice.value = latest ? Number(latest.unitPrice) : null;
+    const value = latest ? Number(latest.unitPrice) : null;
+    latestImportPriceByIngredient.value = { ...latestImportPriceByIngredient.value, [key]: value };
+    return value;
   } catch {
-    latestImportPrice.value = null;
+    latestImportPriceByIngredient.value = { ...latestImportPriceByIngredient.value, [key]: null };
+    return null;
   }
 };
 
-const applyAllForecasts = () => {
+const loadLatestImportPrice = async (ingredientId, options = {}) => {
+  latestImportPrice.value = null;
+  const price = await fetchLatestImportPriceValue(ingredientId);
+  latestImportPrice.value = price;
+  if (options.fillRestockPrice && Number(price || 0) > 0) {
+    batchForm.value.unitPrice = price;
+  }
+};
+
+const applyAllForecasts = async () => {
   const rows = forecastPurchasableResults.value.map(item => {
     const ingredient = forecastIngredient(item);
-    return {
+    return makeInvoiceRow({
       ingredientId: ingredient.id,
       quantity: Number(item.suggestedAmount),
       unitPrice: '',
       expirationDate: ''
-    };
+    });
   });
   if (!rows.length) return showToast('Không có đề xuất hợp lệ để nhập kho.');
   invoiceForm.value = {
@@ -1047,20 +1079,27 @@ const applyAllForecasts = () => {
   invoiceRequiresCompleteRows.value = true;
   showForecastModal.value = false;
   showCreateInvoiceModal.value = true;
+  await Promise.all(invoiceForm.value.items.map(item => applyLatestPriceToInvoiceItem(item)));
 };
 
 // ================== HÓA ĐƠN NHẬP HÀNG ==================
 const openCreateInvoiceModal = () => {
-  invoiceForm.value = { supplier: '', note: '', items: [{ ingredientId: '', quantity: 1, unitPrice: 0, expirationDate: '' }] };
+  invoiceForm.value = { supplier: '', note: '', items: [makeInvoiceRow()] };
   invoiceRequiresCompleteRows.value = false;
   showCreateInvoiceModal.value = true;
 };
 
-const onInvoiceItemIngChange = (item) => {
-  const ing = ingredients.value.find(i => i.id === item.ingredientId);
-  if (ing) {
-    item.unitPrice = ing.unitPrice || 0;
-  }
+const applyLatestPriceToInvoiceItem = async item => {
+  item.previousUnitPrice = null;
+  item.unitPrice = '';
+  const price = await fetchLatestImportPriceValue(item.ingredientId);
+  item.previousUnitPrice = price;
+  if (Number(price || 0) > 0) item.unitPrice = price;
+};
+
+const onInvoiceItemIngChange = async (item) => {
+  if (!item.ingredientId) return;
+  await applyLatestPriceToInvoiceItem(item);
 };
 
 const calculateInvoiceTotal = () => {
@@ -1274,7 +1313,11 @@ onMounted(() => {
   transition: 0.3s;
 }
 .btn-close:hover { color: var(--primary); border-color: var(--primary); background: #fff3f1; }
-.btn-close:focus-visible, .invoice-add-row:focus-visible, .invoice-cancel:focus-visible { outline: 3px solid color-mix(in srgb, var(--secondary) 28%, transparent); outline-offset: 2px; }
+.btn-close:focus-visible, .invoice-add-row:focus-visible, .invoice-cancel:focus-visible, .invoice-row-delete:focus-visible { outline: 3px solid color-mix(in srgb, var(--secondary) 28%, transparent); outline-offset: 2px; }
+.invoice-latest-price { display: inline-flex; align-items: center; min-height: 34px; color: var(--primary); font-size: .82rem; font-weight: 850; white-space: nowrap; }
+.invoice-row-delete { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 1px solid color-mix(in srgb, var(--primary) 30%, var(--border)); border-radius: 8px; background: #fff7f8; color: var(--primary); cursor: pointer; }
+.invoice-row-delete:hover { background: var(--primary); color: var(--color-on-primary); border-color: var(--primary); }
+.invoice-row-delete .ui-icon { width: 16px; height: 16px; flex-basis: 16px; }
 .invoice-add-row, .invoice-cancel {
   min-height: 38px;
   border: 1px solid color-mix(in srgb, var(--secondary) 45%, var(--border));

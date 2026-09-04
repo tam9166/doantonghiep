@@ -81,7 +81,7 @@
             </div>
             <div v-if="getNote(order)" class="order-note"> {{ getNote(order) }}</div>
             <div class="dish-list">
-              <div v-for="detail in order.orderDetails" :key="detail.id" class="dish-item" :class="{ 'dish-done': detail.status >= 1 }">
+              <div v-for="detail in order.orderDetails" :key="detail.id" class="dish-item" :class="{ 'dish-done': detail.status >= 1, 'dish-in-progress': detail.startedAt && (!detail.status || detail.status === 0) }">
                 <img v-if="detail.product?.image" :src="foodImage(detail.product.image)" class="dish-thumb" @error="replaceFoodImage" />
                     <span v-else class="dish-thumb-placeholder"><UiIcon name="dish" /></span>
                 <div class="dish-info" style="flex:1;">
@@ -89,6 +89,9 @@
                   <span class="dish-qty">x{{ detail.quantity }}</span>
                   <p v-if="detail.note" class="dish-note">Ghi chú: {{ detail.note }}</p>
                   <p v-if="detail.allergyNote" class="dish-allergy">Cảnh báo dị ứng: {{ detail.allergyNote }}</p>
+                </div>
+                <div class="dish-state" :class="{ 'state-done': detail.status >= 1, 'state-progress': detail.startedAt && (!detail.status || detail.status === 0) }">
+                  {{ detail.status >= 1 ? 'Sẵn sàng' : detail.startedAt ? 'Đang làm' : 'Chờ làm' }}
                 </div>
                 <div class="dish-action">
                   <button v-if="(!detail.status || detail.status === 0) && !detail.startedAt" @click="startDish(detail.id)" class="btn-dish-start" title="Bắt đầu chế biến món này"><UiIcon name="play" /></button>
@@ -195,7 +198,7 @@
           <h2>Chưa có món trong thực đơn</h2>
         </div>
         <div v-else class="menu-grid">
-          <div v-for="product in products" :key="product.id" :class="['menu-card', { 'menu-disabled': !product.available, 'negative-margin-card': product.marginStatus === 'NEGATIVE_MARGIN' }]">
+          <div v-for="product in menuPagedProducts" :key="product.id" :class="['menu-card', { 'menu-disabled': !product.available, 'negative-margin-card': product.marginStatus === 'NEGATIVE_MARGIN' }]">
             <img :src="foodImage(product.image)" class="menu-img" @error="replaceFoodImage" />
             <div class="menu-info">
               <h4>{{ product.name }}</h4>
@@ -232,6 +235,23 @@
               </button>
             </div>
           </div>
+        </div>
+        <div v-if="menuTotalPages > 1" class="menu-pagination-wrap">
+          <span class="menu-pagination-summary">Hiển thị {{ menuPageStart }}–{{ menuPageEnd }} / {{ sortedMenuProducts.length }} món</span>
+          <nav class="menu-pagination" aria-label="Phân trang thực đơn bếp">
+            <button type="button" :disabled="menuCurrentPage === 1" @click="changeMenuPage(menuCurrentPage - 1)">‹</button>
+            <button
+              v-for="page in menuPageButtons"
+              :key="page"
+              type="button"
+              :class="{ active: page === menuCurrentPage }"
+              @click="changeMenuPage(page)"
+            >
+              {{ page }}
+            </button>
+            <button type="button" :disabled="menuCurrentPage === menuTotalPages" @click="changeMenuPage(menuCurrentPage + 1)">›</button>
+          </nav>
+          <span class="menu-pagination-page">Trang {{ menuCurrentPage }} / {{ menuTotalPages }}</span>
         </div>
       </div>
 
@@ -379,6 +399,8 @@ const allOrders = ref([]);
 const ingredients = ref([]);
 const expiringBatches = ref([]);
 const products = ref([]);
+const menuCurrentPage = ref(1);
+const MENU_PAGE_SIZE = 12;
 const isLoading = ref(true);
 const loadError = ref('');
 const inventoryError = ref('');
@@ -506,6 +528,7 @@ const fetchProducts = async () => {
   try {
     const res = await api.get('/api/admin/products', configHeader());
     products.value = normalizeKitchenCollection(res.data);
+    menuCurrentPage.value = 1;
   } catch (err) {
     products.value = [];
     menuError.value = getApiErrorMessage(err, 'Không thể tải thực đơn. Vui lòng thử lại.');
@@ -522,6 +545,31 @@ const totalDishes = computed(() => {
 const sortedOrders = computed(() => [...pendingOrders.value].sort((a, b) => new Date(a.createDate) - new Date(b.createDate)));
 const lowStockCount = computed(() => normalizeKitchenCollection(ingredients.value)
   .filter(i => kitchenQuantity(i.quantity) <= kitchenQuantity(i.minStock)).length);
+const sortedMenuProducts = computed(() => [...normalizeKitchenCollection(products.value)].sort((a, b) => {
+  const aAvailable = a.available ? 0 : 1;
+  const bAvailable = b.available ? 0 : 1;
+  if (aAvailable !== bAvailable) return aAvailable - bAvailable;
+  return String(a.name || '').localeCompare(String(b.name || ''), 'vi');
+}));
+const menuTotalPages = computed(() => Math.max(1, Math.ceil(sortedMenuProducts.value.length / MENU_PAGE_SIZE)));
+const menuPagedProducts = computed(() => {
+  const start = (menuCurrentPage.value - 1) * MENU_PAGE_SIZE;
+  return sortedMenuProducts.value.slice(start, start + MENU_PAGE_SIZE);
+});
+const menuPageStart = computed(() => sortedMenuProducts.value.length === 0 ? 0 : ((menuCurrentPage.value - 1) * MENU_PAGE_SIZE) + 1);
+const menuPageEnd = computed(() => Math.min(menuPageStart.value + menuPagedProducts.value.length - 1, sortedMenuProducts.value.length));
+const menuPageButtons = computed(() => {
+  const total = menuTotalPages.value;
+  const start = Math.max(1, menuCurrentPage.value - 2);
+  const end = Math.min(total, menuCurrentPage.value + 2);
+  return Array.from({ length: end - start + 1 }, (_, index) => start + index);
+});
+const changeMenuPage = (page) => {
+  menuCurrentPage.value = Math.min(Math.max(1, Number(page) || 1), menuTotalPages.value);
+};
+watch(() => sortedMenuProducts.value.length, () => {
+  menuCurrentPage.value = Math.min(menuCurrentPage.value, menuTotalPages.value);
+});
 
 const todayOrders = computed(() => {
   const today = new Date().toDateString();
@@ -881,6 +929,30 @@ onUnmounted(() => {
   background: #F3F7F0;
   border-color: var(--success);
 }
+.dish-item.dish-in-progress {
+  background: color-mix(in srgb, var(--color-tertiary) 8%, transparent);
+  border-color: color-mix(in srgb, var(--color-tertiary) 24%, transparent);
+}
+.dish-state {
+  min-width: 90px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-light);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: center;
+}
+.dish-state.state-progress {
+  color: var(--color-tertiary);
+  border-color: color-mix(in srgb, var(--color-tertiary) 30%, transparent);
+  background: color-mix(in srgb, var(--color-tertiary) 12%, transparent);
+}
+.dish-state.state-done {
+  color: var(--success);
+  border-color: color-mix(in srgb, var(--success) 25%, transparent);
+  background: color-mix(in srgb, var(--success) 12%, transparent);
+}
 .dish-action {
   display: flex;
   align-items: center;
@@ -977,6 +1049,32 @@ onUnmounted(() => {
   border: 2px solid var(--danger);
   background: color-mix(in srgb, var(--danger) 6%, var(--bg-card));
 }
+.menu-pagination-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+.menu-pagination-summary,
+.menu-pagination-page { font-weight: 800; }
+.menu-pagination { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.menu-pagination button {
+  min-width: 34px;
+  min-height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+.menu-pagination button.active { background: var(--primary); border-color: var(--primary); color: var(--color-on-primary); }
+.menu-pagination button:disabled { opacity: .45; cursor: not-allowed; }
 .menu-img { width: 56px; height: 56px; border-radius: 10px; object-fit: cover; border: 1px solid var(--border); flex-shrink: 0; }
 .menu-info { flex: 1; display: flex; flex-direction: column; }
 .menu-info h4 { margin: 0 0 4px 0; color: var(--text-heading); font-size: 0.95rem; }
@@ -1023,6 +1121,7 @@ onUnmounted(() => {
   .kitchen-header { padding: 10px 14px; }
   .header-left h1 { font-size: 1rem; }
   .orders-grid, .inv-grid, .menu-grid { grid-template-columns: 1fr; }
+  .menu-pagination-wrap { align-items: flex-start; flex-direction: column; }
   .stats-bar { gap: 4px; padding: 8px; }
   .stat-item { min-width: 70px; padding: 6px 8px; flex: 1; }
   .stat-value { font-size: 1.1rem; }

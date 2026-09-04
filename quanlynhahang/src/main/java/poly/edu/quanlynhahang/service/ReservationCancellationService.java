@@ -16,6 +16,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.server.ResponseStatusException;
 
 import poly.edu.quanlynhahang.dto.CancellationDecisionRequest;
@@ -41,8 +42,6 @@ import poly.edu.quanlynhahang.repository.ReservationRepository;
 
 @Service
 public class ReservationCancellationService {
-    private static final String VERIFICATION_FAILED =
-            "Không thể xác minh thông tin đặt bàn. Vui lòng kiểm tra lại thông tin đã nhập.";
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final String CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     private static final Set<CancellationRequestStatus> ACTIVE_REQUESTS = EnumSet.of(
@@ -60,6 +59,10 @@ public class ReservationCancellationService {
     private final ActivityLogService activityLogService;
     private final TableLifecycleService tableLifecycleService;
     private final OrderRefundService orderRefundService;
+    private final String restaurantName;
+    private final String restaurantAddress;
+    private final String restaurantHotline;
+    private final String restaurantEmail;
 
     public ReservationCancellationService(
             ReservationRepository reservationRepository,
@@ -70,7 +73,11 @@ public class ReservationCancellationService {
             RefundService refundService,
             ActivityLogService activityLogService,
             TableLifecycleService tableLifecycleService,
-            OrderRefundService orderRefundService) {
+            OrderRefundService orderRefundService,
+            @Value("${restaurant.info.name:Moc Vi Restaurant}") String restaurantName,
+            @Value("${restaurant.info.address:137 Nguyen Thi Thap, Da Nang}") String restaurantAddress,
+            @Value("${restaurant.info.hotline:0347944028}") String restaurantHotline,
+            @Value("${restaurant.info.email:contact@mocvi.vn}") String restaurantEmail) {
         this.reservationRepository = reservationRepository;
         this.requestRepository = requestRepository;
         this.paymentTransactionRepository = paymentTransactionRepository;
@@ -80,6 +87,10 @@ public class ReservationCancellationService {
         this.activityLogService = activityLogService;
         this.tableLifecycleService = tableLifecycleService;
         this.orderRefundService = orderRefundService;
+        this.restaurantName = restaurantName;
+        this.restaurantAddress = restaurantAddress;
+        this.restaurantHotline = restaurantHotline;
+        this.restaurantEmail = restaurantEmail;
     }
 
     @Transactional
@@ -89,21 +100,11 @@ public class ReservationCancellationService {
         String phone = normalizePhone(input.customerPhone());
         String email = normalizeEmail(input.customerEmail());
         int provided = countPresent(code, name, phone, email);
-        if (provided < 2) throw verificationFailed();
-
-        List<Reservation> matched = reservationRepository.findCancellationVerificationCandidates(
-                code, name, phone, email).stream()
-                .filter(reservation -> matchCount(reservation, code, name, phone, email) >= 2)
-                .toList();
-        if (matched.size() != 1) throw verificationFailed();
-
-        Reservation reservation = reservationRepository.findLockedById(matched.getFirst().getId())
-                .orElseThrow(this::verificationFailed);
-        if (CLOSED_RESERVATIONS.contains(reservation.getReservationStatus())
-                || !LocalDateTime.of(reservation.getReservationDate(), reservation.getArrivalTime())
-                        .isAfter(LocalDateTime.now(ReservationCancellationPolicy.BUSINESS_ZONE))) {
-            throw verificationFailed();
-        }
+        if (provided < 2) throw insufficientVerification();
+        Reservation verified = verifiedReservation(input);
+        Reservation reservation = reservationRepository.findLockedById(verified.getId())
+                .orElseThrow(this::reservationNotFound);
+        ensureOpenAndFuture(reservation);
         if (requestRepository.existsByReservationIdAndStatusIn(reservation.getId(), ACTIVE_REQUESTS)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Yêu cầu hủy đặt bàn đang được xử lý.");
@@ -111,14 +112,18 @@ public class ReservationCancellationService {
 
         Date requestedAt = new Date();
         ReservationCancellationPolicy.Calculation calculation = policy.calculate(
-                reservation, requestedAt, actuallyPaidDeposit(reservation));
+                reservation, requestedAt, actuallyPaidAmount(reservation));
         ReservationCancellationRequest request = new ReservationCancellationRequest();
         request.setRequestCode(nextRequestCode());
         request.setReservation(reservation);
         request.setReason(limit(input.reason(), 1000));
+        String contactMethod = normalizedContactMethod(input.contactMethod());
+        ensureVerifiedContactAvailable(reservation, contactMethod);
+        request.setContactMethod(contactMethod);
         request.setMatchedFieldCount(matchCount(reservation, code, name, phone, email));
         request.setRequestedAt(requestedAt);
         applyCalculation(request, calculation);
+        applyRefundDestination(request, input, calculation.refundAmount());
         try {
             ReservationCancellationRequest saved = requestRepository.saveAndFlush(request);
             activityLogService.log("CANCELLATION_REQUESTED", "Reservation", String.valueOf(reservation.getId()),
@@ -136,13 +141,14 @@ public class ReservationCancellationService {
         Reservation reservation = verifiedReservation(input);
         ensureOpenAndFuture(reservation);
         ReservationCancellationPolicy.Calculation calculation = policy.calculate(
-                reservation, new Date(), actuallyPaidDeposit(reservation));
-        String message = calculation.eligible()
-                ? "Yêu cầu đủ điều kiện áp dụng chính sách hoàn cọc hiện tại."
-                : "Yêu cầu không còn trong thời hạn được hoàn cọc.";
+                reservation, new Date(), actuallyPaidAmount(reservation));
+        String message = calculation.refundAmount().signum() > 0
+                ? "Có khoản hoàn dự kiến theo chính sách hủy hiện tại."
+                : "Đặt bàn hợp lệ nhưng không có khoản tiền hoàn dự kiến.";
         return new CancellationPreviewResponse(
-                reservation.getReservationCode(), calculation.paidDepositAmount(), calculation.refundRate(),
-                calculation.refundAmount(), calculation.hoursBeforeReservation(), calculation.eligible(), message);
+                reservation.getReservationCode(), calculation.orderTotalAmount(), calculation.paidDepositAmount(),
+                calculation.penaltyAmount(), calculation.refundRate(), calculation.refundAmount(),
+                calculation.hoursBeforeReservation(), calculation.eligible(), calculation.policyApplied(), message);
     }
 
     private Reservation verifiedReservation(CancellationRequestCreateRequest input) {
@@ -150,12 +156,25 @@ public class ReservationCancellationService {
         String name = normalizeName(input.customerName());
         String phone = normalizePhone(input.customerPhone());
         String email = normalizeEmail(input.customerEmail());
-        if (countPresent(code, name, phone, email) < 2) throw verificationFailed();
+        if (countPresent(code, name, phone, email) < 2) throw insufficientVerification();
+        if (code != null && phone != null) {
+            Reservation exactReservation = reservationRepository.findByReservationCodeAndCustomerPhone(code, phone)
+                    .orElse(null);
+            if (exactReservation != null) {
+                if (name != null && !name.equals(normalizeName(exactReservation.getCustomerName()))) {
+                    throw reservationNotFound();
+                }
+                if (email != null && !email.equals(normalizeEmail(exactReservation.getCustomerEmail()))) {
+                    throw reservationNotFound();
+                }
+                return exactReservation;
+            }
+        }
         List<Reservation> matched = reservationRepository.findCancellationVerificationCandidates(
                         code, name, phone, email).stream()
                 .filter(reservation -> matchCount(reservation, code, name, phone, email) >= 2)
                 .toList();
-        if (matched.size() != 1) throw verificationFailed();
+        if (matched.size() != 1) throw reservationNotFound();
         return matched.getFirst();
     }
 
@@ -163,7 +182,7 @@ public class ReservationCancellationService {
         if (CLOSED_RESERVATIONS.contains(reservation.getReservationStatus())
                 || !LocalDateTime.of(reservation.getReservationDate(), reservation.getArrivalTime())
                 .isAfter(LocalDateTime.now(ReservationCancellationPolicy.BUSINESS_ZONE))) {
-            throw verificationFailed();
+            throw cancellationTooLate();
         }
     }
 
@@ -182,13 +201,16 @@ public class ReservationCancellationService {
         }
 
         ReservationCancellationPolicy.Calculation calculation = policy.calculate(
-                reservation, request.getRequestedAt(), actuallyPaidDeposit(reservation));
+                reservation, request.getRequestedAt(), actuallyPaidAmount(reservation));
         applyCalculation(request, calculation);
         String actor = currentUsername();
         orderRefundService.cancelLinkedReservationPreorder(reservation.getKitchenOrderId(), actor);
         ReservationActionRequest action = new ReservationActionRequest();
         action.setNote(limit(decision.note(), 500));
         reservationService.cancelApproved(reservation.getId(), action);
+        // A cancelled reservation is no longer an invoice receivable, even when a
+        // policy retains part of the deposit. The refund ledger records that split.
+        reservation.setRemainingAmount(BigDecimal.ZERO);
 
         RefundTransaction refund = refundService.requestReservationRefund(
                 reservation,
@@ -243,6 +265,7 @@ public class ReservationCancellationService {
         reservation.setPaymentStatus(request.getExpectedRefundAmount()
                         .compareTo(request.getPaidDepositAmount()) < 0
                 ? PaymentStatus.PARTIALLY_REFUNDED : PaymentStatus.REFUNDED);
+        reservation.setRemainingAmount(BigDecimal.ZERO);
         reservationRepository.save(reservation);
         tableLifecycleService.releaseReservationTables(reservation);
         return toResponse(requestRepository.save(request));
@@ -257,7 +280,7 @@ public class ReservationCancellationService {
         return request;
     }
 
-    private BigDecimal actuallyPaidDeposit(Reservation reservation) {
+    private BigDecimal actuallyPaidAmount(Reservation reservation) {
         List<PaymentTransaction> ledger = paymentTransactionRepository
                 .findByAggregateTypeAndAggregateIdAndStatus(
                         "RESERVATION", reservation.getId(), PaymentTransactionStatus.SUCCESS);
@@ -268,9 +291,7 @@ public class ReservationCancellationService {
         if (ledger.isEmpty() && DepositStatus.PAID.equals(reservation.getDepositStatus())) {
             netPaid = reservation.getPaidAmount() == null ? BigDecimal.ZERO : reservation.getPaidAmount();
         }
-        BigDecimal deposit = reservation.getDepositAmount() == null
-                ? BigDecimal.ZERO : reservation.getDepositAmount().max(BigDecimal.ZERO);
-        return netPaid.min(deposit);
+        return netPaid.max(BigDecimal.ZERO);
     }
 
     private void applyCalculation(ReservationCancellationRequest request,
@@ -332,8 +353,24 @@ public class ReservationCancellationService {
         return normalized == null ? null : normalized.substring(0, Math.min(max, normalized.length()));
     }
 
-    private ResponseStatusException verificationFailed() {
-        return new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, VERIFICATION_FAILED);
+    private ResponseStatusException insufficientVerification() {
+        return new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                "Vui lòng nhập ít nhất 2 trong 4 thông tin xác minh.");
+    }
+
+    private ResponseStatusException reservationNotFound() {
+        return new ResponseStatusException(HttpStatus.NOT_FOUND,
+                "Không tìm thấy thông tin đặt bàn phù hợp.");
+    }
+
+    private ResponseStatusException cancellationTooLate() {
+        return new ResponseStatusException(HttpStatus.CONFLICT,
+                "Đặt bàn đã quá thời gian hỗ trợ hủy trực tuyến.\n"
+                        + "Vui lòng liên hệ nhà hàng:\n"
+                        + "Nhà hàng: " + restaurantName + "\n"
+                        + "Địa chỉ: " + restaurantAddress + "\n"
+                        + "Số điện thoại: " + restaurantHotline + "\n"
+                        + "Email: " + restaurantEmail);
     }
 
     private String nextRequestCode() {
@@ -362,7 +399,51 @@ public class ReservationCancellationService {
                 reservation.getReservationDate(), reservation.getArrivalTime(), reservation.getGuestCount(),
                 reservation.getDepositAmount(), request.getPaidDepositAmount(), request.getRequestedAt(),
                 request.getHoursBeforeReservation(), request.getRefundRate(), request.getExpectedRefundAmount(),
-                request.getReason(), request.getStatus(), request.getRefundTransactionId(), request.getProcessedBy(),
+                request.getReason(), request.getContactMethod(), request.getRefundBankName(),
+                request.getRefundAccountNumber(), request.getRefundAccountHolder(), request.getStatus(),
+                request.getRefundTransactionId(), request.getProcessedBy(),
                 request.getProcessedAt(), request.getProcessingNote());
+    }
+
+    private void applyRefundDestination(ReservationCancellationRequest request,
+                                        CancellationRequestCreateRequest input,
+                                        BigDecimal refundAmount) {
+        if (refundAmount == null || refundAmount.signum() <= 0) return;
+        String bank = limit(input.refundBankName(), 120);
+        String account = limit(input.refundAccountNumber(), 40);
+        String holder = limit(input.refundAccountHolder(), 150);
+        if (bank == null) throw missingRefundField("ngân hàng");
+        if (account == null) throw missingRefundField("số tài khoản");
+        if (holder == null) throw missingRefundField("chủ tài khoản");
+        request.setRefundBankName(bank);
+        request.setRefundAccountNumber(account);
+        request.setRefundAccountHolder(holder);
+    }
+
+    private String normalizedContactMethod(String value) {
+        String normalized = trim(value);
+        if (normalized == null) return "PHONE";
+        normalized = normalized.toUpperCase(Locale.ROOT);
+        if (!"PHONE".equals(normalized) && !"EMAIL".equals(normalized)) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Phương thức liên lạc không được hỗ trợ.");
+        }
+        return normalized;
+    }
+
+    private void ensureVerifiedContactAvailable(Reservation reservation, String contactMethod) {
+        String contact = "EMAIL".equals(contactMethod)
+                ? normalizeEmail(reservation.getCustomerEmail())
+                : normalizePhone(reservation.getCustomerPhone());
+        if (contact == null) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Đặt bàn chưa có " + ("EMAIL".equals(contactMethod) ? "email" : "số điện thoại")
+                            + " đã xác minh để liên hệ.");
+        }
+    }
+
+    private ResponseStatusException missingRefundField(String label) {
+        return new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                "Vui lòng nhập " + label + " để nhận tiền hoàn.");
     }
 }

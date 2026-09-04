@@ -99,7 +99,7 @@
       <div class="g-modal-box checkout-modal">
         <h3 class="checkout-header">{{ text.checkoutTitle }}</h3>
 
-        <div v-if="!paymentQr" class="checkout-scroll-area">
+        <div v-if="!checkoutResult" class="checkout-scroll-area">
           <section v-if="cart.length > 0" class="cart-recommendations" aria-live="polite">
             <div class="recommendation-heading">
               <h4> {{ text.cartRecommendations }}</h4>
@@ -168,7 +168,26 @@
             <textarea v-model="orderInfo.note" :placeholder="text.deliveryNotePlaceholder" class="g-form-control" maxlength="500"></textarea>
           </div>
 
-          <div class="payment-banking-box mt-4" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); padding: 15px; border-radius: 12px;">
+          <div class="payment-choice-box mt-4">
+            <h4>{{ text.deliveryPayment }}</h4>
+            <p class="payment-choice-note">{{ text.deliveryPaymentHint }}</p>
+            <div class="payment-choice-grid">
+              <button
+                v-for="option in deliveryPaymentOptions"
+                :key="option.key"
+                type="button"
+                class="payment-choice-btn"
+                :class="{ selected: selectedDeliveryPaymentOption === option.key }"
+                :aria-pressed="selectedDeliveryPaymentOption === option.key"
+                @click="selectedDeliveryPaymentOption = option.key"
+              >
+                <strong>{{ option.label }}</strong>
+                <small>{{ option.hint }}</small>
+              </button>
+            </div>
+          </div>
+
+          <div v-if="selectedDeliveryPaymentOption === 'PREPAID_TRANSFER'" class="payment-banking-box mt-4" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); padding: 15px; border-radius: 12px;">
             <h4 style="color: var(--primary); margin: 0 0 10px 0;">{{ text.bankTransfer }}</h4>
             <p style="margin-bottom: 5px;">{{ text.subtotal }}: <strong>{{ formatCurrency(cartSubtotal) }}</strong></p>
             <p style="margin-bottom: 5px;">{{ text.tax }}: <strong>{{ formatCurrency(cartTax) }}</strong></p>
@@ -177,22 +196,64 @@
               {{ text.qrHint }}
             </p>
           </div>
+
+          <div v-else class="payment-banking-box mt-4 payment-cash-box" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); padding: 15px; border-radius: 12px;">
+            <h4 style="color: var(--secondary); margin: 0 0 10px 0;">{{ paymentOptionText(selectedDeliveryPaymentOption) }}</h4>
+            <p style="margin-bottom: 5px;">{{ text.subtotal }}: <strong>{{ formatCurrency(cartSubtotal) }}</strong></p>
+            <p style="margin-bottom: 5px;">{{ text.tax }}: <strong>{{ formatCurrency(cartTax) }}</strong></p>
+            <p>{{ text.estimatedTotal }}: <strong style="color: var(--secondary); font-size: 1.2rem;">{{ formatCurrency(cartTotal) }}</strong></p>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 10px;">
+              {{ text.cashOnDeliveryHint }}
+            </p>
+          </div>
         </div>
 
         <div v-else class="payment-banking-box payment-result checkout-scroll-area">
-          <h4>{{ text.scanQr }}</h4>
-          <img :src="paymentQr.qrUrl" :alt="text.paymentQrAlt" />
-          <p>{{ text.amount }}: <strong>{{ formatCurrency(Number(paymentQr.amount)) }}</strong></p>
-          <p>{{ text.bank }}: <strong>{{ paymentQr.bankCode }}</strong></p>
-          <p>{{ text.accountNumber }}: <strong>{{ paymentQr.accountNumber }}</strong></p>
-          <p>{{ text.accountHolder }}: <strong>{{ paymentQr.accountHolder }}</strong></p>
-          <p>{{ text.transferContent }}: <strong>{{ paymentQr.transferContent }}</strong></p>
-          <small>{{ text.paymentConfirmedHint }}</small>
+          <h4>{{ text.orderSuccessTitle }}</h4>
+          <p class="checkout-success-lead">{{ text.orderCreatedSuccess }}</p>
+          <div class="checkout-success-grid">
+            <div>
+              <span>{{ text.orderCode }}</span>
+              <strong>{{ checkoutResult.orderCode }}</strong>
+            </div>
+            <div>
+              <span>{{ text.orderStatus }}</span>
+              <strong>{{ checkoutStatusText(checkoutResult.status) }}</strong>
+            </div>
+            <div>
+              <span>{{ text.paymentMethod }}</span>
+              <strong>{{ paymentOptionText(checkoutResult.paymentOption) }}</strong>
+            </div>
+            <div>
+              <span>{{ text.paymentStatus }}</span>
+              <strong>{{ paymentStatusText(checkoutResult.paymentStatus, checkoutResult.paymentOption) }}</strong>
+            </div>
+            <div>
+              <span>{{ text.amount }}</span>
+              <strong>{{ formatCurrency(Number(checkoutResult.totalAmount || 0)) }}</strong>
+            </div>
+          </div>
+          <button type="button" class="checkout-copy-btn" @click="copyCheckoutOrderCode">
+            {{ text.copyOrderCode }}
+          </button>
+          <template v-if="checkoutPayment">
+            <h4 style="margin-top: 18px;">{{ text.scanQr }}</h4>
+            <img :src="checkoutPayment.qrUrl" :alt="text.paymentQrAlt" />
+            <p>{{ text.amount }}: <strong>{{ formatCurrency(Number(checkoutPayment.amount)) }}</strong></p>
+            <p>{{ text.bank }}: <strong>{{ checkoutPayment.bankCode }}</strong></p>
+            <p>{{ text.accountNumber }}: <strong>{{ checkoutPayment.accountNumber }}</strong></p>
+            <p>{{ text.accountHolder }}: <strong>{{ checkoutPayment.accountHolder }}</strong></p>
+            <p>{{ text.transferContent }}: <strong>{{ checkoutPayment.transferContent }}</strong></p>
+            <small>{{ text.paymentConfirmedHint }}</small>
+          </template>
+          <template v-else>
+            <p class="checkout-cash-note">{{ text.cashOnDeliveryHint }}</p>
+          </template>
         </div>
 
         <div class="modal-actions checkout-actions mt-4">
-          <button @click="closeCheckout" class="g-btn-outline" style="flex: 1;">{{ paymentQr ? text.understood : text.close }}</button>
-          <button v-if="cart.length > 0 && !paymentQr" @click="submitShipOrder" :disabled="checkoutSubmitting" class="g-btn-primary" style="flex: 1;">
+          <button @click="closeCheckout" class="g-btn-outline" style="flex: 1;">{{ checkoutResult ? text.viewHistory : text.close }}</button>
+          <button v-if="cart.length > 0 && !checkoutResult" @click="submitShipOrder" :disabled="checkoutSubmitting" class="g-btn-primary" style="flex: 1;">
             {{ checkoutSubmitting ? text.creatingOrder : text.createOrder }}
           </button>
         </div>
@@ -235,6 +296,8 @@ const isAdminOrManager = computed(() => {
 });
 
 const showCheckoutModal = ref(false);
+const checkoutResult = ref(null);
+const selectedDeliveryPaymentOption = ref('PREPAID_TRANSFER');
 const selectedCategory = ref(null);
 const menuQuery = ref('');
 const currentPage = ref(1);
@@ -254,6 +317,12 @@ const recommendationPreferences = computed(() => [
   ['lẩu', 'hotpot'], ['hải sản', 'seafood'], ['ít cay', 'mild'], ['không cay', 'nonSpicy'],
   ['khai vị', 'appetizer'], ['món chính', 'main'], ['tráng miệng', 'dessert'], ['signature', 'signature'],
 ].map(([value, key]) => ({ value, label: text.value.preferenceLabels[key] })));
+const deliveryPaymentOptions = computed(() => Object.entries(text.value.deliveryPaymentOptions || {}).map(([key, value]) => ({
+  key,
+  label: value[0],
+  hint: value[1]
+})));
+const checkoutPayment = computed(() => checkoutResult.value?.payment || paymentQr.value || null);
 let recommendationRequestId = 0;
 
 const cartSubtotal = computed(() => {
@@ -322,8 +391,7 @@ const filteredProducts = computed(() => {
     ? activeProducts
     : activeProducts.filter(p => p.category && p.category.id === selectedCategory.value);
   const query = menuQuery.value.toLocaleLowerCase('vi-VN').trim();
-  if (!query) return byCategory;
-  return byCategory.filter((product) => {
+  const matches = !query ? byCategory : byCategory.filter((product) => {
     const content = [
       productName(product),
       product.descriptionVi,
@@ -332,7 +400,23 @@ const filteredProducts = computed(() => {
     ].filter(Boolean).join(' ').toLocaleLowerCase('vi-VN');
     return content.includes(query);
   });
+  return [...matches].sort((a, b) => Number(isProductOrderable(b)) - Number(isProductOrderable(a))
+    || Number(isAlcoholicProduct(a)) - Number(isAlcoholicProduct(b))
+    || productName(a).localeCompare(productName(b), 'vi'));
 });
+
+const isProductOrderable = product => product?.available !== false && Number(product?.availableQuantity || 0) > 0;
+const alcoholKeywords = ['bia', 'rượu', 'beer', 'lager', 'wine', 'vang', 'whisky', 'whiskey', 'vodka', 'gin', 'rum', 'soju', 'sake', 'cocktail', 'champagne', 'cognac', 'hennessy', 'chivas', 'johnnie', 'martell', 'remy'];
+const isAlcoholicProduct = product => {
+  const content = [
+    productName(product),
+    product.description,
+    product.descriptionVi,
+    product.descriptionEn,
+    product.category && categoryName(product.category)
+  ].filter(Boolean).join(' ').toLocaleLowerCase('vi-VN');
+  return alcoholKeywords.some(keyword => content.includes(keyword));
+};
 
 const pagination = computed(() => paginateMenu(filteredProducts.value, currentPage.value, MENU_PAGE_SIZE));
 const totalPages = computed(() => pagination.value.totalPages);
@@ -411,6 +495,9 @@ const loadCartRecommendations = async () => {
 
 const openCheckout = () => {
   showCheckoutModal.value = true;
+  checkoutResult.value = null;
+  paymentQr.value = null;
+  selectedDeliveryPaymentOption.value = 'PREPAID_TRANSFER';
   loadCartRecommendations();
 };
 
@@ -438,13 +525,15 @@ const submitShipOrder = async () => {
       recipientPhone: orderInfo.value.phone.trim(),
       deliveryAddress: orderInfo.value.address.trim(),
       deliveryNote: orderInfo.value.note,
+      paymentOption: selectedDeliveryPaymentOption.value,
       items: formattedItems
     }), { headers: {
       ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
       'X-Idempotency-Key': checkoutIdempotencyKey.value
     } });
 
-    paymentQr.value = response.data.payment;
+    checkoutResult.value = response.data;
+    paymentQr.value = response.data?.payment || null;
     cart.value = [];
     checkoutIdempotencyKey.value = crypto.randomUUID();
   } catch (error) {
@@ -462,10 +551,70 @@ const submitShipOrder = async () => {
 
 const closeCheckout = () => {
   showCheckoutModal.value = false;
-  if (paymentQr.value) {
-    paymentQr.value = null;
+  if (checkoutResult.value) {
     router.push('/history');
   }
+  checkoutResult.value = null;
+  paymentQr.value = null;
+};
+
+const copyCheckoutOrderCode = async () => {
+  const code = checkoutResult.value?.orderCode;
+  if (!code) return;
+  try {
+    if (!navigator.clipboard?.writeText) throw new Error('clipboard unavailable');
+    await navigator.clipboard.writeText(code);
+    toast.success(text.value.copiedOrderCode);
+  } catch (_) {
+    toast.info(code);
+  }
+};
+
+const paymentOptionText = (option) => {
+  if (!option) return '---';
+  return text.value.deliveryPaymentOptions?.[option]?.[0] || option;
+};
+
+const paymentStatusText = (status, paymentOption) => {
+  const en = locale.value === 'en';
+  const map = en ? {
+    UNPAID: paymentOption === 'COD' ? 'Cash on delivery - unpaid' : 'Awaiting confirmation',
+    PENDING: 'Awaiting confirmation',
+    PARTIALLY_PAID: 'Partially paid',
+    PAID: 'Paid',
+    OVERPAID: 'Overpaid',
+  } : {
+    UNPAID: paymentOption === 'COD' ? 'Chưa thu tiền' : 'Chờ xác nhận thanh toán',
+    PENDING: 'Đang chờ xác nhận',
+    PARTIALLY_PAID: 'Đã thanh toán một phần',
+    PAID: 'Đã thanh toán',
+    OVERPAID: 'Thanh toán dư',
+  };
+  return map[status] || status || '---';
+};
+
+const checkoutStatusText = (status) => {
+  const en = locale.value === 'en';
+  const map = en ? {
+    0: 'Processing',
+    1: 'In progress',
+    2: 'Served',
+    3: 'Cancelled',
+    4: 'Completed',
+    5: 'Scheduled',
+    6: 'In progress',
+    7: 'Served'
+  } : {
+    0: 'Chờ xử lý',
+    1: 'Đang làm',
+    2: 'Đã phục vụ',
+    3: 'Đã hủy',
+    4: 'Hoàn thành',
+    5: 'Chờ hẹn giờ',
+    6: 'Đang làm',
+    7: 'Đã phục vụ'
+  };
+  return map[status] || 'Chờ xử lý';
 };
 
 const loadMenu = async () => {
@@ -682,6 +831,82 @@ onMounted(async () => {
 .recommendation-item button, .recommendation-error button { border: 1px solid var(--color-outline-variant); border-radius: var(--radius-sm); background: var(--color-surface-container); color: var(--primary); cursor: pointer; font: inherit; font-size: 0.82rem; font-weight: 700; padding: 7px 10px; }
 .recommendation-error { margin: 8px 0 0; color: var(--danger); font-size: 0.88rem; }
 .recommendation-error button { margin-left: 8px; }
+.payment-choice-box {
+  padding: 18px;
+  border: 1px solid var(--color-outline-variant);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-container-low);
+  text-align: left;
+}
+.payment-choice-box h4 { margin: 0 0 6px; color: var(--text-primary); }
+.payment-choice-note { margin: 0 0 12px; color: var(--text-secondary); font-size: 0.9rem; }
+.payment-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.payment-choice-btn {
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-outline-variant);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: var(--transition);
+}
+.payment-choice-btn strong { color: var(--text-primary); }
+.payment-choice-btn small { color: var(--text-muted); }
+.payment-choice-btn.selected {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 20%, transparent);
+}
+.checkout-success-lead { margin: 0 0 16px; color: var(--text-secondary); }
+.checkout-success-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  text-align: left;
+  margin-bottom: 14px;
+}
+.checkout-success-grid div {
+  padding: 10px 12px;
+  border: 1px solid var(--color-outline-variant);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+}
+.checkout-success-grid span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  margin-bottom: 4px;
+}
+.checkout-success-grid strong {
+  color: var(--text-primary);
+  word-break: break-word;
+}
+.checkout-copy-btn {
+  border: 1px solid var(--primary);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  color: var(--primary);
+  border-radius: var(--radius-sm);
+  padding: 9px 14px;
+  cursor: pointer;
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+.checkout-copy-btn:hover { background: color-mix(in srgb, var(--primary) 18%, transparent); }
+.checkout-cash-note { margin: 12px 0 0; color: var(--text-secondary); font-size: 0.92rem; }
+
+@media (max-width: 720px) {
+  .payment-choice-grid,
+  .checkout-success-grid {
+    grid-template-columns: 1fr;
+  }
+}
 
 /* GustoPro menu composition: simple header, warm cards, clear primary actions. */
 .menu-wrapper { background: var(--color-surface); }

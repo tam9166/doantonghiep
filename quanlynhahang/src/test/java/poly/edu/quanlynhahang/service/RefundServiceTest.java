@@ -76,6 +76,22 @@ class RefundServiceTest {
     }
 
     @Test
+    void completionWithoutManualReferenceUsesTheDatabaseRefundIdAsTheStableReference() {
+        RefundTransaction refund = new RefundTransaction();
+        refund.setId(20L);
+        refund.setReservationId(1L);
+        refund.setAmount(new BigDecimal("250000"));
+        refund.setStatus(RefundTransaction.RefundStatus.PENDING);
+        when(refundRepository.findLockedById(20L)).thenReturn(Optional.of(refund));
+        when(transactionRepository.findByProviderTransactionId("REFUND-20")).thenReturn(Optional.empty());
+
+        service.confirmCompleted(20L, null, "Đã đối soát", "cashier");
+
+        verify(transactionRepository).save(org.mockito.ArgumentMatchers.argThat(
+                transaction -> "REFUND-20".equals(((PaymentTransaction) transaction).getProviderTransactionId())));
+    }
+
+    @Test
     void completedRefundAcceptsOnlyTheExactMatchingLedgerReference() {
         RefundTransaction refund = completedOrderRefund();
         PaymentTransaction recorded = new PaymentTransaction();
@@ -101,6 +117,22 @@ class RefundServiceTest {
                 () -> service.confirmCompleted(20L, "DIFFERENT-REF", null, "cashier"));
 
         assertEquals(org.springframework.http.HttpStatus.CONFLICT, error.getStatusCode());
+    }
+
+    @Test
+    void completedLegacyRefundCanBeReadIdempotentlyWithoutSubmittingItsOldReference() {
+        RefundTransaction refund = completedOrderRefund();
+        PaymentTransaction recorded = new PaymentTransaction();
+        recorded.setAggregateType("ORDER");
+        recorded.setAggregateId(7L);
+        recorded.setAmount(new BigDecimal("80000"));
+        recorded.setDirection(PaymentDirection.REFUND);
+        recorded.setStatus(PaymentTransactionStatus.SUCCESS);
+        when(refundRepository.findLockedById(20L)).thenReturn(Optional.of(refund));
+        when(transactionRepository.findByAggregateTypeAndAggregateIdAndStatus(
+                "ORDER", 7L, PaymentTransactionStatus.SUCCESS)).thenReturn(List.of(recorded));
+
+        assertEquals(refund, service.confirmCompleted(20L, null, null, "cashier"));
     }
 
     private RefundTransaction completedOrderRefund() {

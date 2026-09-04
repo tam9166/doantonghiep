@@ -19,7 +19,14 @@ describe('kitchen, dispatch and reservation flow contracts', () => {
     const adminOrder = source('./AdminOrder.vue')
     expect(adminOrder).toContain('/dispatch-to-kitchen')
     expect(adminOrder).toContain('getApiErrorMessage(error')
+    expect(adminOrder).toContain('verifyKitchenDispatch')
+    expect(adminOrder).toContain('isKitchenDispatchComplete')
     expect(adminOrder).not.toContain('Vui lòng kiểm tra quyền.')
+    expect(adminOrder).toContain('dispatchingOrderId')
+    expect(adminOrder).toContain("Đã chuyển đơn xuống bếp.")
+    expect(adminOrder).toContain('Đơn đã chuyển bếp thành công nhưng chưa thể làm mới danh sách. Vui lòng tải lại.')
+    expect(adminOrder).toContain(":disabled=\"dispatchingOrderId !== null\"")
+    expect(adminOrder).toContain("dispatchingOrderId === order.id ? 'Đang chuyển...' : 'Chuyển Bếp'")
   })
 
   it('catches Step 7 quote failures and routes from the returned payable amount', () => {

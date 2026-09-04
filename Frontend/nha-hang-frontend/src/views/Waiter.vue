@@ -1577,7 +1577,8 @@ onUnmounted(() => {
   margin: 0 0 5px 0;
   font-size: 1.2rem;
   font-weight: 900;
-  color: #FFFFFF;
+  color: var(--text-heading);
+  text-shadow: none;
 }
 .tc-subtitle {
   margin: 0;
@@ -1795,8 +1796,8 @@ onUnmounted(() => {
   font-size: 1.4rem !important;
   line-height: 1.2;
   font-weight: 900 !important;
-  color: var(--primary);
-  text-shadow: 0 1px 0 var(--bg-card);
+  color: var(--text-heading);
+  text-shadow: none;
 }
 .table-location { margin: 2px 0 5px; color: var(--text-muted); font-size: 0.72rem; }
 .no-img-icon { font-size: 1.2rem; }

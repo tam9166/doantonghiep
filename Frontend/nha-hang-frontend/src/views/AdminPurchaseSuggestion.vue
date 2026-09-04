@@ -154,12 +154,17 @@
           <header class="modal-heading"><div><h2 id="approval-title">Nhập Lô Mới</h2><p>{{ approvalItem.name }} · đề xuất {{ approvalItem.suggestedAmount }} {{ approvalItem.unit }}</p></div><button class="icon-close" aria-label="Đóng" @click="closeApproval"><UiIcon name="x" /></button></header>
           <div class="approval-body">
             <label>Nhà cung cấp *<input v-model.trim="approvalForm.supplier" class="g-form-control" maxlength="255"></label>
-            <label>Số lượng ({{ approvalItem.unit }}) *<input v-model.number="approvalForm.quantity" class="g-form-control" type="number" min="0.01" step="0.1"></label>
-            <label>Đơn giá thực tế (đ/{{ approvalItem.unit }}) *<input v-model.number="approvalForm.unitPrice" class="g-form-control" type="number" min="1" step="500"></label>
+            <label>Số lượng ({{ approvalItem.unit }}) *<input v-model="approvalForm.quantity" class="g-form-control" type="text" inputmode="decimal" autocomplete="off"></label>
+            <div class="previous-price-box">
+              <span>Đơn giá nhập gần nhất</span>
+              <strong>{{ formatVnd(approvalItem.previousUnitPrice) }}</strong>
+            </div>
+            <label>Đơn giá thực tế (đ/{{ approvalItem.unit }}) *<input v-model="approvalForm.unitPrice" class="g-form-control" type="text" inputmode="decimal" autocomplete="off"></label>
             <label>Hạn sử dụng *<input v-model="approvalForm.expirationDate" class="g-form-control" type="date" :min="tomorrow"></label>
             <label class="wide">Ghi chú<textarea v-model.trim="approvalForm.note" class="g-form-control" rows="2" maxlength="500"></textarea></label>
+            <p v-if="approvalError" class="form-error" role="alert">{{ approvalError }}</p>
           </div>
-          <footer class="modal-footer"><button class="g-btn-secondary" :disabled="approvingId !== null" @click="closeApproval">Hủy</button><button class="g-btn-primary" :disabled="!approvalValid || approvingId !== null" @click="submitApproval">{{ approvingId !== null ? 'Đang nhập kho...' : 'Xác nhận nhập kho' }}</button></footer>
+          <footer class="modal-footer"><button class="g-btn-secondary" :disabled="approvingId !== null" @click="closeApproval">Hủy</button><button class="g-btn-primary" :disabled="approvingId !== null" @click="submitApproval">{{ approvingId !== null ? 'Đang nhập kho...' : 'Xác nhận nhập kho' }}</button></footer>
         </section>
       </div>
 
@@ -168,10 +173,11 @@
           <header class="modal-heading"><div><h2 id="batch-title">Duyệt đề xuất theo lô</h2><p>Bổ sung dữ liệu thật trước khi tạo lô kho; hệ thống không tự đặt giá, HSD hoặc nhà cung cấp.</p></div><button class="icon-close" aria-label="Đóng" @click="closeBatchReview"><UiIcon name="x" /></button></header>
           <div class="batch-body">
             <label class="batch-supplier">Nhà cung cấp dùng chung *<input v-model.trim="batchSupplier" class="g-form-control" maxlength="255"></label>
-            <div class="batch-table-wrap"><table class="g-table"><thead><tr><th>Nguyên liệu</th><th>Số lượng</th><th>Đơn giá thực tế</th><th>Đơn giá nhập trước đó</th><th>Hạn sử dụng</th><th>Trạng thái</th></tr></thead><tbody><tr v-for="row in batchRows" :key="row.ingredientId"><td><strong>{{ row.name }}</strong><small>{{ row.unit }}</small></td><td><input v-model.number="row.quantity" type="number" min="0.01" step="0.1" class="g-form-control"></td><td><input v-model.number="row.unitPrice" type="number" min="1" step="500" class="g-form-control"><small v-if="priceDeltaText(row)" :class="priceDeltaClass(row)">{{ priceDeltaText(row) }}</small></td><td><strong>{{ formatVnd(row.previousUnitPrice) }}</strong></td><td><input v-model="row.expirationDate" type="date" :min="tomorrow" class="g-form-control"></td><td><span :class="rowValid(row) ? 'row-ready' : 'row-missing'">{{ rowValid(row) ? 'Sẵn sàng' : 'Thiếu thông tin' }}</span></td></tr></tbody></table></div>
+            <div class="batch-table-wrap"><table class="g-table"><thead><tr><th>Nguyên liệu</th><th>Số lượng</th><th>Đơn giá thực tế</th><th>Đơn giá nhập trước đó</th><th>Hạn sử dụng</th><th>Trạng thái</th><th>Xóa</th></tr></thead><tbody><tr v-for="(row, index) in batchRows" :key="row.ingredientId"><td><strong>{{ row.name }}</strong><small>{{ row.unit }}</small></td><td><input v-model="row.quantity" type="text" inputmode="decimal" autocomplete="off" class="g-form-control"></td><td><input v-model="row.unitPrice" type="text" inputmode="decimal" autocomplete="off" class="g-form-control"><small v-if="priceDeltaText(row)" :class="priceDeltaClass(row)">{{ priceDeltaText(row) }}</small></td><td><strong>{{ formatVnd(row.previousUnitPrice) }}</strong></td><td><input v-model="row.expirationDate" type="date" :min="tomorrow" class="g-form-control"></td><td><span :class="rowValid(row) ? 'row-ready' : 'row-missing'">{{ rowValid(row) ? 'Sẵn sàng' : 'Thiếu thông tin' }}</span></td><td><button class="line-remove-btn" type="button" title="Xóa dòng đề xuất" aria-label="Xóa dòng đề xuất" :disabled="batchSubmitting" @click="batchRows.splice(index, 1)"><UiIcon name="trash" /></button></td></tr></tbody></table></div>
+            <p v-if="batchError" class="form-error" role="alert">{{ batchError }}</p>
             <div v-if="batchResult" class="batch-result"><strong>Đã xử lý {{ batchResult.successCount }}/{{ batchRows.length }} đề xuất.</strong><p v-if="batchResult.failureCount">{{ batchResult.failureCount }} đề xuất chưa thành công.</p><ul v-if="batchResult.failures?.length"><li v-for="failure in batchResult.failures" :key="failure.ingredientId">{{ ingredientName(failure.ingredientId) }}: {{ failure.reason }}</li></ul></div>
           </div>
-          <footer class="modal-footer"><button class="g-btn-primary" :disabled="!batchCanSubmit || batchSubmitting" @click="submitBatchApproval">{{ batchSubmitting ? 'Đang xử lý...' : `Xác nhận ${batchRows.length} đề xuất` }}</button></footer>
+          <footer class="modal-footer"><button class="g-btn-primary" :disabled="batchSubmitting" @click="submitBatchApproval">{{ batchSubmitting ? 'Đang xử lý...' : `Xác nhận ${batchRows.length} đề xuất` }}</button></footer>
         </section>
       </div>
     </main>
@@ -194,23 +200,51 @@ const showAiModal = ref(false);
 const aiLoading = ref(false);
 const aiAnalysisItems = ref([]);
 const approvalItem = ref(null);
-const approvalForm = ref({ supplier: '', quantity: null, unitPrice: null, expirationDate: '', note: '', requestId: '' });
+const approvalForm = ref({ supplier: '', quantity: '', unitPrice: '', expirationDate: '', note: '', requestId: '' });
+const approvalError = ref('');
 const approvingId = ref(null);
 const showBatchModal = ref(false);
 const batchRows = ref([]);
 const batchSupplier = ref('');
 const batchSubmitting = ref(false);
 const batchResult = ref(null);
+const batchError = ref('');
 const toast = useToast();
 const { confirmDialog } = useDialog();
 
 const getToken = () => sessionStorage.getItem('staff_token');
 const configHeader = () => ({ headers: { 'Authorization': `Bearer ${getToken()}` } });
 const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
-const approvalValid = computed(() => approvalForm.value.supplier && Number(approvalForm.value.quantity) > 0
-  && Number(approvalForm.value.unitPrice) > 0 && approvalForm.value.expirationDate >= tomorrow);
-const rowValid = row => Number(row.quantity) > 0 && Number(row.unitPrice) > 0 && row.expirationDate >= tomorrow;
-const batchCanSubmit = computed(() => batchSupplier.value && batchRows.value.length > 0 && batchRows.value.every(rowValid));
+const normalizeDecimalInput = value => String(value ?? '').trim().replace(/\s+/g, '').replace(',', '.');
+const parseDecimalInput = value => {
+  const normalized = normalizeDecimalInput(value);
+  if (!normalized) return Number.NaN;
+  const amount = Number(normalized);
+  return Number.isFinite(amount) ? amount : Number.NaN;
+};
+const decimalPayload = value => normalizeDecimalInput(value);
+const approvalValidationMessage = computed(() => {
+  if (!String(approvalForm.value.supplier || '').trim()) return 'Vui lòng nhập nhà cung cấp.';
+  if (!(parseDecimalInput(approvalForm.value.quantity) > 0)) return 'Số lượng nhập không hợp lệ.';
+  if (!(parseDecimalInput(approvalForm.value.unitPrice) > 0)) return 'Đơn giá phải lớn hơn 0.';
+  if (!approvalForm.value.expirationDate || approvalForm.value.expirationDate < tomorrow) return 'Hạn sử dụng không hợp lệ.';
+  return '';
+});
+const approvalValid = computed(() => !approvalValidationMessage.value);
+const rowValid = row => parseDecimalInput(row.quantity) > 0
+  && parseDecimalInput(row.unitPrice) > 0
+  && row.expirationDate >= tomorrow;
+const batchValidationMessage = computed(() => {
+  if (!String(batchSupplier.value || '').trim()) return 'Vui lòng nhập nhà cung cấp.';
+  if (!batchRows.value.length) return 'Không có đề xuất nào để nhập kho.';
+  for (const row of batchRows.value) {
+    if (!(parseDecimalInput(row.quantity) > 0)) return `Số lượng nhập không hợp lệ cho ${row.name}.`;
+    if (!(parseDecimalInput(row.unitPrice) > 0)) return `Đơn giá phải lớn hơn 0 cho ${row.name}.`;
+    if (!row.expirationDate || row.expirationDate < tomorrow) return `Hạn sử dụng không hợp lệ cho ${row.name}.`;
+  }
+  return '';
+});
+const batchCanSubmit = computed(() => !batchValidationMessage.value);
 const requestId = prefix => `${prefix}-${globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`}`;
 const expirationPayload = date => new Date(`${date}T12:00:00+07:00`).toISOString();
 
@@ -232,24 +266,42 @@ const fetchSuggestions = async () => {
 
 const openApproval = item => {
   if (item.approved || approvingId.value !== null) return;
+  approvalError.value = '';
   approvalItem.value = item;
+  const previousUnitPrice = Number(item.previousUnitPrice || 0);
   approvalForm.value = {
-    supplier: '', quantity: Number(item.suggestedAmount), unitPrice: null, expirationDate: '',
+    supplier: '', quantity: String(item.suggestedAmount ?? ''), unitPrice: previousUnitPrice > 0 ? String(previousUnitPrice) : '', expirationDate: '',
     note: 'Duyệt đề xuất mua hàng', requestId: requestId(`suggestion-${item.ingredientId}`)
   };
 };
-const closeApproval = () => { if (approvingId.value === null) approvalItem.value = null; };
+const closeApproval = () => {
+  if (approvingId.value === null) {
+    approvalItem.value = null;
+    approvalError.value = '';
+  }
+};
 const submitApproval = async () => {
   const item = approvalItem.value;
-  if (!item || !approvalValid.value || approvingId.value !== null) return;
+  if (!item || approvingId.value !== null) return;
+  approvalError.value = '';
+  if (!approvalValid.value) {
+    approvalError.value = approvalValidationMessage.value;
+    toast.error(approvalError.value);
+    return;
+  }
   approvingId.value = item.ingredientId;
   try {
     await api.post(
       `/api/admin/purchase-suggestions/approve/${item.ingredientId}`,
-      { ...approvalForm.value, expirationDate: expirationPayload(approvalForm.value.expirationDate) }, configHeader()
+      {
+        ...approvalForm.value,
+        quantity: decimalPayload(approvalForm.value.quantity),
+        unitPrice: decimalPayload(approvalForm.value.unitPrice),
+        expirationDate: expirationPayload(approvalForm.value.expirationDate)
+      }, configHeader()
     );
     item.approved = true;
-    toast.success(`Đã nhập kho ${approvalForm.value.quantity} ${item.unit} ${item.name}.`);
+    toast.success('Nhập kho thành công.');
     approvalItem.value = null;
     await fetchSuggestions();
   } catch (err) { toast.error(getApiErrorMessage(err, 'Không thể duyệt đề xuất nhập kho.')); }
@@ -259,25 +311,39 @@ const submitApproval = async () => {
 const openBatchReview = () => {
   batchRows.value = suggestions.value.filter(item => Number(item.suggestedAmount) > 0 && !item.approved).map(item => ({
     ingredientId: item.ingredientId, name: item.name, unit: item.unit,
-    quantity: Number(item.suggestedAmount), unitPrice: null, expirationDate: '',
+    quantity: String(item.suggestedAmount ?? ''),
+    unitPrice: Number(item.previousUnitPrice || 0) > 0 ? String(item.previousUnitPrice) : '',
+    expirationDate: '',
     previousUnitPrice: item.previousUnitPrice ?? null,
     requestId: requestId(`batch-${item.ingredientId}`)
   }));
   batchSupplier.value = '';
   batchResult.value = null;
+  batchError.value = '';
   showBatchModal.value = true;
 };
-const closeBatchReview = () => { if (!batchSubmitting.value) showBatchModal.value = false; };
+const closeBatchReview = () => {
+  if (!batchSubmitting.value) {
+    showBatchModal.value = false;
+    batchError.value = '';
+  }
+};
 const ingredientName = id => batchRows.value.find(row => row.ingredientId === id)?.name || `Nguyên liệu #${id}`;
 const submitBatchApproval = async () => {
-  if (!batchCanSubmit.value || batchSubmitting.value) return;
+  if (batchSubmitting.value) return;
+  batchError.value = '';
+  if (!batchCanSubmit.value) {
+    batchError.value = batchValidationMessage.value;
+    toast.error(batchError.value);
+    return;
+  }
   if (!await confirmDialog({ title: 'Xác nhận nhập kho', message: `Tạo ${batchRows.value.length} lô nhập với dữ liệu vừa kiểm tra?`, confirmLabel: 'Xác nhận', danger: false })) return;
   batchSubmitting.value = true;
   batchResult.value = null;
   try {
     const { data } = await api.post('/api/admin/purchase-suggestions/approve-batch', { items: batchRows.value.map(row => ({
       ingredientId: row.ingredientId,
-      approval: { quantity: row.quantity, unitPrice: row.unitPrice, expirationDate: expirationPayload(row.expirationDate), supplier: batchSupplier.value, note: 'Duyệt hàng loạt đề xuất mua hàng', requestId: row.requestId }
+      approval: { quantity: decimalPayload(row.quantity), unitPrice: decimalPayload(row.unitPrice), expirationDate: expirationPayload(row.expirationDate), supplier: batchSupplier.value, note: 'Duyệt hàng loạt đề xuất mua hàng', requestId: row.requestId }
     })) }, configHeader());
     batchResult.value = data;
     toast[data.failureCount ? 'warning' : 'success'](`Đã xử lý ${data.successCount}/${batchRows.value.length} đề xuất.${data.failureCount ? ` ${data.failureCount} đề xuất cần kiểm tra.` : ''}`);
@@ -310,7 +376,7 @@ const formatCompactVnd = (value) => {
 
 const priceDeltaText = row => {
   const previous = Number(row.previousUnitPrice || 0);
-  const current = Number(row.unitPrice || 0);
+  const current = parseDecimalInput(row.unitPrice);
   if (previous <= 0 || current <= 0) return '';
   const delta = current - previous;
   if (delta === 0) return 'Bằng đơn giá trước';
@@ -318,7 +384,7 @@ const priceDeltaText = row => {
 };
 
 const priceDeltaClass = row => {
-  const delta = Number(row.unitPrice || 0) - Number(row.previousUnitPrice || 0);
+  const delta = parseDecimalInput(row.unitPrice) - Number(row.previousUnitPrice || 0);
   return delta > 0 ? 'price-delta-up' : delta < 0 ? 'price-delta-down' : 'price-delta-flat';
 };
 
@@ -418,12 +484,20 @@ onMounted(fetchSuggestions);
 .approval-body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; overflow-y: auto; padding: 20px 22px; }
 .approval-body label, .batch-supplier { display: grid; gap: 7px; color: var(--text-secondary); font-size: .82rem; font-weight: 800; }
 .approval-body .wide { grid-column: 1 / -1; }
+.form-error { grid-column: 1 / -1; margin: 0; padding: 10px 12px; border: 1px solid #fecaca; border-radius: 9px; background: #fff1f2; color: #9f1239; font-weight: 800; }
+.previous-price-box { display: grid; align-content: center; gap: 6px; min-height: 68px; padding: 11px 13px; border: 1px dashed color-mix(in srgb, var(--secondary) 42%, var(--border)); border-radius: 10px; background: color-mix(in srgb, var(--secondary) 8%, #fff); }
+.previous-price-box span { color: var(--text-muted); font-size: .74rem; font-weight: 850; letter-spacing: .04em; text-transform: uppercase; }
+.previous-price-box strong { color: var(--primary); font-size: .98rem; font-weight: 900; }
 .modal-footer { flex: 0 0 auto; display: flex; justify-content: flex-end; gap: 10px; padding: 16px 22px; border-top: 1px solid var(--border); background: #fffaf8; }
 .batch-supplier { max-width: 480px; margin-bottom: 16px; }
 .batch-table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: 10px; }
-.batch-table-wrap table { min-width: 840px; }
+.batch-table-wrap table { min-width: 940px; }
 .batch-table-wrap input { min-width: 130px; }
 .batch-table-wrap small { display: block; margin-top: 3px; color: var(--text-muted); }
+.line-remove-btn { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 1px solid color-mix(in srgb, var(--primary) 30%, var(--border)); border-radius: 8px; background: #fff7f8; color: var(--primary); cursor: pointer; }
+.line-remove-btn:hover:not(:disabled) { background: var(--primary); color: var(--color-on-primary); border-color: var(--primary); }
+.line-remove-btn:disabled { opacity: .55; cursor: wait; }
+.line-remove-btn .ui-icon { width: 16px; height: 16px; flex-basis: 16px; }
 .row-ready, .row-missing { display: inline-flex; padding: 4px 9px; border-radius: 999px; font-size: .75rem; font-weight: 800; white-space: nowrap; }
 .row-ready { color: #17653b; background: #eaf7ef; }
 .row-missing { color: #8a5a06; background: #fff6df; }

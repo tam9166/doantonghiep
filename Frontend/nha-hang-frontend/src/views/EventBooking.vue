@@ -70,19 +70,56 @@
           ><input v-model="form.preorderEnabled" type="checkbox" /> Đặt món
           trước cho sự kiện</label
         >
-        <div v-if="form.preorderEnabled">
-          <strong>Chọn món trước</strong
-          ><button
-            v-for="item in menu"
-            :key="item.id"
-            type="button"
-            @click="add(item)"
-          >
-            {{ item.nameVi }} · {{ money(item.price) }}
-          </button>
-          <p>
-            Món đã chọn: {{ cart.map((x) => x.name).join(", ") || "Chưa chọn" }}
-          </p>
+        <div v-if="form.preorderEnabled" class="event-menu-picker">
+          <div class="event-menu-main">
+            <div class="event-menu-toolbar">
+              <input v-model.trim="menuSearch" type="search" placeholder="Tìm món cho sự kiện" />
+              <select v-model="menuCategory">
+                <option value="">Tất cả nhóm món</option>
+                <option v-for="category in menuCategories" :key="category" :value="category">{{ category }}</option>
+              </select>
+            </div>
+            <div class="event-dish-grid">
+              <article v-for="item in pagedMenu" :key="item.id" :class="['event-dish-card', { unavailable: !isAvailable(item) }]">
+                <strong>{{ item.nameVi }}</strong>
+                <span>{{ item.categoryNameVi || "Món ăn" }}</span>
+                <b>{{ money(item.price) }}</b>
+                <small v-if="item.inventoryManaged">{{ Math.max(0, Number(item.availableQuantity || 0)) }} phần còn lại</small>
+                <small v-if="!isAvailable(item)" class="unavailable-note">Không khả dụng</small>
+                <button type="button" :disabled="!isAvailable(item)" @click="add(item)">
+                  {{ isAvailable(item) ? "Thêm món" : "Tạm hết" }}
+                </button>
+              </article>
+            </div>
+            <nav v-if="menuTotalPages > 1" class="event-menu-pagination" aria-label="Phân trang món sự kiện">
+              <button type="button" :disabled="menuPage === 1" @click="menuPage--">‹</button>
+              <button
+                v-for="page in menuPageButtons"
+                :key="page.key"
+                type="button"
+                :disabled="page.ellipsis"
+                :class="{ active: page.value === menuPage, ellipsis: page.ellipsis }"
+                @click="!page.ellipsis && (menuPage = page.value)"
+              >{{ page.label }}</button>
+              <button type="button" :disabled="menuPage === menuTotalPages" @click="menuPage++">›</button>
+            </nav>
+          </div>
+          <aside class="event-selected-panel">
+            <h3>Món đã chọn</h3>
+            <p v-if="!cart.length" class="empty-cart">Chưa chọn món nào.</p>
+            <div v-for="item in cart" :key="item.productId" :class="['event-cart-row', { invalid: !isCartItemValid(item) }]">
+              <strong>{{ item.name }}</strong>
+              <small v-if="item.invalidReason" class="unavailable-note">{{ item.invalidReason }}</small>
+              <div class="event-qty">
+                <button type="button" :disabled="!isCartItemValid(item)" @click="changeQty(item.productId, -1)">-</button>
+                <input :value="item.quantity" :disabled="!isCartItemValid(item)" type="number" min="1" :max="item.availableQuantity || undefined" @change="setQty(item, $event.target.value)" />
+                <button type="button" :disabled="!isCartItemValid(item)" @click="changeQty(item.productId, 1)">+</button>
+              </div>
+              <span>{{ isCartItemValid(item) ? money(item.price * item.quantity) : money(0) }}</span>
+              <button type="button" class="remove-dish" @click="remove(item.productId)">Xóa</button>
+            </div>
+            <strong class="event-cart-total">Tổng: {{ money(cartTotal) }}</strong>
+          </aside>
         </div>
         <label
           >Ghi chú<textarea v-model.trim="form.eventNote" maxlength="500" />
@@ -118,7 +155,7 @@
   </main>
 </template>
 <script setup>
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { RouterLink } from "vue-router";
 import api from "@/services/api";
 import { toBusinessDate } from "@/utils/businessDate";
@@ -141,6 +178,10 @@ const form = ref({
 const areas = ref([]);
 const menu = ref([]);
 const cart = ref([]);
+const menuSearch = ref("");
+const menuCategory = ref("");
+const menuPage = ref(1);
+const MENU_PAGE_SIZE = 10;
 const error = ref("");
 const submitting = ref(false);
 const result = ref(null);
@@ -155,6 +196,29 @@ const halls = computed(() =>
   ),
 );
 const selectedHall = computed(() => halls.value.find((area) => area.id === form.value.areaId));
+const menuCategories = computed(() => [...new Set(menu.value.map((item) => item.categoryNameVi).filter(Boolean))]);
+const alcoholKeywords = ['bia', 'rượu', 'beer', 'lager', 'wine', 'vang', 'whisky', 'whiskey', 'vodka', 'gin', 'rum', 'soju', 'sake', 'cocktail', 'champagne', 'cognac', 'hennessy', 'chivas', 'johnnie', 'martell', 'remy'];
+const isAlcoholicItem = item => {
+  const content = `${item?.nameVi || ""} ${item?.descriptionVi || ""} ${item?.categoryNameVi || ""}`.toLocaleLowerCase("vi-VN");
+  return alcoholKeywords.some(keyword => content.includes(keyword));
+};
+const filteredMenu = computed(() => {
+  const keyword = menuSearch.value.toLowerCase();
+  return menu.value.filter((item) => {
+    const haystack = `${item.nameVi || ""} ${item.descriptionVi || ""} ${item.categoryNameVi || ""}`.toLowerCase();
+    return (!keyword || haystack.includes(keyword)) && (!menuCategory.value || item.categoryNameVi === menuCategory.value);
+  }).sort((a, b) => Number(isAvailable(b)) - Number(isAvailable(a))
+    || Number(isAlcoholicItem(a)) - Number(isAlcoholicItem(b))
+    || String(a.nameVi || "").localeCompare(String(b.nameVi || ""), "vi"));
+});
+const menuTotalPages = computed(() => Math.max(1, Math.ceil(filteredMenu.value.length / MENU_PAGE_SIZE)));
+const pagedMenu = computed(() => {
+  const start = (menuPage.value - 1) * MENU_PAGE_SIZE;
+  return filteredMenu.value.slice(start, start + MENU_PAGE_SIZE);
+});
+const menuPageButtons = computed(() => compactPageButtons(menuPage.value, menuTotalPages.value));
+const validCart = computed(() => cart.value.filter(isCartItemValid));
+const cartTotal = computed(() => validCart.value.reduce((total, item) => total + item.price * item.quantity, 0));
 const money = (v) =>
   Number(v || 0).toLocaleString("vi-VN", {
     style: "currency",
@@ -162,9 +226,110 @@ const money = (v) =>
     maximumFractionDigits: 0,
   });
 function add(i) {
+  if (!isAvailable(i)) {
+    error.value = `${i.nameVi} không còn khả dụng để đặt trước.`;
+    markCartItemInvalid(i.id, error.value);
+    return;
+  }
   const x = cart.value.find((x) => x.productId === i.id);
-  if (x) x.quantity++;
-  else cart.value.push({ productId: i.id, name: i.nameVi, quantity: 1 });
+  const limit = i.inventoryManaged ? Number(i.availableQuantity || 0) : Infinity;
+  if (x) {
+    if (x.quantity >= limit) {
+      error.value = `${i.nameVi} chỉ còn ${Math.max(0, limit)} phần.`;
+      return;
+    }
+    x.quantity++;
+    x.invalidReason = "";
+  } else {
+    cart.value.push({
+      productId: i.id,
+      name: i.nameVi,
+      price: Number(i.price || 0),
+      quantity: 1,
+      availableQuantity: i.inventoryManaged ? Number(i.availableQuantity || 0) : -1,
+      invalidReason: "",
+    });
+  }
+}
+function changeQty(productId, delta) {
+  const item = cart.value.find((row) => row.productId === productId);
+  if (!item || !isCartItemValid(item)) return;
+  const next = item.quantity + delta;
+  if (next <= 0) {
+    remove(productId);
+    return;
+  }
+  const limit = item.availableQuantity == null || item.availableQuantity < 0 ? Infinity : Number(item.availableQuantity);
+  if (next > limit) {
+    error.value = `${item.name} chỉ còn ${limit} phần.`;
+    return;
+  }
+  item.quantity = next;
+}
+function setQty(item, rawValue) {
+  if (!isCartItemValid(item)) return;
+  const parsed = Number.parseInt(rawValue, 10);
+  const limit = item.availableQuantity == null || item.availableQuantity < 0 ? Infinity : Number(item.availableQuantity);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    item.quantity = 1;
+    return;
+  }
+  if (parsed > limit) {
+    item.quantity = limit;
+    error.value = `${item.name} chỉ còn ${limit} phần.`;
+    return;
+  }
+  item.quantity = parsed;
+}
+function remove(productId) {
+  cart.value = cart.value.filter((item) => item.productId !== productId);
+}
+function isAvailable(item) {
+  if (!item || item.available === false) return false;
+  if (item.inventoryManaged) return Number(item.availableQuantity || 0) > 0;
+  return true;
+}
+function isCartItemValid(item) {
+  return Boolean(item && !item.invalidReason && (item.availableQuantity == null || item.availableQuantity < 0 || item.quantity <= item.availableQuantity));
+}
+function markCartItemInvalid(productId, reason) {
+  const item = cart.value.find((row) => row.productId === productId);
+  if (item) item.invalidReason = reason;
+}
+function syncCartAvailability() {
+  cart.value.forEach((item) => {
+    const dish = menu.value.find((row) => row.id === item.productId);
+    if (!dish || !isAvailable(dish)) {
+      item.availableQuantity = 0;
+      item.invalidReason = `${item.name} không còn khả dụng để đặt trước.`;
+      return;
+    }
+    item.availableQuantity = dish.inventoryManaged ? Number(dish.availableQuantity || 0) : -1;
+    if (dish.inventoryManaged && item.quantity > item.availableQuantity) {
+      item.quantity = Math.max(1, item.availableQuantity);
+      item.invalidReason = `${item.name} chỉ còn ${item.availableQuantity} phần.`;
+      return;
+    }
+    item.invalidReason = "";
+  });
+}
+function validateCart() {
+  syncCartAvailability();
+  const invalid = cart.value.find((item) => !isCartItemValid(item));
+  if (!invalid) return true;
+  error.value = invalid.invalidReason || "Có món không còn khả dụng.";
+  return false;
+}
+function compactPageButtons(current, total) {
+  const pages = new Set([1, total, current - 1, current, current + 1]);
+  const valid = [...pages].filter((page) => page >= 1 && page <= total).sort((a, b) => a - b);
+  const result = [];
+  valid.forEach((page, index) => {
+    const previous = valid[index - 1];
+    if (previous && page - previous > 1) result.push({ key: `ellipsis-${previous}-${page}`, label: "…", ellipsis: true });
+    result.push({ key: `page-${page}`, label: String(page), value: page, ellipsis: false });
+  });
+  return result;
 }
 onMounted(async () => {
   try {
@@ -179,19 +344,21 @@ onMounted(async () => {
     };
     areas.value = (await api.get("/api/areas")).data || [];
     menu.value = (await api.get("/api/menu-items/preorder")).data || [];
+    syncCartAvailability();
   } catch {
     error.value = "Không tải được danh sách sảnh sự kiện.";
   }
 });
 async function submit() {
   if (submitting.value) return;
+  if (form.value.preorderEnabled && !validateCart()) return;
   submitting.value = true;
   error.value = "";
   try {
     result.value = (
       await api.post("/api/event-bookings", {
         ...form.value,
-        preorderItems: cart.value.map((x) => ({
+        preorderItems: validCart.value.map((x) => ({
           productId: x.productId,
           quantity: x.quantity,
         })),
@@ -224,6 +391,8 @@ async function submit() {
     submitting.value = false;
   }
 }
+watch([menuSearch, menuCategory], () => { menuPage.value = 1; });
+watch(filteredMenu, () => { menuPage.value = Math.max(1, Math.min(menuPage.value, menuTotalPages.value)); });
 </script>
 <style scoped>
 .event-page {
@@ -270,7 +439,7 @@ async function submit() {
 .event-page > section {
   position: relative;
   z-index: 1;
-  max-width: 900px;
+  max-width: 1180px;
   margin: auto;
   padding: 38px 42px;
   border: 1px solid #efd4d4;
@@ -355,6 +524,134 @@ form > button,
 label:last-of-type {
   grid-column: 1 / -1;
 }
+.event-menu-picker {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
+  gap: 18px;
+  align-items: start;
+}
+.event-menu-main {
+  min-width: 0;
+}
+.event-menu-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 240px);
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.event-dish-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.event-dish-card {
+  display: grid;
+  gap: 7px;
+  padding: 14px;
+  border: 1px solid #efd4d4;
+  border-radius: 12px;
+  background: #fffdfd;
+}
+.event-dish-card.unavailable {
+  opacity: .68;
+}
+.event-dish-card span,
+.event-dish-card small {
+  color: #766568;
+}
+.event-dish-card b,
+.event-cart-total {
+  color: #be0b2f;
+}
+.unavailable-note {
+  color: #a32626;
+  font-weight: 850;
+}
+.event-selected-panel {
+  position: sticky;
+  top: 18px;
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid #efd4d4;
+  border-radius: 12px;
+  background: #fff9f8;
+}
+.event-selected-panel h3 {
+  margin: 0;
+}
+.empty-cart {
+  margin: 0;
+  color: #766568;
+}
+.event-cart-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 10px 0;
+  border-top: 1px dashed #efd4d4;
+}
+.event-cart-row.invalid {
+  padding: 10px;
+  border-radius: 10px;
+  background: #fff0ef;
+}
+.event-cart-row strong,
+.event-cart-row small,
+.event-cart-row .event-qty,
+.event-cart-row .remove-dish {
+  grid-column: 1 / -1;
+}
+.event-qty {
+  display: inline-grid;
+  grid-template-columns: 32px 52px 32px;
+  width: max-content;
+  height: 36px;
+}
+.event-qty button,
+.event-qty input {
+  width: auto;
+  min-width: 0;
+  min-height: 36px;
+  height: 36px;
+  padding: 0;
+  text-align: center;
+}
+.event-qty input {
+  border-inline: 0;
+  border-radius: 0;
+}
+.remove-dish {
+  min-height: 38px;
+  background: #fff;
+  color: #be0b2f;
+  border: 1px solid #efd4d4;
+}
+.event-menu-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+.event-menu-pagination button {
+  min-width: 38px;
+  min-height: 38px;
+  padding: 6px 10px;
+  background: #fff;
+  color: #be0b2f;
+  border: 1px solid #efd4d4;
+}
+.event-menu-pagination button.active {
+  background: #be0b2f;
+  color: #fff;
+}
+.event-menu-pagination button.ellipsis {
+  background: transparent;
+  border-color: transparent;
+  color: #766568;
+  cursor: default;
+}
 textarea {
   min-height: 110px;
   resize: vertical;
@@ -413,6 +710,13 @@ button:disabled {
   form {
     grid-template-columns: 1fr;
   }
+  .event-menu-picker,
+  .event-menu-toolbar {
+    grid-template-columns: 1fr;
+  }
+  .event-selected-panel {
+    position: static;
+  }
   .event-payment-qr { grid-template-columns: 1fr; }
   .event-payment-qr img { width: 100%; height: auto; }
   form > *,
@@ -423,5 +727,31 @@ button:disabled {
   .event-page::after {
     font-size: 120px;
   }
+}
+.event-menu-picker .event-menu-pagination button,
+.event-menu-picker .event-qty button,
+.event-menu-picker .remove-dish {
+  border: 1px solid #efd4d4;
+  background: #fff;
+  color: #be0b2f;
+}
+.event-menu-picker .event-menu-pagination button.active,
+.event-menu-picker .event-dish-card button {
+  background: linear-gradient(135deg, #b90b2d, #d30d3a);
+  color: #fff;
+  border-color: transparent;
+}
+.event-menu-picker .event-menu-pagination button.ellipsis {
+  background: transparent;
+  border-color: transparent;
+  color: #766568;
+}
+.event-menu-picker .event-qty input {
+  width: 52px;
+  min-width: 0;
+  min-height: 36px;
+  height: 36px;
+  padding: 0 4px;
+  text-align: center;
 }
 </style>

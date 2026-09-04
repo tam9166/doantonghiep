@@ -28,6 +28,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import jakarta.validation.Valid;
 
@@ -92,7 +93,22 @@ public class AdminOrderController {
 
     @GetMapping
     @Transactional(readOnly = true)
-    public ResponseEntity<?> getAllOrders(@RequestParam(defaultValue = "200") int limit) {
+    public ResponseEntity<?> getAllOrders(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "200") int limit) {
+        if (page != null) {
+            int safePage = Math.max(0, page);
+            int safeSize = Math.max(1, Math.min(size, 100));
+            PageRequest pageRequest = PageRequest.of(safePage, safeSize);
+            List<Integer> ids = orderRepository.findRecentOrderIds(pageRequest);
+            List<OrderResponse> orders = (ids.isEmpty() ? List.<Order>of() : orderRepository.findAllWithDetailsByIdIn(ids)).stream()
+                    .sorted((o1, o2) -> o2.getId().compareTo(o1.getId()))
+                    .map(OrderResponse::from)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(new PageImpl<>(orders, pageRequest, orderRepository.count()));
+        }
+
         int safeLimit = Math.max(1, Math.min(limit, 500));
         List<Integer> ids = orderRepository.findRecentOrderIds(PageRequest.of(0, safeLimit));
         List<Order> orders = (ids.isEmpty() ? List.<Order>of() : orderRepository.findAllWithDetailsByIdIn(ids)).stream()
@@ -197,6 +213,13 @@ public class AdminOrderController {
             boolean shouldAwardPoints = status == OrderStatus.COMPLETED.code()
                     && order.getStatus() != OrderStatus.COMPLETED.code()
                     && Boolean.TRUE.equals(order.getIsPaid());
+            if (status == OrderStatus.PARTIALLY_READY.code() && order.getOrderDetails() != null) {
+                Date startedAt = new Date();
+                order.getOrderDetails().stream()
+                        .filter(detail -> !Integer.valueOf(3).equals(detail.getStatus()))
+                        .filter(detail -> detail.getStartedAt() == null)
+                        .forEach(detail -> detail.setStartedAt(startedAt));
+            }
             if (status == 7 && order.getOrderDetails() != null) {
                 order.getOrderDetails().stream()
                         .filter(detail -> Integer.valueOf(1).equals(detail.getStatus()))
@@ -220,6 +243,15 @@ public class AdminOrderController {
             
             return ResponseEntity.ok("Cập nhật trạng thái thành công!");
         }).orElse(ResponseEntity.badRequest().body("Không tìm thấy đơn hàng!"));
+    }
+
+    @PutMapping("/{id}/confirm-payment")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'CASHIER')")
+    @Transactional
+    public ResponseEntity<?> confirmTransferPayment(@PathVariable Integer id) {
+        String actor = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication().getName();
+        return ResponseEntity.ok(OrderResponse.from(orderPaymentService.confirmTransferPayment(id, actor)));
     }
 
     @PutMapping("/{id}/pay")
