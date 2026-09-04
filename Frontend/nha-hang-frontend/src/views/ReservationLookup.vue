@@ -123,6 +123,12 @@
                 <div><dt>{{ t('reservationLookup.transferContent') }}</dt><dd>{{ latestPayment.transferContent }}</dd></div>
                 <div><dt>{{ t('reservationLookup.expiresAt') }}</dt><dd>{{ formatDateTime(latestPayment.expiresAt) }}</dd></div>
               </dl>
+              <p class="payment-status" :class="{ paid: latestPayment.status === 'PAID' }">
+                {{ t('reservationLookup.payment') }}: {{ paymentStatusText(latestPayment.status) }}
+              </p>
+              <button class="ghost-btn" type="button" @click="refreshLatestPayment" :disabled="qrLoading">
+                {{ qrLoading ? t('reservationLookup.refreshingPayment') : t('reservationLookup.refreshPayment') }}
+              </button>
               <button v-if="canRegenerateQr" class="ghost-btn" type="button" @click="regenerateQr" :disabled="qrLoading">
                 {{ qrLoading ? t('reservationLookup.creatingQr') : t('reservationLookup.regenerateQr') }}
               </button>
@@ -555,6 +561,28 @@ async function regenerateQr() {
     reservation.value.payments = [res.data, ...(reservation.value.payments || []).filter(item => item.paymentCode !== res.data.paymentCode)]
   } catch (err) {
     error.value = localizedApiMessage(err, t('reservationLookup.errors.regenerateQrFailed'))
+  } finally {
+    qrLoading.value = false
+  }
+}
+
+async function refreshLatestPayment() {
+  if (!latestPayment.value?.paymentCode || qrLoading.value) return
+  qrLoading.value = true
+  error.value = ''
+  try {
+    // PaymentIntent is the payment source of truth. Refresh it directly so a
+    // customer is not left showing PENDING when realtime delivery is delayed.
+    const res = await api.get(`/api/payments/${latestPayment.value.paymentCode}`, {
+      headers: paymentCapability.value ? { 'X-Payment-Capability': paymentCapability.value } : {}
+    })
+    reservation.value = {
+      ...reservation.value,
+      payments: [res.data, ...(reservation.value.payments || []).filter(item => item.paymentCode !== res.data.paymentCode)]
+    }
+    await refreshReservationSilently()
+  } catch (err) {
+    error.value = localizedApiMessage(err, t('reservationLookup.errors.paymentStatus'))
   } finally {
     qrLoading.value = false
   }

@@ -25,6 +25,8 @@ import java.util.Optional;
 public interface ReservationRepository extends JpaRepository<Reservation, Long> {
     Optional<Reservation> findByReservationCode(String reservationCode);
 
+    Optional<Reservation> findByKitchenOrderId(Integer kitchenOrderId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select r from Reservation r where r.id = :id")
     Optional<Reservation> findLockedById(@Param("id") Long id);
@@ -72,6 +74,20 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 
     List<Reservation> findByReservationDateAndReservationStatusIn(
             LocalDate reservationDate, Collection<ReservationStatus> statuses);
+
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {
+            "area", "table", "tableAssignments", "tableAssignments.table"
+    })
+    @Query("""
+            select distinct r from Reservation r
+            left join r.tableAssignments assignment
+            where (r.table.id = :tableId or assignment.table.id = :tableId)
+              and r.reservationStatus in :statuses
+            order by r.reservationDate asc, r.arrivalTime asc, r.id desc
+            """)
+    List<Reservation> findCashierActiveByTableId(
+            @Param("tableId") Integer tableId,
+            @Param("statuses") Collection<ReservationStatus> statuses);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""

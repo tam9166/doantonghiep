@@ -38,7 +38,7 @@
             <h4>{{ areaName }}</h4>
             <div class="table-grid">
               <div v-for="table in tablesInArea" :key="table.id"
-                :class="['table-box', getTableClass(table.isOccupied), { 'selected-table': selectedOrder && orderMatchesTable(selectedOrder, table), 'payment-priority': cashierTableStatus(table) === 'WAITING_PAYMENT' }]"
+                :class="['table-box', getTableClass(table.isOccupied), { 'selected-table': (selectedOrder && orderMatchesTable(selectedOrder, table)) || Number(selectedReservation?.tableId) === Number(table.id), 'payment-priority': cashierTableStatus(table) === 'WAITING_PAYMENT' }]"
                 @click="selectOrderForTable(table)">
             <div class="tc-top">
               <span class="tc-capacity">{{ table.capacity || 4 }} người</span>
@@ -155,6 +155,44 @@
             {{ paymentSubmitting ? 'Đang xác nhận...' : selectedOrder.isPaid ? ' Đã Thanh Toán' : selectedOrder.paymentOption === 'PREPAID_TRANSFER' ? ' Chờ ngân hàng xác nhận' : ' Xác nhận thanh toán' }}
           </button>
         </div>
+      </div>
+
+      <div class="invoice-panel reservation-panel" v-else-if="selectedReservation || reservationLoading || reservationError">
+        <div v-if="reservationLoading" class="empty-state">Đang tải thông tin đặt bàn...</div>
+        <div v-else-if="reservationError" class="reservation-error">{{ reservationError }}</div>
+        <template v-else>
+          <section class="reservation-summary">
+            <h3>Thông tin đặt bàn</h3>
+            <dl class="reservation-facts">
+              <div><dt>Mã đặt bàn</dt><dd>{{ selectedReservation.reservationCode }}</dd></div>
+              <div><dt>Ngày phục vụ</dt><dd>{{ formatServiceDate(selectedReservation.reservationDate) }}</dd></div>
+              <div><dt>Giờ phục vụ</dt><dd>{{ selectedReservation.arrivalTime || 'Chưa xác định' }}</dd></div>
+              <div><dt>Số khách</dt><dd>{{ selectedReservation.guestCount || 0 }}</dd></div>
+            </dl>
+          </section>
+          <section class="reservation-summary">
+            <h3>Thanh toán</h3>
+            <div class="reservation-money"><span>Tổng giá trị</span><strong>{{ reservationMoney(selectedReservation.totalAmount) }}đ</strong></div>
+            <div class="reservation-money"><span>Đã cọc / thanh toán</span><strong>{{ reservationMoney(selectedReservation.paidAmount) }}đ</strong></div>
+            <div class="reservation-money due"><span>Còn phải thanh toán</span><strong>{{ reservationMoney(selectedReservation.remainingAmount) }}đ</strong></div>
+          </section>
+          <section class="reservation-summary">
+            <h3>Món đặt trước</h3>
+            <p v-if="!selectedReservation.preorderItems?.length" class="empty-state preorder-empty">Chưa đặt món trước</p>
+            <div v-else class="preorder-list">
+              <article v-for="item in selectedReservation.preorderItems" :key="item.id || item.productId" class="preorder-item">
+                <img v-if="item.productImage" :src="foodImage(item.productImage)" @error="replaceFoodImage" :alt="item.productName" />
+                <span v-else class="preorder-placeholder"><UiIcon name="dish" /></span>
+                <div class="preorder-info">
+                  <strong>{{ item.productName }}</strong>
+                  <span>{{ item.quantity }} × {{ reservationMoney(item.unitPrice) }}đ</span>
+                  <small v-if="item.note">Ghi chú: {{ item.note }}</small>
+                </div>
+                <strong>{{ reservationMoney(item.lineTotal) }}đ</strong>
+              </article>
+            </div>
+          </section>
+        </template>
       </div>
       
       <div v-else class="invoice-panel empty-invoice">
@@ -324,6 +362,9 @@ const router = useRouter();
 const pendingOrders = ref([]);
 const allOrders = ref([]);
 const selectedOrder = ref(null);
+const selectedReservation = ref(null);
+const reservationLoading = ref(false);
+const reservationError = ref('');
 const selectedTableIdentifier = ref('');
 const paymentQr = ref(null);
 const paymentQrLoading = ref(false);
@@ -428,6 +469,10 @@ const outstandingAmount = (order) => {
   return Number.isFinite(persisted) ? Math.max(0, persisted)
     : Math.max(0, calculateTotal(order) - confirmedPaidAmount(order));
 };
+const reservationMoney = value => Math.max(0, Number(value || 0)).toLocaleString('vi-VN');
+const formatServiceDate = value => value
+  ? new Intl.DateTimeFormat('vi-VN').format(new Date(`${value}T00:00:00`))
+  : 'Chưa xác định';
 
 const paymentSummary = (order) => {
   if (order.isPaid || order.paymentStatus === 'PAID' || order.paymentStatus === 'OVERPAID') {
@@ -476,11 +521,28 @@ const groupedCashierTables = computed(() => groupTablesByFloorAndArea(tables.val
   && (!selectedArea.value || tableArea(table) === selectedArea.value)
   && (!selectedTableStatus.value || cashierTableStatus(table) === selectedTableStatus.value))));
 
-const selectOrderForTable = (table) => {
-  if (table.isOccupied === 0 || table.isOccupied === 1) return;
+const selectOrderForTable = async (table) => {
+  selectedReservation.value = null;
+  reservationError.value = '';
+  if (Number(table.isOccupied) === 0) return;
+  if (Number(table.isOccupied) === 1) {
+    selectedOrder.value = null;
+    selectedTableIdentifier.value = tableIdentifier(table);
+    reservationLoading.value = true;
+    try {
+      const response = await api.get(`/api/cashier/tables/${table.id}/reservation`, configHeader());
+      selectedReservation.value = response.data;
+    } catch (error) {
+      reservationError.value = error.response?.data?.message || 'Không thể tải thông tin đặt bàn đã cọc.';
+    } finally {
+      reservationLoading.value = false;
+    }
+    return;
+  }
   const order = getOpenOrderForTable(table);
   if (order) {
     selectedOrder.value = order;
+    selectedReservation.value = null;
     selectedTableIdentifier.value = tableIdentifier(table);
     paymentQr.value = null;
     paymentQrError.value = '';
@@ -819,6 +881,24 @@ onUnmounted(() => {
   overflow-y: auto;
 }
 .empty-invoice { justify-content: center; align-items: center; color: var(--text-muted); font-style: italic; }
+.reservation-panel { gap: 14px; }
+.reservation-summary { padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-card); }
+.reservation-summary h3 { margin: 0 0 12px; color: var(--primary); text-transform: uppercase; font-size: 1rem; }
+.reservation-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0; }
+.reservation-facts div { min-width: 0; }
+.reservation-facts dt { color: var(--text-muted); font-size: .78rem; }
+.reservation-facts dd { margin: 3px 0 0; color: var(--text-heading); font-weight: 800; overflow-wrap: anywhere; }
+.reservation-money { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px dashed var(--border); color: var(--text-primary); }
+.reservation-money:last-child { border-bottom: 0; }
+.reservation-money.due { color: var(--primary); font-size: 1.05rem; }
+.preorder-empty { padding: 18px 8px; margin: 0; }
+.preorder-list { display: grid; gap: 10px; }
+.preorder-item { display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 9px; border: 1px solid var(--border-light); border-radius: 10px; }
+.preorder-item img, .preorder-placeholder { width: 46px; height: 46px; border-radius: 8px; object-fit: cover; display: grid; place-items: center; background: var(--bg-root); }
+.preorder-info { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
+.preorder-info strong { color: var(--text-heading); overflow-wrap: anywhere; }
+.preorder-info span, .preorder-info small { color: var(--text-muted); }
+.reservation-error { padding: 14px; border: 1px solid var(--danger); border-radius: 10px; color: var(--danger); background: color-mix(in srgb, var(--danger) 8%, transparent); }
 
 .invoice-paper {
   flex: 1;
@@ -979,5 +1059,8 @@ onUnmounted(() => {
   .invoice-paper {
     padding: 12px;
   }
+  .reservation-facts { grid-template-columns: 1fr; }
+  .preorder-item { grid-template-columns: 42px minmax(0, 1fr); }
+  .preorder-item > strong:last-child { grid-column: 2; }
 }
 </style>

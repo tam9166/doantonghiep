@@ -52,11 +52,15 @@ public class TableLifecycleService {
         }
         tables.forEach(table -> releaseGuard.prepareForRelease(table.getId()));
         for (RestaurantTable table : tables) {
-            if (Integer.valueOf(0).equals(table.getIsOccupied()) && table.getReservedTime() == null) {
+            if (Integer.valueOf(0).equals(table.getIsOccupied()) && table.getReservedTime() == null
+                    && table.getMergedIntoTableId() == null) {
                 continue;
             }
             table.setIsOccupied(0);
             table.setReservedTime(null);
+            table.setMergedIntoTableId(null);
+            table.setMergedAt(null);
+            table.setMergedBy(null);
             tableRepository.save(table);
             tableSessionService.revokeActiveForTable(table.getId());
         }
@@ -75,9 +79,14 @@ public class TableLifecycleService {
 
     @Transactional
     public RestaurantTable markCleaningAfterPayment(Integer tableId) {
+        return markCleaningAfterPayment(tableId, null);
+    }
+
+    @Transactional
+    public RestaurantTable markCleaningAfterPayment(Integer tableId, Integer selectedOrderId) {
         RestaurantTable table = tableRepository.findLockedById(tableId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy bàn"));
-        releaseGuard.prepareForRelease(tableId);
+        releaseGuard.prepareForRelease(tableId, selectedOrderId);
         table.setIsOccupied(3);
         table.setReservedTime("Đã thanh toán - chờ dọn");
         tableSessionService.revokeActiveForTable(tableId);

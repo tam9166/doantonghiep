@@ -46,4 +46,43 @@ class ReservationRequestValidationTest {
 
         assertTrue(validator.validate(request).isEmpty());
     }
+
+    @Test
+    void alignsReservationQuoteAndTableSuggestionWithTwoHundredSeatCapacity() {
+        ReservationRequest reservation = validReservation(200);
+
+        ReservationQuoteRequest quote = new ReservationQuoteRequest();
+        quote.setReservationDate("2026-09-06");
+        quote.setArrivalTime("18:00");
+        quote.setDurationMinutes(120);
+        quote.setGuestCount(200);
+
+        TableSuggestionRequest suggestion = new TableSuggestionRequest();
+        suggestion.setReservationDate("2026-09-06");
+        suggestion.setArrivalTime("18:00");
+        suggestion.setDurationMinutes(120);
+        suggestion.setGuestCount(200);
+
+        assertTrue(validator.validate(reservation).isEmpty());
+        assertTrue(validator.validate(quote).isEmpty());
+        assertTrue(validator.validate(suggestion).isEmpty());
+
+        reservation.setGuestCount(201);
+        quote.setGuestCount(201);
+        suggestion.setGuestCount(201);
+        assertFalse(validator.validate(reservation).isEmpty());
+        assertFalse(validator.validate(quote).isEmpty());
+        assertFalse(validator.validate(suggestion).isEmpty());
+    }
+
+    private ReservationRequest validReservation(int guestCount) {
+        ReservationRequest request = new ReservationRequest();
+        request.setCustomerName("Khách kiểm thử sức chứa");
+        request.setCustomerPhone("0901234567");
+        request.setReservationDate("2026-09-06");
+        request.setArrivalTime("18:00");
+        request.setExpectedDurationMinutes(120);
+        request.setGuestCount(guestCount);
+        return request;
+    }
 }

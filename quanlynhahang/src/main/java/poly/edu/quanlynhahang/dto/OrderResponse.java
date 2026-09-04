@@ -25,6 +25,12 @@ public record OrderResponse(Integer id, String orderCode, LocalDateTime schedule
         return from(order, details);
     }
 
+    public static OrderResponse from(Order order, LocalDateTime effectiveScheduledAt) {
+        List<OrderDetailResponse> details = order.getOrderDetails() == null ? List.of()
+                : order.getOrderDetails().stream().map(OrderDetailResponse::from).toList();
+        return from(order, details, effectiveScheduledAt);
+    }
+
     /** Kitchen receives only details that have not completed their kitchen lifecycle. */
     public static OrderResponse forKitchen(Order order) {
         List<OrderDetailResponse> details = order.getOrderDetails() == null ? List.of()
@@ -36,8 +42,13 @@ public record OrderResponse(Integer id, String orderCode, LocalDateTime schedule
     }
 
     private static OrderResponse from(Order order, List<OrderDetailResponse> details) {
+        return from(order, details, order.getScheduledAt());
+    }
+
+    private static OrderResponse from(Order order, List<OrderDetailResponse> details,
+                                      LocalDateTime effectiveScheduledAt) {
         RestaurantTable table = order.getRestaurantTable();
-        return new OrderResponse(order.getId(), order.getOrderCode(), order.getScheduledAt(), order.getCreateDate(), order.getAddress(), order.getStatus(),
+        return new OrderResponse(order.getId(), order.getOrderCode(), effectiveScheduledAt, order.getCreateDate(), order.getAddress(), order.getStatus(),
                 money(order.getOriginalSubtotal()), money(order.getMembershipDiscount()), money(order.getVoucherDiscount()),
                 money(order.getSubTotal()), money(order.getTaxAmount()), money(order.getTotalAmount()),
                 money(order.getDeposit()), order.getTableId(),

@@ -69,21 +69,82 @@ class OperationalOrderQueryScopeTest {
         assertEquals(List.of(), controller.getKitchenBoard().getBody());
 
         verify(repository).findKitchenBoardOrdersWithDetails(
-                eq(List.of(OrderStatus.IN_PREPARATION.code(), OrderStatus.PARTIALLY_READY.code())),
+                eq(List.of(OrderStatus.SCHEDULED.code(), OrderStatus.IN_PREPARATION.code(), OrderStatus.PARTIALLY_READY.code())),
                 eq(List.of(OrderStatus.READY.code(), OrderStatus.COMPLETED.code(), OrderStatus.SERVED.code())),
                 any(Date.class));
         verify(repository, never()).findAllWithDetails();
     }
 
     @Test
-    void waiterReadyQueueUsesDetailReadyStateAlongsideReadyOrderState() {
+    void waiterQueueUsesDishLifecycleInsteadOfParentOrderState() {
         OrderRepository repository = mock(OrderRepository.class);
-        when(repository.findWaiterReadyOrdersWithDetails(OrderStatus.READY.code(), 1)).thenReturn(List.of());
+        when(repository.findWaiterOperationalOrdersWithDetails(
+                List.of(OrderStatus.CANCELLED.code(), OrderStatus.COMPLETED.code()), List.of(0, 1)))
+                .thenReturn(List.of());
         poly.edu.quanlynhahang.controller.WaiterController controller = new poly.edu.quanlynhahang.controller.WaiterController();
         ReflectionTestUtils.setField(controller, "orderRepository", repository);
 
         assertEquals(List.of(), controller.getReadyOrders().getBody());
-        verify(repository).findWaiterReadyOrdersWithDetails(OrderStatus.READY.code(), 1);
+        verify(repository).findWaiterOperationalOrdersWithDetails(
+                List.of(OrderStatus.CANCELLED.code(), OrderStatus.COMPLETED.code()), List.of(0, 1));
+    }
+
+    @Test
+    void waiterQueueReturnsCookingDishEvenWhenParentIsNotReady() {
+        Order order = new Order();
+        order.setId(41);
+        order.setStatus(OrderStatus.IN_PREPARATION.code());
+        OrderDetail cooking = new OrderDetail();
+        cooking.setId(401);
+        cooking.setStatus(0);
+        cooking.setOrder(order);
+        order.setOrderDetails(List.of(cooking));
+
+        OrderRepository repository = mock(OrderRepository.class);
+        when(repository.findWaiterOperationalOrdersWithDetails(
+                List.of(OrderStatus.CANCELLED.code(), OrderStatus.COMPLETED.code()), List.of(0, 1)))
+                .thenReturn(List.of(order));
+        poly.edu.quanlynhahang.controller.WaiterController controller = new poly.edu.quanlynhahang.controller.WaiterController();
+        ReflectionTestUtils.setField(controller, "orderRepository", repository);
+
+        @SuppressWarnings("unchecked")
+        List<poly.edu.quanlynhahang.dto.OrderResponse> body =
+                (List<poly.edu.quanlynhahang.dto.OrderResponse>) controller.getReadyOrders().getBody();
+
+        assertEquals(1, body.size());
+        assertEquals(OrderStatus.IN_PREPARATION.code(), body.get(0).status());
+        assertEquals(0, body.get(0).orderDetails().get(0).status());
+    }
+
+    @Test
+    void waiterQueuePreservesCookingAndReadyDetailsForPartiallyReadyParent() {
+        Order order = new Order();
+        order.setId(42);
+        order.setStatus(OrderStatus.PARTIALLY_READY.code());
+        OrderDetail cooking = new OrderDetail();
+        cooking.setId(421);
+        cooking.setStatus(0);
+        cooking.setOrder(order);
+        OrderDetail ready = new OrderDetail();
+        ready.setId(422);
+        ready.setStatus(1);
+        ready.setOrder(order);
+        order.setOrderDetails(List.of(cooking, ready));
+
+        OrderRepository repository = mock(OrderRepository.class);
+        when(repository.findWaiterOperationalOrdersWithDetails(
+                List.of(OrderStatus.CANCELLED.code(), OrderStatus.COMPLETED.code()), List.of(0, 1)))
+                .thenReturn(List.of(order));
+        WaiterController controller = new WaiterController();
+        ReflectionTestUtils.setField(controller, "orderRepository", repository);
+
+        @SuppressWarnings("unchecked")
+        List<poly.edu.quanlynhahang.dto.OrderResponse> body =
+                (List<poly.edu.quanlynhahang.dto.OrderResponse>) controller.getReadyOrders().getBody();
+
+        assertEquals(OrderStatus.PARTIALLY_READY.code(), body.get(0).status());
+        assertEquals(List.of(0, 1), body.get(0).orderDetails().stream()
+                .map(poly.edu.quanlynhahang.dto.OrderDetailResponse::status).toList());
     }
 
     @Test

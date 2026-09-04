@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import poly.edu.quanlynhahang.entity.TableArea;
 import poly.edu.quanlynhahang.dto.TableAreaResponse;
@@ -17,6 +18,7 @@ import poly.edu.quanlynhahang.repository.AreaPricingRepository;
 import poly.edu.quanlynhahang.entity.AreaPricing;
 import poly.edu.quanlynhahang.entity.AreaType;
 import poly.edu.quanlynhahang.service.TableAreaReadinessService;
+import poly.edu.quanlynhahang.service.RestaurantCapacityService;
 import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.validation.Valid;
@@ -28,20 +30,31 @@ public class TableAreaController {
     private final TableAreaRepository areaRepository;
     private final AreaPricingRepository pricingRepository;
     private final TableAreaReadinessService readinessService;
+    private final RestaurantCapacityService capacityService;
 
     public TableAreaController(TableAreaRepository areaRepository,
                                AreaPricingRepository pricingRepository,
-                               TableAreaReadinessService readinessService) {
+                               TableAreaReadinessService readinessService,
+                               RestaurantCapacityService capacityService) {
         this.areaRepository = areaRepository;
         this.pricingRepository = pricingRepository;
         this.readinessService = readinessService;
+        this.capacityService = capacityService;
     }
 
     @GetMapping
-    public ResponseEntity<?> getActiveAreas() {
+    public ResponseEntity<?> getActiveAreas(
+            @RequestParam(required = false) String date,
+            @RequestParam(required = false) String time,
+            @RequestParam(defaultValue = "120") int durationMinutes,
+            @RequestParam(defaultValue = "1") int guestCount) {
+        java.time.LocalDate requestedDate = date == null || date.isBlank() ? null : java.time.LocalDate.parse(date);
+        java.time.LocalTime requestedTime = time == null || time.isBlank() ? null : java.time.LocalTime.parse(time);
         return ResponseEntity.ok(areaRepository.findByStatusOrderByNameViAsc("ACTIVE").stream()
-                .map(area -> TableAreaResponse.from(area, readinessService.evaluate(area)))
-                .filter(TableAreaResponse::bookingReady)
+                .map(area -> TableAreaResponse.from(area, readinessService.evaluate(area),
+                        requestedDate == null || requestedTime == null ? null
+                                : capacityService.checkAreaCapacity(area, requestedDate, requestedTime,
+                                        Math.max(30, durationMinutes), Math.max(1, guestCount))))
                 .toList());
     }
 

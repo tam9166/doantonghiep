@@ -242,8 +242,11 @@ public class ReservationService {
         if (request.guestCount() < area.getMinGuestCount() || request.guestCount() > area.getMaxGuestCount()) throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Số khách không nằm trong sức chứa sảnh");
         if (request.durationHours() < area.getMinBookingHours()) throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Thời lượng thuê chưa đạt mức tối thiểu");
         LocalDate date = parseDate(request.reservationDate()); LocalTime time = parseTime(request.arrivalTime());
-        validateReservationTime(date, time, request.durationHours() * 60, false);
+        validateReservationTime(date, time, request.durationHours() * 60,
+                Boolean.TRUE.equals(request.lateDiningConfirmed()));
         restaurantCapacityService.requireCapacity(date, time, request.durationHours() * 60, request.guestCount());
+        restaurantCapacityService.requireAreaCapacity(area, date, time,
+                request.durationHours() * 60, request.guestCount());
         List<ReservationPreorderItem> preorderItems = buildPreorderItems(request.preorderItems());
         BigDecimal foodAmount = preorderItems.stream().map(ReservationPreorderItem::getLineTotal).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal total = area.getHourlyRate().multiply(BigDecimal.valueOf(request.durationHours())).add(area.getPackagePrice()).add(foodAmount).setScale(0, RoundingMode.HALF_UP);
@@ -351,6 +354,8 @@ public class ReservationService {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Vui lòng chọn khu vực");
         }
         areaReadinessService.requireBookingReady(area);
+        restaurantCapacityService.requireAreaCapacity(area, normalized.date(), normalized.time(),
+                normalized.durationMinutes(), normalized.guestCount());
         reservation.setArea(area);
 
         Price tablePrice = calculatePrice(table, area);
@@ -520,6 +525,39 @@ public class ReservationService {
     }
 
     @Transactional(readOnly = true)
+    public ReservationResponse getCashierReservationForTable(Integer tableId) {
+        if (tableId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thiếu thông tin bàn");
+        }
+        java.util.EnumSet<ReservationStatus> activeStatuses = java.util.EnumSet.of(
+                ReservationStatus.CONFIRMED,
+                ReservationStatus.DEPOSIT_REQUIRED,
+                ReservationStatus.DEPOSIT_PENDING,
+                ReservationStatus.DEPOSIT_PAID,
+                ReservationStatus.FULLY_PAID,
+                ReservationStatus.CHECKED_IN,
+                ReservationStatus.IN_SERVICE);
+        LocalDate today = LocalDate.now();
+        Reservation reservation = reservationRepository.findCashierActiveByTableId(tableId, activeStatuses).stream()
+                .filter(item -> item.getReservationDate() != null)
+                .filter(item -> !item.getReservationDate().isBefore(today)
+                        || item.getReservationStatus() == ReservationStatus.CHECKED_IN
+                        || item.getReservationStatus() == ReservationStatus.IN_SERVICE)
+                .min(java.util.Comparator
+                        .comparingInt((Reservation item) -> switch (item.getReservationStatus()) {
+                            case CHECKED_IN, IN_SERVICE -> 0;
+                            case DEPOSIT_PAID, FULLY_PAID -> 1;
+                            default -> 2;
+                        })
+                        .thenComparing(Reservation::getReservationDate)
+                        .thenComparing(item -> item.getArrivalTime() == null ? LocalTime.MIDNIGHT : item.getArrivalTime())
+                        .thenComparing(Reservation::getId, java.util.Comparator.reverseOrder()))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Không tìm thấy đặt bàn đang hiệu lực cho bàn này"));
+        return toResponse(reservation, true);
+    }
+
+    @Transactional(readOnly = true)
     public List<AvailableTableResponse> findAvailableTables(String date, String time, Integer durationMinutes,
                                                             Integer guestCount, Integer areaId,
                                                             Boolean lateDiningConfirmed) {
@@ -553,7 +591,8 @@ public class ReservationService {
         LocalTime quoteTime = parseTime(request.getArrivalTime());
         int guests = request.getGuestCount() == null ? 1 : request.getGuestCount();
         int duration = request.getDurationMinutes() == null ? DEFAULT_DURATION_MINUTES : request.getDurationMinutes();
-        validateReservationTime(quoteDate, quoteTime, duration, false);
+        validateReservationTime(quoteDate, quoteTime, duration,
+                Boolean.TRUE.equals(request.getLateDiningConfirmed()));
         restaurantCapacityService.requireCapacity(quoteDate, quoteTime, duration, guests);
         if (request.getAreaId() != null) {
             TableArea requestedArea = areaRepository.findById(request.getAreaId())
@@ -568,6 +607,7 @@ public class ReservationService {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Vui lòng chọn khu vực");
         }
         areaReadinessService.requireBookingReady(area);
+        restaurantCapacityService.requireAreaCapacity(area, quoteDate, quoteTime, duration, guests);
         Price tablePrice = calculatePrice(table, area);
         List<ReservationPreorderItem> items = buildPreorderItems(request.getPreorderItems());
         BigDecimal foodAmount = items.stream()
@@ -1068,11 +1108,11 @@ public class ReservationService {
         if (arrival.isBefore(LocalDateTime.now().plusMinutes(MIN_ADVANCE_MINUTES))) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Cần đặt bàn trước ít nhất 30 phút");
         }
-        if (!businessHoursService.isOpen(time)) {
+        if (!businessHoursService.acceptsReservationArrival(time)) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
                     "Thời gian đặt bàn nằm ngoài giờ hoạt động " + businessHoursService.getFormattedHours());
         }
-        if (time.plusMinutes(duration).isAfter(businessHoursService.getClosingTime()) && !lateDiningConfirmed) {
+        if (businessHoursService.requiresLateDiningConfirmation(time, duration) && !lateDiningConfirmed) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
                     "Vui lòng xác nhận dùng bữa sau giờ phục vụ trước khi đặt bàn");
         }
@@ -1685,6 +1725,7 @@ public class ReservationService {
                 String.valueOf(Boolean.TRUE.equals(request.mcRequired())),
                 String.valueOf(trimToNull(request.eventNote())),
                 String.valueOf(Boolean.TRUE.equals(request.preorderEnabled())),
+                String.valueOf(Boolean.TRUE.equals(request.lateDiningConfirmed())),
                 preorder);
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");

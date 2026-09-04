@@ -152,7 +152,7 @@
                 <input v-model.trim="form.customerEmail" type="email" autocomplete="email" />
                 <small v-if="errors.customerEmail">{{ errors.customerEmail }}</small>
               </label>
-              <label>
+              <label class="contact-note-field">
                 {{ text.contactNote }}
                 <textarea v-model.trim="form.contactNote" rows="3" :placeholder="text.optionalPlaceholder"></textarea>
               </label>
@@ -237,13 +237,17 @@
               <div v-for="n in 3" :key="n" class="skeleton-card"></div>
             </div>
             <div v-else-if="!activeAreas.length" class="empty-state">{{ text.noAreas }}</div>
-            <div v-else class="area-chip-grid">
+            <div v-else-if="activeAreas.every(areaUnavailable)" class="warning-banner">
+              {{ text.noAreaCapacity }}
+            </div>
+            <div v-if="activeAreas.length" class="area-chip-grid">
               <button
                 v-for="area in pagedAreas"
                 :key="area.id"
                 type="button"
-                :class="['area-chip', { selected: form.areaId === area.id }]"
+                :class="['area-chip', { selected: form.areaId === area.id, unavailable: areaUnavailable(area) }]"
                 :aria-pressed="form.areaId === area.id"
+                :disabled="areaUnavailable(area)"
                 @click="selectArea(area)"
               >
                 <img class="area-chip-image" :src="areaImage(area)" :alt="t('reservation.areaImageAlt', { area: areaName(area) })" />
@@ -251,7 +255,11 @@
                 <span class="area-chip-title">{{ areaName(area) }}</span>
                 <span class="area-chip-description">{{ areaDescription(area) }}</span>
                 <span class="area-chip-meta">
-                  {{ text.capacity }}: {{ area.capacity || '-' }} {{ text.people }} · {{ text.availableTables }}: {{ areaAvailableCount(area.id) }}
+                  {{ lang === 'vi' ? 'Sức chứa tối đa' : 'Maximum capacity' }}: {{ area.capacity || '-' }} {{ text.people }}
+                  · {{ lang === 'vi' ? 'Còn khả dụng' : 'Available' }}: {{ areaAvailableCapacity(area) }}
+                </span>
+                <span v-if="areaUnavailable(area)" class="area-chip-unavailable">
+                  {{ lang === 'vi' ? 'Không đủ sức chứa' : 'Insufficient capacity' }}
                 </span>
                 <span v-if="form.areaId === area.id" class="area-chip-selected">{{ text.selected }}</span>
               </button>
@@ -370,7 +378,7 @@
                   <button type="button" :disabled="preorderPage === preorderTotalPages" @click="preorderPage++">›</button>
                 </nav>
               </div>
-              <aside class="cart-box selected-dishes-panel">
+              <aside :class="['cart-box', 'selected-dishes-panel', { 'has-items': cartItems.length }]">
                 <h3>{{ text.selectedDishes }}</h3>
                 <p v-if="!cartItems.length" class="cart-empty">Chưa chọn món nào.</p>
                 <div v-for="item in cartItems" :key="item.productId" :class="['cart-row', { invalid: !isCartItemValid(item) }]">
@@ -384,7 +392,7 @@
                   <span>{{ isCartItemValid(item) ? money(item.price * item.quantity) : money(0) }}</span>
                   <button type="button" class="danger-btn" @click="removeDish(item.productId)">{{ text.remove }}</button>
                 </div>
-                <label class="preorder-note">
+                <label v-if="cartItems.length" class="preorder-note">
                   {{ text.kitchenNote }}
                   <textarea v-model.trim="form.orderNote" maxlength="500" rows="3" :placeholder="text.kitchenNotePlaceholder"></textarea>
                   <small>{{ form.orderNote.length }}/500</small>
@@ -483,7 +491,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import CustomerLayout from '@/components/CustomerLayout.vue'
@@ -491,7 +499,12 @@ import UiIcon from '@/components/UiIcon.vue'
 import api from '@/services/api'
 import { useFormatters } from '@/composables/useFormatters'
 import { toBusinessDate } from '@/utils/businessDate'
-import { isTimeWithinWindow, minuteBefore } from '@/utils/businessHours'
+import {
+  buildReservationTimeSignature,
+  isLateDiningConfirmationCurrent,
+  isTimeWithinInclusiveWindow,
+  requiresLateDiningConfirmation
+} from '@/utils/businessHours'
 import { nextReservationStep, previousReservationStep, shouldSkipReservationPayment } from '@/utils/reservationPaymentFlow'
 import { normalizeSpecialRequirements, serializeRequirementFlags } from '@/utils/reservationSpecialRequirements'
 import { getApiErrorMessage } from '@/services/errorMessage'
@@ -519,7 +532,6 @@ const suggestedTables = ref([])
 const tableCombo = ref(null)
 const menuItems = ref([])
 const cartItems = ref([])
-const areaCounts = ref({})
 const selectedTable = ref(null)
 const largePartyThreshold = ref(10)
 const selectedPreferences = ref([])
@@ -551,9 +563,10 @@ const preorderPage = ref(1)
 const AREA_PAGE_SIZE = 3
 const PREORDER_PAGE_SIZE = 10
 const idempotencyKey = ref(crypto.randomUUID())
-const lateDiningConfirmed = ref(false)
-const businessHours = ref({ openingTime: '09:00', closingTime: '22:00', lastOrderTime: '21:30' })
+const confirmedLateDiningSignature = ref('')
+const businessHours = ref({ openingTime: '09:00', closingTime: '22:00' })
 let tableRequestSequence = 0
+let paymentStatusRefreshTimer = null
 
 const fallbackTableImage = 'https://images.unsplash.com/photo-1515003197210-e0cd71810b5f?auto=format&fit=crop&w=480&q=80'
 const fallbackDishImage = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=900&q=80'
@@ -580,6 +593,22 @@ const form = ref({
   voucherCode: ''
 })
 
+const currentReservationTimeSignature = computed(() => buildReservationTimeSignature(
+  form.value.reservationDate,
+  form.value.arrivalTime,
+  form.value.expectedDurationMinutes
+))
+const lateDiningConfirmed = computed({
+  get: () => isLateDiningConfirmationCurrent(
+    confirmedLateDiningSignature.value,
+    currentReservationTimeSignature.value
+  ),
+  set: confirmed => {
+    confirmedLateDiningSignature.value = confirmed ? currentReservationTimeSignature.value : ''
+    if (confirmed) clearLateDiningValidationFeedback()
+  }
+})
+
 const text = computed(() => tm('reservation'))
 const reservationPhases = [
   { from: 1, to: 2, label: 'Thông tin & thời gian' },
@@ -592,7 +621,7 @@ const reservationPhase = computed(() => {
   const phase = reservationPhases[index < 0 ? reservationPhases.length - 1 : index]
   return { ...phase, index: (index < 0 ? reservationPhases.length : index + 1) }
 })
-const activeAreas = computed(() => areas.value.filter(area => (area.status || 'ACTIVE') === 'ACTIVE' && area.bookingReady !== false))
+const activeAreas = computed(() => areas.value.filter(area => (area.status || 'ACTIVE') === 'ACTIVE'))
 const areaTotalPages = computed(() => Math.max(1, Math.ceil(activeAreas.value.length / AREA_PAGE_SIZE)))
 const pagedAreas = computed(() => {
   const start = (areaPage.value - 1) * AREA_PAGE_SIZE
@@ -642,7 +671,7 @@ const paymentOptions = computed(() => ['DEPOSIT_50', 'FULL'].map(key => ({
 const validCartItems = computed(() => cartItems.value.filter(isCartItemValid))
 const cartQuantity = computed(() => validCartItems.value.reduce((total, item) => total + item.quantity, 0))
 const skipPaymentStep = computed(() => shouldSkipReservationPayment(quote.value))
-const latestArrivalTime = computed(() => minuteBefore(businessHours.value.lastOrderTime))
+const latestArrivalTime = computed(() => businessHours.value.closingTime)
 const lateDiningEndTime = computed(() => {
   const { arrivalTime, expectedDurationMinutes } = form.value
   if (!arrivalTime || !expectedDurationMinutes) return ''
@@ -651,9 +680,12 @@ const lateDiningEndTime = computed(() => {
   if (!Number.isFinite(hour) || !Number.isFinite(minute)) return ''
 
   const endMinutes = hour * 60 + minute + Number(expectedDurationMinutes)
-  const [closingHour, closingMinute] = businessHours.value.closingTime.split(':').map(Number)
-  const closingMinutes = closingHour * 60 + closingMinute
-  if (endMinutes <= closingMinutes) return ''
+  if (!requiresLateDiningConfirmation(
+    arrivalTime,
+    expectedDurationMinutes,
+    businessHours.value.openingTime,
+    businessHours.value.closingTime
+  )) return ''
 
   const endHour = Math.floor((endMinutes % (24 * 60)) / 60)
   const endMinute = endMinutes % 60
@@ -694,11 +726,6 @@ function areaIcon(area) {
   return { indoor: 'indoor', private: 'private', garden: 'garden' }[areaKind(area)]
 }
 
-function areaAvailableCount(areaId) {
-  const value = areaCounts.value[areaId]
-  return value === undefined ? '-' : value
-}
-
 function dishName(dish) {
   return lang.value === 'vi' ? dish.nameVi : (dish.nameEn || dish.nameVi)
 }
@@ -723,8 +750,8 @@ function reservationTimeError() {
   const { reservationDate, arrivalTime } = form.value
   if (!reservationDate || !arrivalTime) return ''
 
-  if (!isTimeWithinWindow(arrivalTime, businessHours.value.openingTime, businessHours.value.lastOrderTime)) {
-    const hoursLabel = `${businessHours.value.openingTime}-${businessHours.value.lastOrderTime}`
+  if (!isTimeWithinInclusiveWindow(arrivalTime, businessHours.value.openingTime, businessHours.value.closingTime)) {
+    const hoursLabel = `${businessHours.value.openingTime}-${businessHours.value.closingTime}`
     return t('reservation.validation.bookingWindow', { hours: hoursLabel })
   }
 
@@ -739,6 +766,15 @@ function reservationTimeError() {
 function isTimeValidationError(error) {
   const message = String(error?.response?.data?.message || error?.response?.data || '').toLowerCase()
   return /ngo\u00e0i gi\u1edd|gi\u1edd ho\u1ea1t \u0111\u1ed9ng|qu\u00e1 kh\u1ee9|past|operating hours|service hours/.test(message)
+}
+
+function areaAvailableCapacity(area) {
+  const value = Number(area?.availableCapacity)
+  return Number.isFinite(value) ? value : (area?.capacity || '-')
+}
+
+function areaUnavailable(area) {
+  return area?.bookingReady === false || area?.sufficientCapacity === false
 }
 
 function syncStep2ValidationErrors() {
@@ -761,9 +797,25 @@ function syncStep2ValidationErrors() {
   }
 }
 
+function clearLateDiningValidationFeedback() {
+  const isLateDiningMessage = value => {
+    const message = String(value || '')
+    const normalized = message.toLocaleLowerCase('vi-VN')
+    return message === t('reservation.validation.lateConfirm')
+      || (normalized.includes('xác nhận') && normalized.includes('dùng bữa') && normalized.includes('giờ phục vụ'))
+      || (normalized.includes('confirm') && normalized.includes('dining') && normalized.includes('service hour'))
+  }
+  if (isLateDiningMessage(errors.value.lateDiningConfirmed)) delete errors.value.lateDiningConfirmed
+  if (isLateDiningMessage(serverError.value)) serverError.value = ''
+  if (isLateDiningMessage(menuError.value)) menuError.value = ''
+  const matchingToasts = toast.toasts.value.filter(item => isLateDiningMessage(item.message))
+  matchingToasts.forEach(item => toast.removeToast(item.id))
+}
+
 function validateCurrentStep() {
   errors.value = {}
   serverError.value = ''
+  if (lateDiningConfirmed.value) clearLateDiningValidationFeedback()
   if (step.value === 1) {
     if (!form.value.customerName.trim()) errors.value.customerName = t('reservation.validation.name')
     if (!/^(0|\+84)(3|5|7|8|9)[0-9]{8}$/.test(form.value.customerPhone.replace(/\s/g, ''))) errors.value.customerPhone = t('reservation.validation.phone')
@@ -783,8 +835,15 @@ function validateCurrentStep() {
       errors.value.lateDiningConfirmed = t('reservation.validation.lateConfirm')
     }
   }
+  if (step.value === 6 && lateDiningEndTime.value && !lateDiningConfirmed.value) {
+    serverError.value = t('reservation.validation.lateConfirm')
+  }
   return Object.keys(errors.value).length === 0 && !serverError.value
 }
+
+watch(currentReservationTimeSignature, (current, previous) => {
+  if (previous && current !== previous) confirmedLateDiningSignature.value = ''
+})
 
 watch(
   () => [
@@ -836,6 +895,7 @@ function goTo(target) {
 }
 
 function selectArea(area) {
+  if (areaUnavailable(area)) return
   if (form.value.areaId === area.id && tables.value.length) return
   form.value.areaId = area.id
   form.value.tableId = null
@@ -851,11 +911,11 @@ async function loadAreas() {
   loadingAreas.value = true
   areaError.value = ''
   try {
-    const res = await api.get('/api/areas')
+    const res = await api.get('/api/areas', { params: areaCapacityParams() })
     areas.value = Array.isArray(res.data) ? res.data : []
     areaPage.value = Math.min(areaPage.value, areaTotalPages.value)
     if (activeAreas.value.length && (!form.value.areaId || !activeAreas.value.some(area => area.id === form.value.areaId))) {
-      form.value.areaId = activeAreas.value[0].id
+      form.value.areaId = activeAreas.value.find(area => !areaUnavailable(area))?.id || null
     }
     await refreshAreaCounts()
   } catch (err) {
@@ -867,20 +927,20 @@ async function loadAreas() {
 
 async function refreshAreaCounts() {
   if (!form.value.reservationDate || !form.value.arrivalTime || !form.value.guestCount) return
-  const entries = await Promise.allSettled(activeAreas.value.map(async area => {
-    const res = await api.get('/api/tables/available', {
-      params: {
-        date: form.value.reservationDate,
-        time: form.value.arrivalTime,
-        durationMinutes: form.value.expectedDurationMinutes,
-        guestCount: form.value.guestCount,
-        areaId: area.id,
-        lateDiningConfirmed: lateDiningConfirmed.value
-      }
-    })
-    return [area.id, res.data.filter(table => table.availabilityStatus === 'AVAILABLE').length]
-  }))
-  areaCounts.value = Object.fromEntries(entries.filter(item => item.status === 'fulfilled').map(item => item.value))
+  const res = await api.get('/api/areas', { params: areaCapacityParams() })
+  areas.value = Array.isArray(res.data) ? res.data : []
+  if (form.value.areaId && areaUnavailable(areas.value.find(area => area.id === form.value.areaId))) {
+    form.value.areaId = null
+  }
+}
+
+function areaCapacityParams() {
+  return {
+    date: form.value.reservationDate || undefined,
+    time: form.value.arrivalTime || undefined,
+    durationMinutes: form.value.expectedDurationMinutes,
+    guestCount: form.value.guestCount
+  }
 }
 
 async function loadAvailableTables() {
@@ -942,15 +1002,17 @@ watch(
 
     syncStep2ValidationErrors()
 
-    if (current.slice(0, 4).some((value, index) => value !== previous[index])) {
+    // Table availability belongs to the selected time window. The late-dining
+    // acknowledgement is independently bound to currentReservationTimeSignature.
+    if (current.slice(0, 3).some((value, index) => value !== previous[index])) {
       form.value.tableId = null
       form.value.tableIds = []
       selectedTable.value = null
       tableCombo.value = null
       quote.value = null
-      lateDiningConfirmed.value = false
     }
-    await loadAvailableTables()
+    await refreshAreaCounts()
+    if (form.value.areaId) await loadAvailableTables()
   }
 )
 
@@ -1173,7 +1235,8 @@ async function loadQuote() {
     guestCount: form.value.guestCount,
     preorderItems: preorderPayload(),
     paymentOption: form.value.paymentOption || 'DEPOSIT_50',
-    voucherCode: form.value.voucherCode
+    voucherCode: form.value.voucherCode,
+    lateDiningConfirmed: lateDiningConfirmed.value
   })
   quote.value = res.data
   form.value.tableId = res.data.proposedTableId || null
@@ -1281,6 +1344,7 @@ async function createPaymentQr() {
       }
     })
     paymentQr.value = qrRes.data
+    startPaymentStatusPolling()
   } catch (err) {
     qrError.value = lang.value === 'vi' && err.response?.data?.message
       ? err.response.data.message : t('reservation.errors.createQr')
@@ -1305,6 +1369,7 @@ async function regeneratePaymentQr() {
       }
     })
     paymentQr.value = qrRes.data
+    startPaymentStatusPolling()
     regenerateIdempotencyKey.value = ''
     qrStatusMessage.value = 'Đã tạo lại QR thanh toán mới.'
   } catch (err) {
@@ -1326,11 +1391,30 @@ async function refreshPaymentStatus() {
     })
     paymentQr.value = response.data
     qrStatusMessage.value = paymentStatusMessage(response.data?.status)
+    if (['PAID', 'SUCCESS', 'EXPIRED', 'FAILED'].includes(String(response.data?.status || '').toUpperCase())) {
+      stopPaymentStatusPolling()
+    }
   } catch (err) {
     qrError.value = lang.value === 'vi' && err.response?.data?.message ? err.response.data.message : t('reservation.errors.paymentStatus')
   } finally {
     qrLoading.value = false
   }
+}
+
+function stopPaymentStatusPolling() {
+  if (paymentStatusRefreshTimer !== null) {
+    window.clearInterval(paymentStatusRefreshTimer)
+    paymentStatusRefreshTimer = null
+  }
+}
+
+function startPaymentStatusPolling() {
+  stopPaymentStatusPolling()
+  if (String(paymentQr.value?.status || '').toUpperCase() !== 'PENDING') return
+  // The PaymentIntent endpoint is authoritative; realtime delivery is optional.
+  paymentStatusRefreshTimer = window.setInterval(() => {
+    void refreshPaymentStatus()
+  }, 8000)
 }
 
 function paymentStatusMessage(status) {
@@ -1381,6 +1465,7 @@ async function submitWaitlist() {
 }
 
 function resetForm() {
+  stopPaymentStatusPolling()
   submitResult.value = null
   waitlistResult.value = null
   copiedCode.value = ''
@@ -1411,8 +1496,7 @@ onMounted(async () => {
     largePartyThreshold.value = Number(response.data?.largePartyThreshold || 10)
     businessHours.value = {
       openingTime: response.data?.openingTime || businessHours.value.openingTime,
-      closingTime: response.data?.closingTime || businessHours.value.closingTime,
-      lastOrderTime: response.data?.lastOrderTime || businessHours.value.lastOrderTime
+      closingTime: response.data?.closingTime || businessHours.value.closingTime
     }
   } catch {
     largePartyThreshold.value = 10
@@ -1420,6 +1504,8 @@ onMounted(async () => {
   await loadAreas()
   await loadPreorderMenu()
 })
+
+onBeforeUnmount(stopPaymentStatusPolling)
 
 watch(() => form.value.orderNote, value => {
   if (value) sessionStorage.setItem('reservation-order-note', value)
@@ -2549,6 +2635,7 @@ input:focus, select:focus, textarea:focus { outline-color: var(--primary-glow); 
 label { gap: 9px; color: var(--ink); }
 input, select, textarea { min-height: 50px; border-color: #e7cbca; border-radius: 9px; padding: 12px 16px; }
 textarea { resize: vertical; }
+.contact-note-field textarea { min-height: 50px; height: 50px; }
 input:focus, select:focus, textarea:focus { outline: 3px solid rgba(190,11,47,.09); border-color: var(--wine); }
 .late-dining-confirmation { display: grid; grid-template-columns: auto 1fr; margin-top: 28px; padding: 26px 30px; border-color: var(--warning); border-radius: 10px; background: color-mix(in srgb, var(--warning) 8%, var(--bg-card)); }
 .late-dining-confirmation::before { content: ''; grid-row: 1 / 4; display: grid; width: 112px; height: 112px; place-items: center; margin-right: 24px; border-radius: 50%; background: #fff; color: var(--wine); font-size: 3rem; }
@@ -2599,6 +2686,9 @@ input:focus, select:focus, textarea:focus { outline: 3px solid rgba(190,11,47,.0
 .dish-unavailable, .cart-invalid-reason { color: var(--danger); font-weight: 800; }
 .cart-box { grid-column: 2; position: sticky; top: 88px; margin-top: 0; border-color: var(--line); border-radius: 13px; background: #fffdfa; }
 .cart-empty { margin: 8px 0 0; color: var(--text-muted); }
+.selected-dishes-panel.has-items { max-height: min(70vh, 640px); overflow-y: auto; }
+.selected-dishes-panel:has(.cart-empty) { min-height: 0; }
+.selected-dishes-panel:has(.cart-empty) .cart-empty { margin: 0; padding: 4px 0; }
 .cart-row { grid-template-columns: 1fr 96px; padding: 12px 0; border-top: 1px solid var(--line); }
 .cart-row.invalid { background: color-mix(in srgb, var(--danger) 7%, transparent); border-radius: 10px; padding-inline: 8px; }
 .cart-row input, .cart-row .danger-btn { grid-column: 1 / -1; }
@@ -2647,6 +2737,8 @@ input:focus, select:focus, textarea:focus { outline: 3px solid rgba(190,11,47,.0
 .area-chip-title { position: static; display: block; margin: 0 0 6px 52px; text-align: left; }
 .area-chip-description { display: block; min-height: 42px; margin: 0; text-align: left; }
 .area-chip-meta { display: block; text-align: left; }
+.area-chip.unavailable { cursor: not-allowed; opacity: .68; border-style: dashed; box-shadow: none; }
+.area-chip-unavailable { display: block; color: var(--primary); font-size: .78rem; font-weight: 900; text-align: left; }
 .area-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .preorder-note { display: grid; grid-column: 1 / -1; gap: 8px; margin-top: 8px; text-align: left; }
 .preorder-note small { justify-self: end; color: var(--text-muted); }
@@ -2673,6 +2765,7 @@ input:focus, select:focus, textarea:focus { outline: 3px solid rgba(190,11,47,.0
   .dish-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dish-card img { height: 150px; }
   .qr-actions { align-items: stretch; flex-direction: column; }
+  .selected-dishes-panel.has-items { max-height: none; overflow: visible; }
 }
 @media (max-width: 430px) {
   .dish-grid { grid-template-columns: 1fr; }

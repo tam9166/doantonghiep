@@ -10,6 +10,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.server.ResponseStatusException;
 
 import poly.edu.quanlynhahang.entity.OrderDetail;
@@ -32,6 +34,7 @@ public class KitchenOrderDetailService {
     private final RefundTransactionRepository refundRepository;
     private final InventoryReservationService inventoryReservationService;
     private final OrderStateMachineService orderStateMachineService;
+    private final OrderServiceDateGuardService serviceDateGuard;
 
     public KitchenOrderDetailService(OrderDetailRepository orderDetailRepository,
                                      ActivityLogService activityLogService,
@@ -40,7 +43,8 @@ public class KitchenOrderDetailService {
                                      RecipeRepository recipeRepository,
                                      RefundTransactionRepository refundRepository,
                                      InventoryReservationService inventoryReservationService,
-                                     OrderStateMachineService orderStateMachineService) {
+                                     OrderStateMachineService orderStateMachineService,
+                                     OrderServiceDateGuardService serviceDateGuard) {
         this.orderDetailRepository = orderDetailRepository;
         this.activityLogService = activityLogService;
         this.messagingTemplate = messagingTemplate;
@@ -49,11 +53,13 @@ public class KitchenOrderDetailService {
         this.refundRepository = refundRepository;
         this.inventoryReservationService = inventoryReservationService;
         this.orderStateMachineService = orderStateMachineService;
+        this.serviceDateGuard = serviceDateGuard;
     }
 
     @Transactional
     public OrderDetail start(Integer detailId) {
         OrderDetail detail = detail(detailId);
+        serviceDateGuard.assertServiceDateReached(detail.getOrder());
         if (isCancelled(detail) || isReadyOrServed(detail)) {
             throw conflict("Món không còn ở trạng thái chờ chế biến");
         }
@@ -79,6 +85,7 @@ public class KitchenOrderDetailService {
     @Transactional
     public OrderDetail complete(Integer detailId) {
         OrderDetail detail = detail(detailId);
+        serviceDateGuard.assertServiceDateReached(detail.getOrder());
         if (isCancelled(detail) || isReadyOrServed(detail)) {
             throw conflict("Món không còn ở trạng thái có thể hoàn thành");
         }
@@ -100,6 +107,7 @@ public class KitchenOrderDetailService {
     public OrderDetail serve(Integer detailId) {
         OrderDetail detail = orderDetailRepository.findLockedWithOrderAndProductById(detailId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy món trong đơn"));
+        serviceDateGuard.assertServiceDateReached(detail.getOrder());
         if (!Integer.valueOf(1).equals(detail.getStatus()) || detail.getCompletedAt() == null) {
             throw conflict("Phục vụ chỉ được bưng món đã được bếp hoàn thành");
         }
@@ -226,7 +234,19 @@ public class KitchenOrderDetailService {
     private void publish(String event, OrderDetail detail) {
         String detailId = String.valueOf(detail.getId());
         activityLogService.log(event, "OrderDetail", detailId, event + " cho món #" + detailId);
-        messagingTemplate.convertAndSend("/topic/kitchen", event);
-        messagingTemplate.convertAndSend("/topic/waiter", event);
+        Runnable send = () -> {
+            messagingTemplate.convertAndSend("/topic/kitchen", event);
+            messagingTemplate.convertAndSend("/topic/waiter", event);
+        };
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    send.run();
+                }
+            });
+        } else {
+            send.run();
+        }
     }
 }

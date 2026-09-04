@@ -18,6 +18,8 @@ import poly.edu.quanlynhahang.entity.OrderItemOperation;
 import poly.edu.quanlynhahang.entity.OrderType;
 import poly.edu.quanlynhahang.entity.Product;
 import poly.edu.quanlynhahang.entity.Recipe;
+import poly.edu.quanlynhahang.entity.Reservation;
+import poly.edu.quanlynhahang.entity.ReservationPreorderItem;
 import poly.edu.quanlynhahang.entity.RestaurantTable;
 import poly.edu.quanlynhahang.entity.Voucher;
 import poly.edu.quanlynhahang.repository.AccountRepository;
@@ -35,6 +37,8 @@ import poly.edu.quanlynhahang.repository.OrderVoucherUsageRepository;
 import java.util.List;
 import java.util.Optional;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -197,6 +201,56 @@ class OrderCheckoutServiceTest {
 
         assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
         verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    void newDineInOrderOnOccupiedTableReturnsTheExactBusinessMessage() {
+        OrderRequest request = request(1, 1);
+        request.setOrderType(OrderType.DINE_IN);
+        request.setTableId(5);
+        RestaurantTable table = new RestaurantTable();
+        table.setId(5);
+        table.setName("B05");
+        table.setActive(true);
+        table.setIsOccupied(2);
+        Order openOrder = new Order();
+        openOrder.setId(90);
+        when(tableRepository.findLockedById(5)).thenReturn(Optional.of(table));
+        when(orderRepository.findOpenDineInOrdersByTableIdWithDetails(5)).thenReturn(List.of(openOrder));
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+                () -> service.checkout(request, "anonymousUser"));
+
+        assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
+        assertEquals("Bàn đã có khách, vui lòng chọn lại bàn trống khác.", error.getReason());
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    void explicitStaffAddOnCanCreateANewOpenOrderAfterMergedPaidTables() {
+        OrderRequest request = request(1, 1);
+        request.setOrderType(OrderType.DINE_IN);
+        request.setPaymentOption(poly.edu.quanlynhahang.entity.OrderPaymentOption.PAY_AT_RESTAURANT);
+        request.setTableId(5);
+        request.setAppendToOccupiedTable(true);
+        RestaurantTable table = new RestaurantTable();
+        table.setId(5);
+        table.setName("B05");
+        table.setActive(true);
+        table.setIsOccupied(2);
+        Product product = product(1, 100_000.0);
+        Ingredient ingredient = ingredient(10L, "Thịt bò");
+        when(tableRepository.findLockedById(5)).thenReturn(Optional.of(table));
+        when(orderRepository.findOpenDineInOrdersByTableIdWithDetails(5)).thenReturn(List.of());
+        when(productRepository.findById(1)).thenReturn(Optional.of(product));
+        when(recipeRepository.findByProduct(product)).thenReturn(List.of(recipe(product, ingredient, 1.0)));
+
+        OrderCheckoutService.CheckoutResult result = service.checkout(
+                request, "regression-waiter", "post-merge-add-on");
+
+        assertEquals(22, result.orderId());
+        assertEquals(2, table.getIsOccupied());
+        verify(tableRepository, never()).save(table);
     }
 
     @Test
@@ -462,6 +516,43 @@ class OrderCheckoutServiceTest {
         assertEquals("Di ung dau phong", captor.getAllValues().get(0).getAllergyNote());
         assertEquals("Khong hanh", captor.getAllValues().get(1).getNote());
         assertEquals(0, captor.getAllValues().get(1).getPriority());
+    }
+
+    @Test
+    void futureReservationPreorderKeepsServiceDateAndPerDishNoteWhileWaiting() {
+        LocalDate serviceDate = LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")).plusDays(1);
+        LocalTime serviceTime = LocalTime.of(18, 30);
+        RestaurantTable table = new RestaurantTable();
+        table.setId(7);
+        table.setName("B07");
+        Reservation reservation = new Reservation();
+        reservation.setReservationCode("MV-FUTURE-001");
+        reservation.setCustomerName("Khách đặt trước");
+        reservation.setReservationDate(serviceDate);
+        reservation.setArrivalTime(serviceTime);
+        reservation.setTable(table);
+        reservation.setTotalAmount(new BigDecimal("229000"));
+        reservation.setPaidAmount(new BigDecimal("114500"));
+
+        Product product = product(1, 229_000.0);
+        when(productRepository.findById(1)).thenReturn(Optional.of(product));
+        when(recipeRepository.findByProduct(product)).thenReturn(List.of());
+        ReservationPreorderItem preorder = new ReservationPreorderItem();
+        preorder.setProductId(1);
+        preorder.setQuantity(1);
+        preorder.setLineTotal(new BigDecimal("229000"));
+        preorder.setNote("  Ít cay, không hành  ");
+
+        service.dispatchReservationPreorder(reservation, List.of(preorder));
+
+        ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
+        verify(orderRepository, org.mockito.Mockito.atLeastOnce()).save(orderCaptor.capture());
+        Order savedOrder = orderCaptor.getAllValues().get(orderCaptor.getAllValues().size() - 1);
+        assertEquals(5, savedOrder.getStatus());
+        assertEquals(serviceDate.atTime(serviceTime), savedOrder.getScheduledAt());
+        ArgumentCaptor<OrderDetail> detailCaptor = ArgumentCaptor.forClass(OrderDetail.class);
+        verify(orderDetailRepository).save(detailCaptor.capture());
+        assertEquals("Ít cay, không hành", detailCaptor.getValue().getNote());
     }
 
     private OrderRequest request(int productId, int quantity) {

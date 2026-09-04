@@ -12,9 +12,9 @@
       </div>
 
       <div class="header-right">
-        <div v-if="readyOrders.length > 0" class="alert-chip">
+        <div v-if="readyDishCount > 0" class="alert-chip">
           <span class="alert-dot"></span>
-          {{ readyOrders.length }} món cần bưng
+          {{ readyDishCount }} món cần bưng
         </div>
         <div class="live-indicator">
           <span class="live-dot"></span>
@@ -46,11 +46,11 @@
     <!-- Stats Bar -->
     <div class="stats-bar">
       <div class="stat-item stat-urgent">
-        <span class="stat-value">{{ filteredReadyOrders.length }}</span>
+        <span class="stat-value">{{ filteredReadyDishCount }}</span>
         <span class="stat-label">Cần Bưng</span>
       </div>
       <div class="stat-item">
-        <span class="stat-value">{{ filteredCookingOrders.length }}</span>
+        <span class="stat-value">{{ filteredCookingDishCount }}</span>
         <span class="stat-label">Đang Nấu</span>
       </div>
       <div class="stat-item stat-active">
@@ -72,19 +72,20 @@
       <section class="section">
         <div class="section-header">
           <h3 class="section-title"> Món Đã Xong — Cần Bưng Ngay</h3>
-          <span class="count-badge" :class="{ 'count-pulse': filteredReadyOrders.length > 0 }">
-            {{ filteredReadyOrders.length }}
+          <span class="count-badge" :class="{ 'count-pulse': filteredReadyDishCount > 0 }">
+            {{ filteredReadyDishCount }}
           </span>
         </div>
 
         <div v-if="filteredReadyOrders.length > 0" class="serve-grid">
-          <div v-for="order in filteredReadyOrders" :key="order.id" class="serve-card">
+          <div v-for="order in pagedReadyOrders" :key="order.id" class="serve-card">
             <div class="serve-card-glow"></div>
             <div class="serve-main">
               <div class="serve-top">
                 <div class="serve-info">
                   <h2 class="table-name">{{ getTableName(order) }}</h2>
                   <p class="order-code">Mã đơn: <span>#{{ String(order.id).padStart(4, '0') }}</span></p>
+                  <span v-if="isFutureServiceOrder(order)" class="future-service-badge">Chờ đến ngày</span>
                 </div>
                 <div class="serve-timer">
                   <span :class="['timer-badge', getServeTimerClass(order)]">
@@ -94,23 +95,27 @@
               </div>
               <!-- Chi tiết món ăn -->
               <div class="serve-dishes">
-                <template v-for="(detail, idx) in order.orderDetails" :key="idx">
-                  <div class="serve-dish-item" v-if="Number(detail.status) === 1 || (Number(order.status) === 2 && ![2, 3].includes(Number(detail.status)))">
+                <template v-for="detail in order.orderDetails" :key="detail.id">
+                  <div class="serve-dish-item" v-if="isReadyDetail(detail)">
                     <img v-if="detail.product?.image" :src="foodImage(detail.product.image)" class="serve-dish-thumb" @error="replaceFoodImage" />
                   <span v-else class="serve-dish-icon"><UiIcon name="dish" /></span>
                     <span class="serve-dish-name">{{ detail.product?.name || 'Món ăn' }}</span>
                     <span class="serve-dish-qty">x{{ detail.quantity }}</span>
-                    <button v-if="Number(order.status) === 6" @click="markDishServed(order, detail.id)" class="btn-dish-served" style="margin-left: auto;"> Đã Bưng</button>
-                    <span v-else class="serve-dish-price">{{ detail.price?.toLocaleString() }}đ</span>
+                    <button @click="markDishServed(detail.id, order)" class="btn-dish-served" style="margin-left: auto;">
+                      {{ isFutureServiceOrder(order) ? 'Chờ đến ngày' : 'Đã Bưng' }}
+                    </button>
+                    <span class="serve-dish-price">{{ detail.price?.toLocaleString() }}đ</span>
                   </div>
                 </template>
               </div>
             </div>
-            <button v-if="Number(order.status) === 2" @click="markAsServed(order.id)" class="btn-served">
-               BƯNG TOÀN BỘ BÀN NÀY
-            </button>
           </div>
         </div>
+        <nav v-if="readyTotalPages > 1" class="operational-pagination" aria-label="Phân trang món cần bưng">
+          <button @click="changeReadyPage(readyCurrentPage - 1)" :disabled="readyCurrentPage === 1">Trước</button>
+          <button v-for="page in readyPageButtons" :key="`ready-${page}`" @click="changeReadyPage(page)" :class="{ active: page === readyCurrentPage }">{{ page }}</button>
+          <button @click="changeReadyPage(readyCurrentPage + 1)" :disabled="readyCurrentPage === readyTotalPages">Sau</button>
+        </nav>
 
         <div v-else class="empty-state">
         <div class="empty-icon"><UiIcon name="check" /></div>
@@ -123,17 +128,18 @@
         <div class="section-header">
           <h3 class="section-title"> Món Đang Làm</h3>
           <span class="count-badge" style="background: color-mix(in srgb, var(--color-tertiary) 20%, transparent); color: var(--color-tertiary); border-color: color-mix(in srgb, var(--color-tertiary) 40%, transparent);">
-            {{ filteredCookingOrders.length }}
+            {{ filteredCookingDishCount }}
           </span>
         </div>
 
         <div v-if="filteredCookingOrders.length > 0" class="serve-grid">
-          <div v-for="order in filteredCookingOrders" :key="'cook-'+order.id" class="serve-card" style="border-left-color: var(--color-tertiary);">
+          <div v-for="order in pagedCookingOrders" :key="'cook-'+order.id" class="serve-card" style="border-left-color: var(--color-tertiary);">
             <div class="serve-main">
               <div class="serve-top">
                 <div class="serve-info">
                   <h2 class="table-name">{{ getTableName(order) }}</h2>
                   <p class="order-code">Mã đơn: <span>#{{ String(order.id).padStart(4, '0') }}</span></p>
+                  <span v-if="isFutureServiceOrder(order)" class="future-service-badge">Chờ đến ngày</span>
                 </div>
                 <div class="serve-timer">
                   <span :class="['timer-badge', getServeTimerClass(order)]">
@@ -142,19 +148,26 @@
                 </div>
               </div>
               <div class="serve-dishes">
-                <template v-for="(detail, idx) in order.orderDetails" :key="'cd-'+idx">
-                  <div class="serve-dish-item" v-if="!detail.status || detail.status === 0">
+                <template v-for="detail in order.orderDetails" :key="'cd-'+detail.id">
+                  <div class="serve-dish-item" v-if="isCookingDetail(detail)">
                     <img v-if="detail.product?.image" :src="foodImage(detail.product.image)" class="serve-dish-thumb" @error="replaceFoodImage" />
                   <span v-else class="serve-dish-icon"><UiIcon name="dish" /></span>
                     <span class="serve-dish-name">{{ detail.product?.name || 'Món ăn' }}</span>
                     <span class="serve-dish-qty">x{{ detail.quantity }}</span>
-                    <span class="serve-dish-price" style="color: var(--color-tertiary); font-size: 0.8rem; font-weight: bold; background: color-mix(in srgb, var(--color-tertiary) 10%, transparent); padding: 4px 8px; border-radius: 10px; margin-left: auto;"> Đang nấu</span>
+                    <span class="serve-dish-price" style="color: var(--color-tertiary); font-size: 0.8rem; font-weight: bold; background: color-mix(in srgb, var(--color-tertiary) 10%, transparent); padding: 4px 8px; border-radius: 10px; margin-left: auto;">
+                      {{ detail.startedAt ? 'Đang làm' : 'Chờ bếp' }}
+                    </span>
                   </div>
                 </template>
               </div>
             </div>
           </div>
         </div>
+        <nav v-if="cookingTotalPages > 1" class="operational-pagination" aria-label="Phân trang món đang làm">
+          <button @click="changeCookingPage(cookingCurrentPage - 1)" :disabled="cookingCurrentPage === 1">Trước</button>
+          <button v-for="page in cookingPageButtons" :key="`cooking-${page}`" @click="changeCookingPage(page)" :class="{ active: page === cookingCurrentPage }">{{ page }}</button>
+          <button @click="changeCookingPage(cookingCurrentPage + 1)" :disabled="cookingCurrentPage === cookingTotalPages">Sau</button>
+        </nav>
 
         <div v-else class="empty-state">
         <div class="empty-icon"><UiIcon name="check" /></div>
@@ -599,7 +612,7 @@
 
 <script setup>
 import StaffOperationsAssistant from '@/components/StaffOperationsAssistant.vue'
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import api from '@/services/api';
 import { toBusinessDate } from '@/utils/businessDate';
 import { useRouter } from 'vue-router';
@@ -610,6 +623,15 @@ import { foodImage, replaceFoodImage } from '@/utils/imageFallback';
 import { clearStaffSession, getStaffToken, getStaffUser } from '@/services/session';
 import { useDialog } from '@/composables/useDialog';
 import { findAwaitingPaymentOrder, groupTablesByFloorAndArea, orderLifecycleLabel, tableArea, tableFloor, tableIdentifier } from '@/utils/tableOperations';
+import { getApiErrorMessage } from '@/services/errorMessage';
+import {
+  OPERATIONAL_ORDER_PAGE_SIZE,
+  clampOperationalPage,
+  isFutureServiceOrder,
+  operationalPageButtons,
+  paginateOperationalOrders,
+  totalOperationalPages,
+} from '@/utils/operationalOrderUi';
 
 const { confirmDialog } = useDialog();
 
@@ -623,8 +645,10 @@ const orders = ref([]);
 const tables = ref([]);
 const now = ref(new Date());
 let timerInterval = null;
-let previousReadyIds = [];
+let dataRefreshInterval = null;
+let previousReadyDetailIds = [];
 let stompClient = null;
+let waiterSubscription = null;
 
 const showAiModal = ref(false);
 const aiLoading = ref(false);
@@ -636,6 +660,8 @@ const showAllFloors = ref(false);
 const expandedFloors = ref([]);
 const selectedFloor = ref('');
 const selectedArea = ref('');
+const readyCurrentPage = ref(1);
+const cookingCurrentPage = ref(1);
 
 // Lấy khu vực phân công của nhân viên hiện tại
 const fetchMyZones = async () => {
@@ -697,18 +723,39 @@ const tablesByFloorArea = computed(() => groupTablesByFloorAndArea(tables.value.
   (!selectedFloor.value || tableFloor(table) === selectedFloor.value)
   && (!selectedArea.value || tableArea(table) === selectedArea.value))));
 
-// FIX LỖI ÉP KIỂU: Dùng Number() để đảm bảo lọc đúng số 2
-const readyOrders = computed(() => {
-  return orders.value.filter(o => 
-    Number(o.status) === 2 || 
-    (Number(o.status) === 6 && o.orderDetails?.some(d => Number(d.status) === 1))
-  );
-});
-const cookingOrders = computed(() => orders.value.filter(o => Number(o.status) === 1 || Number(o.status) === 6));
+// OrderDetail.status is canonical for the waiter queue:
+// 0/null = pending or in preparation, 1 = ready, 2 = served, 3 = cancelled.
+const isReadyDetail = detail => Number(detail?.status) === 1 && !detail?.cancelledAt;
+const isCookingDetail = detail => {
+  const status = detail?.status == null ? 0 : Number(detail.status);
+  return status === 0 && !detail?.completedAt && !detail?.cancelledAt;
+};
+const readyDetails = order => (order?.orderDetails || []).filter(isReadyDetail);
+const cookingDetails = order => (order?.orderDetails || []).filter(isCookingDetail);
+const hasReadyDetails = order => readyDetails(order).length > 0;
+const readyOrders = computed(() => orders.value.filter(hasReadyDetails));
+const cookingOrders = computed(() => orders.value.filter(order => cookingDetails(order).length > 0));
 
 // Lọc đơn hàng theo khu vực phân công
 const filteredReadyOrders = computed(() => readyOrders.value.filter(isOrderInMyZone));
 const filteredCookingOrders = computed(() => cookingOrders.value.filter(isOrderInMyZone));
+const readyTotalPages = computed(() => totalOperationalPages(filteredReadyOrders.value.length, OPERATIONAL_ORDER_PAGE_SIZE));
+const cookingTotalPages = computed(() => totalOperationalPages(filteredCookingOrders.value.length, OPERATIONAL_ORDER_PAGE_SIZE));
+const pagedReadyOrders = computed(() => paginateOperationalOrders(filteredReadyOrders.value, readyCurrentPage.value));
+const pagedCookingOrders = computed(() => paginateOperationalOrders(filteredCookingOrders.value, cookingCurrentPage.value));
+const readyPageButtons = computed(() => operationalPageButtons(readyTotalPages.value));
+const cookingPageButtons = computed(() => operationalPageButtons(cookingTotalPages.value));
+const changeReadyPage = page => { readyCurrentPage.value = clampOperationalPage(page, filteredReadyOrders.value.length); };
+const changeCookingPage = page => { cookingCurrentPage.value = clampOperationalPage(page, filteredCookingOrders.value.length); };
+watch(() => filteredReadyOrders.value.length, count => {
+  readyCurrentPage.value = clampOperationalPage(readyCurrentPage.value, count);
+});
+watch(() => filteredCookingOrders.value.length, count => {
+  cookingCurrentPage.value = clampOperationalPage(cookingCurrentPage.value, count);
+});
+const filteredReadyDishCount = computed(() => filteredReadyOrders.value.reduce((total, order) => total + readyDetails(order).length, 0));
+const filteredCookingDishCount = computed(() => filteredCookingOrders.value.reduce((total, order) => total + cookingDetails(order).length, 0));
+const readyDishCount = computed(() => readyOrders.value.reduce((total, order) => total + readyDetails(order).length, 0));
 
 const occupiedTables = computed(() => tables.value.filter(t => t.isOccupied === 2 || t.isOccupied === 3));
 const emptyTables = computed(() => tables.value.filter(t => t.isOccupied === 0));
@@ -716,10 +763,11 @@ const emptyTables = computed(() => tables.value.filter(t => t.isOccupied === 0))
 // Thống kê hôm nay
 const todayServed = computed(() => {
   const today = new Date().toDateString();
-  return orders.value.filter(o => {
-    if (!o.createDate) return false;
-    return new Date(o.createDate).toDateString() === today && [4, 7].includes(Number(o.status));
-  }).length;
+  return orders.value.reduce((total, o) => {
+    if (!o.createDate) return total;
+    if (new Date(o.createDate).toDateString() !== today) return total;
+    return total + (o.orderDetails || []).filter(detail => Number(detail.status) === 2).length;
+  }, 0);
 });
 
 // === AUDIO NOTIFICATION ===
@@ -792,22 +840,26 @@ const fetchData = async () => {
     const merged = new Map((Array.isArray(resOrders.data) ? resOrders.data : []).map(order => [order.id, order]));
     (Array.isArray(resReady.data) ? resReady.data : []).forEach(order => {
       const existing = merged.get(order.id);
-      merged.set(order.id, existing ? { ...existing, ...order, orderDetails: order.orderDetails || existing.orderDetails } : order);
+      merged.set(order.id, existing ? {
+        ...existing,
+        ...order,
+        orderDetails: mergeOrderDetails(existing.orderDetails, order.orderDetails),
+      } : order);
     });
     orders.value = [...merged.values()];
 
     // Kiểm tra có đơn mới cần bưng không
-    const newReady = (Array.isArray(resReady.data) ? resReady.data : []).filter(o =>
-      Number(o.status) === 2 || o.orderDetails?.some(detail => Number(detail.status) === 1));
-    const newReadyIds = newReady.map(o => o.id);
-    const hasNewReady = newReadyIds.some(id => !previousReadyIds.includes(id));
+    const newReadyDetailIds = (Array.isArray(resReady.data) ? resReady.data : [])
+      .flatMap(order => readyDetails(order).map(detail => detail.id))
+      .filter(id => id != null);
+    const hasNewReady = newReadyDetailIds.some(id => !previousReadyDetailIds.includes(id));
 
-    if (hasNewReady && previousReadyIds.length > 0) {
+    if (hasNewReady && previousReadyDetailIds.length > 0) {
       playNotificationSound();
       toastMsg.value = ' Bếp vừa hoàn thành món mới!';
       setTimeout(() => { toastMsg.value = ''; }, 3000);
     }
-    previousReadyIds = newReadyIds;
+    previousReadyDetailIds = newReadyDetailIds;
 
     const resTables = await api.get('/api/tables');
     tables.value = resTables.data;
@@ -820,18 +872,11 @@ const fetchData = async () => {
   }
 };
 
-const markAsServed = async (id) => {
-  try {
-    await api.put(`/api/admin/orders/${id}/status?status=7`, {}, {
-      headers: { 'Authorization': `Bearer ${getStaffToken()}` }
-    });
-    toastMsg.value = ' Đã bưng ra bàn thành công!';
-    setTimeout(() => { toastMsg.value = ''; }, 3000);
-    fetchData();
-  } catch (error) { showToast('Không thể hoàn thành đơn lúc này.'); }
-};
-
-const markDishServed = async (order, detailId) => {
+const markDishServed = async (detailId, order) => {
+  if (isFutureServiceOrder(order)) {
+    showToast('Đơn này chưa đến ngày phục vụ.');
+    return;
+  }
   try {
     await api.put(`/api/orders/details/${detailId}/status?status=2`, {}, {
       headers: { 'Authorization': `Bearer ${getStaffToken()}` }
@@ -839,7 +884,7 @@ const markDishServed = async (order, detailId) => {
     toastMsg.value = ' Đã bưng món!';
     setTimeout(() => { toastMsg.value = ''; }, 2000);
     fetchData();
-  } catch (err) { showToast('Không thể cập nhật món lúc này.'); }
+  } catch (err) { showToast(getApiErrorMessage(err, 'Không thể cập nhật món lúc này.')); }
 };
 
 // Nút KHÁCH VỀ: chuyển bàn sang trạng thái Cần dọn (3)
@@ -899,6 +944,14 @@ const selectedTableName = ref('');
 
 const getActiveOrderForTable = (table) => {
   return findAwaitingPaymentOrder(orders.value, table.id);
+};
+
+const mergeOrderDetails = (current = [], incoming = []) => {
+  const byId = new Map();
+  [...current, ...incoming].forEach(detail => {
+    if (detail?.id != null) byId.set(detail.id, { ...(byId.get(detail.id) || {}), ...detail });
+  });
+  return [...byId.values()];
 };
 const tableLifecycleText = table => {
   if (table.isOccupied === 0) return 'Trống';
@@ -963,14 +1016,14 @@ const openTableDetail = (table) => {
 };
 
 const getDetailStatusText = (status) => {
-  const map = { 1: ' Đang nấu', 2: ' Đã xong', 3: ' Đang ăn', 4: ' Đã thanh toán' };
+  const map = { 0: ' Đang làm', 1: ' Cần bưng', 2: ' Đã bưng', 3: ' Đã hủy' };
   return map[status] || 'Đang xử lý';
 };
 
 const getDetailStatusClass = (status) => {
-  if (status === 1) return 'badge-cooking';
-  if (status === 2) return 'badge-ready';
-  if (status === 3) return 'badge-serving';
+  if (status === 0) return 'badge-cooking';
+  if (status === 1) return 'badge-ready';
+  if (status === 2) return 'badge-serving';
   return 'badge-done';
 };
 
@@ -978,7 +1031,10 @@ const getDetailStatusClass = (status) => {
 // 10. GỌI THÊM MÓN
 // ==============================
 const goAddItem = (table) => {
-  router.push(`/dine-in?table=${encodeURIComponent(table.name)}`);
+  const masterTable = table.mergedIntoTableId
+    ? tables.value.find(candidate => Number(candidate.id) === Number(table.mergedIntoTableId))
+    : table;
+  router.push(`/dine-in?table=${encodeURIComponent(masterTable?.name || table.name)}&mode=add`);
 };
 
 // Chuyển Bàn Logic
@@ -1222,13 +1278,14 @@ const getAiUpsellAdvice = async () => {
 
 // === WEBSOCKET ===
 const connectWebSocket = () => {
+  disconnectWebSocket();
   const socket = new SockJS('/ws');
   stompClient = Stomp.over(socket);
   stompClient.debug = () => {}; // Tắt log debug
   const token = getStaffToken();
   stompClient.connect(token ? { Authorization: `Bearer ${token}` } : {}, () => {
-    stompClient.subscribe('/topic/waiter', (message) => {
-      if (message.body === 'ORDER_READY' || message.body === 'DISH_STATUS_CHANGED') {
+    waiterSubscription = stompClient.subscribe('/topic/waiter', (message) => {
+      if (['ORDER_READY', 'DISH_STARTED', 'DISH_READY', 'DISH_SERVED', 'DISH_CANCELLED', 'DISH_STATUS_CHANGED', 'NEW_ORDER', 'TABLE_MERGED'].includes(message.body)) {
         fetchData();
       } else if (message.body === 'ORDER_PAID') {
         toastMsg.value = ' Thu ngân vừa xác nhận thanh toán!';
@@ -1240,7 +1297,10 @@ const connectWebSocket = () => {
 };
 
 const disconnectWebSocket = () => {
-  if (stompClient) stompClient.disconnect();
+  if (waiterSubscription) waiterSubscription.unsubscribe();
+  waiterSubscription = null;
+  if (stompClient?.connected) stompClient.disconnect();
+  stompClient = null;
 };
 
 // === LIFECYCLE ===
@@ -1249,11 +1309,13 @@ onMounted(() => {
   fetchMyZones();
   connectWebSocket();
   timerInterval = setInterval(() => { now.value = new Date(); }, 1000);
+  dataRefreshInterval = setInterval(fetchData, 10000);
 });
 
 onUnmounted(() => {
   disconnectWebSocket();
   if (timerInterval) clearInterval(timerInterval);
+  if (dataRefreshInterval) clearInterval(dataRefreshInterval);
 });
 </script>
 
@@ -1406,6 +1468,42 @@ onUnmounted(() => {
 
 /* Serve Grid */
 .serve-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.future-service-badge {
+  display: inline-flex;
+  margin-top: 6px;
+  padding: 4px 9px;
+  border: 1px solid color-mix(in srgb, var(--color-tertiary) 45%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-tertiary) 12%, transparent);
+  color: var(--color-tertiary);
+  font-size: .75rem;
+  font-weight: 800;
+}
+.operational-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 16px;
+}
+.operational-pagination button {
+  min-width: 36px;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-weight: 700;
+  cursor: pointer;
+}
+.operational-pagination button.active {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--color-on-primary);
+}
+.operational-pagination button:disabled { opacity: .42; cursor: not-allowed; }
 .serve-card {
   position: relative;
   background: var(--bg-card);

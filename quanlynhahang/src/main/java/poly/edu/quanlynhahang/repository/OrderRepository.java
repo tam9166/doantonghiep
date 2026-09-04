@@ -55,13 +55,21 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
             + "where o.status = :status order by o.createDate asc")
     List<Order> findByStatusWithDetails(@Param("status") Integer status);
 
+    /**
+     * The waiter queue is driven by each dish lifecycle, not by the parent
+     * order status. An order may be PARTIALLY_READY or may receive a new
+     * add-on after the original order was served.
+     */
     @Query("select distinct o from Order o "
             + "left join fetch o.restaurantTable t left join fetch t.area "
             + "left join fetch o.orderDetails od left join fetch od.product "
-            + "where o.status = :readyStatus "
-            + "or exists (select pending.id from OrderDetail pending where pending.order = o and pending.status = :readyDetailStatus)")
-    List<Order> findWaiterReadyOrdersWithDetails(@Param("readyStatus") Integer readyStatus,
-                                                  @Param("readyDetailStatus") Integer readyDetailStatus);
+            + "where (o.status is null or o.status not in :terminalStatuses) "
+            + "and (o.paymentStatus is null or o.paymentStatus <> poly.edu.quanlynhahang.entity.PaymentStatus.REFUNDED) "
+            + "and exists (select active.id from OrderDetail active "
+            + "where active.order = o and (active.status is null or active.status in :activeDetailStatuses)) "
+            + "order by o.createDate asc")
+    List<Order> findWaiterOperationalOrdersWithDetails(@Param("terminalStatuses") Collection<Integer> terminalStatuses,
+                                                        @Param("activeDetailStatuses") Collection<Integer> activeDetailStatuses);
 
     @Query("select distinct o from Order o left join fetch o.orderDetails od left join fetch od.product "
             + "where o.status in (4, 7) "
@@ -124,7 +132,14 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
     List<Order> findOpenDineInOrdersByTableIdWithDetails(@Param("tableId") Integer tableId);
 
     @Query("select distinct o from Order o left join fetch o.orderDetails od "
-            + "where o.tableId = :tableId order by o.createDate desc")
+            + "where o.tableId = :tableId "
+            + "and o.orderType = poly.edu.quanlynhahang.entity.OrderType.DINE_IN "
+            + "and not exists (select r.id from Reservation r where r.kitchenOrderId = o.id "
+            + "and r.reservationStatus in (poly.edu.quanlynhahang.entity.ReservationStatus.CANCELLED, "
+            + "poly.edu.quanlynhahang.entity.ReservationStatus.EXPIRED, "
+            + "poly.edu.quanlynhahang.entity.ReservationStatus.NO_SHOW, "
+            + "poly.edu.quanlynhahang.entity.ReservationStatus.COMPLETED)) "
+            + "order by o.createDate desc")
     List<Order> findOrdersByTableIdWithDetails(@Param("tableId") Integer tableId);
 
     @Query("select distinct o from Order o "

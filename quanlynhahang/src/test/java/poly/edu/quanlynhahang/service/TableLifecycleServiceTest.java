@@ -76,8 +76,20 @@ class TableLifecycleServiceTest {
 
         assertEquals(3, table.getIsOccupied());
         assertEquals("Đã thanh toán - chờ dọn", table.getReservedTime());
-        verify(guard).prepareForRelease(10);
+        verify(guard).prepareForRelease(10, null);
         verify(sessions).revokeActiveForTable(10);
+    }
+
+    @Test
+    void paymentReleaseExcludesTheInvoiceBeingPaidFromOtherInvoiceGuard() {
+        RestaurantTable table = table(11, 2);
+        when(tables.findLockedById(11)).thenReturn(Optional.of(table));
+        when(tables.save(table)).thenReturn(table);
+
+        service.markCleaningAfterPayment(11, 229);
+
+        assertEquals(3, table.getIsOccupied());
+        verify(guard).prepareForRelease(11, 229);
     }
 
     private RestaurantTable table(int id, int status) {

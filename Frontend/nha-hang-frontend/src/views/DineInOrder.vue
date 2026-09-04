@@ -653,6 +653,7 @@ const submitOrder = async () => {
       address: null,
       tableId: selectedTableRecord.id,
       orderType: 'DINE_IN',
+      appendToOccupiedTable: route.query.mode === 'add',
       paymentOption: 'PAY_AT_RESTAURANT',
       items: formattedItems
       }, {
@@ -678,7 +679,9 @@ const submitOrder = async () => {
     const message = typeof payload === 'string'
       ? payload
       : (locale.value === 'vi' ? payload?.message : null) || t('dineIn.orderFailed');
-    const reference = payload?.correlationId ? ` ${t('dineIn.supportCode', { code: payload.correlationId })}` : '';
+    const reference = error.response?.status >= 500 && payload?.correlationId
+      ? ` ${t('dineIn.supportCode', { code: payload.correlationId })}`
+      : '';
     toastMsg.value = `${message}${reference}`;
     setTimeout(() => { toastMsg.value = ''; }, 6000);
   } finally {

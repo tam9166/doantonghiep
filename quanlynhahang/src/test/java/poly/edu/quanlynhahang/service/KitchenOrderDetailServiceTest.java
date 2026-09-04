@@ -17,6 +17,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.server.ResponseStatusException;
 
 import poly.edu.quanlynhahang.entity.OrderDetail;
@@ -39,9 +40,10 @@ class KitchenOrderDetailServiceTest {
     private final RecipeRepository recipeRepository = mock(RecipeRepository.class);
     private final RefundTransactionRepository refundRepository = mock(RefundTransactionRepository.class);
     private final InventoryReservationService inventoryReservationService = mock(InventoryReservationService.class);
+    private final OrderServiceDateGuardService serviceDateGuard = mock(OrderServiceDateGuardService.class);
     private final KitchenOrderDetailService service = new KitchenOrderDetailService(
             orderDetailRepository, activityLogService, messagingTemplate, orderRepository, recipeRepository,
-            refundRepository, inventoryReservationService, new OrderStateMachineService());
+            refundRepository, inventoryReservationService, new OrderStateMachineService(), serviceDateGuard);
 
     @Test
     void startsThenCompletesPendingDishAndEmitsEvents() {
@@ -76,6 +78,33 @@ class KitchenOrderDetailServiceTest {
     }
 
     @Test
+    void publishesDishReadyOnlyAfterTheTransactionCommits() {
+        OrderDetail detail = pendingDetail();
+        detail.setStartedAt(new java.util.Date());
+        Order order = new Order();
+        order.setId(12);
+        order.setStatus(1);
+        order.setOrderDetails(List.of(detail));
+        detail.setOrder(order);
+        when(orderDetailRepository.findById(7)).thenReturn(Optional.of(detail));
+        when(orderDetailRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            service.complete(7);
+            verify(messagingTemplate, never()).convertAndSend("/topic/waiter", "DISH_READY");
+
+            TransactionSynchronizationManager.getSynchronizations()
+                    .forEach(synchronization -> synchronization.afterCommit());
+
+            verify(messagingTemplate).convertAndSend("/topic/waiter", "DISH_READY");
+            verify(messagingTemplate).convertAndSend("/topic/kitchen", "DISH_READY");
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
+    }
+
+    @Test
     void waiterServesOnlyACompletedDishAndAdvancesTheParentOrder() {
         Order order = new Order();
         order.setId(12);
@@ -94,6 +123,32 @@ class KitchenOrderDetailServiceTest {
         assertEquals(7, order.getStatus());
         verify(orderRepository).save(order);
         verify(messagingTemplate).convertAndSend("/topic/waiter", "DISH_SERVED");
+    }
+
+    @Test
+    void futureServiceDateBlocksStartCompleteAndServeBeforeAnyMutation() {
+        OrderDetail detail = pendingDetail();
+        Order order = new Order();
+        order.setId(12);
+        detail.setOrder(order);
+        when(orderDetailRepository.findById(7)).thenReturn(Optional.of(detail));
+        org.mockito.Mockito.doThrow(new ResponseStatusException(
+                HttpStatus.CONFLICT, OrderServiceDateGuardService.FUTURE_SERVICE_MESSAGE))
+                .when(serviceDateGuard).assertServiceDateReached(order);
+
+        ResponseStatusException startError = assertThrows(ResponseStatusException.class, () -> service.start(7));
+        assertEquals(OrderServiceDateGuardService.FUTURE_SERVICE_MESSAGE, startError.getReason());
+        verify(orderDetailRepository, never()).save(any());
+
+        detail.setStartedAt(new java.util.Date());
+        ResponseStatusException completeError = assertThrows(ResponseStatusException.class, () -> service.complete(7));
+        assertEquals(OrderServiceDateGuardService.FUTURE_SERVICE_MESSAGE, completeError.getReason());
+
+        detail.setStatus(1);
+        detail.setCompletedAt(new java.util.Date());
+        when(orderDetailRepository.findLockedWithOrderAndProductById(7)).thenReturn(Optional.of(detail));
+        ResponseStatusException serveError = assertThrows(ResponseStatusException.class, () -> service.serve(7));
+        assertEquals(OrderServiceDateGuardService.FUTURE_SERVICE_MESSAGE, serveError.getReason());
     }
 
     @Test

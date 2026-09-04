@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import poly.edu.quanlynhahang.entity.Reservation;
 import poly.edu.quanlynhahang.entity.ReservationStatus;
+import poly.edu.quanlynhahang.entity.TableArea;
 import poly.edu.quanlynhahang.repository.ReservationRepository;
 
 import java.time.LocalDate;
@@ -57,6 +58,31 @@ public class RestaurantCapacityService {
                 .mapToInt(Reservation::getGuestCount).sum();
         int remaining = Math.max(0, maximum - occupied);
         return new CapacitySnapshot(requestedGuests <= remaining, maximum, occupied, remaining, requestedGuests, date, start, durationMinutes);
+    }
+
+    public CapacitySnapshot checkAreaCapacity(TableArea area, LocalDate date, LocalTime start,
+                                              int durationMinutes, int requestedGuests) {
+        int maximum = Math.max(0, area.getCapacity() == null ? 0 : area.getCapacity());
+        LocalDateTime requestedStart = LocalDateTime.of(date, start);
+        LocalDateTime requestedEnd = requestedStart.plusMinutes(durationMinutes + CLEANUP_MINUTES);
+        int occupied = candidates(date).stream()
+                .filter(existing -> existing.getArea() != null && area.getId().equals(existing.getArea().getId()))
+                .filter(existing -> overlaps(requestedStart, requestedEnd, existing))
+                .mapToInt(Reservation::getGuestCount).sum();
+        int remaining = Math.max(0, maximum - occupied);
+        return new CapacitySnapshot(requestedGuests <= remaining, maximum, occupied, remaining,
+                requestedGuests, date, start, durationMinutes);
+    }
+
+    /** Must be called inside the booking transaction after lockCapacitySetting(). */
+    public void requireAreaCapacity(TableArea area, LocalDate date, LocalTime start,
+                                    int durationMinutes, int requestedGuests) {
+        CapacitySnapshot snapshot = checkAreaCapacity(area, date, start, durationMinutes, requestedGuests);
+        if (!snapshot.available()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Không còn khu vực phù hợp với số lượng khách trong khung giờ đã chọn. Khu vực hiện còn "
+                            + snapshot.remainingCapacity() + " chỗ.");
+        }
     }
 
     public record CapacitySnapshot(boolean available, int maximumCapacity, int occupiedGuests, int remainingCapacity,

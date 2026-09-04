@@ -106,6 +106,12 @@ public class ReservationController {
         return ResponseEntity.ok(reservationService.getAdminReservation(id));
     }
 
+    @GetMapping("/api/cashier/tables/{tableId}/reservation")
+    @PreAuthorize("hasAnyRole('CASHIER', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<?> getCashierTableReservation(@PathVariable Integer tableId) {
+        return ResponseEntity.ok(reservationService.getCashierReservationForTable(tableId));
+    }
+
     @GetMapping("/api/admin/reservations/{id}/assignment-options")
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     public ResponseEntity<?> assignmentOptions(@PathVariable Long id) {

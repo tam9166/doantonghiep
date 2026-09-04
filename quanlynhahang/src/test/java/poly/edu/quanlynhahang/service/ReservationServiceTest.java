@@ -77,6 +77,7 @@ class ReservationServiceTest {
         // Mock business hours for tests
         when(businessHoursService.isOpen(any())).thenReturn(true);
         when(businessHoursService.acceptsOrders(any())).thenReturn(true);
+        when(businessHoursService.acceptsReservationArrival(any())).thenReturn(true);
         when(businessHoursService.getOpeningTime()).thenReturn(LocalTime.of(9, 0));
         when(businessHoursService.getClosingTime()).thenReturn(LocalTime.of(22, 0));
         when(businessHoursService.getLastOrderTime()).thenReturn(LocalTime.of(21, 30));
@@ -195,6 +196,39 @@ class ReservationServiceTest {
     }
 
     @Test
+    void lateDiningConfirmationAllowsAvailabilityCheckForTheSameRequestedTime() {
+        LocalDate date = LocalDate.now().plusDays(30);
+        when(tableRepository.findOperationalTables()).thenReturn(List.of());
+
+        when(businessHoursService.requiresLateDiningConfirmation(LocalTime.of(21, 41), 120)).thenReturn(true);
+        ResponseStatusException blocked = assertThrows(ResponseStatusException.class,
+                () -> service.findAvailableTables(date.toString(), "21:41", 120, 2, null, false));
+
+        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY, blocked.getStatusCode());
+        assertTrue(blocked.getReason().contains("xác nhận dùng bữa"));
+        assertTrue(service.findAvailableTables(date.toString(), "21:41", 120, 2, null, true).isEmpty());
+    }
+
+    @Test
+    void quoteUsesLateDiningConfirmationFromTheRequest() {
+        LocalDate date = LocalDate.now().plusDays(30);
+        when(businessHoursService.requiresLateDiningConfirmation(LocalTime.of(20, 41), 120)).thenReturn(true);
+        var request = new poly.edu.quanlynhahang.dto.ReservationQuoteRequest();
+        request.setReservationDate(date.toString());
+        request.setArrivalTime("20:41");
+        request.setDurationMinutes(120);
+        request.setGuestCount(2);
+
+        request.setLateDiningConfirmed(false);
+        ResponseStatusException blocked = assertThrows(ResponseStatusException.class, () -> service.quote(request));
+        assertTrue(blocked.getReason().contains("xác nhận dùng bữa"));
+
+        request.setLateDiningConfirmed(true);
+        ResponseStatusException afterConfirmation = assertThrows(ResponseStatusException.class, () -> service.quote(request));
+        assertEquals("Vui lòng chọn khu vực", afterConfirmation.getReason());
+    }
+
+    @Test
     void availabilityRejectsAreaThatIsActiveButNotBookingReady() {
         LocalDate requestedDate = LocalDate.now().plusDays(30);
         poly.edu.quanlynhahang.entity.TableArea area = new poly.edu.quanlynhahang.entity.TableArea();
@@ -218,7 +252,7 @@ class ReservationServiceTest {
                 "Nguyễn An", "0901234567", "an@example.test", 2,
                 poly.edu.quanlynhahang.entity.EventType.WEDDING,
                 LocalDate.now().plusDays(2).toString(), "18:00", 4, 80,
-                true, false, "Tiệc tối", false, List.of());
+                true, false, "Tiệc tối", false, List.of(), false);
         Reservation existing = new Reservation();
         existing.setId(91L);
         existing.setReservationCode("MV-20260825-ABCDEF12");
@@ -235,7 +269,7 @@ class ReservationServiceTest {
                 request.customerName(), request.customerPhone(), request.customerEmail(), request.areaId(),
                 request.eventType(), request.reservationDate(), request.arrivalTime(), request.durationHours(),
                 81, request.decorationRequired(), request.mcRequired(), request.eventNote(),
-                request.preorderEnabled(), request.preorderItems());
+                request.preorderEnabled(), request.preorderItems(), request.lateDiningConfirmed());
         ResponseStatusException conflict = assertThrows(ResponseStatusException.class,
                 () -> service.createEventBooking(changed, "event-key-91"));
         assertEquals(HttpStatus.CONFLICT, conflict.getStatusCode());
@@ -274,7 +308,7 @@ class ReservationServiceTest {
                 "Nguyễn An", "0901234567", "an@example.test", 2,
                 poly.edu.quanlynhahang.entity.EventType.WEDDING,
                 LocalDate.now().plusDays(2).toString(), "18:00", 4, 80,
-                true, false, "Tiệc tối", false, List.of());
+                true, false, "Tiệc tối", false, List.of(), false);
 
         var response = service.createEventBooking(request, "event-key-92");
 
@@ -316,7 +350,7 @@ class ReservationServiceTest {
                 "Nguyễn An", "0901234567", "an@example.test", 2,
                 poly.edu.quanlynhahang.entity.EventType.WEDDING,
                 LocalDate.now().plusDays(2).toString(), "18:00", 4, 80,
-                true, false, "Tiệc tối", true, List.of(preorder));
+                true, false, "Tiệc tối", true, List.of(preorder), false);
 
         ResponseStatusException error = assertThrows(ResponseStatusException.class,
                 () -> service.createEventBooking(request, "event-key-unavailable"));

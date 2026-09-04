@@ -10,11 +10,13 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.List;
 
 import poly.edu.quanlynhahang.repository.OrderRepository;
 import poly.edu.quanlynhahang.entity.OrderStatus;
 import poly.edu.quanlynhahang.service.OrderStateMachineService;
 import poly.edu.quanlynhahang.dto.OrderResponse;
+import poly.edu.quanlynhahang.service.OrderServiceDateGuardService;
 @RestController
 @RequestMapping("/api/waiter")
 @PreAuthorize("hasAnyAuthority('ROLE_WAITER', 'ROLE_ADMIN', 'ROLE_MANAGER')")
@@ -26,12 +28,18 @@ public class WaiterController {
     @Autowired
     private OrderStateMachineService orderStateMachineService;
 
-    // 1. Lấy đơn có món đã hoàn thành ở cấp detail (kể cả đơn cha đang PARTIALLY_READY)
+    @Autowired
+    private OrderServiceDateGuardService serviceDateGuard;
+
+    // 1. Lấy mọi đơn còn món trong vòng đời bếp/phục vụ. Trạng thái món là
+    // nguồn sự thật; trạng thái đơn cha không biểu diễn đủ món gọi thêm.
     @GetMapping("/ready-orders")
     public ResponseEntity<?> getReadyOrders() {
-        return ResponseEntity.ok(orderRepository.findWaiterReadyOrdersWithDetails(
-                        OrderStatus.READY.code(), 1).stream()
-                .map(OrderResponse::from).toList());
+        return ResponseEntity.ok(orderRepository.findWaiterOperationalOrdersWithDetails(
+                        List.of(OrderStatus.CANCELLED.code(), OrderStatus.COMPLETED.code()),
+                        List.of(0, 1)).stream()
+                .map(order -> serviceDateGuard == null ? OrderResponse.from(order)
+                        : OrderResponse.from(order, serviceDateGuard.resolveServiceAt(order))).toList());
     }
 
     // 2. Xác nhận đã bưng món ra bàn (Chuyển Status sang 3 - Đang ăn)
@@ -39,6 +47,7 @@ public class WaiterController {
     @Transactional
     public ResponseEntity<?> confirmServed(@PathVariable Integer id) {
         return orderRepository.findLockedById(id).map(order -> {
+            if (serviceDateGuard != null) serviceDateGuard.assertServiceDateReached(order);
             if (order.getOrderDetails() != null) {
                 order.getOrderDetails().stream()
                         .filter(detail -> Integer.valueOf(1).equals(detail.getStatus()))

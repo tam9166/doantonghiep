@@ -176,7 +176,7 @@ public class OrderCheckoutService {
         }
         if (dineIn && !orderRepository.findOpenDineInOrdersByTableIdWithDetails(request.getTableId()).isEmpty()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Bàn đã có đơn đang mở. Vui lòng gọi thêm món vào đơn hiện tại.");
+                    "Bàn đã có khách, vui lòng chọn lại bàn trống khác.");
         }
         OrderPaymentOption paymentOption = resolvePaymentOption(request.getPaymentOption(), dineIn);
 
@@ -265,7 +265,8 @@ public class OrderCheckoutService {
         inventoryReservationService.reserve(savedOrder, requirementAmounts(requirements),
                 inventoryReservationService.defaultExpiry());
         if (dineInTable != null) {
-            markTablePending(savedOrder, orderCode, dineInTable);
+            markTablePending(savedOrder, orderCode, dineInTable,
+                    Boolean.TRUE.equals(request.getAppendToOccupiedTable()));
         }
         orderRepository.save(savedOrder);
 
@@ -311,6 +312,7 @@ public class OrderCheckoutService {
                 .reduce("", (left, right) -> left + "|" + right);
         String payload = String.join("|", normalizedText(username), String.valueOf(request.getOrderType()),
                 String.valueOf(request.getTableId()), String.valueOf(request.getPaymentOption()),
+                String.valueOf(Boolean.TRUE.equals(request.getAppendToOccupiedTable())),
                 normalizedText(request.getRecipientName()), normalizedText(request.getRecipientPhone()),
                 normalizedText(request.getDeliveryAddress()), normalizedText(request.getDeliveryNote()),
                 normalizedText(request.getVoucherCode()), items);
@@ -336,7 +338,7 @@ public class OrderCheckoutService {
 
         List<RequestedItem> requestedItems = preorderItems.stream()
                 .map(item -> new RequestedItem(item.getProductId(), item.getQuantity(),
-                        "", "", 0))
+                        normalizedText(item.getNote()), "", 0))
                 .toList();
         List<CheckoutLine> lines = loadProducts(requestedItems);
         validateAvailableQuantities(lines);
@@ -354,7 +356,14 @@ public class OrderCheckoutService {
         order.setDeliveryNote(normalizedText(reservation.getOrderNote()));
         order.setTableId(reservation.getTable().getId());
         order.setCreateDate(new Date());
-        orderStateMachineService.initialize(order, poly.edu.quanlynhahang.entity.OrderStatus.IN_PREPARATION);
+        java.time.LocalDateTime serviceAt = java.time.LocalDateTime.of(
+                reservation.getReservationDate(), reservation.getArrivalTime());
+        order.setScheduledAt(serviceAt);
+        boolean futureServiceDate = serviceAt.toLocalDate().isAfter(
+                java.time.LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")));
+        orderStateMachineService.initialize(order, futureServiceDate
+                ? poly.edu.quanlynhahang.entity.OrderStatus.SCHEDULED
+                : poly.edu.quanlynhahang.entity.OrderStatus.IN_PREPARATION);
         order.setDeposit(money(reservation.getPaidAmount()));
         order.setPaymentOption(OrderPaymentOption.PAY_AT_RESTAURANT);
         order.setPaymentStatus(reservation.getPaymentStatus() == null
@@ -757,13 +766,18 @@ public class OrderCheckoutService {
         }
     }
 
-    private void markTablePending(Order order, String orderCode, RestaurantTable table) {
-        if (table.getIsOccupied() != null && table.getIsOccupied() != 0) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Bàn đã có đơn đang hoạt động");
+    private void markTablePending(Order order, String orderCode, RestaurantTable table,
+                                  boolean appendToOccupiedTable) {
+        boolean occupied = table.getIsOccupied() != null && table.getIsOccupied() != 0;
+        if (occupied && !(appendToOccupiedTable && Integer.valueOf(2).equals(table.getIsOccupied()))) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Bàn đã có khách, vui lòng chọn lại bàn trống khác.");
         }
-        table.setIsOccupied(1);
-        table.setReservedTime("Đơn chờ xác nhận: #" + orderCode);
-        tableRepository.save(table);
+        if (!occupied) {
+            table.setIsOccupied(1);
+            table.setReservedTime("Đơn chờ xác nhận: #" + orderCode);
+            tableRepository.save(table);
+        }
         order.setTableId(table.getId());
     }
 

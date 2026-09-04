@@ -41,6 +41,9 @@ public class OrderRequest {
 
     private OrderPaymentOption paymentOption;
 
+    /** Explicit staff add-on flow; never inferred from an occupied table. */
+    private Boolean appendToOccupiedTable = false;
+
     @Valid
     @NotEmpty(message = "Giỏ hàng không được để trống")
     private List<OrderDetailRequest> items;

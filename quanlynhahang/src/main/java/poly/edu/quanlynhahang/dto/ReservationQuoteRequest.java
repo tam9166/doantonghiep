@@ -25,7 +25,8 @@ public class ReservationQuoteRequest {
     private String arrivalTime;
     @NotNull @Min(30) @Max(480)
     private Integer durationMinutes;
-    @NotNull @Min(1) @Max(50)
+    private Boolean lateDiningConfirmed;
+    @NotNull @Min(1) @Max(200)
     private Integer guestCount;
     @Valid @Size(max = 30)
     private List<PreorderItemRequest> preorderItems;

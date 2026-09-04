@@ -51,6 +51,7 @@ import poly.edu.quanlynhahang.service.OrderRefundService;
 import poly.edu.quanlynhahang.service.TableSessionService;
 import poly.edu.quanlynhahang.service.TableLifecycleService;
 import poly.edu.quanlynhahang.entity.OrderType;
+import poly.edu.quanlynhahang.service.OrderServiceDateGuardService;
 @RestController
 @RequestMapping("/api/admin/orders")
 // ✅ FIX: Dùng hasAnyAuthority với ROLE_ prefix đầy đủ
@@ -91,6 +92,9 @@ public class AdminOrderController {
     @Autowired
     private TableLifecycleService tableLifecycleService;
 
+    @Autowired
+    private OrderServiceDateGuardService serviceDateGuard;
+
     @GetMapping
     @Transactional(readOnly = true)
     public ResponseEntity<?> getAllOrders(
@@ -114,11 +118,9 @@ public class AdminOrderController {
         List<Order> orders = (ids.isEmpty() ? List.<Order>of() : orderRepository.findAllWithDetailsByIdIn(ids)).stream()
                 .sorted((o1, o2) -> o2.getId().compareTo(o1.getId()))
                 .collect(Collectors.toList());
-        return ResponseEntity.ok(orders.stream()
-                .filter(order -> order.getOrderDetails() != null && order.getOrderDetails().stream()
-                        .anyMatch(detail -> detail.getStatus() == null || detail.getStatus() == 0))
-                .map(OrderResponse::forKitchen)
-                .toList());
+        // This shared staff endpoint is the canonical order snapshot for Waiter,
+        // Cashier and table management. Kitchen has its own filtered /kitchen/board.
+        return ResponseEntity.ok(orders.stream().map(OrderResponse::from).toList());
     }
 
     @GetMapping("/kitchen/board")
@@ -127,10 +129,12 @@ public class AdminOrderController {
     public ResponseEntity<?> getKitchenBoard() {
         Date startOfDay = Date.from(LocalDate.now(BUSINESS_ZONE).atStartOfDay(BUSINESS_ZONE).toInstant());
         List<Order> orders = orderRepository.findKitchenBoardOrdersWithDetails(
-                List.of(OrderStatus.IN_PREPARATION.code(), OrderStatus.PARTIALLY_READY.code()),
+                List.of(OrderStatus.SCHEDULED.code(), OrderStatus.IN_PREPARATION.code(), OrderStatus.PARTIALLY_READY.code()),
                 List.of(OrderStatus.READY.code(), OrderStatus.COMPLETED.code(), OrderStatus.SERVED.code()),
                 startOfDay);
-        return ResponseEntity.ok(orders.stream().map(OrderResponse::from).toList());
+        return ResponseEntity.ok(orders.stream()
+                .map(order -> serviceDateGuard == null ? OrderResponse.from(order)
+                        : OrderResponse.from(order, serviceDateGuard.resolveServiceAt(order))).toList());
     }
 
     // THỐNG KÊ (Khóa lại chỉ cho Quản lý xem)
@@ -225,6 +229,11 @@ public class AdminOrderController {
             }
         }
         return orderRepository.findById(id).map(order -> {
+            if (status == OrderStatus.PARTIALLY_READY.code()
+                    || status == OrderStatus.READY.code()
+                    || status == OrderStatus.SERVED.code()) {
+                if (serviceDateGuard != null) serviceDateGuard.assertServiceDateReached(order);
+            }
             boolean shouldAwardPoints = status == OrderStatus.COMPLETED.code()
                     && order.getStatus() != OrderStatus.COMPLETED.code()
                     && Boolean.TRUE.equals(order.getIsPaid());
@@ -301,7 +310,7 @@ public class AdminOrderController {
             orderStateMachineService.transition(order, OrderStatus.COMPLETED);
             orderRepository.saveAndFlush(order);
             if (order.getTableId() != null) {
-                tableLifecycleService.markCleaningAfterPayment(order.getTableId());
+                tableLifecycleService.markCleaningAfterPayment(order.getTableId(), order.getId());
             }
             if (firstPaymentConfirmation) {
                 awardOrderPoints(order);
@@ -316,12 +325,14 @@ public class AdminOrderController {
 
     @PutMapping("/{id}/confirm-manual")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'CASHIER')")
+    @Transactional
     public ResponseEntity<?> confirmManualOrder(@PathVariable Integer id) {
         return ResponseEntity.ok(orderPaymentService.confirmManualDispatch(id));
     }
 
     @PutMapping("/{id}/dispatch-to-kitchen")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'WAITER')")
+    @Transactional
     public ResponseEntity<?> dispatchToKitchen(@PathVariable Integer id) {
         return ResponseEntity.ok(OrderResponse.from(orderPaymentService.confirmManualDispatch(id)));
     }

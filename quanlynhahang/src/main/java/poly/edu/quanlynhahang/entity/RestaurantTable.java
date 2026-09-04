@@ -93,6 +93,15 @@ public class RestaurantTable {
     @Column(name = "notes", columnDefinition = "nvarchar(500)")
     private String notes;
 
+    @Column(name = "merged_into_table_id")
+    private Integer mergedIntoTableId;
+
+    @Column(name = "merged_at")
+    private java.util.Date mergedAt;
+
+    @Column(name = "merged_by", length = 50)
+    private String mergedBy;
+
     public RestaurantTable(Integer id, String name, String floor, Integer isOccupied, Boolean hasView,
                            String reservedTime, Integer capacity, String viewType) {
         this.id = id;

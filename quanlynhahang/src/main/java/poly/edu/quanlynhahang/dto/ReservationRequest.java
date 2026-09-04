@@ -31,7 +31,7 @@ public class ReservationRequest {
     @NotNull @Min(30) @Max(480)
     private Integer expectedDurationMinutes;
     private Boolean lateDiningConfirmed;
-    @NotNull @Min(1) @Max(50)
+    @NotNull @Min(1) @Max(200)
     private Integer guestCount;
     @Size(max = 100)
     private String occasion;

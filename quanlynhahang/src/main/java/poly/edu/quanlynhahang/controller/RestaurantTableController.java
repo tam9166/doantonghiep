@@ -155,6 +155,10 @@ public class RestaurantTableController {
 
         source.setIsOccupied(5);
         source.setReservedTime("[GHÉP VỚI: " + target.getName() + "]");
+        source.setMergedIntoTableId(target.getId());
+        source.setMergedAt(new java.util.Date());
+        source.setMergedBy(org.springframework.security.core.context.SecurityContextHolder.getContext()
+                .getAuthentication().getName());
         tableRepository.save(source);
 
         return ResponseEntity.ok("Ghép bàn thành công.");

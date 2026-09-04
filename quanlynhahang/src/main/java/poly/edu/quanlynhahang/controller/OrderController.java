@@ -54,8 +54,10 @@ import poly.edu.quanlynhahang.service.TableSessionService;
 import poly.edu.quanlynhahang.service.OrderStateMachineService;
 import poly.edu.quanlynhahang.service.OrderFinancialMutationGuardService;
 import poly.edu.quanlynhahang.service.TableLifecycleService;
+import poly.edu.quanlynhahang.service.ActivityLogService;
 import poly.edu.quanlynhahang.entity.OrderStatus;
 import poly.edu.quanlynhahang.entity.OrderType;
+import poly.edu.quanlynhahang.entity.PaymentStatus;
 
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.slf4j.Logger;
@@ -81,6 +83,7 @@ public class OrderController {
     @Autowired private OrderStateMachineService orderStateMachineService;
     @Autowired private OrderFinancialMutationGuardService orderFinancialMutationGuardService;
     @Autowired private TableLifecycleService tableLifecycleService;
+    @Autowired private ActivityLogService activityLogService;
 
     @GetMapping("/history")
     public ResponseEntity<?> getMyOrders() {
@@ -124,6 +127,10 @@ public class OrderController {
                 tableSessionService.requireForTable(tableSessionToken, orderRequest.getTableId());
             }
         }
+        if (Boolean.TRUE.equals(orderRequest.getAppendToOccupiedTable()) && !isStaffRequest()) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.FORBIDDEN, "Chỉ nhân viên mới được tạo hóa đơn phát sinh cho bàn đang phục vụ.");
+        }
         String username = SecurityContextHolder.getContext().getAuthentication() == null
                 ? null
                 : SecurityContextHolder.getContext().getAuthentication().getName();
@@ -134,6 +141,13 @@ public class OrderController {
             publishSafely("/topic/kitchen", "NEW_ORDER");
         }
         return ResponseEntity.ok(result);
+    }
+
+    private boolean isStaffRequest() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null) return false;
+        return authentication.getAuthorities().stream().map(authority -> authority.getAuthority()).anyMatch(
+                authority -> List.of("ROLE_WAITER", "ROLE_CASHIER", "ROLE_MANAGER", "ROLE_ADMIN").contains(authority));
     }
 
     @PutMapping("/{id}/add-items")
@@ -199,6 +213,14 @@ public class OrderController {
         Map<Integer, RestaurantTable> lockedTables = lockTables(payload.fromTableId(), payload.toTableId());
         RestaurantTable fromTable = lockedTables.get(payload.fromTableId());
         RestaurantTable toTable = lockedTables.get(payload.toTableId());
+        if (toTable.getId().equals(fromTable.getMergedIntoTableId())) {
+            return ResponseEntity.ok(Map.of("message", "Bàn đã được gộp trước đó.",
+                    "masterTableId", toTable.getId()));
+        }
+        if (fromTable.getMergedIntoTableId() != null) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.CONFLICT, "Bàn nguồn đã thuộc một nhóm bàn khác");
+        }
         if (Boolean.FALSE.equals(toTable.getActive())) {
             throw new org.springframework.web.server.ResponseStatusException(
                     HttpStatus.CONFLICT, "Bàn đích đang ngừng hoạt động");
@@ -209,56 +231,70 @@ public class OrderController {
         Optional<Order> targetOrderOpt = orderRepository
                 .findOpenDineInOrdersByTableIdWithDetails(toTable.getId()).stream().findFirst();
             
-        if (sourceOrderOpt.isEmpty()) {
-            return ResponseEntity.badRequest().body("Bàn nguồn không có hóa đơn nào đang mở!");
-        }
-        if (targetOrderOpt.isEmpty()) {
-            return ResponseEntity.badRequest().body("Bàn đích không có hóa đơn nào đang mở! Vui lòng order món cho bàn đích trước.");
-        }
-        
-        Map<Integer, Order> lockedOrders = lockOrders(
-                sourceOrderOpt.get().getId(), targetOrderOpt.get().getId());
-        Order sourceOrder = lockedOrders.get(sourceOrderOpt.get().getId());
-        Order targetOrder = lockedOrders.get(targetOrderOpt.get().getId());
-        orderFinancialMutationGuardService.requireSafeForTableComposition(sourceOrder, targetOrder);
-        
-        // Chuyển toàn bộ món từ hóa đơn cũ sang hóa đơn mới
-        BigDecimal transferSub = BigDecimal.ZERO;
-        BigDecimal transferTax = BigDecimal.ZERO;
-        if (sourceOrder.getOrderDetails() != null) {
-            for (OrderDetail detail : sourceOrder.getOrderDetails()) {
-                detail.setOrder(targetOrder);
-                orderDetailRepository.save(detail);
-                transferSub = transferSub.add(money(detail.getPrice()));
-                transferTax = transferTax.add(money(detail.getTaxAmount()));
+        Integer activeOpenOrderId = targetOrderOpt.map(Order::getId).orElse(null);
+        if (sourceOrderOpt.isPresent() && targetOrderOpt.isPresent()) {
+            Map<Integer, Order> lockedOrders = lockOrders(sourceOrderOpt.get().getId(), targetOrderOpt.get().getId());
+            Order sourceOrder = lockedOrders.get(sourceOrderOpt.get().getId());
+            Order targetOrder = lockedOrders.get(targetOrderOpt.get().getId());
+
+            if (sourceOrder.getOrderDetails() != null) {
+                for (OrderDetail detail : List.copyOf(sourceOrder.getOrderDetails())) {
+                    detail.setOrder(targetOrder);
+                    orderDetailRepository.save(detail);
+                }
             }
+            targetOrder.setOriginalSubtotal(money(targetOrder.getOriginalSubtotal()).add(money(sourceOrder.getOriginalSubtotal())));
+            targetOrder.setMembershipDiscount(money(targetOrder.getMembershipDiscount()).add(money(sourceOrder.getMembershipDiscount())));
+            targetOrder.setVoucherDiscount(money(targetOrder.getVoucherDiscount()).add(money(sourceOrder.getVoucherDiscount())));
+            targetOrder.setSubTotal(money(targetOrder.getSubTotal()).add(money(sourceOrder.getSubTotal())));
+            targetOrder.setTaxAmount(money(targetOrder.getTaxAmount()).add(money(sourceOrder.getTaxAmount())));
+            targetOrder.setTotalAmount(money(targetOrder.getTotalAmount()).add(money(sourceOrder.getTotalAmount())));
+            BigDecimal confirmedPaid = money(targetOrder.getPaidAmount()).add(money(sourceOrder.getPaidAmount()));
+            BigDecimal remaining = targetOrder.getTotalAmount().subtract(confirmedPaid).max(BigDecimal.ZERO);
+            targetOrder.setPaidAmount(confirmedPaid.setScale(0, RoundingMode.HALF_UP));
+            targetOrder.setRemainingAmount(remaining.setScale(0, RoundingMode.HALF_UP));
+            targetOrder.setIsPaid(remaining.signum() == 0);
+            targetOrder.setPaymentStatus(mergedPaymentStatus(confirmedPaid, targetOrder.getTotalAmount()));
+            orderRepository.save(targetOrder);
+
+            // The source invoice remains as an immutable financial audit record; only its
+            // lifecycle/remaining obligation closes because that obligation moved to master.
+            sourceOrder.setRemainingAmount(BigDecimal.ZERO);
+            orderStateMachineService.transition(sourceOrder, OrderStatus.CANCELLED);
+            orderRepository.save(sourceOrder);
+            activeOpenOrderId = targetOrder.getId();
+        } else if (sourceOrderOpt.isPresent()) {
+            Order sourceOrder = orderRepository.findLockedById(sourceOrderOpt.get().getId()).orElseThrow();
+            sourceOrder.setTableId(toTable.getId());
+            orderRepository.save(sourceOrder);
+            activeOpenOrderId = sourceOrder.getId();
         }
-        
-        BigDecimal targetSubTotal = money(targetOrder.getSubTotal()).add(transferSub);
-        BigDecimal targetTaxAmount = money(targetOrder.getTaxAmount()).add(transferTax);
-        targetOrder.setSubTotal(targetSubTotal);
-        targetOrder.setTaxAmount(targetTaxAmount);
-        targetOrder.setTotalAmount(targetSubTotal.add(targetTaxAmount));
-        targetOrder.setRemainingAmount(targetOrder.getTotalAmount().setScale(0, RoundingMode.HALF_UP));
-        orderRepository.save(targetOrder);
-        
-        // Hủy hóa đơn cũ
-        sourceOrder.setSubTotal(BigDecimal.ZERO.setScale(2));
-        sourceOrder.setTaxAmount(BigDecimal.ZERO.setScale(2));
-        sourceOrder.setTotalAmount(BigDecimal.ZERO.setScale(2));
-        sourceOrder.setRemainingAmount(BigDecimal.ZERO);
-        orderStateMachineService.transition(sourceOrder, OrderStatus.CANCELLED);
-        orderRepository.save(sourceOrder);
-        
-        // Đánh dấu bàn cũ là Đã Ghép thay vì Trống
+
+        String actor = SecurityContextHolder.getContext().getAuthentication() == null
+                ? "SYSTEM" : SecurityContextHolder.getContext().getAuthentication().getName();
         fromTable.setIsOccupied(5);
         fromTable.setReservedTime("[GHÉP VỚI: " + toTable.getName() + "]");
+        fromTable.setMergedIntoTableId(toTable.getId());
+        fromTable.setMergedAt(new Date());
+        fromTable.setMergedBy(actor);
+        if (!Integer.valueOf(2).equals(toTable.getIsOccupied())) {
+            toTable.setIsOccupied(2);
+            tableRepository.save(toTable);
+        }
         tableRepository.save(fromTable);
         tableSessionService.revokeActiveForTable(fromTable.getId());
-            
-        messagingTemplate.convertAndSend("/topic/orders", "TABLE_MERGED");
-        
-        return ResponseEntity.ok(java.util.Map.of("message", "Gộp bàn thành công!"));
+        activityLogService.log("TABLE_MERGED", "RestaurantTable", String.valueOf(fromTable.getId()),
+                "Gộp bàn " + fromTable.getName() + " vào " + toTable.getName()
+                        + (activeOpenOrderId == null ? "; giữ nguyên các hóa đơn đã đóng"
+                                : "; hóa đơn mở #" + activeOpenOrderId));
+        publishSafely("/topic/orders", "TABLE_MERGED");
+        publishSafely("/topic/waiter", "TABLE_MERGED");
+
+        Map<String, Object> response = new java.util.LinkedHashMap<>();
+        response.put("message", "Gộp bàn thành công!");
+        response.put("masterTableId", toTable.getId());
+        response.put("activeOpenOrderId", activeOpenOrderId);
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/split-table")
@@ -427,6 +463,13 @@ public class OrderController {
 
     private static BigDecimal money(BigDecimal value) {
         return (value == null ? BigDecimal.ZERO : value).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private PaymentStatus mergedPaymentStatus(BigDecimal paid, BigDecimal total) {
+        if (paid == null || paid.signum() <= 0) return PaymentStatus.UNPAID;
+        int comparison = paid.compareTo(total);
+        if (comparison < 0) return PaymentStatus.PARTIALLY_PAID;
+        return comparison == 0 ? PaymentStatus.PAID : PaymentStatus.OVERPAID;
     }
 
     private Map<Integer, RestaurantTable> lockTables(Integer firstId, Integer secondId) {
