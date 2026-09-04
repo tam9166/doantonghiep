@@ -107,7 +107,11 @@
           </div>
         </div>
 
-          <h3 class="section-title">{{ text.fullMenu }}</h3>
+        <h3 class="section-title">{{ text.fullMenu }}</h3>
+        <div v-if="menuCategories.length" class="menu-category-chips" role="tablist" :aria-label="text.fullMenu">
+          <button type="button" class="menu-category-chip" :class="{ active: selectedCategoryId === null }" @click="selectCategory(null)">{{ text.allCategories || 'Tất cả món' }}</button>
+          <button v-for="category in menuCategories" :key="category.id" type="button" class="menu-category-chip" :class="{ active: selectedCategoryId === category.id }" @click="selectCategory(category.id)">{{ category.name }}</button>
+        </div>
         <div v-for="product in pagedFullMenuProducts" :key="product.id" class="product-item">
             <img :src="foodImage(product.image)" :alt="productName(product)" loading="lazy" @error="replaceFoodImage" />
           <div class="product-info">
@@ -252,6 +256,7 @@ const checkoutIdempotencyKey = ref(crypto.randomUUID());
 const tableSessionToken = ref(typeof route.query.cap === 'string' ? route.query.cap : '');
 const capabilityOrder = ref(null);
 const fullMenuPage = ref(1);
+const selectedCategoryId = ref(null);
 const FULL_MENU_PAGE_SIZE = 10;
 
 const isAdminOrManager = computed(() => {
@@ -274,18 +279,36 @@ const productName = product => locale.value === 'en'
   : (product?.nameVi || product?.name || product?.nameEn);
 const tableName = table => table?.code || table?.name || '';
 
-const activeProducts = computed(() => products.value.filter(p => p.status !== false));
+const activeProducts = computed(() => {
+  const byId = new Map();
+  products.value.filter(p => p.status !== false && p?.id != null).forEach(product => byId.set(Number(product.id), product));
+  return [...byId.values()];
+});
+const menuCategories = computed(() => {
+  const byId = new Map();
+  activeProducts.value.forEach(product => {
+    const category = product.category;
+    if (category?.id != null && !byId.has(Number(category.id))) {
+      byId.set(Number(category.id), { id: Number(category.id), name: category.name });
+    }
+  });
+  return [...byId.values()].sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), locale.value));
+});
 const sortedFullMenuProducts = computed(() => [...activeProducts.value].sort((a, b) => {
   const aAvailable = Number(a.availableQuantity || 0) > 0 ? 0 : 1;
   const bAvailable = Number(b.availableQuantity || 0) > 0 ? 0 : 1;
   if (aAvailable !== bAvailable) return aAvailable - bAvailable;
   return String(productName(a)).localeCompare(String(productName(b)), 'vi');
-}));
+}).filter(product => selectedCategoryId.value === null || Number(product.category?.id) === selectedCategoryId.value));
 const fullMenuTotalPages = computed(() => Math.max(1, Math.ceil(sortedFullMenuProducts.value.length / FULL_MENU_PAGE_SIZE)));
 const pagedFullMenuProducts = computed(() => {
   const start = (fullMenuPage.value - 1) * FULL_MENU_PAGE_SIZE;
   return sortedFullMenuProducts.value.slice(start, start + FULL_MENU_PAGE_SIZE);
 });
+const selectCategory = (categoryId) => {
+  selectedCategoryId.value = categoryId == null ? null : Number(categoryId);
+  fullMenuPage.value = 1;
+};
 // Gom nhóm bàn theo tầng để khách dễ tìm trong thẻ <select>
 const groupedTables = computed(() => {
   const groups = {};
@@ -770,6 +793,10 @@ onMounted(loadData);
 .smart-chips button { min-height: 34px; padding: 6px 11px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg-card); color: var(--text-secondary); font: inherit; cursor: pointer; }
 .smart-chips button.active { background: var(--primary); border-color: var(--primary); color: var(--color-on-primary); }
 .smart-submit { justify-self: start; min-width: 160px; }
+.menu-category-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
+.menu-category-chip { border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--border)); border-radius: 999px; padding: 7px 13px; background: var(--surface, #fff); color: var(--text-primary); font-weight: 700; cursor: pointer; }
+.menu-category-chip:hover, .menu-category-chip.active { background: var(--primary); border-color: var(--primary); color: var(--color-on-primary, #fff); }
+@media (max-width: 640px) { .menu-category-chips { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; } .menu-category-chip { flex: 0 0 auto; } }
 .combo-item small { display: block; margin-top: 4px; color: var(--text-muted); line-height: 1.4; }
 
 /* Navbar */

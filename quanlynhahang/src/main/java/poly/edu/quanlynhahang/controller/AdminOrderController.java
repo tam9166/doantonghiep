@@ -138,18 +138,29 @@ public class AdminOrderController {
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     @Transactional(readOnly = true)
     public ResponseEntity<?> getRevenueAnalytics() {
-        List<Order> completedOrders = orderRepository.findByStatusWithDetails(OrderStatus.COMPLETED.code());
+        List<Order> revenueOrders = orderRepository.findOrdersForRevenueAnalytics();
         BigDecimal totalRevenue = BigDecimal.ZERO;
         int totalItemsSold = 0;
-        for (Order order : completedOrders) {
-            if (order.getOrderDetails() != null) {
+        for (Order order : revenueOrders) {
+            boolean completedLifecycle = order.getStatus() == OrderStatus.COMPLETED.code()
+                    || order.getStatus() == OrderStatus.SERVED.code();
+            if (order.getOrderDetails() != null && isRevenueOrder(order)) {
                 totalRevenue = totalRevenue.add(orderTotal(order));
-                totalItemsSold += order.getOrderDetails().stream().mapToInt(d -> d.getQuantity()).sum();
+                if (completedLifecycle) {
+                    totalItemsSold += order.getOrderDetails().stream()
+                            .filter(detail -> !Integer.valueOf(3).equals(detail.getStatus()))
+                            .mapToInt(d -> d.getQuantity()).sum();
+                }
             }
         }
         Map<String, Object> statistics = new HashMap<>();
         statistics.put("totalRevenue", totalRevenue);
-        statistics.put("completedOrdersCount", completedOrders.size());
+        long completedInvoiceCount = revenueOrders.stream()
+                .filter(this::isRevenueOrder)
+                .filter(order -> order.getStatus() == OrderStatus.COMPLETED.code()
+                        || order.getStatus() == OrderStatus.SERVED.code())
+                .count();
+        statistics.put("completedOrdersCount", completedInvoiceCount);
         statistics.put("totalItemsSold", totalItemsSold);
         statistics.put("pendingOrdersCount", orderRepository.countByStatus(OrderStatus.PENDING.code()));
         return ResponseEntity.ok(statistics);
@@ -159,13 +170,13 @@ public class AdminOrderController {
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     @Transactional(readOnly = true)
     public ResponseEntity<?> getDashboardStats() {
-        List<Order> completedOrders = orderRepository.findByStatusWithDetails(OrderStatus.COMPLETED.code());
+        List<Order> completedOrders = orderRepository.findOrdersForRevenueAnalytics();
 
         // 1. Doanh thu 7 ngày qua
         Map<String, BigDecimal> revenueByDate = new HashMap<>();
         SimpleDateFormat sdf = new SimpleDateFormat("dd/MM");
         for (Order o : completedOrders) {
-            if (o.getCreateDate() != null && o.getOrderDetails() != null) {
+            if (isRevenueOrder(o) && o.getCreateDate() != null && o.getOrderDetails() != null) {
                 String dateStr = sdf.format(o.getCreateDate());
                 revenueByDate.merge(dateStr, orderTotal(o), BigDecimal::add);
             }
@@ -174,7 +185,7 @@ public class AdminOrderController {
         // 2. Top 5 sản phẩm bán chạy
         Map<String, Integer> productSales = new HashMap<>();
         for (Order o : completedOrders) {
-            if (o.getOrderDetails() != null) {
+            if (isRevenueOrder(o) && o.getOrderDetails() != null) {
                 for (poly.edu.quanlynhahang.entity.OrderDetail d : o.getOrderDetails()) {
                     if (d.getProduct() != null) {
                         String pName = d.getProduct().getName();
@@ -401,6 +412,17 @@ public class AdminOrderController {
         String actor = org.springframework.security.core.context.SecurityContextHolder
                 .getContext().getAuthentication().getName();
         return ResponseEntity.ok(orderRefundService.cancelAndRequestRefund(id, actor));
+    }
+
+    private boolean isRevenueOrder(Order order) {
+        if (order == null || Integer.valueOf(OrderStatus.CANCELLED.code()).equals(order.getStatus())
+                || PaymentStatus.REFUNDED.equals(order.getPaymentStatus())) {
+            return false;
+        }
+        return order.getStatus() == OrderStatus.COMPLETED.code()
+                || order.getStatus() == OrderStatus.SERVED.code()
+                || Boolean.TRUE.equals(order.getIsPaid())
+                || PaymentStatus.PAID.equals(order.getPaymentStatus());
     }
 
     @org.springframework.web.bind.annotation.PatchMapping("/{id}/refund-complete")

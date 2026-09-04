@@ -26,10 +26,11 @@ public class WaiterController {
     @Autowired
     private OrderStateMachineService orderStateMachineService;
 
-    // 1. Lấy danh sách món Bếp đã nấu xong (Status = 2)
+    // 1. Lấy đơn có món đã hoàn thành ở cấp detail (kể cả đơn cha đang PARTIALLY_READY)
     @GetMapping("/ready-orders")
     public ResponseEntity<?> getReadyOrders() {
-        return ResponseEntity.ok(orderRepository.findByStatusWithDetails(OrderStatus.READY.code()).stream()
+        return ResponseEntity.ok(orderRepository.findWaiterReadyOrdersWithDetails(
+                        OrderStatus.READY.code(), 1).stream()
                 .map(OrderResponse::from).toList());
     }
 

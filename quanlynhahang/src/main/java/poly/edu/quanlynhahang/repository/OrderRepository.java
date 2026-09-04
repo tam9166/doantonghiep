@@ -56,6 +56,20 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
     List<Order> findByStatusWithDetails(@Param("status") Integer status);
 
     @Query("select distinct o from Order o "
+            + "left join fetch o.restaurantTable t left join fetch t.area "
+            + "left join fetch o.orderDetails od left join fetch od.product "
+            + "where o.status = :readyStatus "
+            + "or exists (select pending.id from OrderDetail pending where pending.order = o and pending.status = :readyDetailStatus)")
+    List<Order> findWaiterReadyOrdersWithDetails(@Param("readyStatus") Integer readyStatus,
+                                                  @Param("readyDetailStatus") Integer readyDetailStatus);
+
+    @Query("select distinct o from Order o left join fetch o.orderDetails od left join fetch od.product "
+            + "where o.status in (4, 7) "
+            + "or (o.status <> 3 and o.isPaid = true and o.paymentStatus <> poly.edu.quanlynhahang.entity.PaymentStatus.REFUNDED) "
+            + "or (o.status <> 3 and o.paymentStatus = poly.edu.quanlynhahang.entity.PaymentStatus.PAID)")
+    List<Order> findOrdersForRevenueAnalytics();
+
+    @Query("select distinct o from Order o "
             + "left join fetch o.orderDetails od left join fetch od.product "
             + "where o.status = :status and o.createDate >= :startDate "
             + "order by o.createDate asc")

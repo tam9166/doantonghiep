@@ -95,7 +95,7 @@
               <!-- Chi tiết món ăn -->
               <div class="serve-dishes">
                 <template v-for="(detail, idx) in order.orderDetails" :key="idx">
-                  <div class="serve-dish-item" v-if="Number(order.status) === 2 || detail.status === 1">
+                  <div class="serve-dish-item" v-if="Number(detail.status) === 1 || (Number(order.status) === 2 && ![2, 3].includes(Number(detail.status)))">
                     <img v-if="detail.product?.image" :src="foodImage(detail.product.image)" class="serve-dish-thumb" @error="replaceFoodImage" />
                   <span v-else class="serve-dish-icon"><UiIcon name="dish" /></span>
                     <span class="serve-dish-name">{{ detail.product?.name || 'Món ăn' }}</span>
@@ -701,7 +701,7 @@ const tablesByFloorArea = computed(() => groupTablesByFloorAndArea(tables.value.
 const readyOrders = computed(() => {
   return orders.value.filter(o => 
     Number(o.status) === 2 || 
-    (Number(o.status) === 6 && o.orderDetails?.some(d => d.status === 1))
+    (Number(o.status) === 6 && o.orderDetails?.some(d => Number(d.status) === 1))
   );
 });
 const cookingOrders = computed(() => orders.value.filter(o => Number(o.status) === 1 || Number(o.status) === 6));
@@ -785,13 +785,20 @@ const fetchData = async () => {
   try {
     const token = getStaffToken();
 
-    const resOrders = await api.get('/api/admin/orders', {
-      headers: { 'Authorization': `Bearer ${token}` }
+    const [resOrders, resReady] = await Promise.all([
+      api.get('/api/admin/orders', { headers: { 'Authorization': `Bearer ${token}` } }),
+      api.get('/api/waiter/ready-orders', { headers: { 'Authorization': `Bearer ${token}` } })
+    ]);
+    const merged = new Map((Array.isArray(resOrders.data) ? resOrders.data : []).map(order => [order.id, order]));
+    (Array.isArray(resReady.data) ? resReady.data : []).forEach(order => {
+      const existing = merged.get(order.id);
+      merged.set(order.id, existing ? { ...existing, ...order, orderDetails: order.orderDetails || existing.orderDetails } : order);
     });
-    orders.value = resOrders.data;
+    orders.value = [...merged.values()];
 
     // Kiểm tra có đơn mới cần bưng không
-    const newReady = resOrders.data.filter(o => Number(o.status) === 2);
+    const newReady = (Array.isArray(resReady.data) ? resReady.data : []).filter(o =>
+      Number(o.status) === 2 || o.orderDetails?.some(detail => Number(detail.status) === 1));
     const newReadyIds = newReady.map(o => o.id);
     const hasNewReady = newReadyIds.some(id => !previousReadyIds.includes(id));
 

@@ -93,7 +93,7 @@
                 <td class="col-code">
                   <span class="code-badge">#{{ getOrderCode(order) }}</span>
                 </td>
-                <td class="customer-cell"> {{ order.account?.fullname || order.username || 'Khách Vãng Lai' }}</td>
+                <td class="customer-cell"> {{ customerDisplayName(order) }}</td>
                 <td class="col-detail">
                   <div class="address-text">{{ cleanAddress(order.address) }}</div>
                   <div v-if="order.status === 5" class="scheduled-badge">
@@ -192,7 +192,7 @@
 
             <div class="invoice-meta">
               <div class="meta-left">
-                <p><strong>Khách hàng:</strong> {{ selectedOrder.account?.fullname || selectedOrder.username || 'Khách Vãng Lai' }}</p>
+                <p><strong>Khách hàng:</strong> {{ customerDisplayName(selectedOrder) }}</p>
                 <p><strong>Vị trí:</strong> {{ cleanAddress(selectedOrder.address) }}</p>
                 <p><strong>Ngày lập:</strong> {{ formatDate(selectedOrder.createDate) }}</p>
                 <p><strong>Thanh toán:</strong> {{ paymentOptionText(selectedOrder.paymentOption) }} · {{ paymentStatusText(selectedOrder.paymentStatus, selectedOrder.paymentOption, selectedOrder.isPaid) }}</p>
@@ -449,20 +449,23 @@ watch([searchCode, timeFilter], () => {
   currentPage.value = 1;
 });
 
-const dynamicStats = computed(() => {
-  let revenue = 0, completed = 0, items = 0, pending = 0;
-  filteredOrders.value.forEach(order => {
-    if (order.status === 4) {
-      completed++;
-      if (order.orderDetails?.length > 0) {
-        items += order.orderDetails.reduce((sum, d) => sum + (d.quantity || 0), 0);
-      }
-      revenue += Number(order.totalAmount ?? order.subTotal ?? calculateTotal(order) ?? 0);
-    }
-    if (order.status === 0) pending++;
-  });
-  return { totalRevenue: revenue, completedOrdersCount: completed, totalItemsSold: items, pendingOrdersCount: pending };
-});
+const dynamicStats = ref({ totalRevenue: 0, completedOrdersCount: 0, totalItemsSold: 0, pendingOrdersCount: 0 });
+
+const loadStats = async () => {
+  try {
+    const response = await api.get('/api/admin/orders/revenue', configHeader());
+    dynamicStats.value = { ...dynamicStats.value, ...(response.data || {}) };
+  } catch (error) {
+    console.error('Lỗi tải thống kê đơn hàng', error);
+  }
+};
+
+const customerDisplayName = (order) => {
+  if (!order) return 'Khách Vãng Lai';
+  if (order.recipientName && order.orderType !== 'DINE_IN') return order.recipientName;
+  if (order.orderType === 'DINE_IN') return order.recipientName || (order.tableName ? `Khách bàn ${order.tableName}` : 'Khách tại bàn');
+  return order.recipientName || order.account?.fullname || 'Khách Vãng Lai';
+};
 
 const resetFilters = () => { searchCode.value = ''; timeFilter.value = 'all'; currentPage.value = 1; };
 
@@ -593,6 +596,7 @@ const activateScheduled = async () => {
 
 onMounted(() => {
   loadData();
+  loadStats();
   const token = sessionStorage.getItem('staff_token');
   try {
     stompClient = Stomp.over(new SockJS('/ws'));

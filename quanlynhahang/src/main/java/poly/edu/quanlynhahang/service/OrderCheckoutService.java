@@ -346,6 +346,9 @@ public class OrderCheckoutService {
         Order order = new Order();
         order.setOrderCode(generateSecureOrderCode());
         order.setAccount(authenticatedAccount(reservation.getCreatedBy()));
+        // Preserve the guest identity for invoice/admin displays; createdBy is the
+        // staff actor that materialized the preorder and must not be shown as guest.
+        order.setRecipientName(reservation.getCustomerName());
         order.setAddress("ĐẶT BÀN: " + reservation.getReservationCode() + " | Bàn: "
                 + reservation.getTable().getName() + " | [TẠI QUÁN]");
         order.setDeliveryNote(normalizedText(reservation.getOrderNote()));

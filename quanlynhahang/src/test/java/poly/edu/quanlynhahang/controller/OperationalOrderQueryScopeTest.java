@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.Date;
 import java.util.List;
+import java.math.BigDecimal;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Page;
@@ -17,10 +18,47 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import poly.edu.quanlynhahang.entity.OrderStatus;
+import poly.edu.quanlynhahang.entity.Order;
+import poly.edu.quanlynhahang.entity.OrderDetail;
+import poly.edu.quanlynhahang.entity.PaymentStatus;
 import poly.edu.quanlynhahang.repository.OrderRepository;
 import poly.edu.quanlynhahang.service.InventoryAlertService;
 
 class OperationalOrderQueryScopeTest {
+    @Test
+    void revenueAnalyticsIncludesPaidAndServedOrdersButCountsOnlyCompletedInvoices() {
+        Order served = new Order();
+        served.setStatus(OrderStatus.SERVED.code());
+        served.setTotalAmount(new BigDecimal("120.00"));
+        OrderDetail servedDish = new OrderDetail();
+        servedDish.setQuantity(2);
+        served.setOrderDetails(List.of(servedDish));
+
+        Order paidPending = new Order();
+        paidPending.setStatus(OrderStatus.PENDING.code());
+        paidPending.setIsPaid(true);
+        paidPending.setPaymentStatus(PaymentStatus.PAID);
+        paidPending.setTotalAmount(new BigDecimal("80.00"));
+        OrderDetail paidDish = new OrderDetail();
+        paidDish.setQuantity(1);
+        paidPending.setOrderDetails(List.of(paidDish));
+
+        OrderRepository repository = mock(OrderRepository.class);
+        when(repository.findOrdersForRevenueAnalytics()).thenReturn(List.of(served, paidPending));
+        when(repository.countByStatus(OrderStatus.PENDING.code())).thenReturn(1L);
+        AdminOrderController controller = new AdminOrderController();
+        ReflectionTestUtils.setField(controller, "orderRepository", repository);
+
+        @SuppressWarnings("unchecked")
+        java.util.Map<String, Object> stats = (java.util.Map<String, Object>) controller.getRevenueAnalytics().getBody();
+
+        assertEquals(new BigDecimal("200.00"), stats.get("totalRevenue"));
+        assertEquals(1L, stats.get("completedOrdersCount"));
+        assertEquals(2, stats.get("totalItemsSold"));
+        assertEquals(1L, stats.get("pendingOrdersCount"));
+        verify(repository).findOrdersForRevenueAnalytics();
+    }
+
     @Test
     void kitchenBoardQueriesOnlyActiveAndTodayCompletedStatuses() {
         OrderRepository repository = mock(OrderRepository.class);
@@ -35,6 +73,17 @@ class OperationalOrderQueryScopeTest {
                 eq(List.of(OrderStatus.READY.code(), OrderStatus.COMPLETED.code(), OrderStatus.SERVED.code())),
                 any(Date.class));
         verify(repository, never()).findAllWithDetails();
+    }
+
+    @Test
+    void waiterReadyQueueUsesDetailReadyStateAlongsideReadyOrderState() {
+        OrderRepository repository = mock(OrderRepository.class);
+        when(repository.findWaiterReadyOrdersWithDetails(OrderStatus.READY.code(), 1)).thenReturn(List.of());
+        poly.edu.quanlynhahang.controller.WaiterController controller = new poly.edu.quanlynhahang.controller.WaiterController();
+        ReflectionTestUtils.setField(controller, "orderRepository", repository);
+
+        assertEquals(List.of(), controller.getReadyOrders().getBody());
+        verify(repository).findWaiterReadyOrdersWithDetails(OrderStatus.READY.code(), 1);
     }
 
     @Test
