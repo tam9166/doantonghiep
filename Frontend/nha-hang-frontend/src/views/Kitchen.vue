@@ -79,12 +79,16 @@
             <div class="card-header">
               <span class="order-id">#{{ order.id }}</span>
               <span class="order-table">{{ getTableName(order) }}</span>
-              <span v-if="isFutureServiceOrder(order)" class="future-service-badge">Chờ đến ngày</span>
-              <span :class="['order-timer', getTimerClass(order)]">{{ getElapsedTime(order.createDate) }}</span>
+              <span v-if="order.preorder" class="future-service-badge">Đơn đặt trước</span>
+              <span :class="['order-timer', getTimerClass(order)]">{{ getElapsedTime(order) }}</span>
+            </div>
+            <div v-if="order.preorder" class="preorder-timing">
+              <span>Khách đến: {{ formatServiceTime(order.scheduledAt, true) }}</span>
+              <span>Chuẩn bị từ: {{ formatServiceTime(order.prepareStartTime) }}</span>
             </div>
             <div v-if="getNote(order)" class="order-note"> {{ getNote(order) }}</div>
             <div class="dish-list">
-              <div v-for="detail in order.orderDetails" :key="detail.id" class="dish-item" :class="{ 'dish-done': detail.status >= 1, 'dish-in-progress': detail.startedAt && (!detail.status || detail.status === 0) }">
+              <div v-for="detail in kitchenWorkDetails(order)" :key="detail.id" class="dish-item" :class="{ 'dish-in-progress': detail.startedAt }">
                 <img v-if="detail.product?.image" :src="foodImage(detail.product.image)" class="dish-thumb" @error="replaceFoodImage" />
                     <span v-else class="dish-thumb-placeholder"><UiIcon name="dish" /></span>
                 <div class="dish-info" style="flex:1;">
@@ -433,8 +437,11 @@ import {
   OPERATIONAL_ORDER_PAGE_SIZE,
   clampOperationalPage,
   dedupeOperationalOrders,
-  isFutureServiceOrder,
+  isBeforePreparation,
+  operationalElapsedMinutes,
   operationalPageButtons,
+  operationalTimerStart,
+  operationalWaitLabel,
   paginateOperationalOrders,
   totalOperationalPages,
 } from '@/utils/operationalOrderUi';
@@ -534,7 +541,7 @@ const fetchOrders = async () => {
       : [];
     const dedupedOrders = dedupeOperationalOrders(normalizedOrders);
     allOrders.value = dedupedOrders;
-    const newPending = dedupedOrders.filter(o => o.status === 5 || o.status === 1 || o.status === 6);
+    const newPending = dedupedOrders.filter(hasKitchenWork);
     const newIds = newPending.map(o => o.id);
     const hasNewOrder = newIds.some(id => !previousPendingIds.includes(id));
     if (hasNewOrder && previousPendingIds.length > 0) {
@@ -601,7 +608,8 @@ const totalDishes = computed(() => {
       .reduce((sum, d) => sum + (d.quantity || 0), 0);
   }, 0);
 });
-const sortedWorkingOrders = computed(() => [...pendingOrders.value].sort((a, b) => new Date(a.createDate) - new Date(b.createDate)));
+const sortedWorkingOrders = computed(() => [...pendingOrders.value].sort((a, b) =>
+  (operationalTimerStart(a)?.getTime() || 0) - (operationalTimerStart(b)?.getTime() || 0)));
 const sortedCompletedOrders = computed(() => allOrders.value
   .filter(order => [2, 4, 7].includes(Number(order.status)))
   .sort((a, b) => new Date(b.createDate) - new Date(a.createDate)));
@@ -660,9 +668,15 @@ const showToast = (msg) => { toastMsg.value = msg; setTimeout(() => { toastMsg.v
 const formatQuantity = value => kitchenQuantity(value).toFixed(1);
 const ingredientForBatch = batch => ingredients.value.find(item => Number(item.id) === Number(batch?.ingredientId))
   || { name: `Nguyên liệu #${batch?.ingredientId || '?'}`, unit: '' };
-const getDishCount = (order) => order.orderDetails?.reduce((s, d) => s + d.quantity, 0) || 0;
+const isKitchenWorkDetail = detail => {
+  const status = detail?.status == null ? 0 : Number(detail.status);
+  return status === 0 && !detail?.completedAt && !detail?.cancelledAt;
+};
+const kitchenWorkDetails = order => (order?.orderDetails || []).filter(isKitchenWorkDetail);
+const hasKitchenWork = order => kitchenWorkDetails(order).length > 0;
+const getDishCount = order => kitchenWorkDetails(order).reduce((sum, detail) => sum + (detail.quantity || 0), 0);
 const unfinishedDishCount = (order) => (order.orderDetails || [])
-  .filter(detail => Number(detail.status) < 1 || detail.status == null)
+  .filter(isKitchenWorkDetail)
   .length;
 const canCompleteOrder = (order) => unfinishedDishCount(order) === 0;
 const completionTitle = (order) => canCompleteOrder(order)
@@ -671,23 +685,22 @@ const completionTitle = (order) => canCompleteOrder(order)
 const hasLongDishNote = detail => `${detail?.note || ''} ${detail?.allergyNote || ''}`.trim().length > 90;
 const openDishNote = (order, detail) => { selectedDishNote.value = { order, detail }; };
 const assertCurrentServiceDate = order => {
-  if (!isFutureServiceOrder(order)) return true;
-  showToast('Đơn này chưa đến ngày phục vụ.');
+  if (!isBeforePreparation(order, now.value)) return true;
+  showToast('Đơn đặt trước chưa đến thời gian chuẩn bị.');
   return false;
 };
 
-const getElapsedTime = (createDate) => {
-  if (!createDate) return '';
-  const elapsed = Math.floor((now.value - new Date(createDate)) / 1000);
-  const mins = Math.floor(elapsed / 60);
-  const secs = elapsed % 60;
-  if (mins >= 60) return `${Math.floor(mins / 60)}h ${mins % 60}p`;
-  return `${mins}:${String(secs).padStart(2, '0')}`;
+const getElapsedTime = order => operationalWaitLabel(order, now.value);
+const getTimerClass = (o) => { const m = operationalElapsedMinutes(o, now.value); return m >= 15 ? 'timer-critical late-warning-text' : m >= 10 ? 'timer-warning' : 'timer-normal'; };
+const getUrgencyClass = (o) => { const m = operationalElapsedMinutes(o, now.value); return m >= 15 ? 'urgency-critical late-warning-box' : m >= 10 ? 'urgency-warning' : ''; };
+const formatServiceTime = (value, includeDate = false) => {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return new Intl.DateTimeFormat('vi-VN', includeDate
+    ? { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }
+    : { hour: '2-digit', minute: '2-digit' }).format(date);
 };
-
-const getElapsedMinutes = (d) => d ? Math.floor((now.value - new Date(d)) / 60000) : 0;
-const getTimerClass = (o) => { const m = getElapsedMinutes(o.createDate); return m >= 15 ? 'timer-critical late-warning-text' : m >= 10 ? 'timer-warning' : 'timer-normal'; };
-const getUrgencyClass = (o) => { const m = getElapsedMinutes(o.createDate); return m >= 15 ? 'urgency-critical late-warning-box' : m >= 10 ? 'urgency-warning' : ''; };
 
 const getTableName = (order) => {
   if (order.orderType === 'DINE_IN') return ` ${order.tableName || `Bàn #${order.tableId}`}`;
@@ -823,10 +836,10 @@ const analyzeDishes = async () => {
 const markGroupReady = async (details) => {
   const futureDetail = details.find(detail => {
     const owner = pendingOrders.value.find(order => (order.orderDetails || []).some(item => item.id === detail.id));
-    return isFutureServiceOrder(owner);
+    return isBeforePreparation(owner, now.value);
   });
   if (futureDetail) {
-    showToast('Đơn này chưa đến ngày phục vụ.');
+    showToast('Đơn đặt trước chưa đến thời gian chuẩn bị.');
     return;
   }
   const confirmed = await confirmDialog({
@@ -1009,6 +1022,7 @@ onUnmounted(() => {
 .completed-badge, .future-service-badge { padding: 4px 9px; border-radius: 999px; font-size: .72rem; font-weight: 800; white-space: nowrap; }
 .completed-badge { color: var(--success); border: 1px solid color-mix(in srgb, var(--success) 35%, transparent); background: color-mix(in srgb, var(--success) 10%, transparent); }
 .future-service-badge { color: var(--color-tertiary); border: 1px solid color-mix(in srgb, var(--color-tertiary) 40%, transparent); background: color-mix(in srgb, var(--color-tertiary) 12%, transparent); }
+.preorder-timing { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0 14px 10px; padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--color-tertiary) 8%, transparent); color: var(--text-secondary); font-size: .78rem; font-weight: 700; }
 .operational-pagination { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 7px; margin-top: 16px; }
 .operational-pagination button { min-width: 36px; min-height: 36px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); color: var(--text-primary); font-weight: 700; cursor: pointer; }
 .operational-pagination button.active { border-color: var(--primary); background: var(--primary); color: var(--color-on-primary); }
@@ -1030,7 +1044,7 @@ onUnmounted(() => {
 
 .order-note { padding: 8px 18px; background: color-mix(in srgb, var(--color-tertiary) 10%, transparent); border-bottom: 1px solid var(--border-light); color: var(--color-tertiary); font-weight: 600; font-size: 0.85rem; }
 .dish-list { padding: 12px 18px; }
-.dish-item { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border-light); }
+.dish-item { display: grid; grid-template-columns: 40px minmax(0, 1fr) minmax(90px, auto) minmax(76px, auto); align-items: center; gap: 12px; min-height: 58px; padding: 8px 0; border-bottom: 1px solid var(--border-light); }
 .dish-item:last-child { border-bottom: none; }
 .dish-item.dish-done {
   opacity: 0.6;
@@ -1064,7 +1078,9 @@ onUnmounted(() => {
 .dish-action {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 6px;
+  min-width: 76px;
 }
 .btn-dish-done, .btn-dish-start, .btn-dish-cancel {
   background: transparent;
@@ -1240,6 +1256,9 @@ onUnmounted(() => {
   .stat-value { font-size: 1.1rem; }
   .stat-label { font-size: 0.55rem; }
   .kitchen-main { padding: 14px; }
+  .dish-item { grid-template-columns: 40px minmax(0, 1fr); }
+  .dish-state { grid-column: 1 / -1; justify-self: stretch; }
+  .dish-action { grid-column: 1 / -1; justify-self: end; }
 }
 
 /* AI Elements */

@@ -28,4 +28,11 @@ describe('admin reservation workflow dialogs', () => {
     expect(source).toContain('grid-template-columns: minmax(92px, 1fr) auto minmax(92px, 1fr)')
     expect(source).toContain('.pagination-page.active')
   })
+
+  it('disables early check-in using the shared sixty-minute availability rule', () => {
+    expect(source).toContain("import { checkInAvailability } from '@/utils/reservationCheckIn'")
+    expect(source).toContain(':disabled="!checkInState(item).allowed"')
+    expect(source).toContain('class="check-in-hint"')
+    expect(source).toContain('if (!checkInState(item).allowed) return')
+  })
 })

@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Optional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -553,6 +554,39 @@ class OrderCheckoutServiceTest {
         ArgumentCaptor<OrderDetail> detailCaptor = ArgumentCaptor.forClass(OrderDetail.class);
         verify(orderDetailRepository).save(detailCaptor.capture());
         assertEquals("Ít cay, không hành", detailCaptor.getValue().getNote());
+    }
+
+    @Test
+    void checkedInReservationStillWaitsUntilThirtyMinutePreparationWindow() {
+        LocalDateTime serviceAt = LocalDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"))
+                .plusMinutes(45);
+        RestaurantTable table = new RestaurantTable();
+        table.setId(8);
+        table.setName("B08");
+        Reservation reservation = new Reservation();
+        reservation.setReservationCode("MV-EARLY-CHECKIN-001");
+        reservation.setCustomerName("Khách check-in sớm");
+        reservation.setReservationDate(serviceAt.toLocalDate());
+        reservation.setArrivalTime(serviceAt.toLocalTime());
+        reservation.setReservationStatus(poly.edu.quanlynhahang.entity.ReservationStatus.CHECKED_IN);
+        reservation.setTable(table);
+        reservation.setPaidAmount(BigDecimal.ZERO);
+
+        Product product = product(1, 100_000.0);
+        when(productRepository.findById(1)).thenReturn(Optional.of(product));
+        when(recipeRepository.findByProduct(product)).thenReturn(List.of());
+        ReservationPreorderItem preorder = new ReservationPreorderItem();
+        preorder.setProductId(1);
+        preorder.setQuantity(1);
+        preorder.setLineTotal(new BigDecimal("100000"));
+
+        service.dispatchReservationPreorder(reservation, List.of(preorder));
+
+        ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
+        verify(orderRepository, org.mockito.Mockito.atLeastOnce()).save(orderCaptor.capture());
+        Order savedOrder = orderCaptor.getAllValues().get(orderCaptor.getAllValues().size() - 1);
+        assertEquals(5, savedOrder.getStatus());
+        assertEquals(serviceAt, savedOrder.getScheduledAt());
     }
 
     private OrderRequest request(int productId, int quantity) {

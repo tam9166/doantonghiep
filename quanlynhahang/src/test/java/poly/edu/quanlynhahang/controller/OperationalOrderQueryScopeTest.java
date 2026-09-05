@@ -23,6 +23,7 @@ import poly.edu.quanlynhahang.entity.OrderDetail;
 import poly.edu.quanlynhahang.entity.PaymentStatus;
 import poly.edu.quanlynhahang.repository.OrderRepository;
 import poly.edu.quanlynhahang.service.InventoryAlertService;
+import poly.edu.quanlynhahang.service.OrderServiceDateGuardService;
 
 class OperationalOrderQueryScopeTest {
     @Test
@@ -60,33 +61,52 @@ class OperationalOrderQueryScopeTest {
     }
 
     @Test
-    void kitchenBoardQueriesOnlyActiveAndTodayCompletedStatuses() {
+    void kitchenBoardQueriesActiveAndTodayCompletedDishLifecycles() {
         OrderRepository repository = mock(OrderRepository.class);
-        when(repository.findKitchenBoardOrdersWithDetails(any(), any(), any(Date.class))).thenReturn(List.of());
+        when(repository.findKitchenBoardOrdersWithDetails(any(), any(), any(), any(), any(Date.class)))
+                .thenReturn(List.of());
         AdminOrderController controller = new AdminOrderController();
         ReflectionTestUtils.setField(controller, "orderRepository", repository);
 
         assertEquals(List.of(), controller.getKitchenBoard().getBody());
 
         verify(repository).findKitchenBoardOrdersWithDetails(
-                eq(List.of(OrderStatus.SCHEDULED.code(), OrderStatus.IN_PREPARATION.code(), OrderStatus.PARTIALLY_READY.code())),
-                eq(List.of(OrderStatus.READY.code(), OrderStatus.COMPLETED.code(), OrderStatus.SERVED.code())),
+                eq(OrderStatus.CANCELLED.code()), eq(PaymentStatus.REFUNDED),
+                eq(List.of(0)), eq(List.of(1, 2)),
                 any(Date.class));
         verify(repository, never()).findAllWithDetails();
+    }
+
+    @Test
+    void kitchenBoardExcludesPreorderBeforePreparationTime() {
+        Order futurePreorder = new Order();
+        futurePreorder.setId(77);
+        OrderRepository repository = mock(OrderRepository.class);
+        when(repository.findKitchenBoardOrdersWithDetails(any(), any(), any(), any(), any(Date.class)))
+                .thenReturn(List.of(futurePreorder));
+        OrderServiceDateGuardService timing = mock(OrderServiceDateGuardService.class);
+        when(timing.isPreparationReached(futurePreorder)).thenReturn(false);
+        AdminOrderController controller = new AdminOrderController();
+        ReflectionTestUtils.setField(controller, "orderRepository", repository);
+        ReflectionTestUtils.setField(controller, "serviceDateGuard", timing);
+
+        assertEquals(List.of(), controller.getKitchenBoard().getBody());
+        verify(timing).isPreparationReached(futurePreorder);
+        verify(timing, never()).resolveTiming(futurePreorder);
     }
 
     @Test
     void waiterQueueUsesDishLifecycleInsteadOfParentOrderState() {
         OrderRepository repository = mock(OrderRepository.class);
         when(repository.findWaiterOperationalOrdersWithDetails(
-                List.of(OrderStatus.CANCELLED.code(), OrderStatus.COMPLETED.code()), List.of(0, 1)))
+                OrderStatus.CANCELLED.code(), PaymentStatus.REFUNDED, List.of(0, 1)))
                 .thenReturn(List.of());
         poly.edu.quanlynhahang.controller.WaiterController controller = new poly.edu.quanlynhahang.controller.WaiterController();
         ReflectionTestUtils.setField(controller, "orderRepository", repository);
 
         assertEquals(List.of(), controller.getReadyOrders().getBody());
         verify(repository).findWaiterOperationalOrdersWithDetails(
-                List.of(OrderStatus.CANCELLED.code(), OrderStatus.COMPLETED.code()), List.of(0, 1));
+                OrderStatus.CANCELLED.code(), PaymentStatus.REFUNDED, List.of(0, 1));
     }
 
     @Test
@@ -102,7 +122,7 @@ class OperationalOrderQueryScopeTest {
 
         OrderRepository repository = mock(OrderRepository.class);
         when(repository.findWaiterOperationalOrdersWithDetails(
-                List.of(OrderStatus.CANCELLED.code(), OrderStatus.COMPLETED.code()), List.of(0, 1)))
+                OrderStatus.CANCELLED.code(), PaymentStatus.REFUNDED, List.of(0, 1)))
                 .thenReturn(List.of(order));
         poly.edu.quanlynhahang.controller.WaiterController controller = new poly.edu.quanlynhahang.controller.WaiterController();
         ReflectionTestUtils.setField(controller, "orderRepository", repository);
@@ -114,6 +134,25 @@ class OperationalOrderQueryScopeTest {
         assertEquals(1, body.size());
         assertEquals(OrderStatus.IN_PREPARATION.code(), body.get(0).status());
         assertEquals(0, body.get(0).orderDetails().get(0).status());
+    }
+
+    @Test
+    void waiterQueueExcludesPreorderBeforePreparationTime() {
+        Order futurePreorder = new Order();
+        futurePreorder.setId(78);
+        OrderRepository repository = mock(OrderRepository.class);
+        when(repository.findWaiterOperationalOrdersWithDetails(
+                OrderStatus.CANCELLED.code(), PaymentStatus.REFUNDED, List.of(0, 1)))
+                .thenReturn(List.of(futurePreorder));
+        OrderServiceDateGuardService timing = mock(OrderServiceDateGuardService.class);
+        when(timing.isPreparationReached(futurePreorder)).thenReturn(false);
+        WaiterController controller = new WaiterController();
+        ReflectionTestUtils.setField(controller, "orderRepository", repository);
+        ReflectionTestUtils.setField(controller, "serviceDateGuard", timing);
+
+        assertEquals(List.of(), controller.getReadyOrders().getBody());
+        verify(timing).isPreparationReached(futurePreorder);
+        verify(timing, never()).resolveTiming(futurePreorder);
     }
 
     @Test
@@ -133,7 +172,7 @@ class OperationalOrderQueryScopeTest {
 
         OrderRepository repository = mock(OrderRepository.class);
         when(repository.findWaiterOperationalOrdersWithDetails(
-                List.of(OrderStatus.CANCELLED.code(), OrderStatus.COMPLETED.code()), List.of(0, 1)))
+                OrderStatus.CANCELLED.code(), PaymentStatus.REFUNDED, List.of(0, 1)))
                 .thenReturn(List.of(order));
         WaiterController controller = new WaiterController();
         ReflectionTestUtils.setField(controller, "orderRepository", repository);

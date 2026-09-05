@@ -129,12 +129,13 @@ public class AdminOrderController {
     public ResponseEntity<?> getKitchenBoard() {
         Date startOfDay = Date.from(LocalDate.now(BUSINESS_ZONE).atStartOfDay(BUSINESS_ZONE).toInstant());
         List<Order> orders = orderRepository.findKitchenBoardOrdersWithDetails(
-                List.of(OrderStatus.SCHEDULED.code(), OrderStatus.IN_PREPARATION.code(), OrderStatus.PARTIALLY_READY.code()),
-                List.of(OrderStatus.READY.code(), OrderStatus.COMPLETED.code(), OrderStatus.SERVED.code()),
+                OrderStatus.CANCELLED.code(), PaymentStatus.REFUNDED,
+                List.of(0), List.of(1, 2),
                 startOfDay);
         return ResponseEntity.ok(orders.stream()
+                .filter(order -> serviceDateGuard == null || serviceDateGuard.isPreparationReached(order))
                 .map(order -> serviceDateGuard == null ? OrderResponse.from(order)
-                        : OrderResponse.from(order, serviceDateGuard.resolveServiceAt(order))).toList());
+                        : OrderResponse.from(order, serviceDateGuard.resolveTiming(order))).toList());
     }
 
     // THỐNG KÊ (Khóa lại chỉ cho Quản lý xem)
@@ -232,7 +233,7 @@ public class AdminOrderController {
             if (status == OrderStatus.PARTIALLY_READY.code()
                     || status == OrderStatus.READY.code()
                     || status == OrderStatus.SERVED.code()) {
-                if (serviceDateGuard != null) serviceDateGuard.assertServiceDateReached(order);
+                if (serviceDateGuard != null) serviceDateGuard.assertPreparationReached(order);
             }
             boolean shouldAwardPoints = status == OrderStatus.COMPLETED.code()
                     && order.getStatus() != OrderStatus.COMPLETED.code()

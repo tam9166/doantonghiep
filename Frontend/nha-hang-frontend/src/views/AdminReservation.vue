@@ -91,7 +91,10 @@
                   <button v-else-if="item.reservationStatus === 'WAITING_TABLE_ASSIGNMENT'" type="button" @click="openAssignment(item)">Bố trí bàn</button>
                   <button v-if="!item.waitlistSource && ['PENDING','WAITING_TABLE_ASSIGNMENT'].includes(item.reservationStatus)" type="button" class="danger" @click="rejectReservation(item)">Từ chối</button>
                   <button v-if="['DEPOSIT_REQUIRED','DEPOSIT_PENDING'].includes(item.reservationStatus)" type="button" @click="markDeposit(item)">Đã cọc</button>
-                  <button v-if="['CONFIRMED','DEPOSIT_REQUIRED','DEPOSIT_PENDING','DEPOSIT_PAID','FULLY_PAID'].includes(item.reservationStatus)" type="button" @click="checkIn(item)">Check-in</button>
+                  <div v-if="checkInState(item).visible" class="check-in-action">
+                    <button type="button" :disabled="!checkInState(item).allowed" :title="checkInState(item).reason" @click="checkIn(item)">Check-in</button>
+                    <small v-if="checkInState(item).reason" class="check-in-hint">{{ checkInState(item).reason }}</small>
+                  </div>
                   <button v-if="!item.waitlistSource && !['CANCELLED','REJECTED','COMPLETED'].includes(item.reservationStatus)" type="button" class="ghost" :disabled="cancellingReservationId === item.id" @click="cancelReservation(item)">{{ cancellingReservationId === item.id ? 'Đang hủy...' : 'Hủy' }}</button>
                   <button v-if="!item.waitlistSource" type="button" class="ghost" @click="refreshDetail(item)">Chi tiết</button>
                 </div>
@@ -210,6 +213,7 @@ import SockJS from 'sockjs-client'
 import AdminLayout from '@/components/AdminLayout.vue'
 import { useDialog } from '@/composables/useDialog'
 import api from '@/services/api'
+import { checkInAvailability } from '@/utils/reservationCheckIn'
 
 const { promptDialog } = useDialog()
 
@@ -237,6 +241,8 @@ const receiptSending = ref(false)
 let stompClient = null
 let realtimeTimer = null
 let keywordTimer = null
+let checkInTimer = null
+const checkInNow = ref(Date.now())
 
 const statuses = ['PENDING', 'WAITING_TABLE_ASSIGNMENT', 'CONFIRMED', 'DEPOSIT_REQUIRED', 'DEPOSIT_PENDING', 'DEPOSIT_PAID', 'FULLY_PAID', 'CHECKED_IN', 'IN_SERVICE', 'COMPLETED', 'CANCELLED', 'REJECTED', 'NO_SHOW', 'EXPIRED']
 const groups = [
@@ -358,6 +364,10 @@ function paymentStatusText(status) {
     CANCELLED: 'Đã hủy'
   }
   return map[status] || status || '-'
+}
+
+function checkInState(item) {
+  return checkInAvailability(item, checkInNow.value)
 }
 
 function contactStatusText(status) {
@@ -540,6 +550,7 @@ async function markDeposit(item) {
 }
 
 async function checkIn(item) {
+  if (!checkInState(item).allowed) return
   await api.patch(`/api/admin/reservations/${item.id}/check-in`, { note: 'Khách đã đến' })
   await refreshReservationListAndCounts()
 }
@@ -588,11 +599,15 @@ async function promoteWaitlist(item) {
 onMounted(() => {
   refreshAdminData()
   connectRealtime()
+  checkInTimer = window.setInterval(() => {
+    checkInNow.value = Date.now()
+  }, 30_000)
 })
 
 onBeforeUnmount(() => {
   if (keywordTimer) clearTimeout(keywordTimer)
   window.clearTimeout(realtimeTimer)
+  window.clearInterval(checkInTimer)
   if (stompClient) stompClient.deactivate()
 })
 </script>
@@ -893,6 +908,24 @@ td small {
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 12px;
+}
+
+.check-in-action {
+  display: grid;
+  gap: 4px;
+  max-width: 230px;
+}
+
+.check-in-action button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.row-actions .check-in-hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
 }
 
 .detail-actions {

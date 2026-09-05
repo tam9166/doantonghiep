@@ -37,7 +37,7 @@ class BlankDatabaseMigrationIntegrationTest {
                     .baselineOnMigrate(true)
                     .baselineVersion("2")
                     .load();
-            assertEquals(101, flyway.migrate().migrationsExecuted);
+            assertEquals(103, flyway.migrate().migrationsExecuted);
 
             try (Connection target = DriverManager.getConnection(targetUrl, username, password);
                  Statement statement = target.createStatement()) {

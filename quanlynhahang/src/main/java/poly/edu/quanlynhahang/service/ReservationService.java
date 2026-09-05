@@ -65,6 +65,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -91,6 +92,9 @@ public class ReservationService {
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}$", Pattern.CASE_INSENSITIVE);
     private static final Pattern UNSAFE_TEXT_PATTERN = Pattern.compile("(?i)<\\s*script|javascript:|onerror\\s*=|onload\\s*=");
     private static final int DEFAULT_DURATION_MINUTES = 120;
+    private static final int EARLY_CHECK_IN_MINUTES = 60;
+    private static final DateTimeFormatter CHECK_IN_TIME_FORMATTER =
+            DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy");
     // NOTE: Thời gian dọn bàn được cộng vào cuối mỗi lượt để tránh xếp hai lượt quá sát nhau.
     private static final int CLEANUP_MINUTES = 15;
     // NOTE: Quy tắc đặt trước được kiểm tra tại backend, không phụ thuộc dữ liệu hợp lệ từ giao diện.
@@ -137,6 +141,7 @@ public class ReservationService {
     private final SqlServerApplicationLockService applicationLockService;
     private final TableAreaReadinessService areaReadinessService;
     private final MenuAvailabilityService menuAvailabilityService;
+    private final Clock clock;
     private final TransactionTemplate expiryTransactionTemplate;
     private final BigDecimal depositRate;
     private final long depositExpiryMinutes;
@@ -169,6 +174,7 @@ public class ReservationService {
                                SqlServerApplicationLockService applicationLockService,
                                TableAreaReadinessService areaReadinessService,
                                MenuAvailabilityService menuAvailabilityService,
+                               Clock clock,
                                PlatformTransactionManager transactionManager,
                               @Value("${restaurant.reservation.deposit-rate:0.50}") BigDecimal depositRate,
                               @Value("${restaurant.reservation.deposit-expiry-minutes:15}") long depositExpiryMinutes,
@@ -200,6 +206,7 @@ public class ReservationService {
         this.applicationLockService = applicationLockService;
         this.areaReadinessService = areaReadinessService;
         this.menuAvailabilityService = menuAvailabilityService;
+        this.clock = clock;
         this.expiryTransactionTemplate = new TransactionTemplate(transactionManager);
         this.expiryTransactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         this.depositRate = depositRate;
@@ -959,6 +966,14 @@ public class ReservationService {
         Reservation reservation = findReservation(id);
         ReservationStatus old = reservation.getReservationStatus();
         stateMachine.assertCanTransition(old, ReservationStatus.CHECKED_IN);
+        LocalDateTime allowedCheckInTime = LocalDateTime.of(
+                reservation.getReservationDate(), reservation.getArrivalTime())
+                .minusMinutes(EARLY_CHECK_IN_MINUTES);
+        if (LocalDateTime.now(clock).isBefore(allowedCheckInTime)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Chưa tới giờ check-in. Có thể check-in từ "
+                            + allowedCheckInTime.format(CHECK_IN_TIME_FORMATTER));
+        }
         reservation.setReservationStatus(ReservationStatus.CHECKED_IN);
         reservation.setUpdatedAt(new Date());
         for (RestaurantTable table : assignedTables(reservation)) {

@@ -359,9 +359,11 @@ public class OrderCheckoutService {
         java.time.LocalDateTime serviceAt = java.time.LocalDateTime.of(
                 reservation.getReservationDate(), reservation.getArrivalTime());
         order.setScheduledAt(serviceAt);
-        boolean futureServiceDate = serviceAt.toLocalDate().isAfter(
-                java.time.LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")));
-        orderStateMachineService.initialize(order, futureServiceDate
+        java.time.LocalDateTime prepareStartTime = serviceAt.minusMinutes(
+                OrderServiceDateGuardService.PREPARATION_LEAD_MINUTES);
+        boolean waitingForPreparation = java.time.LocalDateTime.now(
+                java.time.ZoneId.of("Asia/Ho_Chi_Minh")).isBefore(prepareStartTime);
+        orderStateMachineService.initialize(order, waitingForPreparation
                 ? poly.edu.quanlynhahang.entity.OrderStatus.SCHEDULED
                 : poly.edu.quanlynhahang.entity.OrderStatus.IN_PREPARATION);
         order.setDeposit(money(reservation.getPaidAmount()));

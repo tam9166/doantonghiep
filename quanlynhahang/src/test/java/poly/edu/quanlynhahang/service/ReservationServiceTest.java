@@ -11,9 +11,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.Date;
 import java.util.Map;
 import java.util.List;
@@ -50,6 +53,7 @@ import poly.edu.quanlynhahang.repository.TableAreaRepository;
 import poly.edu.quanlynhahang.repository.VoucherRepository;
 
 class ReservationServiceTest {
+    private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
     private final ReservationRepository reservationRepository = mock(ReservationRepository.class);
     private final ReservationPreorderItemRepository preorderItemRepository = mock(ReservationPreorderItemRepository.class);
     private final RestaurantTableRepository tableRepository = mock(RestaurantTableRepository.class);
@@ -112,8 +116,72 @@ class ReservationServiceTest {
                 applicationLockService,
                 areaReadinessService,
                 menuAvailabilityService,
+                Clock.system(BUSINESS_ZONE),
                 mock(PlatformTransactionManager.class),
                 new BigDecimal("0.50"), 15, 20);
+    }
+
+    @Test
+    void rejectsCheckInForTomorrowReservation() {
+        setCheckInClock("2026-09-05T11:00:00Z"); // 18:00 tại nhà hàng
+        Reservation reservation = checkInReservation(
+                LocalDate.of(2026, 9, 6), LocalTime.of(19, 0));
+        when(reservationRepository.findById(901L)).thenReturn(Optional.of(reservation));
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+                () -> service.checkIn(901L, null));
+
+        assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
+        assertEquals("Chưa tới giờ check-in. Có thể check-in từ 18:00 06/09/2026", error.getReason());
+        assertEquals(ReservationStatus.CONFIRMED, reservation.getReservationStatus());
+        verify(reservationRepository, never()).save(any(Reservation.class));
+        verify(orderCheckoutService, never()).dispatchReservationPreorder(any(), any());
+    }
+
+    @Test
+    void rejectsCheckInOneMinuteBeforeEarlyWindow() {
+        setCheckInClock("2026-09-05T10:59:00Z"); // 17:59 tại nhà hàng
+        Reservation reservation = checkInReservation(
+                LocalDate.of(2026, 9, 5), LocalTime.of(19, 0));
+        when(reservationRepository.findById(901L)).thenReturn(Optional.of(reservation));
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+                () -> service.checkIn(901L, null));
+
+        assertEquals("Chưa tới giờ check-in. Có thể check-in từ 18:00 05/09/2026", error.getReason());
+        assertEquals(ReservationStatus.CONFIRMED, reservation.getReservationStatus());
+        verify(reservationRepository, never()).save(any(Reservation.class));
+    }
+
+    @Test
+    void allowsCheckInAtStartOfEarlyWindow() {
+        setCheckInClock("2026-09-05T11:00:00Z"); // 18:00 tại nhà hàng
+        Reservation reservation = checkInReservation(
+                LocalDate.of(2026, 9, 5), LocalTime.of(19, 0));
+        reservation.setKitchenOrderId(501);
+        when(reservationRepository.findById(901L)).thenReturn(Optional.of(reservation));
+        when(reservationRepository.save(reservation)).thenReturn(reservation);
+
+        service.checkIn(901L, null);
+
+        assertEquals(ReservationStatus.CHECKED_IN, reservation.getReservationStatus());
+        verify(reservationRepository).save(reservation);
+        verify(orderCheckoutService, never()).dispatchReservationPreorder(any(), any());
+    }
+
+    @Test
+    void allowsCheckInAtArrivalTime() {
+        setCheckInClock("2026-09-05T12:00:00Z"); // 19:00 tại nhà hàng
+        Reservation reservation = checkInReservation(
+                LocalDate.of(2026, 9, 5), LocalTime.of(19, 0));
+        reservation.setKitchenOrderId(501);
+        when(reservationRepository.findById(901L)).thenReturn(Optional.of(reservation));
+        when(reservationRepository.save(reservation)).thenReturn(reservation);
+
+        service.checkIn(901L, null);
+
+        assertEquals(ReservationStatus.CHECKED_IN, reservation.getReservationStatus());
+        verify(reservationRepository).save(reservation);
     }
 
     @Test
@@ -655,6 +723,24 @@ class ReservationServiceTest {
         reservation.setReservationStatus(ReservationStatus.WAITING_TABLE_ASSIGNMENT);
         reservation.setDepositAmount(depositAmount);
         reservation.setTotalAmount(totalAmount);
+        return reservation;
+    }
+
+    private void setCheckInClock(String instant) {
+        ReflectionTestUtils.setField(service, "clock",
+                Clock.fixed(Instant.parse(instant), BUSINESS_ZONE));
+    }
+
+    private Reservation checkInReservation(LocalDate date, LocalTime arrivalTime) {
+        Reservation reservation = new Reservation();
+        reservation.setId(901L);
+        reservation.setReservationCode("MV-CHECKIN-TIME");
+        reservation.setCustomerName("Khách kiểm thử");
+        reservation.setCustomerPhone("0900000000");
+        reservation.setReservationDate(date);
+        reservation.setArrivalTime(arrivalTime);
+        reservation.setGuestCount(2);
+        reservation.setReservationStatus(ReservationStatus.CONFIRMED);
         return reservation;
     }
 

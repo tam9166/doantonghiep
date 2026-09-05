@@ -8,8 +8,9 @@ describe('waiter dish lifecycle regression contract', () => {
   it('derives cooking and ready queues from OrderDetail.status', () => {
     expect(source).toContain('const isReadyDetail = detail => Number(detail?.status) === 1')
     expect(source).toContain('const isCookingDetail = detail =>')
-    expect(source).toContain('const readyOrders = computed(() => orders.value.filter(hasReadyDetails))')
-    expect(source).toContain('const cookingOrders = computed(() => orders.value.filter(order => cookingDetails(order).length > 0))')
+    expect(source).toContain('const operationalOrders = computed(() => orders.value.filter(order => operationalOrderIds.value.has(order.id)))')
+    expect(source).toContain('const readyOrders = computed(() => operationalOrders.value.filter(hasReadyDetails))')
+    expect(source).toContain('const cookingOrders = computed(() => operationalOrders.value.filter(order => cookingDetails(order).length > 0))')
     expect(source).toContain('v-if="isReadyDetail(detail)"')
     expect(source).toContain('v-if="isCookingDetail(detail)"')
   })

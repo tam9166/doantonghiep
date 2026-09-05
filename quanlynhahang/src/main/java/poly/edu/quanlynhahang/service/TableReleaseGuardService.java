@@ -87,7 +87,7 @@ public class TableReleaseGuardService {
                 continue;
             }
             if (!Boolean.TRUE.equals(order.getIsPaid()) || positive(order.getRemainingAmount())) {
-                throw conflict("Bàn còn hóa đơn chưa thanh toán đủ");
+                throw conflict("Còn hóa đơn khác chưa thanh toán trên bàn này");
             }
             if (blockingPayment(order)) {
                 throw conflict("Bàn còn trạng thái thanh toán hoặc hoàn tiền đang xử lý");

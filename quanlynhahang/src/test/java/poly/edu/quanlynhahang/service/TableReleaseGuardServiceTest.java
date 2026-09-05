@@ -115,7 +115,7 @@ class TableReleaseGuardServiceTest {
         ResponseStatusException error = assertThrows(ResponseStatusException.class,
                 () -> service.prepareForRelease(3, selected.getId()));
 
-        assertEquals("Bàn còn hóa đơn chưa thanh toán đủ", error.getReason());
+        assertEquals("Còn hóa đơn khác chưa thanh toán trên bàn này", error.getReason());
     }
 
     private Order order(boolean paid, BigDecimal remaining, int detailStatus) {

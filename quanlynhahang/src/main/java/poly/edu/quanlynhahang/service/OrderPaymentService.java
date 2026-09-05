@@ -44,6 +44,7 @@ public class OrderPaymentService {
     private final RestaurantTableRepository tableRepository;
     private final InventoryReservationService inventoryReservationService;
     private final OrderStateMachineService orderStateMachineService;
+    private final OrderServiceDateGuardService serviceDateGuard;
 
     public OrderPaymentService(PaymentIntentRepository intentRepository,
                                OrderRepository orderRepository,
@@ -52,7 +53,8 @@ public class OrderPaymentService {
                                SimpMessagingTemplate messagingTemplate,
                                RestaurantTableRepository tableRepository,
                                InventoryReservationService inventoryReservationService,
-                               OrderStateMachineService orderStateMachineService) {
+                               OrderStateMachineService orderStateMachineService,
+                               OrderServiceDateGuardService serviceDateGuard) {
         this.intentRepository = intentRepository;
         this.orderRepository = orderRepository;
         this.properties = properties;
@@ -61,6 +63,7 @@ public class OrderPaymentService {
         this.tableRepository = tableRepository;
         this.inventoryReservationService = inventoryReservationService;
         this.orderStateMachineService = orderStateMachineService;
+        this.serviceDateGuard = serviceDateGuard;
     }
 
     @Transactional
@@ -249,6 +252,7 @@ public class OrderPaymentService {
         if (currentStatus != OrderStatus.PENDING && currentStatus != OrderStatus.SCHEDULED) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Trạng thái đơn không cho phép xác nhận");
         }
+        serviceDateGuard.assertPreparationReached(order);
         inventoryReservationService.consume(orderId);
         orderStateMachineService.transition(order, OrderStatus.IN_PREPARATION);
         Order saved = orderRepository.save(order);

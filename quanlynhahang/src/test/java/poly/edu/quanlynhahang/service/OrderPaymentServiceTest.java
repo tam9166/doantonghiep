@@ -38,14 +38,15 @@ class OrderPaymentServiceTest {
     private final RestaurantTableRepository tableRepository = mock(RestaurantTableRepository.class);
     private final PaymentProperties properties = properties();
     private final InventoryReservationService inventoryReservationService = mock(InventoryReservationService.class);
+    private final OrderServiceDateGuardService serviceDateGuard = mock(OrderServiceDateGuardService.class);
     private final OrderPaymentService service = new OrderPaymentService(
             intentRepository, orderRepository, properties, activityLogService, messagingTemplate, tableRepository,
-            inventoryReservationService, new OrderStateMachineService());
+            inventoryReservationService, new OrderStateMachineService(), serviceDateGuard);
 
     @BeforeEach
     void setUp() {
         clearInvocations(intentRepository, orderRepository, activityLogService, messagingTemplate,
-                tableRepository, inventoryReservationService);
+                tableRepository, inventoryReservationService, serviceDateGuard);
         when(orderRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(intentRepository.save(any())).thenAnswer(invocation -> {
             PaymentIntent intent = invocation.getArgument(0);

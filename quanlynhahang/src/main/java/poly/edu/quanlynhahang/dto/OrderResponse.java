@@ -18,7 +18,7 @@ public record OrderResponse(Integer id, String orderCode, LocalDateTime schedule
         String recipientPhone, String deliveryAddress, String deliveryNote,
         EmployeeSummaryResponse account, List<OrderDetailResponse> orderDetails, Boolean isPaid,
         OrderPaymentOption paymentOption, PaymentStatus paymentStatus, BigDecimal paidAmount,
-        BigDecimal remainingAmount, Boolean invoiceRequested) {
+        BigDecimal remainingAmount, Boolean invoiceRequested, LocalDateTime prepareStartTime, Boolean preorder) {
     public static OrderResponse from(Order order) {
         List<OrderDetailResponse> details = order.getOrderDetails() == null ? List.of()
                 : order.getOrderDetails().stream().map(OrderDetailResponse::from).toList();
@@ -29,6 +29,14 @@ public record OrderResponse(Integer id, String orderCode, LocalDateTime schedule
         List<OrderDetailResponse> details = order.getOrderDetails() == null ? List.of()
                 : order.getOrderDetails().stream().map(OrderDetailResponse::from).toList();
         return from(order, details, effectiveScheduledAt);
+    }
+
+    public static OrderResponse from(Order order,
+                                     poly.edu.quanlynhahang.service.OrderServiceDateGuardService.PreparationTiming timing) {
+        List<OrderDetailResponse> details = order.getOrderDetails() == null ? List.of()
+                : order.getOrderDetails().stream().map(OrderDetailResponse::from).toList();
+        return from(order, details, timing == null ? order.getScheduledAt() : timing.serviceAt(),
+                timing == null ? null : timing.prepareStartTime(), timing != null && timing.preorder());
     }
 
     /** Kitchen receives only details that have not completed their kitchen lifecycle. */
@@ -47,6 +55,12 @@ public record OrderResponse(Integer id, String orderCode, LocalDateTime schedule
 
     private static OrderResponse from(Order order, List<OrderDetailResponse> details,
                                       LocalDateTime effectiveScheduledAt) {
+        return from(order, details, effectiveScheduledAt, null, false);
+    }
+
+    private static OrderResponse from(Order order, List<OrderDetailResponse> details,
+                                      LocalDateTime effectiveScheduledAt, LocalDateTime prepareStartTime,
+                                      boolean preorder) {
         RestaurantTable table = order.getRestaurantTable();
         return new OrderResponse(order.getId(), order.getOrderCode(), effectiveScheduledAt, order.getCreateDate(), order.getAddress(), order.getStatus(),
                 money(order.getOriginalSubtotal()), money(order.getMembershipDiscount()), money(order.getVoucherDiscount()),
@@ -58,7 +72,8 @@ public record OrderResponse(Integer id, String orderCode, LocalDateTime schedule
                 order.getRecipientName(), order.getRecipientPhone(), order.getDeliveryAddress(), order.getDeliveryNote(),
                 order.getAccount() == null ? null : EmployeeSummaryResponse.from(order.getAccount()), details,
                 order.getIsPaid(), order.getPaymentOption(), order.getPaymentStatus(), order.getPaidAmount(),
-                order.getRemainingAmount(), Boolean.TRUE.equals(order.getInvoiceRequested()));
+                order.getRemainingAmount(), Boolean.TRUE.equals(order.getInvoiceRequested()),
+                prepareStartTime, preorder);
     }
 
     private static BigDecimal money(BigDecimal value) {

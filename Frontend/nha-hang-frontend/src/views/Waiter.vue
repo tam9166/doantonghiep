@@ -85,11 +85,12 @@
                 <div class="serve-info">
                   <h2 class="table-name">{{ getTableName(order) }}</h2>
                   <p class="order-code">Mã đơn: <span>#{{ String(order.id).padStart(4, '0') }}</span></p>
-                  <span v-if="isFutureServiceOrder(order)" class="future-service-badge">Chờ đến ngày</span>
+                  <span v-if="order.preorder" class="future-service-badge">Đơn đặt trước</span>
+                  <p v-if="order.preorder" class="preorder-timing">Khách đến: {{ formatServiceTime(order.scheduledAt, true) }} · Chuẩn bị từ: {{ formatServiceTime(order.prepareStartTime) }}</p>
                 </div>
                 <div class="serve-timer">
-                  <span :class="['timer-badge', getServeTimerClass(order)]">
-                     {{ getElapsedTime(order.createDate) }}
+                  <span :class="['timer-badge', getServeTimerClass(order, 'waiter-ready')]">
+                     {{ getElapsedTime(order, 'waiter-ready') }}
                   </span>
                 </div>
               </div>
@@ -101,8 +102,8 @@
                   <span v-else class="serve-dish-icon"><UiIcon name="dish" /></span>
                     <span class="serve-dish-name">{{ detail.product?.name || 'Món ăn' }}</span>
                     <span class="serve-dish-qty">x{{ detail.quantity }}</span>
-                    <button @click="markDishServed(detail.id, order)" class="btn-dish-served" style="margin-left: auto;">
-                      {{ isFutureServiceOrder(order) ? 'Chờ đến ngày' : 'Đã Bưng' }}
+                    <button @click="markDishServed(detail.id, order)" class="btn-dish-served dish-operation">
+                      Đã Bưng
                     </button>
                     <span class="serve-dish-price">{{ detail.price?.toLocaleString() }}đ</span>
                   </div>
@@ -139,11 +140,12 @@
                 <div class="serve-info">
                   <h2 class="table-name">{{ getTableName(order) }}</h2>
                   <p class="order-code">Mã đơn: <span>#{{ String(order.id).padStart(4, '0') }}</span></p>
-                  <span v-if="isFutureServiceOrder(order)" class="future-service-badge">Chờ đến ngày</span>
+                  <span v-if="order.preorder" class="future-service-badge">Đơn đặt trước</span>
+                  <p v-if="order.preorder" class="preorder-timing">Khách đến: {{ formatServiceTime(order.scheduledAt, true) }} · Chuẩn bị từ: {{ formatServiceTime(order.prepareStartTime) }}</p>
                 </div>
                 <div class="serve-timer">
-                  <span :class="['timer-badge', getServeTimerClass(order)]">
-                     {{ getElapsedTime(order.createDate) }}
+                  <span :class="['timer-badge', getServeTimerClass(order, 'waiter-cooking')]">
+                     {{ getElapsedTime(order, 'waiter-cooking') }}
                   </span>
                 </div>
               </div>
@@ -154,7 +156,7 @@
                   <span v-else class="serve-dish-icon"><UiIcon name="dish" /></span>
                     <span class="serve-dish-name">{{ detail.product?.name || 'Món ăn' }}</span>
                     <span class="serve-dish-qty">x{{ detail.quantity }}</span>
-                    <span class="serve-dish-price" style="color: var(--color-tertiary); font-size: 0.8rem; font-weight: bold; background: color-mix(in srgb, var(--color-tertiary) 10%, transparent); padding: 4px 8px; border-radius: 10px; margin-left: auto;">
+                    <span class="dish-operation cooking-state">
                       {{ detail.startedAt ? 'Đang làm' : 'Chờ bếp' }}
                     </span>
                   </div>
@@ -627,8 +629,10 @@ import { getApiErrorMessage } from '@/services/errorMessage';
 import {
   OPERATIONAL_ORDER_PAGE_SIZE,
   clampOperationalPage,
-  isFutureServiceOrder,
+  isBeforePreparation,
+  operationalElapsedMinutes,
   operationalPageButtons,
+  operationalWaitLabel,
   paginateOperationalOrders,
   totalOperationalPages,
 } from '@/utils/operationalOrderUi';
@@ -642,6 +646,7 @@ const showToast = (message, duration = 5000) => {
   setTimeout(() => { toastMsg.value = ''; }, duration);
 };
 const orders = ref([]);
+const operationalOrderIds = ref(new Set());
 const tables = ref([]);
 const now = ref(new Date());
 let timerInterval = null;
@@ -733,8 +738,9 @@ const isCookingDetail = detail => {
 const readyDetails = order => (order?.orderDetails || []).filter(isReadyDetail);
 const cookingDetails = order => (order?.orderDetails || []).filter(isCookingDetail);
 const hasReadyDetails = order => readyDetails(order).length > 0;
-const readyOrders = computed(() => orders.value.filter(hasReadyDetails));
-const cookingOrders = computed(() => orders.value.filter(order => cookingDetails(order).length > 0));
+const operationalOrders = computed(() => orders.value.filter(order => operationalOrderIds.value.has(order.id)));
+const readyOrders = computed(() => operationalOrders.value.filter(hasReadyDetails));
+const cookingOrders = computed(() => operationalOrders.value.filter(order => cookingDetails(order).length > 0));
 
 // Lọc đơn hàng theo khu vực phân công
 const filteredReadyOrders = computed(() => readyOrders.value.filter(isOrderInMyZone));
@@ -804,25 +810,9 @@ const getTableClass = (status) => {
 };
 
 // === ELAPSED TIME ===
-const getElapsedTime = (createDate) => {
-  if (!createDate) return '';
-  const elapsed = Math.floor((now.value - new Date(createDate)) / 1000);
-  const mins = Math.floor(elapsed / 60);
-  const secs = elapsed % 60;
-  if (mins >= 60) {
-    const hrs = Math.floor(mins / 60);
-    return `${hrs}h ${mins % 60}p`;
-  }
-  return `${mins}:${String(secs).padStart(2, '0')}`;
-};
-
-const getElapsedMinutes = (createDate) => {
-  if (!createDate) return 0;
-  return Math.floor((now.value - new Date(createDate)) / 60000);
-};
-
-const getServeTimerClass = (order) => {
-  const mins = getElapsedMinutes(order.createDate);
+const getElapsedTime = (order, queue) => operationalWaitLabel(order, now.value, queue);
+const getServeTimerClass = (order, queue) => {
+  const mins = operationalElapsedMinutes(order, now.value, queue);
   if (mins >= 15) return 'timer-critical';
   if (mins >= 8) return 'timer-warning';
   return 'timer-normal';
@@ -846,6 +836,9 @@ const fetchData = async () => {
         orderDetails: mergeOrderDetails(existing.orderDetails, order.orderDetails),
       } : order);
     });
+    operationalOrderIds.value = new Set((Array.isArray(resReady.data) ? resReady.data : [])
+      .map(order => order?.id)
+      .filter(id => id != null));
     orders.value = [...merged.values()];
 
     // Kiểm tra có đơn mới cần bưng không
@@ -873,8 +866,8 @@ const fetchData = async () => {
 };
 
 const markDishServed = async (detailId, order) => {
-  if (isFutureServiceOrder(order)) {
-    showToast('Đơn này chưa đến ngày phục vụ.');
+  if (isBeforePreparation(order, now.value)) {
+    showToast('Đơn đặt trước chưa đến thời gian chuẩn bị.');
     return;
   }
   try {
@@ -885,6 +878,15 @@ const markDishServed = async (detailId, order) => {
     setTimeout(() => { toastMsg.value = ''; }, 2000);
     fetchData();
   } catch (err) { showToast(getApiErrorMessage(err, 'Không thể cập nhật món lúc này.')); }
+};
+
+const formatServiceTime = (value, includeDate = false) => {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return new Intl.DateTimeFormat('vi-VN', includeDate
+    ? { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }
+    : { hour: '2-digit', minute: '2-digit' }).format(date);
 };
 
 // Nút KHÁCH VỀ: chuyển bàn sang trạng thái Cần dọn (3)
@@ -1479,6 +1481,7 @@ onUnmounted(() => {
   font-size: .75rem;
   font-weight: 800;
 }
+.preorder-timing { margin: 6px 0 0; color: var(--text-secondary); font-size: .75rem; font-weight: 700; }
 .operational-pagination {
   display: flex;
   align-items: center;
@@ -1551,11 +1554,14 @@ onUnmounted(() => {
 
 /* Serve Dishes */
 .serve-dishes {
-  display: flex; flex-wrap: wrap; gap: 6px;
+  display: flex; flex-direction: column; gap: 6px;
   padding-top: 10px; border-top: 1px solid var(--border-light);
 }
 .serve-dish-item {
-  display: flex; align-items: center; gap: 6px;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto minmax(92px, auto) minmax(82px, auto);
+  align-items: center; gap: 8px;
+  width: 100%; min-height: 44px;
   background: var(--bg-card2, rgba(0,0,0,0.15));
   border: 1px solid var(--border-light);
   padding: 4px 8px; border-radius: 8px;
@@ -1565,8 +1571,10 @@ onUnmounted(() => {
   border: 1px solid var(--border);
 }
 .serve-dish-icon { font-size: 1rem; }
-.serve-dish-name { font-size: 0.8rem; font-weight: 600; color: var(--text-heading); flex: 1; }
-.serve-dish-price { color: var(--primary); font-weight: bold; margin-left: auto; font-size: 0.8rem; }
+.serve-dish-name { min-width: 0; min-height: 2.4em; font-size: 0.8rem; line-height: 1.2; font-weight: 600; color: var(--text-heading); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.serve-dish-price { color: var(--primary); font-weight: bold; font-size: 0.8rem; text-align: right; white-space: nowrap; }
+.dish-operation { grid-column: 4; display: inline-flex; align-items: center; justify-content: center; min-width: 92px; min-height: 30px; margin: 0; }
+.cooking-state { color: var(--color-tertiary); font-size: 0.8rem; font-weight: bold; background: color-mix(in srgb, var(--color-tertiary) 10%, transparent); padding: 4px 8px; border-radius: 10px; }
 
 .btn-dish-served {
   background: var(--success);
@@ -1684,6 +1692,12 @@ onUnmounted(() => {
   font-weight: 900;
   color: var(--text-heading);
   text-shadow: none;
+}
+
+@media (max-width: 600px) {
+  .serve-dish-item { grid-template-columns: 24px minmax(0, 1fr) auto; }
+  .dish-operation { grid-column: 2; justify-self: start; }
+  .serve-dish-price { grid-column: 3; }
 }
 .tc-subtitle {
   margin: 0;

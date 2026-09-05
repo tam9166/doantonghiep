@@ -63,12 +63,13 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
     @Query("select distinct o from Order o "
             + "left join fetch o.restaurantTable t left join fetch t.area "
             + "left join fetch o.orderDetails od left join fetch od.product "
-            + "where (o.status is null or o.status not in :terminalStatuses) "
-            + "and (o.paymentStatus is null or o.paymentStatus <> poly.edu.quanlynhahang.entity.PaymentStatus.REFUNDED) "
+            + "where (o.status is null or o.status <> :cancelledStatus) "
+            + "and (o.paymentStatus is null or o.paymentStatus <> :refundedStatus) "
             + "and exists (select active.id from OrderDetail active "
             + "where active.order = o and (active.status is null or active.status in :activeDetailStatuses)) "
             + "order by o.createDate asc")
-    List<Order> findWaiterOperationalOrdersWithDetails(@Param("terminalStatuses") Collection<Integer> terminalStatuses,
+    List<Order> findWaiterOperationalOrdersWithDetails(@Param("cancelledStatus") Integer cancelledStatus,
+                                                        @Param("refundedStatus") PaymentStatus refundedStatus,
                                                         @Param("activeDetailStatuses") Collection<Integer> activeDetailStatuses);
 
     @Query("select distinct o from Order o left join fetch o.orderDetails od left join fetch od.product "
@@ -110,14 +111,26 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
     List<Order> findPaidOrdersSince(@Param("excludedStatus") Integer excludedStatus,
                                     @Param("startDate") Date startDate);
 
+    /**
+     * Kitchen visibility is driven by the dish lifecycle. Parent order status is
+     * deliberately not used as the active-queue selector because add-on dishes
+     * may coexist with a previously ready/served/paid parent order.
+     */
     @Query("select distinct o from Order o "
             + "left join fetch o.restaurantTable t left join fetch t.area "
             + "left join fetch o.orderDetails od left join fetch od.product "
-            + "where o.status in :activeStatuses "
-            + "or (o.status in :completedStatuses and o.createDate >= :startOfDay) "
+            + "where (o.status is null or o.status <> :cancelledStatus) "
+            + "and (o.paymentStatus is null or o.paymentStatus <> :refundedStatus) "
+            + "and (exists (select active.id from OrderDetail active "
+            + "where active.order = o and (active.status is null or active.status in :activeDetailStatuses)) "
+            + "or exists (select completed.id from OrderDetail completed "
+            + "where completed.order = o and completed.status in :completedDetailStatuses "
+            + "and completed.completedAt >= :startOfDay)) "
             + "order by o.createDate asc")
-    List<Order> findKitchenBoardOrdersWithDetails(@Param("activeStatuses") List<Integer> activeStatuses,
-                                                   @Param("completedStatuses") List<Integer> completedStatuses,
+    List<Order> findKitchenBoardOrdersWithDetails(@Param("cancelledStatus") Integer cancelledStatus,
+                                                   @Param("refundedStatus") PaymentStatus refundedStatus,
+                                                   @Param("activeDetailStatuses") Collection<Integer> activeDetailStatuses,
+                                                   @Param("completedDetailStatuses") Collection<Integer> completedDetailStatuses,
                                                    @Param("startOfDay") Date startOfDay);
 
     @Query("select distinct o from Order o "

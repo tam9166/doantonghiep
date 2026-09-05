@@ -126,6 +126,47 @@ class KitchenOrderDetailServiceTest {
     }
 
     @Test
+    void waiterCanServeLastReadyDishAfterInvoiceWasAlreadyCompleted() {
+        Order order = new Order();
+        order.setId(12);
+        order.setStatus(poly.edu.quanlynhahang.entity.OrderStatus.COMPLETED.code());
+        OrderDetail detail = pendingDetail();
+        detail.setStatus(1);
+        detail.setCompletedAt(new java.util.Date());
+        detail.setOrder(order);
+        order.setOrderDetails(List.of(detail));
+        when(orderDetailRepository.findLockedWithOrderAndProductById(7)).thenReturn(Optional.of(detail));
+        when(orderDetailRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        OrderDetail served = service.serve(7);
+
+        assertEquals(2, served.getStatus());
+        assertEquals(poly.edu.quanlynhahang.entity.OrderStatus.COMPLETED.code(), order.getStatus());
+        verify(orderRepository, never()).save(order);
+        verify(messagingTemplate).convertAndSend("/topic/waiter", "DISH_SERVED");
+    }
+
+    @Test
+    void waiterRejectsAlreadyProcessedDishBeforeAnyMutation() {
+        Order order = new Order();
+        order.setId(12);
+        order.setStatus(poly.edu.quanlynhahang.entity.OrderStatus.COMPLETED.code());
+        OrderDetail detail = pendingDetail();
+        detail.setStatus(2);
+        detail.setCompletedAt(new java.util.Date());
+        detail.setOrder(order);
+        order.setOrderDetails(List.of(detail));
+        when(orderDetailRepository.findLockedWithOrderAndProductById(7)).thenReturn(Optional.of(detail));
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class, () -> service.serve(7));
+
+        assertEquals("Món này đã hoàn thành hoặc đã được xử lý.", error.getReason());
+        assertEquals(2, detail.getStatus());
+        verify(orderDetailRepository, never()).save(any());
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
     void futureServiceDateBlocksStartCompleteAndServeBeforeAnyMutation() {
         OrderDetail detail = pendingDetail();
         Order order = new Order();
@@ -134,7 +175,7 @@ class KitchenOrderDetailServiceTest {
         when(orderDetailRepository.findById(7)).thenReturn(Optional.of(detail));
         org.mockito.Mockito.doThrow(new ResponseStatusException(
                 HttpStatus.CONFLICT, OrderServiceDateGuardService.FUTURE_SERVICE_MESSAGE))
-                .when(serviceDateGuard).assertServiceDateReached(order);
+                .when(serviceDateGuard).assertPreparationReached(order);
 
         ResponseStatusException startError = assertThrows(ResponseStatusException.class, () -> service.start(7));
         assertEquals(OrderServiceDateGuardService.FUTURE_SERVICE_MESSAGE, startError.getReason());

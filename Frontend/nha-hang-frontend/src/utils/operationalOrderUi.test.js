@@ -3,7 +3,12 @@ import {
   OPERATIONAL_ORDER_PAGE_SIZE,
   clampOperationalPage,
   dedupeOperationalOrders,
+  formatOperationalWait,
+  isBeforePreparation,
   isFutureServiceOrder,
+  operationalElapsedMinutes,
+  operationalTimerStart,
+  operationalWaitLabel,
   paginateOperationalOrders,
   totalOperationalPages,
 } from './operationalOrderUi'
@@ -42,5 +47,46 @@ describe('operational order pagination', () => {
     const localTomorrow = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`
     expect(isFutureServiceOrder({ scheduledAt: `${localTomorrow}T18:00:00` })).toBe(true)
     expect(isFutureServiceOrder({ scheduledAt: null, createDate: `${localTomorrow}T18:00:00` })).toBe(false)
+  })
+
+  it('never uses createdAt as the preparation timer for a preorder', () => {
+    const now = new Date('2026-09-05T19:00:00+07:00')
+    const order = {
+      preorder: true,
+      createDate: '2026-08-01T10:00:00+07:00',
+      prepareStartTime: '2026-09-05T18:30:00+07:00',
+      orderDetails: [],
+    }
+    expect(operationalTimerStart(order)?.toISOString()).toBe('2026-09-05T11:30:00.000Z')
+    expect(operationalElapsedMinutes(order, now)).toBe(30)
+    expect(operationalWaitLabel(order, now)).toBe('Đã chờ: 30 phút')
+  })
+
+  it('uses dish lifecycle times for Kitchen and Waiter queues', () => {
+    const now = new Date('2026-09-05T19:00:00+07:00')
+    const order = {
+      createDate: '2026-08-01T10:00:00+07:00',
+      orderDetails: [
+        { status: 0, queuedAt: '2026-09-05T18:20:00+07:00', startedAt: '2026-09-05T18:45:00+07:00' },
+        { status: 1, completedAt: '2026-09-05T18:55:00+07:00' },
+      ],
+    }
+    expect(operationalElapsedMinutes(order, now, 'kitchen')).toBe(15)
+    expect(operationalElapsedMinutes(order, now, 'waiter-ready')).toBe(5)
+  })
+
+  it('identifies a preorder before its preparation window', () => {
+    const order = { preorder: true, prepareStartTime: '2026-09-05T18:30:00+07:00' }
+    expect(isBeforePreparation(order, new Date('2026-09-05T18:29:59+07:00'))).toBe(true)
+    expect(isBeforePreparation(order, new Date('2026-09-05T18:30:00+07:00'))).toBe(false)
+  })
+
+  it('formats operational waits without exposing huge minute/hour counters', () => {
+    expect(formatOperationalWait(15)).toBe('Đã chờ: 15 phút')
+    expect(formatOperationalWait(59)).toBe('Đã chờ: 59 phút')
+    expect(formatOperationalWait(75)).toBe('Đã chờ: 1 giờ 15 phút')
+    expect(formatOperationalWait(150)).toBe('Đã chờ: 2 giờ 30 phút')
+    expect(formatOperationalWait(15189)).toBe('Đã chờ: trên 24 giờ')
+    expect(formatOperationalWait(15189, true)).toBe('Đơn đặt trước')
   })
 })
