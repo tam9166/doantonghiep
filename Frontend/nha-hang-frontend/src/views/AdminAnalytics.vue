@@ -100,7 +100,7 @@
         <div class="chart-card g-card">
           <h3 class="chart-title"> Số Lượng Hóa Đơn Hoàn Thành</h3>
           <div class="chart-container">
-            <Bar v-if="chartDataReady && hasChartData" :data="ordersChartData" :options="chartOptions" />
+            <Bar v-if="chartDataReady && hasChartData" :data="ordersChartData" :options="ordersChartOptions" />
             <div v-else-if="chartDataReady" class="empty-chart">Chưa có hóa đơn hoàn thành trong kỳ này.</div>
             <SkeletonLoader v-else height="100%" />
           </div>
@@ -270,6 +270,33 @@ const chartOptions = {
         ticks: { color: chartTheme.textSecondary },
         grid: { color: chartTheme.grid },
       beginAtZero: true
+    }
+  }
+};
+
+// Invoice counts are discrete values. A shared linear scale otherwise lets
+// Chart.js choose fractional tick labels (for example 0.5 invoices).
+const ordersChartOptions = {
+  ...chartOptions,
+  plugins: {
+    ...chartOptions.plugins,
+    tooltip: {
+      callbacks: {
+        label: context => `${context.dataset.label || 'Hóa đơn'}: ${Math.round(Number(context.parsed.y || 0)).toLocaleString('vi-VN')}`
+      }
+    }
+  },
+  scales: {
+    ...chartOptions.scales,
+    y: {
+      ...chartOptions.scales.y,
+      beginAtZero: true,
+      ticks: {
+        ...chartOptions.scales.y.ticks,
+        stepSize: 1,
+        precision: 0,
+        callback: value => Math.round(Number(value)).toLocaleString('vi-VN')
+      }
     }
   }
 };

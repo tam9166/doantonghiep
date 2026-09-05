@@ -9,4 +9,5 @@ public record EventBookingRequest(
  @NotBlank @Pattern(regexp="^([01]\\d|2[0-3]):[0-5]\\d$") String arrivalTime,
  @NotNull @Min(1) @Max(72) Integer durationHours, @NotNull @Min(1) @Max(10000) Integer guestCount,
  Boolean decorationRequired, Boolean mcRequired, @Size(max=500) String eventNote,
- Boolean preorderEnabled, List<@jakarta.validation.Valid PreorderItemRequest> preorderItems) {}
+ Boolean preorderEnabled, List<@jakarta.validation.Valid PreorderItemRequest> preorderItems,
+ Boolean lateDiningConfirmed) {}

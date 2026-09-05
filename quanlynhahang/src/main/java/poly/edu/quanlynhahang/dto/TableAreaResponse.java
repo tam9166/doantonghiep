@@ -33,13 +33,20 @@ public record TableAreaResponse(
         Boolean bookingReady,
         String bookingReadyReason,
         Integer usableTableCount,
-        Integer totalTableCapacity) {
+        Integer totalTableCapacity,
+        Integer availableCapacity,
+        Boolean sufficientCapacity) {
 
     public static TableAreaResponse from(TableArea area) {
         return from(area, null);
     }
 
     public static TableAreaResponse from(TableArea area, TableAreaReadinessService.Readiness readiness) {
+        return from(area, readiness, null);
+    }
+
+    public static TableAreaResponse from(TableArea area, TableAreaReadinessService.Readiness readiness,
+                                         poly.edu.quanlynhahang.service.RestaurantCapacityService.CapacitySnapshot capacity) {
         return new TableAreaResponse(
                 area.getId(), area.getNameVi(), area.getNameEn(), area.getDescriptionVi(), area.getDescriptionEn(),
                 area.getImageUrl(), area.getGallery(), BigDecimal.ZERO,
@@ -51,6 +58,8 @@ public record TableAreaResponse(
                 readiness == null ? null : readiness.bookingReady(),
                 readiness == null ? null : readiness.reason(),
                 readiness == null ? null : readiness.usableTableCount(),
-                readiness == null ? null : readiness.totalTableCapacity());
+                readiness == null ? null : readiness.totalTableCapacity(),
+                capacity == null ? area.getCapacity() : capacity.remainingCapacity(),
+                capacity == null ? null : capacity.available());
     }
 }

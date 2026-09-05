@@ -399,9 +399,9 @@
           <input v-model="batchForm.expirationDate" type="date" class="g-form-control" />
         </div>
 
-        <div class="form-actions" style="flex-direction: row; gap: 10px;">
-          <button @click="submitBatch" class="g-btn-primary" style="flex:1;" :disabled="batchSubmitting">{{ batchSubmitting ? 'Đang nhập kho...' : 'Xác Nhận Nhập Kho' }}</button>
-          <button @click="showRestockModal = false" class="btn-cancel" style="flex:1;" :disabled="batchSubmitting">Hủy</button>
+        <div class="form-actions restock-actions">
+          <button @click="showRestockModal = false" class="btn-cancel restock-action" :disabled="batchSubmitting">Hủy</button>
+          <button @click="submitBatch" class="g-btn-primary restock-action" :disabled="batchSubmitting">{{ batchSubmitting ? 'Đang nhập kho...' : 'Xác Nhận Nhập Kho' }}</button>
         </div>
       </div>
     </div>
@@ -467,7 +467,7 @@
 
     <!-- Create Invoice Modal -->
     <div v-if="showCreateInvoiceModal" class="modal-overlay" @click.self="showCreateInvoiceModal = false">
-      <div class="modal-content" style="max-width: 800px; width: 90%;">
+      <div class="modal-content stock-import-modal">
         <div class="modal-header">
           <h3> Phiếu Nhập Hàng Vào Kho</h3>
           <button @click="showCreateInvoiceModal = false" class="btn-close" aria-label="Đóng phiếu nhập"><UiIcon name="x" /></button>
@@ -490,7 +490,8 @@
           </div>
           
           <h4>Danh Sách Nguyên Liệu Nhập</h4>
-          <table class="g-table" style="margin-top: 10px; margin-bottom: 20px;">
+          <div class="stock-import-table-scroll">
+          <table class="g-table stock-import-table" style="margin-top: 10px; margin-bottom: 20px;">
             <thead>
               <tr>
                 <th>Nguyên liệu</th>
@@ -529,6 +530,7 @@
               </tr>
             </tbody>
           </table>
+          </div>
           <button @click="invoiceForm.items.push(makeInvoiceRow())" class="invoice-add-row" style="margin-bottom: 20px;">Thêm dòng</button>
           
           <div style="text-align: right; font-size: 1.2rem; font-weight: bold; margin-bottom: 20px;">
@@ -1204,6 +1206,9 @@ onMounted(() => {
 .form-group label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 6px; font-weight: 600; text-transform: uppercase; }
 .form-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 24px; }
 .btn-cancel { background: transparent; border: 1px solid var(--border-light); color: var(--text-muted); padding: 10px; border-radius: var(--radius-md); font-weight: 600; cursor: pointer; }
+.restock-actions { display: flex; flex-direction: row; gap: 10px; }
+.restock-action { flex: 1 1 0; min-width: 0; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; padding: 10px 16px; border-radius: var(--radius-md); }
+.restock-actions .btn-cancel { border: 1px solid var(--primary); color: var(--primary); background: var(--bg-card); }
 
 /* Table Elements */
 .img-thumb-sm { width: 36px; height: 36px; border-radius: 6px; object-fit: cover; border: 1px solid var(--border); }
@@ -1262,6 +1267,10 @@ onMounted(() => {
 .btn-ai-forecast:hover { transform: translateY(-2px); box-shadow: 0 6px 20px color-mix(in srgb, var(--color-tertiary) 60%, transparent); }
 
 .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 999; display: flex; align-items: center; justify-content: center; }
+.stock-import-modal { width: min(96vw, 1180px); max-width: 1180px; max-height: 90vh; overflow-y: auto; }
+.stock-import-table-scroll { width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; }
+.stock-import-table { min-width: 980px; }
+.stock-import-modal .form-actions { position: sticky; bottom: 0; z-index: 2; flex-direction: row; justify-content: flex-end; padding-top: 12px; background: var(--bg-card); }
 .forecast-box { background: var(--bg-card); padding: 0; border-radius: 12px; width: 100%; max-width: 700px; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--color-tertiary); box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
 .forecast-header { background: color-mix(in srgb, var(--color-tertiary) 10%, transparent); padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid color-mix(in srgb, var(--color-tertiary) 30%, transparent); }
 .forecast-header-actions { display: inline-flex; align-items: center; gap: 10px; }
@@ -1375,6 +1384,8 @@ onMounted(() => {
   .hide-on-print { display: none !important; }
 }
 @media (max-width: 700px) {
+  .restock-actions { flex-direction: column; }
+  .restock-action { width: 100%; flex-basis: auto; }
   .pagination-bar { align-items: flex-start; flex-direction: column; }
   .add-recipe-box { flex-direction: column; }
   .recipe-ingredient-picker { min-width: 0; }

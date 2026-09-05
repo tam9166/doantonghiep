@@ -62,7 +62,25 @@ class RestaurantBusinessHoursServiceTest {
         assertTrue(service.allowsLateDining(LocalTime.of(21, 30), 120));
         
         // Customer arrives before last order but after closing
-        assertFalse(service.allowsLateDining(LocalTime.of(22, 0), 60));
+        assertTrue(service.allowsLateDining(LocalTime.of(22, 0), 60));
+    }
+
+    @Test
+    void reservationArrivalWindowIncludesClosingTime() {
+        assertFalse(service.acceptsReservationArrival(LocalTime.of(8, 59)));
+        assertTrue(service.acceptsReservationArrival(LocalTime.of(9, 0)));
+        assertTrue(service.acceptsReservationArrival(LocalTime.of(21, 30)));
+        assertTrue(service.acceptsReservationArrival(LocalTime.of(21, 41)));
+        assertTrue(service.acceptsReservationArrival(LocalTime.of(21, 59)));
+        assertTrue(service.acceptsReservationArrival(LocalTime.of(22, 0)));
+        assertFalse(service.acceptsReservationArrival(LocalTime.of(22, 1)));
+    }
+
+    @Test
+    void lateDiningDependsOnExpectedEndRatherThanArrivalCutoff() {
+        assertTrue(service.requiresLateDiningConfirmation(LocalTime.of(21, 41), 120));
+        assertTrue(service.requiresLateDiningConfirmation(LocalTime.of(22, 0), 120));
+        assertFalse(service.requiresLateDiningConfirmation(LocalTime.of(20, 0), 120));
     }
     
     @Test

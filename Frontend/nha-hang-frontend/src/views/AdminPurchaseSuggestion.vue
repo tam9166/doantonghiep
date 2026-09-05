@@ -68,7 +68,7 @@
               <th>Tồn Hiện Tại</th>
               <th>Định Mức</th>
               <th>Tiêu Thụ/Ngày</th>
-              <th>Còn Dùng Được</th>
+              <th>Tồn Đủ Dùng / Hạn Gần Nhất</th>
               <th>Đề Xuất Mua</th>
               <th>Chi Phí Ước Tính</th>
               <th>Mức Độ</th>
@@ -90,9 +90,10 @@
               <td style="color: var(--text-muted);">{{ item.minStock }} {{ item.unit }}</td>
               <td style="color: var(--primary); font-weight: 700;">{{ item.dailyConsumption }} {{ item.unit }}</td>
               <td>
-                <span :style="{ color: item.daysLeft <= 1 ? 'var(--primary)' : item.daysLeft <= 3 ? 'var(--color-tertiary)' : 'var(--success)', fontWeight: 'bold' }">
-                  {{ item.daysLeft >= 999 ? '∞' : item.daysLeft + ' ngày' }}
+                <span :style="{ color: item.daysOfStock <= 1 ? 'var(--primary)' : item.daysOfStock <= 3 ? 'var(--color-tertiary)' : 'var(--success)', fontWeight: 'bold' }">
+                  {{ item.daysOfStock >= 999 ? '∞' : item.daysOfStock + ' ngày' }}
                 </span>
+                <small v-if="expiryDays(item) !== null" class="expiry-hint">Hạn gần nhất: {{ expiryDays(item) }} ngày</small>
               </td>
               <td style="font-weight: 900; color: var(--primary); font-size: 1.05rem;">
                 {{ item.suggestedAmount }} {{ item.unit }}
@@ -138,7 +139,7 @@
             <div v-else-if="aiAnalysisItems.length" class="analysis-grid">
               <article v-for="item in aiAnalysisItems" :key="item.ingredientId" class="analysis-card">
                 <div class="analysis-card-title"><h3>{{ item.name }}</h3><span class="urgency-badge" :class="'urgency-' + item.urgency">{{ item.urgencyLabel || item.urgency }}</span></div>
-                <dl><div><dt>Tồn hiện tại</dt><dd>{{ item.currentStock }} {{ item.unit }}</dd></div><div><dt>Tiêu thụ/ngày</dt><dd>{{ item.dailyConsumption }} {{ item.unit }}</dd></div><div><dt>Còn dùng được</dt><dd>{{ item.daysLeft >= 999 ? 'Chưa xác định' : item.daysLeft + ' ngày' }}</dd></div><div><dt>Đề xuất mua</dt><dd>{{ item.suggestedAmount }} {{ item.unit }}</dd></div></dl>
+                <dl><div><dt>Tồn hiện tại</dt><dd>{{ item.currentStock }} {{ item.unit }}</dd></div><div><dt>Tiêu thụ/ngày</dt><dd>{{ item.dailyConsumption }} {{ item.unit }}</dd></div><div><dt>Tồn đủ dùng dự kiến</dt><dd>{{ item.daysOfStock >= 999 ? 'Chưa xác định' : item.daysOfStock + ' ngày' }}</dd></div><div v-if="expiryDays(item) !== null"><dt>Hạn gần nhất</dt><dd>{{ expiryDays(item) }} ngày</dd></div><div><dt>Đề xuất mua</dt><dd>{{ item.suggestedAmount }} {{ item.unit }}</dd></div></dl>
                 <p><strong>Lý do:</strong> {{ item.reason }}</p>
                 <p><strong>Hành động:</strong> {{ item.action }}</p>
                 <p v-if="item.aiInsight" class="ai-insight"><strong>AI bổ sung:</strong> {{ item.aiInsight }}</p>
@@ -247,6 +248,14 @@ const batchValidationMessage = computed(() => {
 const batchCanSubmit = computed(() => !batchValidationMessage.value);
 const requestId = prefix => `${prefix}-${globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`}`;
 const expirationPayload = date => new Date(`${date}T12:00:00+07:00`).toISOString();
+const expiryDays = item => {
+  const canonical = Number(item?.daysToExpiry)
+  if (Number.isFinite(canonical)) return canonical
+  const values = [...(item?.expiredBatches || []), ...(item?.expiringBatches || [])]
+    .map(batch => Number(batch.daysRemaining))
+    .filter(Number.isFinite);
+  return values.length ? Math.min(...values) : null;
+};
 
 const fetchSuggestions = async () => {
   try {
@@ -452,6 +461,7 @@ onMounted(fetchSuggestions);
 .suggestion-row:hover { background: color-mix(in srgb, var(--secondary) 4%, transparent); }
 
 .urgency-badge { padding: 4px 12px; border-radius: 100px; font-size: 0.75rem; font-weight: 700; display: inline-block; }
+.expiry-hint { display: block; margin-top: 3px; color: var(--color-tertiary); font-weight: 700; }
 .urgency-expired { background: #FFF1F2; color: #9F1239; }
 .urgency-expiring { background: #FFFBEB; color: #92400E; }
 

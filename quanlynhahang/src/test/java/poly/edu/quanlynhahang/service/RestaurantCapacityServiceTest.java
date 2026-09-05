@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.web.server.ResponseStatusException;
 import poly.edu.quanlynhahang.entity.Reservation;
 import poly.edu.quanlynhahang.entity.RestaurantSetting;
+import poly.edu.quanlynhahang.entity.TableArea;
 import poly.edu.quanlynhahang.repository.ReservationRepository;
 
 import java.time.LocalDate;
@@ -11,6 +12,7 @@ import java.time.LocalTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -50,6 +52,63 @@ class RestaurantCapacityServiceTest {
 
         assertThrows(ResponseStatusException.class,
                 () -> service.requireCapacity(date, LocalTime.of(0, 30), 60, 4));
+    }
+
+    @Test
+    void areaCapacityUsesOverlappingGuestLoadAndKeepsBoundaryBookingsIndependent() {
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        RestaurantSettingsService settings = mock(RestaurantSettingsService.class);
+        LocalDate date = LocalDate.now().plusDays(3);
+        TableArea indoor = new TableArea();
+        indoor.setId(1);
+        indoor.setCapacity(200);
+        Reservation existing = reservation(date, 120, LocalTime.of(18, 0), 120);
+        existing.setArea(indoor);
+        when(reservations.findByReservationDateAndReservationStatusIn(eq(date.minusDays(1)), any()))
+                .thenReturn(List.of());
+        when(reservations.findByReservationDateAndReservationStatusIn(eq(date), any()))
+                .thenReturn(List.of(existing));
+        RestaurantCapacityService service = new RestaurantCapacityService(reservations, settings);
+
+        RestaurantCapacityService.CapacitySnapshot hundredGuests =
+                service.checkAreaCapacity(indoor, date, LocalTime.of(19, 0), 120, 100);
+        RestaurantCapacityService.CapacitySnapshot seventyGuests =
+                service.checkAreaCapacity(indoor, date, LocalTime.of(19, 0), 120, 70);
+        RestaurantCapacityService.CapacitySnapshot afterExistingBooking =
+                service.checkAreaCapacity(indoor, date, LocalTime.of(21, 0), 120, 100);
+
+        assertEquals(80, hundredGuests.remainingCapacity());
+        assertEquals(false, hundredGuests.available());
+        assertEquals(true, seventyGuests.available());
+        assertEquals(200, afterExistingBooking.remainingCapacity());
+        assertEquals(true, afterExistingBooking.available());
+    }
+
+    @Test
+    void areaCapacityCountsOnlyReservationsAssignedToThatArea() {
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        RestaurantSettingsService settings = mock(RestaurantSettingsService.class);
+        LocalDate date = LocalDate.now().plusDays(4);
+        TableArea indoor = new TableArea();
+        indoor.setId(1);
+        indoor.setCapacity(200);
+        TableArea garden = new TableArea();
+        garden.setId(2);
+        garden.setCapacity(100);
+        Reservation gardenBooking = reservation(date, 90, LocalTime.of(18, 0), 120);
+        gardenBooking.setArea(garden);
+        when(reservations.findByReservationDateAndReservationStatusIn(eq(date.minusDays(1)), any()))
+                .thenReturn(List.of());
+        when(reservations.findByReservationDateAndReservationStatusIn(eq(date), any()))
+                .thenReturn(List.of(gardenBooking));
+        RestaurantCapacityService service = new RestaurantCapacityService(reservations, settings);
+
+        RestaurantCapacityService.CapacitySnapshot snapshot =
+                service.checkAreaCapacity(indoor, date, LocalTime.of(19, 0), 120, 150);
+
+        assertEquals(0, snapshot.occupiedGuests());
+        assertEquals(200, snapshot.remainingCapacity());
+        assertEquals(true, snapshot.available());
     }
 
     private Reservation reservation(LocalDate date, int guests, LocalTime time, int duration) {

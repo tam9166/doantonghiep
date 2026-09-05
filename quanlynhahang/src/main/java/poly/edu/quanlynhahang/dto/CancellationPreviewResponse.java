@@ -12,5 +12,7 @@ public record CancellationPreviewResponse(
         BigDecimal hoursBeforeReservation,
         boolean eligible,
         String policyApplied,
-        String message) {
+        String message,
+        String policyCode,
+        String messageCode) {
 }

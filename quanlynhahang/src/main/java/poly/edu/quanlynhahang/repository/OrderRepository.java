@@ -55,6 +55,29 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
             + "where o.status = :status order by o.createDate asc")
     List<Order> findByStatusWithDetails(@Param("status") Integer status);
 
+    /**
+     * The waiter queue is driven by each dish lifecycle, not by the parent
+     * order status. An order may be PARTIALLY_READY or may receive a new
+     * add-on after the original order was served.
+     */
+    @Query("select distinct o from Order o "
+            + "left join fetch o.restaurantTable t left join fetch t.area "
+            + "left join fetch o.orderDetails od left join fetch od.product "
+            + "where (o.status is null or o.status <> :cancelledStatus) "
+            + "and (o.paymentStatus is null or o.paymentStatus <> :refundedStatus) "
+            + "and exists (select active.id from OrderDetail active "
+            + "where active.order = o and (active.status is null or active.status in :activeDetailStatuses)) "
+            + "order by o.createDate asc")
+    List<Order> findWaiterOperationalOrdersWithDetails(@Param("cancelledStatus") Integer cancelledStatus,
+                                                        @Param("refundedStatus") PaymentStatus refundedStatus,
+                                                        @Param("activeDetailStatuses") Collection<Integer> activeDetailStatuses);
+
+    @Query("select distinct o from Order o left join fetch o.orderDetails od left join fetch od.product "
+            + "where o.status in (4, 7) "
+            + "or (o.status <> 3 and o.isPaid = true and o.paymentStatus <> poly.edu.quanlynhahang.entity.PaymentStatus.REFUNDED) "
+            + "or (o.status <> 3 and o.paymentStatus = poly.edu.quanlynhahang.entity.PaymentStatus.PAID)")
+    List<Order> findOrdersForRevenueAnalytics();
+
     @Query("select distinct o from Order o "
             + "left join fetch o.orderDetails od left join fetch od.product "
             + "where o.status = :status and o.createDate >= :startDate "
@@ -88,14 +111,26 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
     List<Order> findPaidOrdersSince(@Param("excludedStatus") Integer excludedStatus,
                                     @Param("startDate") Date startDate);
 
+    /**
+     * Kitchen visibility is driven by the dish lifecycle. Parent order status is
+     * deliberately not used as the active-queue selector because add-on dishes
+     * may coexist with a previously ready/served/paid parent order.
+     */
     @Query("select distinct o from Order o "
             + "left join fetch o.restaurantTable t left join fetch t.area "
             + "left join fetch o.orderDetails od left join fetch od.product "
-            + "where o.status in :activeStatuses "
-            + "or (o.status in :completedStatuses and o.createDate >= :startOfDay) "
+            + "where (o.status is null or o.status <> :cancelledStatus) "
+            + "and (o.paymentStatus is null or o.paymentStatus <> :refundedStatus) "
+            + "and (exists (select active.id from OrderDetail active "
+            + "where active.order = o and (active.status is null or active.status in :activeDetailStatuses)) "
+            + "or exists (select completed.id from OrderDetail completed "
+            + "where completed.order = o and completed.status in :completedDetailStatuses "
+            + "and completed.completedAt >= :startOfDay)) "
             + "order by o.createDate asc")
-    List<Order> findKitchenBoardOrdersWithDetails(@Param("activeStatuses") List<Integer> activeStatuses,
-                                                   @Param("completedStatuses") List<Integer> completedStatuses,
+    List<Order> findKitchenBoardOrdersWithDetails(@Param("cancelledStatus") Integer cancelledStatus,
+                                                   @Param("refundedStatus") PaymentStatus refundedStatus,
+                                                   @Param("activeDetailStatuses") Collection<Integer> activeDetailStatuses,
+                                                   @Param("completedDetailStatuses") Collection<Integer> completedDetailStatuses,
                                                    @Param("startOfDay") Date startOfDay);
 
     @Query("select distinct o from Order o "
@@ -110,7 +145,14 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
     List<Order> findOpenDineInOrdersByTableIdWithDetails(@Param("tableId") Integer tableId);
 
     @Query("select distinct o from Order o left join fetch o.orderDetails od "
-            + "where o.tableId = :tableId order by o.createDate desc")
+            + "where o.tableId = :tableId "
+            + "and o.orderType = poly.edu.quanlynhahang.entity.OrderType.DINE_IN "
+            + "and not exists (select r.id from Reservation r where r.kitchenOrderId = o.id "
+            + "and r.reservationStatus in (poly.edu.quanlynhahang.entity.ReservationStatus.CANCELLED, "
+            + "poly.edu.quanlynhahang.entity.ReservationStatus.EXPIRED, "
+            + "poly.edu.quanlynhahang.entity.ReservationStatus.NO_SHOW, "
+            + "poly.edu.quanlynhahang.entity.ReservationStatus.COMPLETED)) "
+            + "order by o.createDate desc")
     List<Order> findOrdersByTableIdWithDetails(@Param("tableId") Integer tableId);
 
     @Query("select distinct o from Order o "

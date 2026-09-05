@@ -10,10 +10,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.server.ResponseStatusException;
 
 import poly.edu.quanlynhahang.entity.OrderDetail;
 import poly.edu.quanlynhahang.entity.Order;
+import poly.edu.quanlynhahang.entity.OrderStatus;
 import poly.edu.quanlynhahang.entity.PaymentStatus;
 import poly.edu.quanlynhahang.entity.RefundTransaction;
 import poly.edu.quanlynhahang.entity.InventoryReservationStatus;
@@ -32,6 +35,7 @@ public class KitchenOrderDetailService {
     private final RefundTransactionRepository refundRepository;
     private final InventoryReservationService inventoryReservationService;
     private final OrderStateMachineService orderStateMachineService;
+    private final OrderServiceDateGuardService serviceDateGuard;
 
     public KitchenOrderDetailService(OrderDetailRepository orderDetailRepository,
                                      ActivityLogService activityLogService,
@@ -40,7 +44,8 @@ public class KitchenOrderDetailService {
                                      RecipeRepository recipeRepository,
                                      RefundTransactionRepository refundRepository,
                                      InventoryReservationService inventoryReservationService,
-                                     OrderStateMachineService orderStateMachineService) {
+                                     OrderStateMachineService orderStateMachineService,
+                                     OrderServiceDateGuardService serviceDateGuard) {
         this.orderDetailRepository = orderDetailRepository;
         this.activityLogService = activityLogService;
         this.messagingTemplate = messagingTemplate;
@@ -49,11 +54,13 @@ public class KitchenOrderDetailService {
         this.refundRepository = refundRepository;
         this.inventoryReservationService = inventoryReservationService;
         this.orderStateMachineService = orderStateMachineService;
+        this.serviceDateGuard = serviceDateGuard;
     }
 
     @Transactional
     public OrderDetail start(Integer detailId) {
         OrderDetail detail = detail(detailId);
+        serviceDateGuard.assertPreparationReached(detail.getOrder());
         if (isCancelled(detail) || isReadyOrServed(detail)) {
             throw conflict("Món không còn ở trạng thái chờ chế biến");
         }
@@ -79,6 +86,7 @@ public class KitchenOrderDetailService {
     @Transactional
     public OrderDetail complete(Integer detailId) {
         OrderDetail detail = detail(detailId);
+        serviceDateGuard.assertPreparationReached(detail.getOrder());
         if (isCancelled(detail) || isReadyOrServed(detail)) {
             throw conflict("Món không còn ở trạng thái có thể hoàn thành");
         }
@@ -100,17 +108,24 @@ public class KitchenOrderDetailService {
     public OrderDetail serve(Integer detailId) {
         OrderDetail detail = orderDetailRepository.findLockedWithOrderAndProductById(detailId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy món trong đơn"));
+        serviceDateGuard.assertPreparationReached(detail.getOrder());
         if (!Integer.valueOf(1).equals(detail.getStatus()) || detail.getCompletedAt() == null) {
-            throw conflict("Phục vụ chỉ được bưng món đã được bếp hoàn thành");
+            throw conflict("Món này đã hoàn thành hoặc đã được xử lý.");
+        }
+        Order order = detail.getOrder();
+        boolean completesServing = order != null && order.getOrderDetails() != null
+                && order.getOrderDetails().stream()
+                        .filter(item -> !Integer.valueOf(3).equals(item.getStatus()))
+                        .filter(item -> !detailId.equals(item.getId()))
+                        .allMatch(item -> Integer.valueOf(2).equals(item.getStatus()));
+        OrderStatus current = order == null ? null : orderStateMachineService.current(order);
+        if (completesServing && current != OrderStatus.COMPLETED && current != OrderStatus.READY) {
+            throw conflict("Trạng thái đơn không cho phép hoàn tất phục vụ món này");
         }
         detail.setStatus(2);
         OrderDetail saved = orderDetailRepository.save(detail);
-        Order order = detail.getOrder();
-        if (order != null && order.getOrderDetails() != null
-                && order.getOrderDetails().stream()
-                        .filter(item -> !Integer.valueOf(3).equals(item.getStatus()))
-                        .allMatch(item -> Integer.valueOf(2).equals(item.getStatus()))) {
-            orderStateMachineService.transition(order, poly.edu.quanlynhahang.entity.OrderStatus.SERVED);
+        if (completesServing && current != OrderStatus.COMPLETED) {
+            orderStateMachineService.transition(order, OrderStatus.SERVED);
             orderRepository.save(order);
         }
         publish("DISH_SERVED", saved);
@@ -226,7 +241,19 @@ public class KitchenOrderDetailService {
     private void publish(String event, OrderDetail detail) {
         String detailId = String.valueOf(detail.getId());
         activityLogService.log(event, "OrderDetail", detailId, event + " cho món #" + detailId);
-        messagingTemplate.convertAndSend("/topic/kitchen", event);
-        messagingTemplate.convertAndSend("/topic/waiter", event);
+        Runnable send = () -> {
+            messagingTemplate.convertAndSend("/topic/kitchen", event);
+            messagingTemplate.convertAndSend("/topic/waiter", event);
+        };
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    send.run();
+                }
+            });
+        } else {
+            send.run();
+        }
     }
 }

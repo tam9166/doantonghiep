@@ -11,10 +11,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.Date;
+import java.util.Map;
 import java.util.List;
 import java.util.HashSet;
 import java.util.Optional;
@@ -49,6 +53,7 @@ import poly.edu.quanlynhahang.repository.TableAreaRepository;
 import poly.edu.quanlynhahang.repository.VoucherRepository;
 
 class ReservationServiceTest {
+    private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
     private final ReservationRepository reservationRepository = mock(ReservationRepository.class);
     private final ReservationPreorderItemRepository preorderItemRepository = mock(ReservationPreorderItemRepository.class);
     private final RestaurantTableRepository tableRepository = mock(RestaurantTableRepository.class);
@@ -76,6 +81,7 @@ class ReservationServiceTest {
         // Mock business hours for tests
         when(businessHoursService.isOpen(any())).thenReturn(true);
         when(businessHoursService.acceptsOrders(any())).thenReturn(true);
+        when(businessHoursService.acceptsReservationArrival(any())).thenReturn(true);
         when(businessHoursService.getOpeningTime()).thenReturn(LocalTime.of(9, 0));
         when(businessHoursService.getClosingTime()).thenReturn(LocalTime.of(22, 0));
         when(businessHoursService.getLastOrderTime()).thenReturn(LocalTime.of(21, 30));
@@ -110,8 +116,72 @@ class ReservationServiceTest {
                 applicationLockService,
                 areaReadinessService,
                 menuAvailabilityService,
+                Clock.system(BUSINESS_ZONE),
                 mock(PlatformTransactionManager.class),
-                new BigDecimal("0.50"), 15, 15);
+                new BigDecimal("0.50"), 15, 20);
+    }
+
+    @Test
+    void rejectsCheckInForTomorrowReservation() {
+        setCheckInClock("2026-09-05T11:00:00Z"); // 18:00 tại nhà hàng
+        Reservation reservation = checkInReservation(
+                LocalDate.of(2026, 9, 6), LocalTime.of(19, 0));
+        when(reservationRepository.findById(901L)).thenReturn(Optional.of(reservation));
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+                () -> service.checkIn(901L, null));
+
+        assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
+        assertEquals("Chưa tới giờ check-in. Có thể check-in từ 18:00 06/09/2026", error.getReason());
+        assertEquals(ReservationStatus.CONFIRMED, reservation.getReservationStatus());
+        verify(reservationRepository, never()).save(any(Reservation.class));
+        verify(orderCheckoutService, never()).dispatchReservationPreorder(any(), any());
+    }
+
+    @Test
+    void rejectsCheckInOneMinuteBeforeEarlyWindow() {
+        setCheckInClock("2026-09-05T10:59:00Z"); // 17:59 tại nhà hàng
+        Reservation reservation = checkInReservation(
+                LocalDate.of(2026, 9, 5), LocalTime.of(19, 0));
+        when(reservationRepository.findById(901L)).thenReturn(Optional.of(reservation));
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+                () -> service.checkIn(901L, null));
+
+        assertEquals("Chưa tới giờ check-in. Có thể check-in từ 18:00 05/09/2026", error.getReason());
+        assertEquals(ReservationStatus.CONFIRMED, reservation.getReservationStatus());
+        verify(reservationRepository, never()).save(any(Reservation.class));
+    }
+
+    @Test
+    void allowsCheckInAtStartOfEarlyWindow() {
+        setCheckInClock("2026-09-05T11:00:00Z"); // 18:00 tại nhà hàng
+        Reservation reservation = checkInReservation(
+                LocalDate.of(2026, 9, 5), LocalTime.of(19, 0));
+        reservation.setKitchenOrderId(501);
+        when(reservationRepository.findById(901L)).thenReturn(Optional.of(reservation));
+        when(reservationRepository.save(reservation)).thenReturn(reservation);
+
+        service.checkIn(901L, null);
+
+        assertEquals(ReservationStatus.CHECKED_IN, reservation.getReservationStatus());
+        verify(reservationRepository).save(reservation);
+        verify(orderCheckoutService, never()).dispatchReservationPreorder(any(), any());
+    }
+
+    @Test
+    void allowsCheckInAtArrivalTime() {
+        setCheckInClock("2026-09-05T12:00:00Z"); // 19:00 tại nhà hàng
+        Reservation reservation = checkInReservation(
+                LocalDate.of(2026, 9, 5), LocalTime.of(19, 0));
+        reservation.setKitchenOrderId(501);
+        when(reservationRepository.findById(901L)).thenReturn(Optional.of(reservation));
+        when(reservationRepository.save(reservation)).thenReturn(reservation);
+
+        service.checkIn(901L, null);
+
+        assertEquals(ReservationStatus.CHECKED_IN, reservation.getReservationStatus());
+        verify(reservationRepository).save(reservation);
     }
 
     @Test
@@ -194,6 +264,39 @@ class ReservationServiceTest {
     }
 
     @Test
+    void lateDiningConfirmationAllowsAvailabilityCheckForTheSameRequestedTime() {
+        LocalDate date = LocalDate.now().plusDays(30);
+        when(tableRepository.findOperationalTables()).thenReturn(List.of());
+
+        when(businessHoursService.requiresLateDiningConfirmation(LocalTime.of(21, 41), 120)).thenReturn(true);
+        ResponseStatusException blocked = assertThrows(ResponseStatusException.class,
+                () -> service.findAvailableTables(date.toString(), "21:41", 120, 2, null, false));
+
+        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY, blocked.getStatusCode());
+        assertTrue(blocked.getReason().contains("xác nhận dùng bữa"));
+        assertTrue(service.findAvailableTables(date.toString(), "21:41", 120, 2, null, true).isEmpty());
+    }
+
+    @Test
+    void quoteUsesLateDiningConfirmationFromTheRequest() {
+        LocalDate date = LocalDate.now().plusDays(30);
+        when(businessHoursService.requiresLateDiningConfirmation(LocalTime.of(20, 41), 120)).thenReturn(true);
+        var request = new poly.edu.quanlynhahang.dto.ReservationQuoteRequest();
+        request.setReservationDate(date.toString());
+        request.setArrivalTime("20:41");
+        request.setDurationMinutes(120);
+        request.setGuestCount(2);
+
+        request.setLateDiningConfirmed(false);
+        ResponseStatusException blocked = assertThrows(ResponseStatusException.class, () -> service.quote(request));
+        assertTrue(blocked.getReason().contains("xác nhận dùng bữa"));
+
+        request.setLateDiningConfirmed(true);
+        ResponseStatusException afterConfirmation = assertThrows(ResponseStatusException.class, () -> service.quote(request));
+        assertEquals("Vui lòng chọn khu vực", afterConfirmation.getReason());
+    }
+
+    @Test
     void availabilityRejectsAreaThatIsActiveButNotBookingReady() {
         LocalDate requestedDate = LocalDate.now().plusDays(30);
         poly.edu.quanlynhahang.entity.TableArea area = new poly.edu.quanlynhahang.entity.TableArea();
@@ -217,7 +320,7 @@ class ReservationServiceTest {
                 "Nguyễn An", "0901234567", "an@example.test", 2,
                 poly.edu.quanlynhahang.entity.EventType.WEDDING,
                 LocalDate.now().plusDays(2).toString(), "18:00", 4, 80,
-                true, false, "Tiệc tối", false, List.of());
+                true, false, "Tiệc tối", false, List.of(), false);
         Reservation existing = new Reservation();
         existing.setId(91L);
         existing.setReservationCode("MV-20260825-ABCDEF12");
@@ -234,7 +337,7 @@ class ReservationServiceTest {
                 request.customerName(), request.customerPhone(), request.customerEmail(), request.areaId(),
                 request.eventType(), request.reservationDate(), request.arrivalTime(), request.durationHours(),
                 81, request.decorationRequired(), request.mcRequired(), request.eventNote(),
-                request.preorderEnabled(), request.preorderItems());
+                request.preorderEnabled(), request.preorderItems(), request.lateDiningConfirmed());
         ResponseStatusException conflict = assertThrows(ResponseStatusException.class,
                 () -> service.createEventBooking(changed, "event-key-91"));
         assertEquals(HttpStatus.CONFLICT, conflict.getStatusCode());
@@ -273,7 +376,7 @@ class ReservationServiceTest {
                 "Nguyễn An", "0901234567", "an@example.test", 2,
                 poly.edu.quanlynhahang.entity.EventType.WEDDING,
                 LocalDate.now().plusDays(2).toString(), "18:00", 4, 80,
-                true, false, "Tiệc tối", false, List.of());
+                true, false, "Tiệc tối", false, List.of(), false);
 
         var response = service.createEventBooking(request, "event-key-92");
 
@@ -315,7 +418,7 @@ class ReservationServiceTest {
                 "Nguyễn An", "0901234567", "an@example.test", 2,
                 poly.edu.quanlynhahang.entity.EventType.WEDDING,
                 LocalDate.now().plusDays(2).toString(), "18:00", 4, 80,
-                true, false, "Tiệc tối", true, List.of(preorder));
+                true, false, "Tiệc tối", true, List.of(preorder), false);
 
         ResponseStatusException error = assertThrows(ResponseStatusException.class,
                 () -> service.createEventBooking(request, "event-key-unavailable"));
@@ -368,7 +471,7 @@ class ReservationServiceTest {
         futureConfirmed.setReservationDate(LocalDate.now().plusDays(1));
         futureConfirmed.setArrivalTime(LocalTime.NOON);
 
-        when(reservationRepository.findExpiryCandidateIds(any(), any(), any(), any(), any(), any(), any(), any()))
+        when(reservationRepository.findExpiryCandidateIds(any(), any(), any(), any()))
                 .thenReturn(List.of());
 
         service.expireStaleReservations();
@@ -414,7 +517,7 @@ class ReservationServiceTest {
     }
 
     @Test
-    void confirmingPaidDepositDoesNotReturnReservationToDepositRequired() {
+    void confirmingPaidDepositPreservesDepositedStatus() {
         RestaurantTable table = new RestaurantTable();
         table.setId(10);
         table.setName("B10");
@@ -441,8 +544,30 @@ class ReservationServiceTest {
 
         var result = service.confirm(25L, null);
 
-        assertEquals(ReservationStatus.CONFIRMED, result.getReservationStatus());
+        assertEquals(ReservationStatus.DEPOSIT_PAID, result.getReservationStatus());
         assertEquals(DepositStatus.PAID, reservation.getDepositStatus());
+    }
+
+    @Test
+    void adminStatusCountsUseRepositoryAggregateInsteadOfCurrentPageRows() {
+        ReservationRepository.AdminStatusCount pending = mock(ReservationRepository.AdminStatusCount.class);
+        when(pending.getStatus()).thenReturn(ReservationStatus.PENDING);
+        when(pending.getTotal()).thenReturn(3L);
+        ReservationRepository.AdminStatusCount deposited = mock(ReservationRepository.AdminStatusCount.class);
+        when(deposited.getStatus()).thenReturn(ReservationStatus.DEPOSIT_PAID);
+        when(deposited.getTotal()).thenReturn(5L);
+        ReservationRepository.AdminStatusCount cancelled = mock(ReservationRepository.AdminStatusCount.class);
+        when(cancelled.getStatus()).thenReturn(ReservationStatus.CANCELLED);
+        when(cancelled.getTotal()).thenReturn(6L);
+        when(reservationRepository.countAdminByStatus()).thenReturn(List.of(pending, deposited, cancelled));
+
+        Map<ReservationStatus, Long> counts = service.getAdminReservationStatusCounts();
+
+        assertEquals(3L, counts.get(ReservationStatus.PENDING));
+        assertEquals(5L, counts.get(ReservationStatus.DEPOSIT_PAID));
+        assertEquals(6L, counts.get(ReservationStatus.CANCELLED));
+        assertEquals(0L, counts.get(ReservationStatus.CHECKED_IN));
+        verify(reservationRepository).countAdminByStatus();
     }
 
     @Test
@@ -493,6 +618,7 @@ class ReservationServiceTest {
         Reservation reservation = noShowReservation(DepositStatus.PAID);
         reservation.setDepositAmount(BigDecimal.valueOf(500_000));
         reservation.setPaidAmount(BigDecimal.valueOf(500_000));
+        reservation.setPaymentStatus(PaymentStatus.PARTIALLY_PAID);
         stubExpiryCandidates(reservation);
         when(depositPolicyService.calculateNoShowForfeiture(reservation)).thenReturn(BigDecimal.valueOf(500_000));
         when(reservationRepository.save(reservation)).thenReturn(reservation);
@@ -501,24 +627,50 @@ class ReservationServiceTest {
 
         assertEquals(ReservationStatus.NO_SHOW, reservation.getReservationStatus());
         assertEquals(DepositStatus.FORFEITED, reservation.getDepositStatus());
+        assertEquals(BigDecimal.valueOf(500_000), reservation.getPaidAmount());
+        assertEquals(PaymentStatus.PARTIALLY_PAID, reservation.getPaymentStatus());
         verify(tableLifecycleService).releaseReservationTables(reservation);
         verify(depositPolicyService).calculateNoShowForfeiture(reservation);
         verify(reservationRepository).save(reservation);
     }
 
     @Test
-    void expiresStaleReservationsWithDepositExpiry() {
+    void doesNotExpireFuturePendingReservationFromItsPaymentDeadline() {
         Reservation pendingReservation = new Reservation();
         pendingReservation.setReservationStatus(ReservationStatus.PENDING);
         pendingReservation.setDepositAmount(BigDecimal.TEN);
         pendingReservation.setCreatedAt(java.util.Date.from(java.time.Instant.now().minusSeconds(25 * 3600))); // 25 hours ago
+        pendingReservation.setReservationDate(LocalDate.now().plusDays(1));
+        pendingReservation.setArrivalTime(LocalTime.NOON);
         
         stubExpiryCandidates(pendingReservation);
                 
         service.expireStaleReservations();
         
-        // Should be expired due to deposit expiry
-        assertEquals(ReservationStatus.EXPIRED, pendingReservation.getReservationStatus());
+        assertEquals(ReservationStatus.PENDING, pendingReservation.getReservationStatus());
+    }
+
+    @Test
+    void appliesNoShowOnlyStrictlyAfterTwentyMinuteArrivalGracePeriod() {
+        Reservation reservation = new Reservation();
+        reservation.setId(62L);
+        reservation.setReservationCode("MV-TEST-GRACE");
+        reservation.setReservationStatus(ReservationStatus.CONFIRMED);
+        reservation.setDepositStatus(DepositStatus.NOT_REQUIRED);
+        reservation.setReservationDate(LocalDate.of(2026, 9, 4));
+        reservation.setArrivalTime(LocalTime.of(19, 5));
+        when(reservationRepository.save(reservation)).thenReturn(reservation);
+
+        service.processSingleExpiry(reservation, LocalDateTime.of(2026, 9, 4, 19, 25));
+
+        assertEquals(ReservationStatus.CONFIRMED, reservation.getReservationStatus());
+        verify(reservationRepository, never()).save(reservation);
+
+        service.processSingleExpiry(reservation, LocalDateTime.of(2026, 9, 4, 19, 25, 1));
+
+        assertEquals(ReservationStatus.NO_SHOW, reservation.getReservationStatus());
+        verify(tableLifecycleService).releaseReservationTables(reservation);
+        verify(reservationRepository).save(reservation);
     }
 
     @Test
@@ -529,22 +681,14 @@ class ReservationServiceTest {
         failingNoShow.setDepositAmount(BigDecimal.valueOf(500_000));
         failingNoShow.setPaidAmount(BigDecimal.valueOf(500_000));
 
-        Reservation expiringPayment = new Reservation();
-        expiringPayment.setId(62L);
-        expiringPayment.setReservationCode("MV-TEST-EXPIRE");
-        expiringPayment.setReservationStatus(ReservationStatus.PENDING);
-        expiringPayment.setDepositAmount(BigDecimal.TEN);
-        expiringPayment.setCreatedAt(Date.from(java.time.Instant.now().minusSeconds(25 * 3600)));
-
-        stubExpiryCandidates(failingNoShow, expiringPayment);
+        stubExpiryCandidates(failingNoShow);
         when(depositPolicyService.calculateNoShowForfeiture(failingNoShow)).thenReturn(BigDecimal.valueOf(500_000));
         doThrow(new ResponseStatusException(HttpStatus.CONFLICT, "Bàn còn hóa đơn chưa thanh toán"))
                 .when(tableLifecycleService).releaseReservationTables(failingNoShow);
 
         service.expireStaleReservations();
 
-        assertEquals(ReservationStatus.EXPIRED, expiringPayment.getReservationStatus());
-        verify(reservationRepository).save(expiringPayment);
+        verify(reservationRepository, never()).save(any(Reservation.class));
     }
     
     @Test
@@ -565,7 +709,7 @@ class ReservationServiceTest {
         
         when(depositPolicyService.calculateNoShowForfeiture(reservation))
             .thenReturn(BigDecimal.valueOf(500_000));
-        when(reservationRepository.findExpiryCandidateIds(any(), any(), any(), any(), any(), any(), any(), any()))
+        when(reservationRepository.findExpiryCandidateIds(any(), any(), any(), any()))
                 .thenReturn(List.of());
             
         service.expireStaleReservations();
@@ -582,6 +726,24 @@ class ReservationServiceTest {
         return reservation;
     }
 
+    private void setCheckInClock(String instant) {
+        ReflectionTestUtils.setField(service, "clock",
+                Clock.fixed(Instant.parse(instant), BUSINESS_ZONE));
+    }
+
+    private Reservation checkInReservation(LocalDate date, LocalTime arrivalTime) {
+        Reservation reservation = new Reservation();
+        reservation.setId(901L);
+        reservation.setReservationCode("MV-CHECKIN-TIME");
+        reservation.setCustomerName("Khách kiểm thử");
+        reservation.setCustomerPhone("0900000000");
+        reservation.setReservationDate(date);
+        reservation.setArrivalTime(arrivalTime);
+        reservation.setGuestCount(2);
+        reservation.setReservationStatus(ReservationStatus.CONFIRMED);
+        return reservation;
+    }
+
     private void stubExpiryCandidates(Reservation... reservations) {
         List<Long> ids = java.util.stream.IntStream.range(0, reservations.length)
                 .mapToObj(index -> {
@@ -590,7 +752,7 @@ class ReservationServiceTest {
                     return id;
                 })
                 .toList();
-        when(reservationRepository.findExpiryCandidateIds(any(), any(), any(), any(), any(), any(), any(), any()))
+        when(reservationRepository.findExpiryCandidateIds(any(), any(), any(), any()))
                 .thenReturn(ids);
         for (int index = 0; index < reservations.length; index++) {
             when(reservationRepository.findById(ids.get(index))).thenReturn(Optional.of(reservations[index]));
@@ -609,7 +771,7 @@ class ReservationServiceTest {
         reservation.setReservationCode("MV-TEST-NOSHOW");
         reservation.setReservationStatus(ReservationStatus.DEPOSIT_PAID);
         reservation.setDepositStatus(depositStatus);
-        LocalDateTime overdueArrival = LocalDateTime.now().minusMinutes(16);
+        LocalDateTime overdueArrival = LocalDateTime.now().minusMinutes(21);
         reservation.setReservationDate(overdueArrival.toLocalDate());
         reservation.setArrivalTime(overdueArrival.toLocalTime());
         reservation.setTable(table);

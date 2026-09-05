@@ -74,7 +74,7 @@ class PurchaseSuggestionControllerTest {
         when(alerts.analyze(3)).thenReturn(new InventoryAlertService.Analysis(
                 java.util.List.of(new InventoryAlertService.Item(12L, "Gạo", "kg", null,
                         BigDecimal.ONE, BigDecimal.ZERO, BigDecimal.ONE, new BigDecimal("5"),
-                        BigDecimal.ONE, 1.0, new BigDecimal("10.0"), new BigDecimal("180000"),
+                        BigDecimal.ONE, 1.0, null, new BigDecimal("10.0"), new BigDecimal("180000"),
                         latest.getUnitPrice(), "warning", "Tồn thấp", "reason", "action",
                         true, java.util.List.of(), java.util.List.of())),
                 1, 1, 0, 0, 0, 1, 0, 0, 1, new BigDecimal("180000")));

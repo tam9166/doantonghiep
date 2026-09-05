@@ -24,7 +24,16 @@ public interface PaymentIntentRepository extends JpaRepository<PaymentIntent, Lo
     Optional<PaymentIntent> findLockedByPaymentCode(@Param("paymentCode") String paymentCode);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select p from PaymentIntent p where p.order.tableId = :tableId order by p.id")
+    @Query("select p from PaymentIntent p join p.order o "
+            + "where o.tableId = :tableId "
+            + "and o.orderType = poly.edu.quanlynhahang.entity.OrderType.DINE_IN "
+            + "and (o.status is null or (o.status <> 3 and o.status <> 4)) "
+            + "and not exists (select r.id from Reservation r where r.kitchenOrderId = o.id "
+            + "and r.reservationStatus in (poly.edu.quanlynhahang.entity.ReservationStatus.CANCELLED, "
+            + "poly.edu.quanlynhahang.entity.ReservationStatus.EXPIRED, "
+            + "poly.edu.quanlynhahang.entity.ReservationStatus.NO_SHOW, "
+            + "poly.edu.quanlynhahang.entity.ReservationStatus.COMPLETED)) "
+            + "order by p.id")
     List<PaymentIntent> findLockedByOrderTableId(@Param("tableId") Integer tableId);
     Optional<PaymentIntent> findByIdempotencyKey(String idempotencyKey);
     Optional<PaymentIntent> findByBankTransactionCode(String bankTransactionCode);

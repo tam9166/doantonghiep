@@ -145,10 +145,12 @@ public class ReservationCancellationService {
         String message = calculation.refundAmount().signum() > 0
                 ? "Có khoản hoàn dự kiến theo chính sách hủy hiện tại."
                 : "Đặt bàn hợp lệ nhưng không có khoản tiền hoàn dự kiến.";
+        String messageCode = calculation.refundAmount().signum() > 0 ? "REFUND_AVAILABLE" : "NO_REFUND";
         return new CancellationPreviewResponse(
                 reservation.getReservationCode(), calculation.orderTotalAmount(), calculation.paidDepositAmount(),
                 calculation.penaltyAmount(), calculation.refundRate(), calculation.refundAmount(),
-                calculation.hoursBeforeReservation(), calculation.eligible(), calculation.policyApplied(), message);
+                calculation.hoursBeforeReservation(), calculation.eligible(), calculation.policyApplied(), message,
+                calculation.policyCode(), messageCode);
     }
 
     private Reservation verifiedReservation(CancellationRequestCreateRequest input) {

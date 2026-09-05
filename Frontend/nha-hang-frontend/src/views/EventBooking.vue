@@ -61,6 +61,11 @@
             max="72"
             type="number"
             required /></label
+        ><div v-if="lateDiningEndTime" class="event-late-dining" role="alert">
+          <strong>Xác nhận dùng sảnh sau giờ phục vụ</strong>
+          <p>Thời gian dự kiến kết thúc lúc {{ lateDiningEndTime }}, sau giờ phục vụ {{ businessHours.closingTime }}.</p>
+          <label><input v-model="form.lateDiningConfirmed" type="checkbox" /> Tôi xác nhận vẫn muốn tổ chức sự kiện theo thời gian đã chọn.</label>
+        </div
         ><label
           ><input v-model="form.decorationRequired" type="checkbox" /> Cần trang
           trí</label
@@ -159,7 +164,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { RouterLink } from "vue-router";
 import api from "@/services/api";
 import { toBusinessDate } from "@/utils/businessDate";
-import { minuteBefore } from "@/utils/businessHours";
+import { requiresLateDiningConfirmation } from "@/utils/businessHours";
 const form = ref({
   customerName: "",
   customerPhone: "",
@@ -170,6 +175,7 @@ const form = ref({
   reservationDate: toBusinessDate(),
   arrivalTime: "",
   durationHours: 4,
+  lateDiningConfirmed: false,
   decorationRequired: false,
   mcRequired: false,
   eventNote: "",
@@ -188,8 +194,16 @@ const result = ref(null);
 const paymentQr = ref(null);
 const paymentError = ref("");
 const idempotencyKey = ref(crypto.randomUUID());
-const businessHours = ref({ openingTime: "09:00", lastOrderTime: "21:30" });
-const latestArrivalTime = computed(() => minuteBefore(businessHours.value.lastOrderTime));
+const businessHours = ref({ openingTime: "09:00", closingTime: "22:00" });
+const latestArrivalTime = computed(() => businessHours.value.closingTime);
+const lateDiningEndTime = computed(() => {
+  if (!requiresLateDiningConfirmation(form.value.arrivalTime, Number(form.value.durationHours) * 60,
+    businessHours.value.openingTime, businessHours.value.closingTime)) return "";
+  const [hour, minute] = form.value.arrivalTime.split(":").map(Number);
+  const endMinutes = hour * 60 + minute + Number(form.value.durationHours) * 60;
+  const clock = `${String(Math.floor((endMinutes % 1440) / 60)).padStart(2, "0")}:${String(endMinutes % 60).padStart(2, "0")}`;
+  return endMinutes >= 1440 ? `${clock} hôm sau` : clock;
+});
 const halls = computed(() =>
   areas.value.filter(
     (a) => a.areaType === "EVENT_HALL" && a.status === "ACTIVE",
@@ -340,7 +354,7 @@ onMounted(async () => {
     const settings = (await api.get("/api/settings/public")).data || {};
     businessHours.value = {
       openingTime: settings.openingTime || businessHours.value.openingTime,
-      lastOrderTime: settings.lastOrderTime || businessHours.value.lastOrderTime,
+      closingTime: settings.closingTime || businessHours.value.closingTime,
     };
     areas.value = (await api.get("/api/areas")).data || [];
     menu.value = (await api.get("/api/menu-items/preorder")).data || [];
@@ -352,6 +366,10 @@ onMounted(async () => {
 async function submit() {
   if (submitting.value) return;
   if (form.value.preorderEnabled && !validateCart()) return;
+  if (lateDiningEndTime.value && !form.value.lateDiningConfirmed) {
+    error.value = "Vui lòng xác nhận thời gian sử dụng sảnh sau giờ phục vụ.";
+    return;
+  }
   submitting.value = true;
   error.value = "";
   try {
@@ -524,6 +542,15 @@ form > button,
 label:last-of-type {
   grid-column: 1 / -1;
 }
+.event-late-dining {
+  grid-column: 1 / -1;
+  padding: 16px;
+  border: 1px solid #dfad58;
+  border-radius: 10px;
+  background: #fff8e9;
+}
+.event-late-dining p { margin: 8px 0 12px; }
+.event-late-dining label { padding: 0; border: 0; background: transparent; }
 .event-menu-picker {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);

@@ -52,6 +52,12 @@ public class ReservationWaitlistController {
         return ResponseEntity.ok(waitlistService.convert(id, request));
     }
 
+    @PatchMapping("/api/admin/reservation-waitlist/{id}/promote")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+    public ResponseEntity<?> promote(@PathVariable Long id, @RequestBody(required = false) WaitlistActionRequest request) {
+        return ResponseEntity.ok(waitlistService.promoteToReservation(id, request));
+    }
+
     @PatchMapping("/api/admin/reservation-waitlist/{id}/cancel")
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     public ResponseEntity<?> cancel(@PathVariable Long id, @RequestBody(required = false) WaitlistActionRequest request) {

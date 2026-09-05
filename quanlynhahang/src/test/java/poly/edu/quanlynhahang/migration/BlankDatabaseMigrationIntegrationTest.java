@@ -37,7 +37,7 @@ class BlankDatabaseMigrationIntegrationTest {
                     .baselineOnMigrate(true)
                     .baselineVersion("2")
                     .load();
-            assertEquals(99, flyway.migrate().migrationsExecuted);
+            assertEquals(103, flyway.migrate().migrationsExecuted);
 
             try (Connection target = DriverManager.getConnection(targetUrl, username, password);
                  Statement statement = target.createStatement()) {
@@ -189,7 +189,11 @@ class BlankDatabaseMigrationIntegrationTest {
                         WHERE (product.status = 1 OR product.available = 1)
                           AND product.price <= economics.calculated_cost
                         """));
-                assertEquals(40, count(statement, "SELECT COUNT(*) FROM dbo.restaurant_table"));
+                assertEquals(50, count(statement, "SELECT COUNT(*) FROM dbo.restaurant_table"));
+                assertEquals(3, count(statement,
+                        "SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('dbo.restaurant_table') AND name IN ('merged_into_table_id','merged_at','merged_by')"));
+                assertEquals(1, count(statement,
+                        "SELECT COUNT(*) FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.restaurant_table') AND name = 'IX_restaurant_table_merged_into'"));
                 assertEquals(3, count(statement, """
                         SELECT COUNT(*)
                         FROM dbo.table_areas area
@@ -199,7 +203,7 @@ class BlankDatabaseMigrationIntegrationTest {
                             WHERE is_active = 1
                             GROUP BY area_id
                         ) table_capacity ON table_capacity.area_id = area.id
-                        WHERE (area.name_en = 'Indoor Dining' AND area.capacity = 100 AND table_capacity.total_capacity = 100)
+                        WHERE (area.name_en = 'Indoor Dining' AND area.capacity = 200 AND table_capacity.total_capacity = 200)
                            OR (area.name_en = 'Private / VIP' AND area.capacity = 50 AND table_capacity.total_capacity = 50)
                            OR (area.name_en = 'Garden / Outdoor' AND area.capacity = 70 AND table_capacity.total_capacity = 70)
                         """));

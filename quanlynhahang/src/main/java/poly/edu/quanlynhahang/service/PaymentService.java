@@ -16,8 +16,10 @@ import poly.edu.quanlynhahang.entity.PaymentOption;
 import poly.edu.quanlynhahang.entity.PaymentStatus;
 import poly.edu.quanlynhahang.entity.Reservation;
 import poly.edu.quanlynhahang.entity.ReservationStatus;
+import poly.edu.quanlynhahang.entity.RestaurantTable;
 import poly.edu.quanlynhahang.repository.PaymentIntentRepository;
 import poly.edu.quanlynhahang.repository.ReservationRepository;
+import poly.edu.quanlynhahang.repository.RestaurantTableRepository;
 
 import java.math.BigDecimal;
 import java.net.URLEncoder;
@@ -45,6 +47,7 @@ public class PaymentService {
     private final ActivityLogService activityLogService;
     private final ReservationReceiptService receiptService;
     private final RestaurantSettingsService settingsService;
+    private final RestaurantTableRepository tableRepository;
 
     public PaymentService(ReservationRepository reservationRepository,
                           PaymentIntentRepository paymentIntentRepository,
@@ -54,7 +57,8 @@ public class PaymentService {
                           PaymentCapabilityService capabilityService,
                           ActivityLogService activityLogService,
                           ReservationReceiptService receiptService,
-                          RestaurantSettingsService settingsService) {
+                          RestaurantSettingsService settingsService,
+                          RestaurantTableRepository tableRepository) {
         this.reservationRepository = reservationRepository;
         this.paymentIntentRepository = paymentIntentRepository;
         this.realtimeService = realtimeService;
@@ -64,6 +68,7 @@ public class PaymentService {
         this.activityLogService = activityLogService;
         this.receiptService = receiptService;
         this.settingsService = settingsService;
+        this.tableRepository = tableRepository;
     }
 
     @Transactional
@@ -310,6 +315,7 @@ public class PaymentService {
         }
         stateMachine.assertCanTransition(oldStatus, nextStatus);
         reservation.setReservationStatus(nextStatus);
+        markReservationTablesAsDeposited(reservation);
         if (reservation.getEventType() != null
                 || (reservation.getGuestCount() != null
                     && reservation.getGuestCount() >= settingsService.largePartyThreshold())) {
@@ -333,7 +339,8 @@ public class PaymentService {
 
     private BigDecimal payableAmount(Reservation reservation, PaymentOption option) {
         if (PaymentOption.PAY_AT_RESTAURANT.equals(option)) {
-            return BigDecimal.ZERO;
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Đặt bàn trước chỉ hỗ trợ đặt cọc 50% hoặc thanh toán toàn bộ.");
         }
         BigDecimal paid = reservation.getPaidAmount() == null
                 ? BigDecimal.ZERO
@@ -342,6 +349,22 @@ public class PaymentService {
             return reservation.getTotalAmount().subtract(paid).max(BigDecimal.ZERO);
         }
         return reservation.getDepositAmount().subtract(paid).max(BigDecimal.ZERO);
+    }
+
+    private void markReservationTablesAsDeposited(Reservation reservation) {
+        if (ReservationStatus.CHECKED_IN.equals(reservation.getReservationStatus())) return;
+        if (reservation.getTableAssignments() != null && !reservation.getTableAssignments().isEmpty()) {
+            reservation.getTableAssignments().forEach(assignment -> markTableDeposited(assignment.getTable(), reservation));
+        } else {
+            markTableDeposited(reservation.getTable(), reservation);
+        }
+    }
+
+    private void markTableDeposited(RestaurantTable table, Reservation reservation) {
+        if (table == null || Integer.valueOf(2).equals(table.getIsOccupied())) return;
+        table.setIsOccupied(1);
+        table.setReservedTime("Đã cọc: " + reservation.getReservationCode());
+        tableRepository.save(table);
     }
 
     private PaymentQrResponse idempotentResponse(

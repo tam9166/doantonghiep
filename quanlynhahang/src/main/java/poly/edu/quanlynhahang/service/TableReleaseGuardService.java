@@ -11,6 +11,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import poly.edu.quanlynhahang.entity.Order;
 import poly.edu.quanlynhahang.entity.OrderStatus;
+import poly.edu.quanlynhahang.entity.OrderType;
 import poly.edu.quanlynhahang.entity.PaymentIntent;
 import poly.edu.quanlynhahang.entity.PaymentStatus;
 import poly.edu.quanlynhahang.repository.OrderRepository;
@@ -42,13 +43,36 @@ public class TableReleaseGuardService {
 
     @Transactional
     public void prepareForRelease(Integer tableId) {
+        prepareForRelease(tableId, null);
+    }
+
+    /**
+     * Checks obligations belonging to other invoices in the table session. The
+     * invoice currently being paid is excluded because its own remaining balance
+     * is the subject of the payment operation, not a competing invoice.
+     */
+    @Transactional
+    public void prepareForRelease(Integer tableId, Integer selectedOrderId) {
         List<PaymentIntent> paymentIntents = paymentIntentRepository.findLockedByOrderTableId(tableId);
-        if (paymentIntents.stream().map(PaymentIntent::getStatus)
+        if (paymentIntents.stream()
+                .filter(intent -> intent.getOrder() == null || selectedOrderId == null
+                        || !selectedOrderId.equals(intent.getOrder().getId()))
+                .map(PaymentIntent::getStatus)
                 .anyMatch(BLOCKING_PAYMENT_STATUSES::contains)) {
             throw conflict("Bàn còn giao dịch thanh toán đang chờ xử lý");
         }
         List<Order> orders = orderRepository.findOrdersByTableIdWithDetails(tableId);
         for (Order order : orders) {
+            if (selectedOrderId != null && selectedOrderId.equals(order.getId())) {
+                continue;
+            }
+            // Reservation preorders keep a tableId only to route food to the kitchen.
+            // Their settlement belongs to the reservation ledger, not to a physical
+            // table invoice.  Never let a stale TAKEAWAY/DELIVERY preorder block a
+            // cancelled reservation from releasing its table.
+            if (!OrderType.DINE_IN.equals(order.getOrderType())) {
+                continue;
+            }
             if (inventoryReservationRepository.existsByOrderIdAndStatus(
                     order.getId(), InventoryReservationStatus.RESERVED)) {
                 throw conflict("Bàn còn giữ chỗ nguyên liệu đang hoạt động");
@@ -63,7 +87,7 @@ public class TableReleaseGuardService {
                 continue;
             }
             if (!Boolean.TRUE.equals(order.getIsPaid()) || positive(order.getRemainingAmount())) {
-                throw conflict("Bàn còn hóa đơn chưa thanh toán đủ");
+                throw conflict("Còn hóa đơn khác chưa thanh toán trên bàn này");
             }
             if (blockingPayment(order)) {
                 throw conflict("Bàn còn trạng thái thanh toán hoặc hoàn tiền đang xử lý");

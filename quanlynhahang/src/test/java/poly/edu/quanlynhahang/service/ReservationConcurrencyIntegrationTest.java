@@ -330,7 +330,7 @@ class ReservationConcurrencyIntegrationTest {
         request.setAreaId(areaId);
         request.setPreorderEnabled(false);
         request.setPreorderItems(new ArrayList<>());
-        request.setPaymentOption(PaymentOption.PAY_AT_RESTAURANT);
+        request.setPaymentOption(PaymentOption.DEPOSIT_50);
         return request;
     }
 

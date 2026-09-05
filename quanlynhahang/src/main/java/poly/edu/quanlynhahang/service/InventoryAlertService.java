@@ -73,9 +73,16 @@ public class InventoryAlertService {
             BigDecimal usableStock = BigDecimal.ZERO;
             BigDecimal longLivedStock = BigDecimal.ZERO;
             BigDecimal nearExpiryStock = BigDecimal.ZERO;
+            Long nearestDaysToExpiry = null;
             for (IngredientBatch batch : batchesByIngredient.getOrDefault(ingredient.getId(), List.of())) {
                 BigDecimal quantity = zeroIfNull(batch.getQuantity());
                 Date expiry = batch.getExpirationDate();
+                if (expiry != null) {
+                    long daysToExpiry = ChronoUnit.DAYS.between(LocalDate.now(BUSINESS_ZONE),
+                            expiry.toInstant().atZone(BUSINESS_ZONE).toLocalDate());
+                    nearestDaysToExpiry = nearestDaysToExpiry == null
+                            ? daysToExpiry : Math.min(nearestDaysToExpiry, daysToExpiry);
+                }
                 if (expiry != null && expiry.before(now)) {
                     expired.add(toBatch(batch, now));
                     continue;
@@ -92,7 +99,7 @@ public class InventoryAlertService {
             BigDecimal minStock = zeroIfNull(ingredient.getMinStock());
             BigDecimal dailyConsumption = consumption.getOrDefault(ingredient.getId(), BigDecimal.ZERO)
                     .divide(BigDecimal.valueOf(CONSUMPTION_WINDOW_DAYS), 4, RoundingMode.HALF_UP);
-            double daysLeft = calculateDaysLeft(usableStock, dailyConsumption);
+            double daysOfStock = calculateDaysOfStock(usableStock, dailyConsumption);
             boolean isOut = usableStock.signum() <= 0;
             boolean isLow = usableStock.compareTo(minStock) <= 0;
             boolean expiryRisk = !expired.isEmpty() || !expiring.isEmpty();
@@ -102,7 +109,14 @@ public class InventoryAlertService {
                     .max(dailyConsumption.multiply(BigDecimal.valueOf(FORECAST_DAYS)));
             BigDecimal suggestedAmount = targetStock.subtract(forecastUsableStock)
                     .max(BigDecimal.ZERO).setScale(1, RoundingMode.HALF_UP);
-            boolean purchaseRisk = isOut || isLow || daysLeft <= SHORTAGE_WARNING_DAYS
+            // A near-expiry warning is a handling signal, not automatically a purchase signal.
+            // When current usable stock still covers more than the shortage window, buying now
+            // would increase waste before the near-expiry lot has been handled.
+            if (expired.isEmpty() && !expiring.isEmpty() && !isOut && !isLow
+                    && daysOfStock > SHORTAGE_WARNING_DAYS) {
+                suggestedAmount = BigDecimal.ZERO.setScale(1, RoundingMode.HALF_UP);
+            }
+            boolean purchaseRisk = isOut || isLow || daysOfStock <= SHORTAGE_WARNING_DAYS
                     || (expiryRisk && suggestedAmount.signum() > 0);
 
             if (isOut) outOfStock++;
@@ -118,12 +132,12 @@ public class InventoryAlertService {
                     .findTopByIngredientIdAndUnitPriceIsNotNullOrderByImportDateDescIdDesc(ingredient.getId())
                     .map(IngredientBatch::getUnitPrice)
                     .orElse(null);
-            AlertText alertText = describe(expired, expiring, isOut, isLow, daysLeft, suggestedAmount);
+            AlertText alertText = describe(expired, expiring, isOut, isLow, daysOfStock, suggestedAmount);
             alerts.add(new Item(
                     ingredient.getId(), ingredient.getName(), ingredient.getUnit(), ingredient.getImage(),
                     usableStock, nearExpiryStock, longLivedStock, minStock,
                     dailyConsumption.setScale(2, RoundingMode.HALF_UP),
-                    roundOneDecimal(daysLeft), suggestedAmount, estimatedCost,
+                    roundOneDecimal(daysOfStock), nearestDaysToExpiry, suggestedAmount, estimatedCost,
                     previousUnitPrice,
                     alertText.urgency(), alertText.label(), alertText.reason(), alertText.action(),
                     suggestedAmount.signum() > 0, expired, expiring));
@@ -187,7 +201,7 @@ public class InventoryAlertService {
     }
 
     private AlertText describe(List<Batch> expired, List<Batch> expiring, boolean outOfStock,
-                               boolean lowStock, double daysLeft, BigDecimal suggestedAmount) {
+                               boolean lowStock, double daysOfStock, BigDecimal suggestedAmount) {
         if (!expired.isEmpty()) {
             return new AlertText("expired", "Có lô hết hạn",
                     expired.size() + " lô đã hết hạn, không được tính vào tồn dùng được.",
@@ -198,7 +212,9 @@ public class InventoryAlertService {
         if (!expiring.isEmpty()) {
             long nearest = expiring.stream().mapToLong(Batch::daysRemaining).min().orElse(0);
             return new AlertText("expiring", "Sắp hết hạn",
-                    expiring.size() + " lô sẽ hết hạn, gần nhất còn " + Math.max(0, nearest) + " ngày.",
+                    expiring.size() + " lô sẽ hết hạn, gần nhất còn " + Math.max(0, nearest) + " ngày."
+                            + (suggestedAmount.signum() == 0 && daysOfStock > SHORTAGE_WARNING_DAYS
+                                    ? " Tồn kho hiện tại vẫn còn nhiều." : ""),
                     suggestedAmount.signum() > 0
                             ? "Ưu tiên dùng lô cũ theo FEFO và chuẩn bị nhập lô mới " + suggestedAmount + " ngay."
                             : "Ưu tiên sử dụng lô sắp hết hạn theo FEFO.");
@@ -211,12 +227,12 @@ public class InventoryAlertService {
             return new AlertText("warning", "Tồn thấp", "Tồn dùng được đã chạm mức tối thiểu.",
                     "Nhập " + suggestedAmount + " theo định mức và tốc độ tiêu thụ.");
         }
-        return new AlertText("info", "Sắp thiếu (" + Math.round(daysLeft) + " ngày)",
-                "Với tốc độ tiêu thụ hiện tại, tồn kho chỉ còn khoảng " + roundOneDecimal(daysLeft) + " ngày.",
+        return new AlertText("info", "Sắp thiếu (" + Math.round(daysOfStock) + " ngày)",
+                "Với tốc độ tiêu thụ hiện tại, tồn kho chỉ còn khoảng " + roundOneDecimal(daysOfStock) + " ngày.",
                 "Nhập " + suggestedAmount + " để đủ dùng cho giai đoạn dự báo.");
     }
 
-    private double calculateDaysLeft(BigDecimal stock, BigDecimal dailyConsumption) {
+    private double calculateDaysOfStock(BigDecimal stock, BigDecimal dailyConsumption) {
         if (stock.signum() <= 0) return 0;
         if (dailyConsumption.signum() <= 0) return 999;
         return stock.divide(dailyConsumption, 4, RoundingMode.HALF_UP).doubleValue();
@@ -251,7 +267,8 @@ public class InventoryAlertService {
     public record Item(Long ingredientId, String name, String unit, String image,
                        BigDecimal currentStock, BigDecimal nearExpiryStock, BigDecimal longLivedStock,
                        BigDecimal minStock, BigDecimal dailyConsumption,
-                       double daysLeft, BigDecimal suggestedAmount, BigDecimal estimatedCost,
+                       double daysOfStock, Long daysToExpiry,
+                       BigDecimal suggestedAmount, BigDecimal estimatedCost,
                        BigDecimal previousUnitPrice,
                        String urgency, String urgencyLabel, String reason, String action,
                        boolean needsPurchase, List<Batch> expiredBatches, List<Batch> expiringBatches) {}
@@ -273,7 +290,8 @@ public class InventoryAlertService {
                     .append(", nearExpiryStock=").append(item.nearExpiryStock()).append(item.unit())
                     .append(", longLivedStock=").append(item.longLivedStock()).append(item.unit())
                     .append(", consumption/day=").append(item.dailyConsumption()).append(item.unit())
-                    .append(", daysLeft=").append(item.daysLeft())
+                    .append(", daysOfStock=").append(item.daysOfStock())
+                    .append(", daysToExpiry=").append(item.daysToExpiry())
                     .append(", suggestedPurchase=").append(item.suggestedAmount()).append(item.unit())
                     .append(", urgency=").append(item.urgencyLabel())
                     .append(", expiredBatches=").append(item.expiredBatches().size())

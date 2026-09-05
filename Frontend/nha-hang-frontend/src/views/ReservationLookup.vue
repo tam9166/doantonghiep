@@ -3,22 +3,22 @@
     <main class="lookup-page">
       <section class="lookup-shell">
         <header class="lookup-header">
-          <p class="eyebrow">Mộc Vị Reservation</p>
-          <h1>Tra cứu đặt bàn</h1>
-          <p>Nhập mã đặt bàn và số điện thoại để xem trạng thái xác nhận, tiền cọc và mã QR thanh toán.</p>
+          <p class="eyebrow">{{ t('reservationLookup.eyebrow') }}</p>
+          <h1>{{ t('reservationLookup.title') }}</h1>
+          <p>{{ t('reservationLookup.subtitle') }}</p>
         </header>
 
         <form class="lookup-card" @submit.prevent="lookupReservation">
           <label>
-            Mã đặt bàn
-            <input v-model.trim="form.code" type="text" autocomplete="off" placeholder="VD: RV20260705-001" />
+            {{ t('reservationLookup.code') }}
+            <input v-model.trim="form.code" type="text" autocomplete="off" :placeholder="t('reservationLookup.codePlaceholder')" />
           </label>
           <label>
-            Số điện thoại
-            <input v-model.trim="form.phone" type="tel" autocomplete="tel" placeholder="VD: 0912345678" />
+            {{ t('reservationLookup.phone') }}
+            <input v-model.trim="form.phone" type="tel" autocomplete="tel" :placeholder="t('reservationLookup.phonePlaceholder')" />
           </label>
           <button class="primary-btn" type="submit" :disabled="loading">
-            {{ loading ? 'Đang tra cứu...' : 'Tra cứu' }}
+            {{ loading ? t('reservationLookup.loading') : t('reservationLookup.lookup') }}
           </button>
         </form>
 
@@ -26,122 +26,128 @@
 
         <section class="cancel-card">
           <div>
-            <p class="eyebrow">Yêu cầu hủy đặt bàn / hoàn cọc</p>
-            <h2>Không nhớ mã đặt bàn vẫn có thể gửi yêu cầu</h2>
-            <p>Nhập ít nhất hai thông tin chính xác của cùng một đặt bàn. Nhà hàng sẽ xem xét trước khi hủy.</p>
+            <p class="eyebrow">{{ t('reservationLookup.cancellationEyebrow') }}</p>
+            <h2>{{ t('reservationLookup.cancellationTitle') }}</h2>
+            <p>{{ t('reservationLookup.cancellationHint') }}</p>
           </div>
           <form class="cancel-form" @submit.prevent="submitCancellationRequest">
             <div v-if="reservation" class="verified-booking">
-              <strong>Đã xác minh {{ reservation.reservationCode }}</strong>
+              <strong>{{ t('reservationLookup.verified', { code: reservation.reservationCode }) }}</strong>
               <span>{{ reservation.customerName }} · {{ reservation.customerPhone }}</span>
             </div>
             <template v-else>
-              <label>Mã đặt bàn (không bắt buộc)<input v-model="cancelForm.reservationCode" maxlength="30" @input="onCancelFieldInput" /></label>
-              <label>Họ tên<input v-model="cancelForm.customerName" maxlength="150" autocomplete="name" @input="onCancelFieldInput" /></label>
-              <label>Số điện thoại<input v-model="cancelForm.customerPhone" maxlength="30" autocomplete="tel" @input="onCancelFieldInput" /></label>
-              <label>Email<input v-model="cancelForm.customerEmail" maxlength="150" type="email" autocomplete="email" @input="onCancelFieldInput" /></label>
+              <label>{{ t('reservationLookup.codeOptional') }}<input v-model="cancelForm.reservationCode" maxlength="30" @input="onCancelFieldInput" /></label>
+              <label>{{ t('reservationLookup.fullName') }}<input v-model="cancelForm.customerName" maxlength="150" autocomplete="name" @input="onCancelFieldInput" /></label>
+              <label>{{ t('reservationLookup.phone') }}<input v-model="cancelForm.customerPhone" maxlength="30" autocomplete="tel" @input="onCancelFieldInput" /></label>
+              <label>{{ t('reservationLookup.email') }}<input v-model="cancelForm.customerEmail" maxlength="150" type="email" autocomplete="email" @input="onCancelFieldInput" /></label>
             </template>
-            <label class="cancel-reason">Lý do hủy<textarea v-model="cancelForm.reason" maxlength="1000" rows="3" /></label>
-            <label>Phương thức liên lạc mong muốn
+            <label class="cancel-reason">{{ t('reservationLookup.reason') }}<textarea v-model="cancelForm.reason" maxlength="1000" rows="3" /></label>
+            <label>{{ t('reservationLookup.contactMethod') }}
               <select v-model="cancelForm.contactMethod">
-                <option value="PHONE">Điện thoại ({{ reservation?.customerPhone || cancelForm.customerPhone || 'số đã xác minh' }})</option>
-                <option value="EMAIL" :disabled="!verifiedEmail">Email ({{ reservation?.customerEmail || cancelForm.customerEmail || 'chưa có email đã xác minh' }})</option>
+                <option value="PHONE">{{ t('reservationLookup.phone') }} ({{ reservation?.customerPhone || cancelForm.customerPhone || t('reservationLookup.verifiedPhone') }})</option>
+                <option value="EMAIL" :disabled="!verifiedEmail">{{ t('reservationLookup.email') }} ({{ reservation?.customerEmail || cancelForm.customerEmail || t('reservationLookup.noVerifiedEmail') }})</option>
               </select>
             </label>
-            <button class="ghost-btn" type="button" :disabled="previewLoading" @click="loadRefundPreview">
-              {{ previewLoading ? 'Đang tính...' : 'Xem tiền hoàn dự kiến' }}
+            <button class="ghost-btn refund-preview-trigger" type="button" :disabled="previewLoading" @click="loadRefundPreview">
+              {{ previewLoading ? t('reservationLookup.calculating') : t('reservationLookup.refundPreview') }}
             </button>
             <section v-if="refundPreview" class="refund-preview">
-              <strong>Tiền hoàn dự kiến: {{ money(refundPreview.expectedRefundAmount) }}</strong>
+              <strong>{{ t('reservationLookup.expectedRefund') }}: {{ money(refundPreview.expectedRefundAmount) }}</strong>
               <dl>
-                <div><dt>Tổng giá trị đơn</dt><dd>{{ money(refundPreview.orderTotalAmount || reservation?.totalAmount) }}</dd></div>
-                <div><dt>Đã thanh toán / đã cọc</dt><dd>{{ money(refundPreview.paidDepositAmount) }}</dd></div>
-                <div><dt>Thời gian còn lại</dt><dd>{{ refundPreview.hoursBeforeReservation }} giờ</dd></div>
-                <div><dt>Chính sách áp dụng</dt><dd>{{ refundPreview.policyApplied }}</dd></div>
-                <div><dt>Số tiền bị giữ lại</dt><dd>{{ money(refundPreview.penaltyAmount) }}</dd></div>
-                <div><dt>Số tiền hoàn dự kiến</dt><dd>{{ money(refundPreview.expectedRefundAmount) }}</dd></div>
+                <div><dt>{{ t('reservationLookup.orderTotal') }}</dt><dd>{{ money(refundPreview.orderTotalAmount || reservation?.totalAmount) }}</dd></div>
+                <div><dt>{{ t('reservationLookup.paidDeposit') }}</dt><dd>{{ money(refundPreview.paidDepositAmount) }}</dd></div>
+                <div><dt>{{ t('reservationLookup.timeRemaining') }}</dt><dd>{{ t('reservationLookup.hours', { count: refundPreview.hoursBeforeReservation }) }}</dd></div>
+                <div><dt>{{ t('reservationLookup.appliedPolicy') }}</dt><dd>{{ refundPolicyText(refundPreview) }}</dd></div>
+                <div><dt>{{ t('reservationLookup.penaltyAmount') }}</dt><dd>{{ money(refundPreview.penaltyAmount) }}</dd></div>
+                <div><dt>{{ t('reservationLookup.expectedRefund') }}</dt><dd>{{ money(refundPreview.expectedRefundAmount) }}</dd></div>
               </dl>
-              <p>{{ refundPreview.message }}</p>
+              <p>{{ refundPreviewMessage(refundPreview) }}</p>
             </section>
             <section v-if="refundRequired" class="refund-destination">
-              <h3>Thông tin nhận hoàn tiền</h3>
-              <p>Vui lòng cung cấp thông tin tài khoản để nhà hàng chuyển khoản hoàn cọc.</p>
-              <label>Ngân hàng<input v-model.trim="cancelForm.refundBankName" maxlength="120" autocomplete="organization" /></label>
-              <label>Số tài khoản<input v-model.trim="cancelForm.refundAccountNumber" maxlength="40" inputmode="numeric" autocomplete="off" /></label>
-              <label>Chủ tài khoản<input v-model.trim="cancelForm.refundAccountHolder" maxlength="150" autocomplete="name" /></label>
+              <h3>{{ t('reservationLookup.refundDestinationTitle') }}</h3>
+              <p>{{ t('reservationLookup.refundDestinationHint') }}</p>
+              <label>{{ t('reservationLookup.bank') }}<input v-model.trim="cancelForm.refundBankName" maxlength="120" autocomplete="organization" /></label>
+              <label>{{ t('reservationLookup.accountNumber') }}<input v-model.trim="cancelForm.refundAccountNumber" maxlength="40" inputmode="numeric" autocomplete="off" /></label>
+              <label>{{ t('reservationLookup.accountHolder') }}<input v-model.trim="cancelForm.refundAccountHolder" maxlength="150" autocomplete="name" /></label>
             </section>
             <button v-if="canSendCancellationRequest" class="danger-btn" type="submit" :disabled="cancelLoading">
-              {{ cancelLoading ? 'Đang gửi...' : 'Gửi yêu cầu hủy' }}
+              {{ cancelLoading ? t('reservationLookup.sending') : t('reservationLookup.sendCancellation') }}
             </button>
             <p v-else-if="cancellationAvailabilityMessage" class="cancellation-message">{{ cancellationAvailabilityMessage }}</p>
           </form>
           <div v-if="cancelMessage" class="success-box">{{ cancelMessage }}</div>
           <div v-if="cancellationReceipt" class="cancellation-status" role="status">
-            <strong>Trạng thái yêu cầu: {{ cancellationStatusText(cancellationReceipt.status) }}</strong>
-            <span>Mã yêu cầu: {{ cancellationReceipt.requestCode }}</span>
+            <strong>{{ t('reservationLookup.requestStatus') }}: {{ cancellationStatusText(cancellationReceipt.status) }}</strong>
+            <span>{{ t('reservationLookup.requestCode') }}: {{ cancellationReceipt.requestCode }}</span>
           </div>
           <div v-if="cancelError" class="error-box">{{ cancelError }}</div>
         </section>
 
         <section v-if="reservation" class="result-card">
-          <div class="realtime-box" :class="{ connected: realtimeConnected }">
-            <span>{{ realtimeConnected ? 'Đang theo dõi realtime' : 'Đang kết nối realtime...' }}</span>
+          <div class="realtime-box" :class="realtimeState.toLowerCase()">
+            <span>{{ realtimeStatusText }}</span>
             <strong v-if="realtimeMessage">{{ realtimeMessage }}</strong>
           </div>
 
           <div class="result-head">
             <div>
-              <p class="eyebrow">Kết quả</p>
+              <p class="eyebrow">{{ t('reservationLookup.result') }}</p>
               <h2>{{ reservation.reservationCode }}</h2>
             </div>
             <span class="status-badge" :class="reservation.reservationStatus">{{ statusText(reservation.reservationStatus) }}</span>
           </div>
 
           <div class="summary-grid">
-            <div><span>Khách hàng</span><strong>{{ reservation.customerName }}</strong></div>
-            <div><span>Số điện thoại</span><strong>{{ reservation.customerPhone }}</strong></div>
-            <div><span>Ngày giờ</span><strong>{{ reservation.reservationDate }} {{ reservation.arrivalTime }}</strong></div>
-            <div><span>Số khách</span><strong>{{ reservation.guestCount }}</strong></div>
-            <div><span>Bàn</span><strong>{{ reservation.tableName || '-' }}</strong></div>
-            <div><span>Khu vực</span><strong>{{ reservation.areaName || reservation.tableFloor || '-' }}</strong></div>
-            <div><span>Tổng tiền</span><strong>{{ money(reservation.totalAmount) }}</strong></div>
-            <div><span>Tiền cọc yêu cầu</span><strong>{{ money(reservation.depositAmount) }}</strong></div>
-            <div><span>Đã thanh toán</span><strong>{{ money(reservation.paidAmount) }}</strong></div>
-            <div><span>Cần thanh toán ngay</span><strong>{{ money(reservation.amountDueNow) }}</strong></div>
-            <div><span>Còn lại</span><strong>{{ money(reservation.remainingAmount) }}</strong></div>
-            <div><span>Thanh toán</span><strong>{{ paymentStatusText(reservation.paymentStatus) }}</strong></div>
+            <div><span>{{ t('reservationLookup.customer') }}</span><strong>{{ reservation.customerName }}</strong></div>
+            <div><span>{{ t('reservationLookup.phone') }}</span><strong>{{ reservation.customerPhone }}</strong></div>
+            <div><span>{{ t('reservationLookup.dateTime') }}</span><strong>{{ reservation.reservationDate }} {{ reservation.arrivalTime }}</strong></div>
+            <div><span>{{ t('reservationLookup.guests') }}</span><strong>{{ reservation.guestCount }}</strong></div>
+            <div><span>{{ t('reservationLookup.table') }}</span><strong>{{ reservation.tableName || '-' }}</strong></div>
+            <div><span>{{ t('reservationLookup.area') }}</span><strong>{{ reservation.areaName || reservation.tableFloor || '-' }}</strong></div>
+            <div><span>{{ t('reservationLookup.orderTotal') }}</span><strong>{{ money(reservation.totalAmount) }}</strong></div>
+            <div><span>{{ t('reservationLookup.requiredDeposit') }}</span><strong>{{ money(reservation.depositAmount) }}</strong></div>
+            <div><span>{{ t('reservationLookup.paid') }}</span><strong>{{ money(reservation.paidAmount) }}</strong></div>
+            <div><span>{{ t('reservationLookup.amountDueNow') }}</span><strong>{{ money(reservation.amountDueNow) }}</strong></div>
+            <div><span>{{ t('reservationLookup.remaining') }}</span><strong>{{ money(reservation.remainingAmount) }}</strong></div>
+            <div><span>{{ t('reservationLookup.payment') }}</span><strong>{{ paymentStatusText(reservation.paymentStatus) }}</strong></div>
           </div>
 
           <article v-if="latestPayment" class="qr-card">
             <div>
-              <h3>QR thanh toán</h3>
+              <h3>{{ t('reservationLookup.paymentQr') }}</h3>
               <dl>
-                <div><dt>Mã giao dịch</dt><dd>{{ latestPayment.paymentCode }}</dd></div>
-                <div><dt>Ngân hàng</dt><dd>{{ latestPayment.bankCode }}</dd></div>
-                <div><dt>Số tài khoản</dt><dd>{{ latestPayment.accountNumber }}</dd></div>
-                <div><dt>Chủ tài khoản</dt><dd>{{ latestPayment.accountHolder }}</dd></div>
-                <div><dt>Nội dung</dt><dd>{{ latestPayment.transferContent }}</dd></div>
-                <div><dt>Hết hạn</dt><dd>{{ formatDateTime(latestPayment.expiresAt) }}</dd></div>
+                <div><dt>{{ t('reservationLookup.paymentCode') }}</dt><dd>{{ latestPayment.paymentCode }}</dd></div>
+                <div><dt>{{ t('reservationLookup.bank') }}</dt><dd>{{ latestPayment.bankCode }}</dd></div>
+                <div><dt>{{ t('reservationLookup.accountNumber') }}</dt><dd>{{ latestPayment.accountNumber }}</dd></div>
+                <div><dt>{{ t('reservationLookup.accountHolder') }}</dt><dd>{{ latestPayment.accountHolder }}</dd></div>
+                <div><dt>{{ t('reservationLookup.transferContent') }}</dt><dd>{{ latestPayment.transferContent }}</dd></div>
+                <div><dt>{{ t('reservationLookup.expiresAt') }}</dt><dd>{{ formatDateTime(latestPayment.expiresAt) }}</dd></div>
               </dl>
+              <p class="payment-status" :class="{ paid: latestPayment.status === 'PAID' }">
+                {{ t('reservationLookup.payment') }}: {{ paymentStatusText(latestPayment.status) }}
+              </p>
+              <button class="ghost-btn" type="button" @click="refreshLatestPayment" :disabled="qrLoading">
+                {{ qrLoading ? t('reservationLookup.refreshingPayment') : t('reservationLookup.refreshPayment') }}
+              </button>
               <button v-if="canRegenerateQr" class="ghost-btn" type="button" @click="regenerateQr" :disabled="qrLoading">
-                {{ qrLoading ? 'Đang tạo QR...' : 'Tạo lại QR' }}
+                {{ qrLoading ? t('reservationLookup.creatingQr') : t('reservationLookup.regenerateQr') }}
               </button>
             </div>
-            <img :src="latestPayment.qrUrl" alt="QR thanh toán" />
+            <img :src="latestPayment.qrUrl" :alt="t('reservationLookup.paymentQr')" />
           </article>
 
           <div v-else-if="canCreateQr" class="payment-action">
             <div>
-              <strong>Chưa có QR thanh toán</strong>
-              <p>Tạo QR để thanh toán tiền cọc/số tiền cần thanh toán ngay.</p>
+              <strong>{{ t('reservationLookup.noPaymentQr') }}</strong>
+              <p>{{ t('reservationLookup.createQrHint') }}</p>
             </div>
             <button class="primary-btn" type="button" @click="createQr" :disabled="qrLoading">
-              {{ qrLoading ? 'Đang tạo QR...' : 'Tạo QR thanh toán' }}
+              {{ qrLoading ? t('reservationLookup.creatingQr') : t('reservationLookup.createQr') }}
             </button>
           </div>
 
           <section v-if="reservation.preorderItems?.length" class="preorder-box">
-            <h3>Món đặt trước</h3>
+            <h3>{{ t('reservationLookup.preorder') }}</h3>
             <div v-for="item in reservation.preorderItems" :key="item.id" class="preorder-row">
               <strong>{{ item.productName }}</strong>
               <span>{{ item.quantity }} x {{ money(item.unitPrice) }}</span>
@@ -152,34 +158,34 @@
           <section v-if="canReview" class="review-box">
             <div class="review-head">
               <div>
-                <h3>Đánh giá trải nghiệm</h3>
-                <p>Cảm ơn bạn đã dùng bữa tại Mộc Vị. Đánh giá giúp nhà hàng phục vụ tốt hơn.</p>
+                <h3>{{ t('reservationLookup.reviewTitle') }}</h3>
+                <p>{{ t('reservationLookup.reviewHint') }}</p>
               </div>
-              <span v-if="myReview" class="review-done">Đã gửi đánh giá</span>
+              <span v-if="myReview" class="review-done">{{ t('reservationLookup.reviewSent') }}</span>
             </div>
             <div v-if="myReview" class="submitted-review">
-              <strong>{{ myReview.overallRating }}/5 sao</strong>
-              <p>{{ myReview.content || 'Khách hàng không để lại bình luận.' }}</p>
-              <small v-if="myReview.adminReply">Phản hồi nhà hàng: {{ myReview.adminReply }}</small>
+              <strong>{{ t('reservationLookup.ratingValue', { rating: myReview.overallRating }) }}</strong>
+              <p>{{ myReview.content || t('reservationLookup.noReviewComment') }}</p>
+              <small v-if="myReview.adminReply">{{ t('reservationLookup.restaurantReply') }}: {{ myReview.adminReply }}</small>
             </div>
             <form v-else class="review-form" @submit.prevent="submitReview">
               <div class="rating-grid">
-                <label> Tổng quan <select v-model.number="reviewForm.overallRating"><option v-for="n in 5" :key="n" :value="n">{{ n }} sao</option></select></label>
-                <label> Món ăn <select v-model.number="reviewForm.foodRating"><option v-for="n in 5" :key="n" :value="n">{{ n }} sao</option></select></label>
-                <label> Phục vụ <select v-model.number="reviewForm.serviceRating"><option v-for="n in 5" :key="n" :value="n">{{ n }} sao</option></select></label>
-                <label> Không gian <select v-model.number="reviewForm.ambienceRating"><option v-for="n in 5" :key="n" :value="n">{{ n }} sao</option></select></label>
-                <label> Vệ sinh <select v-model.number="reviewForm.cleanlinessRating"><option v-for="n in 5" :key="n" :value="n">{{ n }} sao</option></select></label>
+                <label>{{ t('reservationLookup.ratingOverall') }}<select v-model.number="reviewForm.overallRating"><option v-for="n in 5" :key="n" :value="n">{{ t('reservationLookup.ratingValue', { rating: n }) }}</option></select></label>
+                <label>{{ t('reservationLookup.ratingFood') }}<select v-model.number="reviewForm.foodRating"><option v-for="n in 5" :key="n" :value="n">{{ t('reservationLookup.ratingValue', { rating: n }) }}</option></select></label>
+                <label>{{ t('reservationLookup.ratingService') }}<select v-model.number="reviewForm.serviceRating"><option v-for="n in 5" :key="n" :value="n">{{ t('reservationLookup.ratingValue', { rating: n }) }}</option></select></label>
+                <label>{{ t('reservationLookup.ratingAmbience') }}<select v-model.number="reviewForm.ambienceRating"><option v-for="n in 5" :key="n" :value="n">{{ t('reservationLookup.ratingValue', { rating: n }) }}</option></select></label>
+                <label>{{ t('reservationLookup.ratingCleanliness') }}<select v-model.number="reviewForm.cleanlinessRating"><option v-for="n in 5" :key="n" :value="n">{{ t('reservationLookup.ratingValue', { rating: n }) }}</option></select></label>
               </div>
               <label>
-                Nội dung đánh giá
-                <textarea v-model.trim="reviewForm.content" rows="4" placeholder="Chia sẻ cảm nhận của bạn..." />
+                {{ t('reservationLookup.reviewContent') }}
+                <textarea v-model.trim="reviewForm.content" rows="4" :placeholder="t('reservationLookup.reviewPlaceholder')" />
               </label>
               <label class="inline-check">
                 <input v-model="reviewForm.anonymous" type="checkbox" />
-                Gửi đánh giá ẩn danh
+                {{ t('reservationLookup.anonymousReview') }}
               </label>
               <button class="primary-btn" type="submit" :disabled="reviewLoading">
-                {{ reviewLoading ? 'Đang gửi...' : 'Gửi đánh giá' }}
+                {{ reviewLoading ? t('reservationLookup.sending') : t('reservationLookup.submitReview') }}
               </button>
             </form>
           </section>
@@ -194,12 +200,14 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { Client } from '@stomp/stompjs'
 import SockJS from 'sockjs-client'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import CustomerLayout from '@/components/CustomerLayout.vue'
 import api from '@/services/api'
 import { getApiErrorMessage } from '@/services/errorMessage'
 
 const route = useRoute()
 const router = useRouter()
+const { t, locale } = useI18n()
 const loading = ref(false)
 const qrLoading = ref(false)
 const error = ref('')
@@ -213,6 +221,7 @@ const reservation = ref(null)
 const form = ref({ code: '', phone: '' })
 const cancelForm = ref({ reservationCode: '', customerName: '', customerPhone: '', customerEmail: '', reason: '', contactMethod: 'PHONE', refundBankName: '', refundAccountNumber: '', refundAccountHolder: '' })
 const realtimeConnected = ref(false)
+const realtimeState = ref('DISCONNECTED')
 const realtimeMessage = ref('')
 const reviewLoading = ref(false)
 const myReview = ref(null)
@@ -227,6 +236,8 @@ const reviewForm = ref({
 })
 let stompClient = null
 let realtimeTimer = null
+let realtimeConnectTimer = null
+let intentionalRealtimeDisconnect = false
 const closedCancellationStatuses = ['CANCELLED', 'COMPLETED', 'REJECTED', 'EXPIRED', 'NO_SHOW']
 
 function resetCancellationFeedback() {
@@ -253,12 +264,12 @@ const canSendCancellationRequest = computed(() => Boolean(reservation.value)
 const cancellationAvailabilityMessage = computed(() => {
   if (!reservation.value) return ''
   if (cancellationReceipt.value) {
-    return 'Yêu cầu hủy của đặt bàn này đang được nhà hàng xử lý.'
+    return t('reservationLookup.cancellationPending')
   }
   if (closedCancellationStatuses.includes(reservation.value.reservationStatus)) {
-    return 'Đặt bàn đã quá thời gian hỗ trợ hủy trực tuyến.'
+    return t('reservationLookup.cancellationTooLate')
   }
-  if (!refundPreview.value) return 'Vui lòng xem tiền hoàn dự kiến trước khi gửi yêu cầu.'
+  if (!refundPreview.value) return t('reservationLookup.previewRequired')
   return ''
 })
 const canCreateQr = computed(() => reservation.value
@@ -268,55 +279,48 @@ const canCreateQr = computed(() => reservation.value
   && activeStatuses.includes(reservation.value.reservationStatus))
 const canRegenerateQr = computed(() => latestPayment.value && ['PENDING', 'EXPIRED'].includes(latestPayment.value.status))
 const canReview = computed(() => reservation.value?.reservationStatus === 'COMPLETED')
-const cancellationStatusText = status => ({ PENDING: 'Đang chờ nhà hàng xem xét', APPROVED: 'Đã duyệt', REJECTED: 'Đã từ chối', REFUND_PENDING: 'Đang chờ hoàn tiền', REFUNDED: 'Đã hoàn tiền', REFUND_FAILED: 'Hoàn tiền chưa thành công' }[status] || 'Đang xử lý')
+const cancellationStatusText = status => t(`reservationLookup.cancellationStatus.${status || 'PENDING'}`)
 const refundRequired = computed(() => Number(refundPreview.value?.expectedRefundAmount || 0) > 0)
 const verifiedEmail = computed(() => Boolean(reservation.value?.customerEmail || cancelForm.value.customerEmail))
 
-const money = value => new Intl.NumberFormat('vi-VN', {
+const money = value => new Intl.NumberFormat(locale.value === 'en' ? 'en-US' : 'vi-VN', {
   style: 'currency',
   currency: 'VND',
   maximumFractionDigits: 0
 }).format(Number(value || 0))
 
-const formatDateTime = value => value ? new Date(value).toLocaleString('vi-VN') : '-'
+const formatDateTime = value => value ? new Date(value).toLocaleString(locale.value === 'en' ? 'en-US' : 'vi-VN') : '-'
+
+const realtimeStatusText = computed(() => t(`reservationLookup.realtime.${realtimeState.value.toLowerCase()}`))
+
+function localizedApiMessage(err, fallback) {
+  const message = getApiErrorMessage(err, fallback)
+  return locale.value === 'en' && /[À-ỹ]/.test(message) ? fallback : message
+}
+
+function refundPolicyText(preview) {
+  const code = preview?.policyCode
+  return code ? t(`reservationLookup.refundPolicy.${code}`) : preview?.policyApplied
+}
+
+function refundPreviewMessage(preview) {
+  const code = preview?.messageCode
+  return code ? t(`reservationLookup.refundMessage.${code}`) : preview?.message
+}
 
 function statusText(status) {
-  const map = {
-    PENDING: 'Chờ xác nhận',
-    CONFIRMED: 'Đã xác nhận',
-    DEPOSIT_REQUIRED: 'Cần thanh toán cọc',
-    DEPOSIT_PENDING: 'Đang chờ cọc',
-    DEPOSIT_PAID: 'Đã cọc',
-    FULLY_PAID: 'Đã thanh toán đủ',
-    CHECKED_IN: 'Đã đến',
-    IN_SERVICE: 'Đang phục vụ',
-    COMPLETED: 'Hoàn thành',
-    CANCELLED: 'Đã hủy',
-    REJECTED: 'Từ chối',
-    EXPIRED: 'Quá hạn',
-    NO_SHOW: 'Không đến'
-  }
-  return map[status] || status || '-'
+  return t(`reservationLookup.reservationStatus.${status || 'UNKNOWN'}`)
 }
 
 function paymentStatusText(status) {
-  const map = {
-    PENDING: 'Chờ thanh toán',
-    UNPAID: 'Chưa thanh toán',
-    PARTIALLY_PAID: 'Đã thanh toán một phần',
-    PAID: 'Đã thanh toán',
-    OVERPAID: 'Thanh toán dư',
-    EXPIRED: 'Hết hạn',
-    CANCELLED: 'Đã hủy'
-  }
-  return map[status] || status || '-'
+  return t(`reservationLookup.paymentStatus.${status || 'UNKNOWN'}`)
 }
 
 async function lookupReservation() {
   error.value = ''
   reservation.value = null
   if (!form.value.code || !form.value.phone) {
-    error.value = 'Vui lòng nhập cả mã đặt bàn và số điện thoại.'
+    error.value = t('reservationLookup.errors.lookupRequired')
     return
   }
   loading.value = true
@@ -339,7 +343,7 @@ async function lookupReservation() {
     connectRealtime(reservation.value.reservationCode)
     await loadMyReview()
   } catch (err) {
-    error.value = getApiErrorMessage(err, 'Không tìm thấy đặt bàn phù hợp.')
+    error.value = localizedApiMessage(err, t('reservationLookup.errors.lookupNotFound'))
   } finally {
     loading.value = false
   }
@@ -349,7 +353,7 @@ async function submitCancellationRequest() {
   cancelError.value = ''
   cancelMessage.value = ''
   if (!String(cancelForm.value.reason || '').trim()) {
-    cancelError.value = 'Vui lòng nhập lý do hủy.'
+    cancelError.value = t('reservationLookup.errors.reasonRequired')
     return
   }
   const verificationValues = [
@@ -359,16 +363,16 @@ async function submitCancellationRequest() {
     cancelForm.value.customerEmail
   ].filter(value => String(value || '').trim())
   if (verificationValues.length < 2) {
-    cancelError.value = 'Vui lòng nhập ít nhất 2 trong 4 thông tin xác minh.'
+    cancelError.value = t('reservationLookup.errors.twoFieldsRequired')
     return
   }
   cancelLoading.value = true
   try {
     const response = await api.post('/api/reservation-cancellations', cancellationRequestPayload())
     cancellationReceipt.value = response.data
-    cancelMessage.value = response.data.message || `Đã ghi nhận yêu cầu ${response.data.requestCode}. Nhà hàng sẽ liên hệ sau khi xem xét.`
+    cancelMessage.value = response.data.message || t('reservationLookup.cancellationSubmitted', { code: response.data.requestCode })
   } catch (err) {
-    cancelError.value = getApiErrorMessage(err, 'Không thể xác minh thông tin đặt bàn. Vui lòng kiểm tra lại thông tin đã nhập.')
+    cancelError.value = localizedApiMessage(err, t('reservationLookup.errors.cancellationVerificationFailed'))
   } finally {
     cancelLoading.value = false
   }
@@ -380,7 +384,7 @@ async function loadRefundPreview() {
   const verificationValues = [cancelForm.value.reservationCode, cancelForm.value.customerName,
     cancelForm.value.customerPhone, cancelForm.value.customerEmail].filter(value => String(value || '').trim())
   if (verificationValues.length < 2) {
-    cancelError.value = 'Vui lòng nhập ít nhất 2 trong 4 thông tin xác minh.'
+    cancelError.value = t('reservationLookup.errors.twoFieldsRequired')
     return
   }
   previewLoading.value = true
@@ -388,7 +392,7 @@ async function loadRefundPreview() {
     const response = await api.post('/api/reservation-cancellations/preview', cancellationRequestPayload())
     refundPreview.value = response.data
   } catch (err) {
-    cancelError.value = getApiErrorMessage(err, 'Không thể tính khoản hoàn dự kiến.')
+    cancelError.value = localizedApiMessage(err, t('reservationLookup.errors.refundPreviewFailed'))
   } finally {
     previewLoading.value = false
   }
@@ -452,7 +456,7 @@ async function submitReview() {
     })
     myReview.value = res.data
   } catch (err) {
-    error.value = getApiErrorMessage(err, 'Không gửi được đánh giá.')
+    error.value = localizedApiMessage(err, t('reservationLookup.errors.reviewFailed'))
   } finally {
     reviewLoading.value = false
   }
@@ -465,7 +469,7 @@ function handleRealtimeEvent(event) {
   } else {
     refreshReservationSilently()
   }
-  realtimeMessage.value = event.message || 'Trạng thái đặt bàn vừa được cập nhật'
+  realtimeMessage.value = event.message || t('reservationLookup.realtime.updated')
   window.clearTimeout(realtimeTimer)
   realtimeTimer = window.setTimeout(() => {
     realtimeMessage.value = ''
@@ -473,7 +477,10 @@ function handleRealtimeEvent(event) {
 }
 
 function disconnectRealtime() {
+  intentionalRealtimeDisconnect = true
   realtimeConnected.value = false
+  window.clearTimeout(realtimeConnectTimer)
+  realtimeConnectTimer = null
   if (stompClient) {
     stompClient.deactivate()
     stompClient = null
@@ -483,6 +490,8 @@ function disconnectRealtime() {
 function connectRealtime(code) {
   disconnectRealtime()
   if (!code) return
+  intentionalRealtimeDisconnect = false
+  realtimeState.value = 'CONNECTING'
   stompClient = new Client({
     webSocketFactory: () => new SockJS('/ws'),
     connectHeaders: sessionStorage.getItem('token')
@@ -491,24 +500,35 @@ function connectRealtime(code) {
     reconnectDelay: 5000,
     onConnect: () => {
       realtimeConnected.value = true
+      realtimeState.value = 'CONNECTED'
+      window.clearTimeout(realtimeConnectTimer)
+      realtimeConnectTimer = null
       const capability = sessionStorage.getItem(`reservation-capability:${code}`)
       const headers = capability ? { 'X-Reservation-Capability': capability } : {}
       stompClient.subscribe(`/topic/reservations/${code}`, message => {
         try {
           handleRealtimeEvent(JSON.parse(message.body))
         } catch {
-          realtimeMessage.value = 'Có cập nhật mới, vui lòng bấm tra cứu lại nếu cần.'
+          realtimeMessage.value = t('reservationLookup.realtime.updatedFallback')
         }
       }, headers)
     },
     onWebSocketClose: () => {
       realtimeConnected.value = false
+      if (!intentionalRealtimeDisconnect) realtimeState.value = 'FAILED'
     },
     onStompError: () => {
       realtimeConnected.value = false
+      realtimeState.value = 'FAILED'
     }
   })
   stompClient.activate()
+  realtimeConnectTimer = window.setTimeout(() => {
+    if (realtimeState.value === 'CONNECTING') {
+      realtimeState.value = 'FAILED'
+      realtimeConnected.value = false
+    }
+  }, 8000)
 }
 
 async function createQr() {
@@ -522,7 +542,7 @@ async function createQr() {
     }, { headers: paymentRequestHeaders() })
     reservation.value.payments = [res.data, ...(reservation.value.payments || [])]
   } catch (err) {
-    error.value = err.response?.data?.message || err.response?.data || 'Không tạo được QR thanh toán.'
+    error.value = localizedApiMessage(err, t('reservationLookup.errors.createQrFailed'))
   } finally {
     qrLoading.value = false
   }
@@ -540,7 +560,29 @@ async function regenerateQr() {
     )
     reservation.value.payments = [res.data, ...(reservation.value.payments || []).filter(item => item.paymentCode !== res.data.paymentCode)]
   } catch (err) {
-    error.value = err.response?.data?.message || err.response?.data || 'Không tạo lại được QR thanh toán.'
+    error.value = localizedApiMessage(err, t('reservationLookup.errors.regenerateQrFailed'))
+  } finally {
+    qrLoading.value = false
+  }
+}
+
+async function refreshLatestPayment() {
+  if (!latestPayment.value?.paymentCode || qrLoading.value) return
+  qrLoading.value = true
+  error.value = ''
+  try {
+    // PaymentIntent is the payment source of truth. Refresh it directly so a
+    // customer is not left showing PENDING when realtime delivery is delayed.
+    const res = await api.get(`/api/payments/${latestPayment.value.paymentCode}`, {
+      headers: paymentCapability.value ? { 'X-Payment-Capability': paymentCapability.value } : {}
+    })
+    reservation.value = {
+      ...reservation.value,
+      payments: [res.data, ...(reservation.value.payments || []).filter(item => item.paymentCode !== res.data.paymentCode)]
+    }
+    await refreshReservationSilently()
+  } catch (err) {
+    error.value = localizedApiMessage(err, t('reservationLookup.errors.paymentStatus'))
   } finally {
     qrLoading.value = false
   }
@@ -559,6 +601,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.clearTimeout(realtimeTimer)
+  window.clearTimeout(realtimeConnectTimer)
   disconnectRealtime()
 })
 </script>
@@ -663,6 +706,13 @@ textarea {
   margin-top: 12px;
 }
 
+.refund-preview-trigger {
+  align-self: end;
+  min-height: 44px;
+  margin-top: 0;
+  box-sizing: border-box;
+}
+
 .primary-btn:disabled,
 .ghost-btn:disabled {
   opacity: 0.55;
@@ -701,6 +751,12 @@ textarea {
   border-color: #a9e3bd;
   background: #e0f5e5;
   color: #005326;
+}
+
+.realtime-box.failed {
+  border-color: var(--color-error);
+  background: var(--color-error-container);
+  color: var(--color-on-error-container);
 }
 
 .realtime-box strong {
@@ -904,6 +960,8 @@ textarea {
   padding: 11px 12px;
   font: inherit;
   background: var(--color-surface-container-lowest);
+  min-height: 44px;
+  box-sizing: border-box;
 }
 .cancel-reason { grid-column: 1 / -1; }
 .refund-destination {

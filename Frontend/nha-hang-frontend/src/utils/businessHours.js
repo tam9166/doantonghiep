@@ -17,6 +17,38 @@ export function isTimeWithinWindow(value, start, exclusiveEnd) {
   return from < to ? time >= from && time < to : time >= from || time < to
 }
 
+export function isTimeWithinInclusiveWindow(value, start, inclusiveEnd) {
+  const time = toMinutes(value)
+  const from = toMinutes(start)
+  const to = toMinutes(inclusiveEnd)
+  if (time === null || from === null || to === null || from === to) return false
+  return from < to ? time >= from && time <= to : time >= from || time <= to
+}
+
+export function requiresLateDiningConfirmation(value, durationMinutes, openingTime, closingTime) {
+  const arrival = toMinutes(value)
+  const opening = toMinutes(openingTime)
+  const closing = toMinutes(closingTime)
+  const duration = Number(durationMinutes)
+  if (arrival === null || opening === null || closing === null || !Number.isFinite(duration) || duration <= 0) return false
+  if (!isTimeWithinInclusiveWindow(value, openingTime, closingTime)) return false
+  const serviceSpan = (closing - opening + MINUTES_PER_DAY) % MINUTES_PER_DAY
+  const arrivalOffset = (arrival - opening + MINUTES_PER_DAY) % MINUTES_PER_DAY
+  return arrivalOffset + duration > serviceSpan
+}
+
+export function buildReservationTimeSignature(reservationDate, arrivalTime, durationMinutes) {
+  const date = String(reservationDate || '').trim()
+  const time = String(arrivalTime || '').trim()
+  const duration = Number(durationMinutes)
+  if (!date || !time || !Number.isFinite(duration) || duration <= 0) return ''
+  return `${date}|${time}|${duration}`
+}
+
+export function isLateDiningConfirmationCurrent(confirmedSignature, currentSignature) {
+  return Boolean(currentSignature) && confirmedSignature === currentSignature
+}
+
 export function minuteBefore(value) {
   const minutes = toMinutes(value)
   if (minutes === null) return ''

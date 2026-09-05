@@ -79,6 +79,25 @@ public class RestaurantBusinessHoursService {
         // and last order at 05:30.
         return !time.isBefore(openingTime) || time.isBefore(lastOrderTime);
     }
+
+    /** Reservation arrivals use the full opening-to-closing window, including closing time. */
+    public boolean acceptsReservationArrival(LocalTime time) {
+        if (!openingTime.isAfter(closingTime)) {
+            return !time.isBefore(openingTime) && !time.isAfter(closingTime);
+        }
+        return !time.isBefore(openingTime) || !time.isAfter(closingTime);
+    }
+
+    /** Whether the requested duration extends beyond the configured service closing time. */
+    public boolean requiresLateDiningConfirmation(LocalTime arrivalTime, int durationMinutes) {
+        if (!acceptsReservationArrival(arrivalTime) || durationMinutes <= 0) return false;
+        int openingMinutes = openingTime.getHour() * 60 + openingTime.getMinute();
+        int closingMinutes = closingTime.getHour() * 60 + closingTime.getMinute();
+        int arrivalMinutes = arrivalTime.getHour() * 60 + arrivalTime.getMinute();
+        int serviceSpan = Math.floorMod(closingMinutes - openingMinutes, 24 * 60);
+        int arrivalOffset = Math.floorMod(arrivalMinutes - openingMinutes, 24 * 60);
+        return arrivalOffset + durationMinutes > serviceSpan;
+    }
     
     /**
      * Get formatted business hours string for display.
@@ -112,9 +131,7 @@ public class RestaurantBusinessHoursService {
      * Check if dining extends past closing time (late dining policy).
      */
     public boolean allowsLateDining(LocalTime arrivalTime, int durationMinutes) {
-        LocalTime expectedEnd = arrivalTime.plusMinutes(durationMinutes);
-        // Allow if customer arrives before last order time but stays past closing
-        return !arrivalTime.isAfter(lastOrderTime) && expectedEnd.isAfter(closingTime);
+        return requiresLateDiningConfirmation(arrivalTime, durationMinutes);
     }
 
     public boolean isServiceWindow(LocalTime start, LocalTime end) {

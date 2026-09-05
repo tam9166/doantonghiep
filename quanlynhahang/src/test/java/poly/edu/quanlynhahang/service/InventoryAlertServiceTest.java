@@ -10,6 +10,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -34,6 +36,7 @@ import poly.edu.quanlynhahang.repository.RecipeRepository;
 
 @ExtendWith(MockitoExtension.class)
 class InventoryAlertServiceTest {
+    private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
     @Mock IngredientRepository ingredientRepository;
     @Mock IngredientBatchRepository ingredientBatchRepository;
     @Mock OrderRepository orderRepository;
@@ -139,6 +142,93 @@ class InventoryAlertServiceTest {
         assertTrue(item.action().contains("chuẩn bị nhập lô mới"));
     }
 
+    @Test
+    void abundantStockWithTwoDaysToExpiryWarnsAboutExpiryWithoutSuggestingPurchase() {
+        Ingredient dessert = ingredient(4L, "Nguyên liệu tráng miệng", "kg", "1", "50000");
+        IngredientBatch nearExpiry = batch(40L, dessert, "279.4", 2);
+        mockDailyConsumption(dessert, 14, 7);
+        when(ingredientRepository.findAll()).thenReturn(List.of(dessert));
+        when(ingredientBatchRepository.findPositiveBatchesWithIngredient()).thenReturn(List.of(nearExpiry));
+        when(ingredientBatchRepository.findTopByIngredientIdAndUnitPriceIsNotNullOrderByImportDateDescIdDesc(4L))
+                .thenReturn(java.util.Optional.of(nearExpiry));
+
+        InventoryAlertService.Item item = service.analyze(3).suggestions().getFirst();
+
+        assertEquals(279.4, item.daysOfStock(), 0.1);
+        assertEquals(2L, item.daysToExpiry());
+        assertEquals("expiring", item.urgency());
+        assertEquals("Sắp hết hạn", item.urgencyLabel());
+        assertEquals(new BigDecimal("0.0"), item.suggestedAmount());
+        assertFalse(item.needsPurchase());
+        assertTrue(item.reason().contains("Tồn kho hiện tại vẫn còn nhiều"));
+    }
+
+    @Test
+    void twoDaysOfStockWithLongExpiryWarnsAboutShortageNotExpiry() {
+        Ingredient dessert = ingredient(5L, "Nguyên liệu tráng miệng", "kg", "0", "50000");
+        IngredientBatch longLived = batch(50L, dessert, "2", 279);
+        mockDailyConsumption(dessert, 15, 7);
+        when(ingredientRepository.findAll()).thenReturn(List.of(dessert));
+        when(ingredientBatchRepository.findPositiveBatchesWithIngredient()).thenReturn(List.of(longLived));
+        when(ingredientBatchRepository.findTopByIngredientIdAndUnitPriceIsNotNullOrderByImportDateDescIdDesc(5L))
+                .thenReturn(java.util.Optional.of(longLived));
+
+        InventoryAlertService.Item item = service.analyze(3).suggestions().getFirst();
+
+        assertEquals(2.0, item.daysOfStock(), 0.1);
+        assertEquals(279L, item.daysToExpiry());
+        assertEquals("info", item.urgency());
+        assertTrue(item.urgencyLabel().startsWith("Sắp thiếu"));
+        assertTrue(item.expiringBatches().isEmpty());
+        assertTrue(item.needsPurchase());
+    }
+
+    @Test
+    void abundantLongLivedStockDoesNotCreateAnAlert() {
+        Ingredient dessert = ingredient(6L, "Nguyên liệu tráng miệng", "kg", "1", "50000");
+        IngredientBatch longLived = batch(60L, dessert, "279.4", 279);
+        mockDailyConsumption(dessert, 16, 7);
+        when(ingredientRepository.findAll()).thenReturn(List.of(dessert));
+        when(ingredientBatchRepository.findPositiveBatchesWithIngredient()).thenReturn(List.of(longLived));
+
+        assertTrue(service.analyze(3).suggestions().isEmpty());
+    }
+
+    @Test
+    void expiredBatchUsesExpirySeverityRegardlessOfDaysOfStock() {
+        Ingredient dessert = ingredient(7L, "Nguyên liệu tráng miệng", "kg", "1", "50000");
+        IngredientBatch expired = batch(70L, dessert, "10", -1);
+        when(ingredientRepository.findAll()).thenReturn(List.of(dessert));
+        when(ingredientBatchRepository.findPositiveBatchesWithIngredient()).thenReturn(List.of(expired));
+        when(ingredientBatchRepository.findTopByIngredientIdAndUnitPriceIsNotNullOrderByImportDateDescIdDesc(7L))
+                .thenReturn(java.util.Optional.of(expired));
+        when(orderRepository.findByStatusSinceWithDetails(eq(OrderStatus.COMPLETED.code()), any(Date.class)))
+                .thenReturn(List.of());
+
+        InventoryAlertService.Item item = service.analyze(3).suggestions().getFirst();
+
+        assertEquals("expired", item.urgency());
+        assertTrue(item.daysToExpiry() <= 0);
+        assertEquals(1, item.expiredBatches().size());
+    }
+
+    private void mockDailyConsumption(Ingredient ingredient, int productId, int sevenDayQuantity) {
+        Product product = new Product();
+        product.setId(productId);
+        OrderDetail detail = new OrderDetail();
+        detail.setProduct(product);
+        detail.setQuantity(sevenDayQuantity);
+        Order order = new Order();
+        order.setOrderDetails(List.of(detail));
+        Recipe recipe = new Recipe();
+        recipe.setProduct(product);
+        recipe.setIngredient(ingredient);
+        recipe.setAmountRequired(BigDecimal.ONE);
+        when(orderRepository.findByStatusSinceWithDetails(eq(OrderStatus.COMPLETED.code()), any(Date.class)))
+                .thenReturn(List.of(order));
+        when(recipeRepository.findByProductIdsWithIngredient(List.of(productId))).thenReturn(List.of(recipe));
+    }
+
     private Ingredient ingredient(Long id, String name, String unit, String minStock, String unitPrice) {
         Ingredient ingredient = new Ingredient();
         ingredient.setId(id);
@@ -155,7 +245,8 @@ class InventoryAlertServiceTest {
         batch.setIngredient(ingredient);
         batch.setQuantity(new BigDecimal(quantity));
         batch.setImportDate(new Date(System.currentTimeMillis() - 86_400_000L));
-        batch.setExpirationDate(new Date(System.currentTimeMillis() + expiryOffsetDays * 86_400_000L));
+        batch.setExpirationDate(Date.from(LocalDate.now(BUSINESS_ZONE).plusDays(expiryOffsetDays)
+                .atTime(12, 0).atZone(BUSINESS_ZONE).toInstant()));
         batch.setUnitPrice(ingredient.getUnitPrice());
         return batch;
     }

@@ -44,16 +44,20 @@ public class ReservationCancellationPolicy {
                 ? BigDecimal.ZERO : reservation.getTotalAmount().max(BigDecimal.ZERO);
         BigDecimal penaltyAmount;
         String policyApplied;
+        String policyCode;
         if (minutesBefore >= FULL_REFUND_THRESHOLD_HOURS.longValue() * 60) {
             penaltyAmount = BigDecimal.ZERO;
             policyApplied = "Hủy trước giờ đặt từ 24 giờ: hoàn 100% số tiền đã thanh toán.";
+            policyCode = "FULL_REFUND_24H";
         } else if (minutesBefore >= HALF_DAY_THRESHOLD_HOURS.longValue() * 60) {
             penaltyAmount = orderTotal.multiply(HALF_ORDER_PENALTY_RATE)
                     .setScale(0, RoundingMode.HALF_UP);
             policyApplied = "Hủy trước giờ đặt từ 12 đến dưới 24 giờ: phí hủy bằng 50% giá trị đơn.";
+            policyCode = "HALF_ORDER_PENALTY_12H";
         } else {
             penaltyAmount = paidAmount;
             policyApplied = "Hủy dưới 12 giờ trước giờ đặt: giữ nguyên chính sách hiện tại, không hoàn tiền.";
+            policyCode = "NO_REFUND_UNDER_12H";
         }
         BigDecimal refundAmount = paidAmount.subtract(penaltyAmount).max(BigDecimal.ZERO).min(paidAmount)
                 .setScale(0, RoundingMode.HALF_UP);
@@ -62,7 +66,7 @@ public class ReservationCancellationPolicy {
                 : refundAmount.divide(paidAmount, 2, RoundingMode.HALF_UP);
         boolean eligible = refundAmount.signum() > 0 || minutesBefore >= HALF_DAY_THRESHOLD_HOURS.longValue() * 60;
         return new Calculation(hoursBefore, appliedRate, paidAmount, refundAmount, eligible,
-                orderTotal, penaltyAmount.min(paidAmount), policyApplied);
+                orderTotal, penaltyAmount.min(paidAmount), policyApplied, policyCode);
     }
 
     public record Calculation(
@@ -73,6 +77,7 @@ public class ReservationCancellationPolicy {
             boolean eligible,
             BigDecimal orderTotalAmount,
             BigDecimal penaltyAmount,
-            String policyApplied) {
+            String policyApplied,
+            String policyCode) {
     }
 }
